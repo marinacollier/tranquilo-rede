@@ -227,7 +227,7 @@ const TQConta = (() => {
       try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id) S.pac = pac; }
       catch { /* código antigo ou inválido: segue sem métricas */ }
     }
-    S.aba = abas()[0][0];
+    S.aba = ordenarAbas(abas())[0][0];
   }
   async function iniciar() {
     if (CONFIGURADO) {
@@ -403,7 +403,7 @@ const TQConta = (() => {
       if (f.q) { const q = f.q.toLowerCase(); ls = ls.filter((i) => JSON.stringify(i.dados).toLowerCase().includes(q)); }
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
-      <div class="grid g4">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
+      <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
       <div class="filters"><select id="eqStatus"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
       <select id="eqFaixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
       ${tabela("curad", [
@@ -414,13 +414,13 @@ const TQConta = (() => {
         { t: "Alertas", v: (i) => (i.alertas || []).length, h: (i) => (i.alertas || []).map((a) => `<span class="pill">${esc(a)}</span>`).join("") || "–" },
         { t: "Status", v: (i) => i.status, h: (i) => badge(STATUS_INSC, i.status) },
         { t: "Enviada", v: (i) => i.enviado_em || "", h: (i) => i.enviado_em ? dt(i.enviado_em.slice(0, 10)) : "–" },
-      ], ls.map((i) => ({ ...i, _click: "insc:" + i.id })), { i: 1, dir: -1 })}`;
+      ], ls.map((i) => ({ ...i, _click: "insc:" + i.id })), { i: 1, dir: -1 }, L.length ? null : vazio("A fila está vazia", "Quando uma artista enviar a inscrição, ela chega aqui com a pré-curadoria pronta. Para chamar artistas que já estão na rede, use Convites.", `<button class="btn" data-ir="convites">Abrir convites</button>`, "curadoria"))}`;
     },
     casas_cad() {
       const L = S.eq?.casas; if (!L) { carregarEquipe(); return carregando("cadastros de casas"); }
       const n = (s) => L.filter((c) => c.status === s).length;
       return `<div class="tag">Casas</div><h1>Cadastros e habilitação</h1><p class="sub">Habilitar o suficiente para testar; qualificar pela execução. Classificação depois das datas: 🟢 confiável, 🟡 desenvolvimento, 🔴 correção necessária, ⛔ suspensa.</p>
-      <div class="grid g4">${kpi(n("em_analise"), "aguardando análise")}${kpi(n("incompleto"), "faltando dados mínimos")}${kpi(n("habilitada"), "habilitadas")}${kpi(L.filter((c) => c.ja_parceira).length, "já parceiras")}</div>
+      <div class="stats">${kpi(n("em_analise"), "aguardando análise")}${kpi(n("incompleto"), "faltando dados mínimos")}${kpi(n("habilitada"), "habilitadas")}${kpi(L.filter((c) => c.ja_parceira).length, "já parceiras")}</div>
       ${tabela("casc", [
         { t: "Casa", v: (c) => c.dados.nome, h: (c) => `<b>${esc(c.dados.nome || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(c.dados.cidade || "")} · ${c.ja_parceira ? "já parceira" : "nova"}</div>` },
         { t: "Capacidade", n: 1, v: (c) => +c.dados.capacidade || null, h: (c) => fmt(+c.dados.capacidade || null) },
@@ -428,7 +428,7 @@ const TQConta = (() => {
         { t: "Bloqueia match", n: 1, v: (c) => c.pendencias?.match?.length ?? 0 },
         { t: "Status", v: (c) => c.status, h: (c) => badge(STATUS_CASA, c.status) },
         { t: "Classificação", v: (c) => c.classificacao, h: (c) => CLASSE[c.classificacao] || "–" },
-      ], L.map((c) => ({ ...c, _click: "casacad:" + c.id })), { i: 4, dir: 1 })}`;
+      ], L.map((c) => ({ ...c, _click: "casacad:" + c.id })), { i: 4, dir: 1 }, vazio("Nenhuma casa cadastrada ainda", "As casas que criarem conta e enviarem a ficha aparecem aqui para habilitação.", `<button class="btn" data-ir="convites">Convidar uma casa</button>`, "casas_cad"))}`;
     },
     prontidao() {
       const E = S.eq; if (!E?.chk) { carregarEquipe(); return carregando("prontidão"); }
@@ -448,14 +448,14 @@ const TQConta = (() => {
         { t: "Quem", v: (l) => l.quem, h: (l) => `${esc(l.quem)} <span class="muted">· ${l.modelo}</span>` },
         { t: "Feitos", n: 1, v: (l) => l.feitos / l.total, h: (l) => `${l.feitos}/${l.total}` },
         { t: "Atrasados", n: 1, v: (l) => l.atras, h: (l) => l.atras ? `<span class="badge b-crit">${l.atras}</span>` : "0" },
-      ], linhas, { i: 0, dir: 1 })}
+      ], linhas, { i: 0, dir: 1 }, vazio("Nenhum checklist marcado ainda", "Quando artistas e casas marcarem os passos de cada data, o andamento aparece aqui.", "", "prontidao"))}
       <h2>Registros da noite</h2>
       ${tabela("regs", [
         { t: "Data", v: (r) => evs[r.evento_id]?.d || r.criado_em, h: (r) => evs[r.evento_id] ? `${dt(evs[r.evento_id].d)} · ${esc(evs[r.evento_id].c)}` : dt(r.criado_em.slice(0, 10)) },
         { t: "Casa", v: (r) => nomes[r.user_id] },
         { t: "Público", n: 1, v: (r) => r.publico, h: (r) => fmt(r.publico) },
         { t: "Ocorrência", v: (r) => r.ocorrencia, h: (r) => r.ocorrencia ? `${r.gravidade === "excecao" ? '<span class="badge b-crit">exceção crítica</span> ' : '<span class="badge">ordinária</span> '}${esc(r.ocorrencia)}${r.como_resolveu ? `<div class="muted" style="font-size:12px">Resolução: ${esc(r.como_resolveu)}</div>` : ""}` : "–" },
-      ], E.reg || [], { i: 0, dir: -1 })}`;
+      ], E.reg || [], { i: 0, dir: -1 }, vazio("Nenhuma noite registrada", "Depois de cada show, a casa registra público e ocorrências pela área dela.", "", "operacao"))}`;
     },
     pessoas() {
       const E = S.eq; if (!E?.perfis) { carregarEquipe(); return carregando("pessoas"); }
@@ -492,7 +492,7 @@ const TQConta = (() => {
         { t: "Situação", v: (c) => c.aceito_em ? 2 : contas.has(c.email) ? 1 : 0, h: (c) => c.aceito_em ? `<span class="badge b-good">entrou em ${dt(c.aceito_em.slice(0, 10))}</span>` : contas.has(c.email) ? `<span class="badge b-warn">conta criada, falta confirmar o e-mail</span>` : `<span class="badge">aguardando</span>` },
         { t: "Tutorial", v: (c) => c.tutorial_enviado_em || "", h: (c) => c.tutorial_enviado_em ? `enviado em ${dt(c.tutorial_enviado_em.slice(0, 10))}` : `<span class="muted">não enviado</span>` },
         { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
-      ], E.conv, { i: 3, dir: 1 })}`;
+      ], E.conv, { i: 3, dir: 1 }, vazio("Nenhum convite ainda", "Escolha a artista ou a casa acima, coloque o e-mail e envie. O convite aparece aqui com a situação de cada pessoa.", "", "convites"))}`;
     },
     demanda() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("demanda por cidade"); }
@@ -503,17 +503,23 @@ const TQConta = (() => {
       const grupos = {};
       for (const a of E.avisos) { const k = norm(a.cidade); (grupos[k] ||= { cidade: a.cidade.trim(), lista: [] }).lista.push(a); }
       const linhas = Object.entries(grupos).map(([k, g]) => ({ ...g, k, n: g.lista.length, datas: datasPor[k] || 0, ultimo: g.lista.map((a) => a.criado_em).sort().pop() }));
-      const semData = linhas.filter((l) => !l.datas);
+      const semData = linhas.filter((l) => !l.datas), maxN = Math.max(1, ...linhas.map((l) => l.n));
+      const link = site() + "#avise";
+      const divulgar = `<button class="btn pri" data-copy="${esc(link)}">Copiar link do "me avise"</button><a class="btn" href="https://wa.me/?text=${encodeURIComponent("Quer saber quando tem show do Tranquilo na sua cidade? Deixa seu contato aqui: " + link)}" target="_blank" rel="noopener">Divulgar no WhatsApp</a><a class="btn ghost" href="${esc(link)}" target="_blank" rel="noopener">Ver como o público vê</a>`;
+      if (!E.avisos.length) return `<div class="tag">Demanda</div><h1>Quem pediu show em cada cidade</h1>
+      <p class="sub">Quem visita o site deixa o e-mail ou o WhatsApp pedindo aviso de show na própria cidade. Cidade com muitos pedidos e nenhuma data marcada é candidata a abrir praça.</p>
+      ${vazio("Ainda ninguém pediu show", "Os pedidos chegam pelo formulário \u201cMe avise na minha cidade\u201d da página pública. Divulgue o link nas redes, na bio do Instagram e nos ingressos: cada pedido aparece aqui, somado por cidade.", divulgar, "demanda")}`;
       return `<div class="tag">Demanda</div><h1>Quem pediu show em cada cidade</h1>
       <p class="sub">Visitantes do site deixam e-mail ou WhatsApp pedindo aviso de shows na própria cidade. Cidade com muitos pedidos e nenhuma data marcada é candidata a abrir praça. Os contatos só podem ser usados para avisar de shows, como a pessoa autorizou.</p>
-      <div class="grid g4">${kpi(fmt(E.avisos.length), "pedidos de aviso")}${kpi(fmt(linhas.length), "cidades pedidas")}${kpi(fmt(semData.length), "cidades pedidas sem data marcada")}${kpi(fmt(semData.reduce((s, l) => s + l.n, 0)), "pessoas esperando nessas cidades")}</div>
+      <div class="stats">${kpi(fmt(E.avisos.length), "pedidos de aviso")}${kpi(fmt(linhas.length), "cidades pedidas")}${kpi(fmt(semData.length), "cidades pedidas sem data marcada")}${kpi(fmt(semData.reduce((s, l) => s + l.n, 0)), "pessoas esperando nessas cidades")}</div>
       ${tabela("dem", [
         { t: "Cidade", v: (l) => l.cidade, h: (l) => `<b>${esc(l.cidade)}</b>` },
-        { t: "Pedidos", n: 1, v: (l) => l.n },
+        { t: "Pedidos", v: (l) => l.n, h: (l) => barra(l.n, maxN) },
         { t: "Datas na agenda", n: 1, v: (l) => l.datas, h: (l) => l.datas ? fmt(l.datas) : `<span class="badge b-warn">nenhuma</span>` },
         { t: "Último pedido", v: (l) => l.ultimo, h: (l) => dt(l.ultimo.slice(0, 10)) },
         { t: "", v: () => 0, h: (l) => `<button class="btn sm" data-copy="${esc(l.lista.map((a) => a.contato).join("\n"))}">Copiar contatos</button>` },
-      ], linhas, { i: 1, dir: -1 })}`;
+      ], linhas, { i: 1, dir: -1 })}
+      <div class="barra-acoes" style="margin-top:18px">${divulgar}</div>`;
     },
   };
 
@@ -523,9 +529,9 @@ const TQConta = (() => {
     let etapa = 0, agora = "";
     if (!i || i.status === "rascunho") {
       const falta = faltando(F_ARTISTA, i?.dados || {});
-      agora = `<div class="alert warn"><b>Complete e envie sua inscrição</b>${falta.length ? `Faltam ${falta.length} campos obrigatórios.` : "Está tudo preenchido: falta só enviar."} <a href="#" data-ir="inscricao">Abrir inscrição</a></div>`;
+      agora = `<div class="alert warn"><b>Complete e envie sua inscrição</b>${falta.length ? `Faltam ${falta.length} campos obrigatórios. O rascunho fica salvo: dá para fazer em partes.` : "Está tudo preenchido: falta só enviar."}<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="inscricao">Abrir inscrição →</button></div></div>`;
     } else if (i.status === "ajustes") {
-      agora = `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer || "")} <a href="#" data-ir="inscricao">Editar e reenviar</a></div>`;
+      agora = `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer || "")}<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="inscricao">Editar e reenviar →</button></div></div>`;
     } else if (i.status === "em_curadoria") {
       etapa = 2; agora = `<div class="alert"><b>Sua inscrição está com a curadoria</b>A equipe avalia por ordem de chegada e a resposta aparece aqui. Enquanto isso, nada a fazer.</div>${medidor({ score: i.score, faixa: i.faixa, detalhe: i.score_detalhe, alertas: i.alertas || [] })}`;
     } else if (i.status === "reprovada" || i.status === "reprovada_pre") {
@@ -538,9 +544,10 @@ const TQConta = (() => {
       else if (!evs.length) agora = `<div class="alert good"><b>Aprovada e vinculada como ${esc(p.vinculo_nome)}</b>Nenhuma data em andamento agora. Quando uma data for confirmada, os passos aparecem aqui.</div>`;
     }
     if (p.codigo_acesso && evs.length && (!i || i.status === "aprovada" || !i)) etapa = Math.max(etapa, 6);
+    const comoFunciona = etapa < 2 ? `<h2>Como funciona</h2><div class="grid g3">${[["1", "Inscrição", "Release, links, rider e as cidades onde quer tocar. A pré-curadoria mostra na hora a força da inscrição."], ["2", "Curadoria", "A equipe do Tranquilo avalia e responde por aqui: aprovada, ajustes ou não seguiu desta vez."], ["3", "Datas", "Com a data confirmada, cada show ganha um passo a passo com prazos, do material de divulgação ao pós-show."]].map(([n, t, x]) => `<div class="card"><div class="kpi"><div class="v" style="color:var(--violet)">${n}</div></div><h3 style="margin-top:12px">${t}</h3><p class="muted" style="margin:0">${x}</p></div>`).join("")}</div>` : "";
     return `<div class="tag">Artista</div><h1>Olá, ${esc(p.nome || i?.dados?.nome_artistico || "")}</h1>
     <p class="sub">Aqui fica o que você precisa fazer em cada etapa, do cadastro ao pós-show.</p>
-    ${linhaTempo(etapas, etapa)}${agora}
+    ${linhaTempo(etapas, etapa)}${agora}${comoFunciona}
     ${evs.length ? `<h2>Suas datas</h2><p class="sub">Passo a passo de cada show, com prazo contado a partir da data. Marque o que já fez: a equipe acompanha por aqui.</p><div class="list">${evs.map((e) => blocoPassos(e, "artista")).join("")}</div>` : ""}`;
   }
   function passosCasa() {
@@ -549,10 +556,10 @@ const TQConta = (() => {
     let etapa = 0, agora = "";
     const pend = c?.pendencias || R.pendenciasCasa(c?.dados || {});
     const listaPend = `<div class="grid g3" style="margin-top:10px">${[["habilitacao", "Bloqueia a habilitação", "b-crit"], ["match", "Bloqueia alguns matches", "b-warn"], ["enriquecimento", "Enriquece a ficha", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><ul class="passos">${pend[k].map((x) => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>Nada pendente</li>"}</ul></div>`).join("")}</div>`;
-    if (!c || c.status === "rascunho") agora = `<div class="alert warn"><b>Complete o cadastro da casa</b>Com os dados mínimos, a casa entra na fila de habilitação. <a href="#" data-ir="cadastro_casa">Abrir cadastro</a></div>${listaPend}`;
-    else if (c.status === "incompleto") { etapa = 1; agora = `<div class="alert crit"><b>Faltam dados mínimos para habilitar</b><a href="#" data-ir="cadastro_casa">Completar cadastro</a></div>${listaPend}`; }
+    if (!c || c.status === "rascunho") agora = `<div class="alert warn"><b>Complete o cadastro da casa</b>Com os dados mínimos, a casa entra na fila de habilitação.<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Abrir cadastro →</button></div></div>${listaPend}`;
+    else if (c.status === "incompleto") { etapa = 1; agora = `<div class="alert crit"><b>Faltam dados mínimos para habilitar</b><div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Completar cadastro →</button></div></div>${listaPend}`; }
     else if (c.status === "em_analise") { etapa = 2; agora = `<div class="alert"><b>Cadastro com a equipe</b>A equipe confere os dados e responde aqui.</div>${listaPend}`; }
-    else if (c.status === "ajustes") { etapa = 1; agora = `<div class="alert warn"><b>A equipe pediu ajustes</b>${esc(c.parecer || "")} <a href="#" data-ir="cadastro_casa">Editar cadastro</a></div>${listaPend}`; }
+    else if (c.status === "ajustes") { etapa = 1; agora = `<div class="alert warn"><b>A equipe pediu ajustes</b>${esc(c.parecer || "")}<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Editar cadastro →</button></div></div>${listaPend}`; }
     else if (c.status === "suspensa") { etapa = 5; agora = `<div class="alert crit"><b>Casa suspensa</b>${esc(c.parecer || "Fale com a equipe do Tranquilo.")}</div>`; }
     else if (c.status === "habilitada") {
       etapa = c.classificacao ? 5 : evs.length ? 4 : 3;
@@ -632,21 +639,21 @@ const TQConta = (() => {
   // ---------- entrada (público) ----------
   function formEntrada() {
     const modo = S.entrada || "entrar";
-    const demo = REAL ? "" : `<div class="alert warn" style="margin-bottom:12px"><b>Modo demonstração</b>As contas e respostas ficam só neste navegador, para testar os fluxos. Atalhos: <a href="#" data-demo="equipe">entrar como equipe</a> · <a href="#" data-demo="adm">entrar como administração</a></div>`;
+    const demo = REAL ? "" : `<div class="alert warn" style="margin-bottom:14px"><b>Modo demonstração</b>As contas e respostas ficam só neste navegador, para testar os fluxos. Atalhos: <a href="#" data-demo="equipe">entrar como equipe</a> · <a href="#" data-demo="adm">entrar como administração</a></div>`;
     const tipoSel = S.tipoNovo || "artista";
-    const email = modo === "criar" ? `<h3 style="margin-top:0">Criar conta</h3>
-      <div class="filters" style="margin-top:0"><label class="fcheck"><input type="radio" name="tipoNovo" value="artista"${tipoSel === "artista" ? " checked" : ""}> Sou artista</label><label class="fcheck"><input type="radio" name="tipoNovo" value="casa"${tipoSel === "casa" ? " checked" : ""}> Sou uma casa</label></div>
+    const email = modo === "criar" ? `<h3>Criar conta</h3><p class="dica">Leva um minuto. Depois você completa a inscrição ou a ficha da casa no seu ritmo.</p>
+      <div class="seg" role="radiogroup" aria-label="Tipo de conta"><label><input type="radio" name="tipoNovo" value="artista"${tipoSel === "artista" ? " checked" : ""}> Sou artista</label><label><input type="radio" name="tipoNovo" value="casa"${tipoSel === "casa" ? " checked" : ""}> Tenho uma casa</label></div>
       <label class="fcampo"><b>${tipoSel === "casa" ? "Seu nome (responsável)" : "Nome artístico"}</b><input id="enome" autocomplete="name"></label>
-      <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email"></label>
-      <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="6"></label>
-      <div class="err" id="eerr"></div><button class="btn pri" id="eok">Criar conta</button>
-      <p class="muted" style="font-size:13px">Já tem conta? <a href="#" data-entrada="entrar">Entrar</a></p>`
-      : `<h3 style="margin-top:0">Entrar com e-mail</h3>
-      <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email"></label>
+      <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
+      <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="6" placeholder="pelo menos 6 caracteres"></label>
+      <div class="err" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Criar conta</button>
+      <p class="links">Já tem conta? <a href="#" data-entrada="entrar">Entrar</a></p>`
+      : `<h3>Entrar</h3><p class="dica">Com o e-mail e a senha da sua conta.</p>
+      <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
       <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="current-password"></label>
-      <div class="err" id="eerr"></div><button class="btn pri" id="eok">Entrar</button>
-      <p class="muted" style="font-size:13px"><a href="#" data-entrada="criar">Criar conta de artista ou casa</a> · <a href="#" id="esqueci">Esqueci a senha</a></p>`;
-    return `${demo}<div class="grid g2"><div class="card login" style="max-width:none">${email}</div><div class="card login" style="max-width:none"><h3 style="margin-top:0">Tenho um código de acesso</h3>${formLogin()}</div></div>`;
+      <div class="err" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Entrar</button>
+      <p class="links"><a href="#" data-entrada="criar">Criar conta de artista ou casa</a> · <a href="#" id="esqueci">Esqueci a senha</a></p>`;
+    return `${demo}<div class="entrada"><div class="card login" style="max-width:none">${email}</div><div class="card login" style="max-width:none"><h3>Recebeu um código?</h3><p class="dica">A equipe manda um código XXXX-XXXX-XXXX para quem já está na rede. Ele abre o seu painel sem senha.</p>${formLogin()}</div></div>`;
   }
   async function aposEntrar(perfil) { await carregar(perfil); render(); scrollTo(0, 0); primeiroAcesso(); }
 
@@ -884,11 +891,11 @@ const TQConta = (() => {
     } catch (e) { err.textContent = e.message; }
   }
   function formAviso(cidades) {
-    return `<div id="avForm" class="fgrid" style="align-items:end">
+    return `<div id="avForm"><div class="fgrid">
       <label class="fcampo"><b>Sua cidade</b><select id="avCidade"><option value="">Escolha</option>${cidades.map((c) => `<option>${esc(c)}</option>`).join("")}<option value="__outra">Outra cidade</option></select><input id="avOutra" placeholder="Qual cidade?" hidden style="margin-top:6px"></label>
       <label class="fcampo"><b>E-mail ou WhatsApp</b><input id="avContato" autocomplete="email" placeholder="voce@email.com ou (11) 99999-9999"></label>
-      <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade. Dá para pedir para sair a qualquer momento.</span></label>
-      <div><div class="err" id="averr"></div><button class="btn pri" id="avOk">Me avise</button></div></div>`;
+      <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade. Dá para pedir para sair a qualquer momento.</span></label></div>
+      <div class="err" id="averr"></div><button class="btn sun lg" id="avOk">Me avise</button></div>`;
   }
   function tutorialPublico(forcar) {
     if (S.conta || TQTour.aberto()) return;
