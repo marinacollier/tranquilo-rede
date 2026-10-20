@@ -20,8 +20,9 @@ async function pedir(caminho, init = {}) {
 const codigo = (c) => (typeof c === 'object' && c ? `${c.code || ''} ${c.message || ''}`.trim() : String(c).slice(0, 160));
 
 // 1. API no ar e chave aceita
-const raiz = await pedir('/rest/v1/');
-reg('API REST e chave publicável', raiz.status !== 0 && raiz.status !== 401, `HTTP ${raiz.status} ${raiz.status === 401 ? codigo(raiz.corpo) : ''}`);
+// (a chave publicável não lê o catálogo /rest/v1/ — isso exige a chave secreta —, então testamos numa tabela)
+const raiz = await pedir('/rest/v1/perfis?select=id&limit=1');
+reg('API REST e chave publicável', raiz.status === 200, `HTTP ${raiz.status} ${raiz.status === 200 ? 'chave aceita' : codigo(raiz.corpo)}`);
 
 // 2. Tabelas: existir é o que importa (sem login, as regras de acesso podem negar a leitura, o que é esperado)
 for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais']) {
@@ -38,6 +39,18 @@ for (const f of ['pre_curadoria', 'pendencias_casa', 'eh_equipe', 'eh_adm']) {
   const falta = /PGRST202|Could not find the function/i.test(codigo(r.corpo));
   reg(`função ${f}`, !falta && r.status !== 0, falta ? 'não existe' : `existe (HTTP ${r.status})`);
 }
+
+// 3b. A pré-curadoria do banco real dá o mesmo resultado que a do site
+await import('../src/regras.js');
+const exemplo = { release: 'x'.repeat(250), foto: 'f', spotify: 's', youtube: 'y', contato_producao: 'c', ouvintes_mensais: '12000', seguidores_instagram: '6000', rider_tipo: 'circulavel', cidades_interesse: ['São Paulo', 'Belo Horizonte', 'Lisboa'], aceita_bonus: 'true', integrantes: '3' };
+const pc = await pedir('/rest/v1/rpc/pre_curadoria', { method: 'POST', body: JSON.stringify({ d: exemplo }) });
+const js = globalThis.TQRegras.preCuradoria(exemplo);
+reg('pré-curadoria no banco real = site', pc.status === 200 && pc.corpo?.score === js.score && pc.corpo?.faixa === js.faixa, `banco ${pc.corpo?.score} (${pc.corpo?.faixa}) · site ${js.score} (${js.faixa})`);
+const hc = await pedir('/rest/v1/rpc/pendencias_casa', { method: 'POST', body: JSON.stringify({ d: { responsavel: 'Ana', cidade: 'Recife' } }) });
+const hj = globalThis.TQRegras.pendenciasCasa({ responsavel: 'Ana', cidade: 'Recife' });
+reg('habilitação de casa no banco real = site', hc.status === 200 && JSON.stringify(hc.corpo?.habilitacao) === JSON.stringify(hj.habilitacao), `banco ${hc.corpo?.habilitacao?.length} pendências · site ${hj.habilitacao.length}`);
+const eq = await pedir('/rest/v1/rpc/eh_adm', { method: 'POST', body: '{}' });
+reg('visitante sem login não é adm', eq.corpo === false, `eh_adm() = ${JSON.stringify(eq.corpo)}`);
 
 // 4. Login por e-mail
 const aut = await pedir('/auth/v1/settings');
