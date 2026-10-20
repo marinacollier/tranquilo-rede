@@ -175,10 +175,11 @@ const publico = {
   agenda: futuros.map((e) => ({ d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link })),
   circulacao,
   cidades: cidades.map((c) => ({ cidade: c, noites: eventos.filter((e) => e.cidade === c && e.realizado).length, futuras: futuros.filter((e) => e.cidade === c).length })),
+  casas: [...casas.values()].map((c) => ({ id: c.id, nome: c.nome, cidade: c.cidade })).sort((a, b) => a.cidade.localeCompare(b.cidade) || a.nome.localeCompare(b.nome)),
   totais: { noites: eventos.filter((e) => e.realizado).length, cidades: cidades.length, futuras: futuros.length },
 };
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
-await cp(path.join(RAIZ, 'src/index.html'), path.join(DIST, 'index.html'));
+for (const arq of ['index.html', 'config.js', 'regras.js', 'conta.js']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq));
 await writeFile(path.join(DIST, '.nojekyll'), '');
 await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 

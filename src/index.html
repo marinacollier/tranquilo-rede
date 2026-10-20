@@ -111,6 +111,32 @@ code.cod{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .sw{width:14px;height:10px;border-radius:0 3px 3px 0;background:var(--bar)}
 .sw.ref{width:2px;height:14px;background:var(--ink-2);border-radius:0}
+.fsec h3{margin-top:0}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px 16px}
+.fcampo{display:flex;flex-direction:column;gap:4px;font-size:14px}
+.fcampo b{font-weight:600}
+.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]){border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:9px 10px;font-size:15px;width:100%}
+.login input#cod,.login input#vcod{font-size:17px;letter-spacing:.08em;text-transform:uppercase}
+.fcampo textarea{resize:vertical;font:inherit}
+.fcheck{display:flex;gap:8px;align-items:flex-start;font-size:14px;cursor:pointer}
+.fcheck input{margin-top:3px}
+.fcidades{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:6px;font-size:14px}
+.fcidades label{display:flex;gap:6px;align-items:center}
+.fgrid .fcheck,.fgrid .fcampo:has(.fcidades){grid-column:1/-1}
+.barra-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.tempo{list-style:none;padding:0;margin:14px 0;display:flex;gap:4px;overflow-x:auto}
+.tempo li{flex:1;min-width:92px;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;font-size:12px;color:var(--ink-3);position:relative}
+.tempo li i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--surface-2);font-weight:700;color:var(--ink-2)}
+.tempo li.ok i{background:var(--good);color:#fff}.tempo li.ok{color:var(--ink-2)}
+.tempo li.agora i{background:var(--accent);color:var(--accent-ink)}.tempo li.agora{color:var(--ink);font-weight:700}
+.passos{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:8px}
+.passos li label{display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.passos li input{margin-top:4px;width:18px;height:18px}
+.passos li.feito b{text-decoration:line-through;color:var(--ink-3)}
+.passos li.atrasado b{color:var(--crit)}
+ul.passos li:not(:has(label)){padding-left:14px;position:relative}
+ul.passos li:not(:has(label))::before{content:"•";position:absolute;left:2px;color:var(--ink-3)}
+details summary{cursor:pointer;color:var(--ink-2);font-size:14px;font-weight:600}
 @media (max-width:640px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}.kpi .v{font-size:24px}}
 </style>
 </head>
@@ -122,7 +148,7 @@ code.cod{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
   <span class="sp"></span>
   <span id="quem" class="chip" hidden></span>
   <button class="btn sm" id="sair" hidden>Sair</button>
-  <button class="btn sm pri" id="entrar">Entrar com código</button>
+  <button class="btn sm pri" id="entrar">Entrar ou cadastrar</button>
 </div>
 <div class="wrap"><nav class="tabs" id="tabs" hidden></nav></div>
 </header>
@@ -131,6 +157,9 @@ code.cod{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
+<script src="config.js"></script>
+<script src="regras.js"></script>
+<script src="conta.js"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
@@ -246,10 +275,10 @@ function telaPublica() {
   const p = S.pub, porMes = agrupar(p.agenda, (e) => e.d.slice(0, 7));
   $("#app").innerHTML = `
   <section class="hero"><div class="tag">Rede Tranquilo</div><h1>Música ao vivo circulando por ${p.totais.cidades} cidades</h1>
-  <p class="sub">Agenda aberta da rede. Casas, artistas e equipe entram com o código de acesso para ver datas, público e métricas do próprio perfil.</p></section>
+  <p class="sub">Agenda aberta da rede. Artistas e casas criam a conta para se inscrever e acompanhar os próximos passos; cada perfil vê só o que é dele.</p></section>
   <div class="grid g4">${kpi(fmt(p.totais.futuras), "próximas datas")}${kpi(fmt(p.totais.noites), "noites realizadas desde 2023")}${kpi(fmt(p.totais.cidades), "cidades na rede")}${kpi(fmt(p.circulacao.length), "artistas em circulação")}</div>
-  <h2>Acesso restrito</h2><p class="sub">Cada código abre só o que é daquele perfil: administração, equipe, artista ou casa.</p>
-  <div class="card login">${formLogin()}</div>
+  <h2 id="acesso">Entrar ou se cadastrar</h2><p class="sub">Artistas se inscrevem para a curadoria e acompanham cada etapa até o pós-show. Casas se cadastram para receber datas. Equipe e administração entram para avaliar e acompanhar a rede.</p>
+  ${TQConta.formEntrada()}
   <h2>Artistas em circulação</h2><p class="sub">Turnês e datas avulsas confirmadas na rede.</p>
   <div class="grid g3">${p.circulacao.map((a) => `<div class="card"><b style="font-size:17px">${esc(a.nome)}</b><div class="muted" style="font-size:13px">${a.datas} ${a.datas > 1 ? "datas" : "data"} · a partir de ${dtc(a.proxima)}</div><div style="margin-top:8px">${a.cidades.map((c) => `<span class="pill">${esc(c)}</span>`).join("")}</div></div>`).join("")}</div>
   <h2>Agenda</h2>
@@ -488,13 +517,16 @@ function fichaPor(tipo, nome) {
 }
 
 // ---------- render ----------
+function abasAtuais() { return S.conta ? TQConta.abas() : PERFIS[S.pac.perfil].abas; }
 function render() {
-  const P = S.pac;
-  $("#entrar").hidden = !!P; $("#sair").hidden = !P; $("#quem").hidden = !P; $("#tabs").hidden = !P;
-  if (!P) return telaPublica();
-  $("#quem").textContent = `${PERFIS[P.perfil].rotulo}${P.perfil === "artista" || P.perfil === "casa" ? " · " + P.nome : ""}`;
-  $("#tabs").innerHTML = PERFIS[P.perfil].abas.map(([k, t]) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}">${t}</button>`).join("");
-  $("#app").innerHTML = TELAS[S.aba]();
+  const P = S.pac, logado = !!(P || S.conta);
+  $("#entrar").hidden = logado; $("#sair").hidden = !logado; $("#quem").hidden = !logado; $("#tabs").hidden = !logado;
+  if (!logado) return telaPublica();
+  $("#quem").textContent = S.conta ? TQConta.rotuloQuem() : `${PERFIS[P.perfil].rotulo}${P.perfil === "artista" || P.perfil === "casa" ? " · " + P.nome : ""}`;
+  const abas = abasAtuais();
+  if (!abas.some(([k]) => k === S.aba)) S.aba = abas[0][0];
+  $("#tabs").innerHTML = abas.map(([k, t]) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}">${t}</button>`).join("");
+  $("#app").innerHTML = (TQConta.telas[S.aba] || TELAS[S.aba])();
   ligar();
 }
 function ligar() {
@@ -516,9 +548,9 @@ document.addEventListener("click", (ev) => {
 });
 const dlg = $("#dlg");
 dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-$("#entrar").onclick = () => { S.pac = null; render(); setTimeout(() => $("#cod")?.focus(), 50); $("#cod")?.scrollIntoView({ block: "center" }); };
-$("#sair").onclick = () => { store.del("tq-codigo"); S.pac = null; render(); };
-$("#home").onclick = (e) => { e.preventDefault(); if (S.pac) { S.aba = PERFIS[S.pac.perfil].abas[0][0]; } render(); };
+$("#entrar").onclick = () => { S.entrada = "entrar"; render(); setTimeout(() => { $("#email")?.focus(); $("#acesso")?.scrollIntoView({ block: "start" }); }, 30); };
+$("#sair").onclick = () => TQConta.sairDeTudo();
+$("#home").onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = abasAtuais()[0][0]; render(); };
 
 (async function iniciar() {
   try { S.pub = await (await fetch("public.json", { cache: "no-store" })).json(); }
@@ -530,6 +562,7 @@ $("#home").onclick = (e) => { e.preventDefault(); if (S.pac) { S.aba = PERFIS[S.
   const hash = new URLSearchParams(location.hash.slice(1)).get("c");
   if (hash) history.replaceState(null, "", location.pathname);
   const cod = hash || store.get("tq-codigo");
+  try { if (await TQConta.iniciar()) return render(); } catch (e) { console.error(e); }
   if (cod) { try { await entrar(cod, true); return; } catch { store.del("tq-codigo"); } }
   render();
 })();
