@@ -1,0 +1,219 @@
+T
+RANQUILO
+.
+Entrar
+← Voltar
+Política de Privacidade
+1. Introdução
+
+A Tranquilo. Eventos Ltda (“nós”, “nosso” ou “o Tranquilo”) valoriza sua privacidade. Esta Política de Privacidade é a referência única do site sobre privacidade e tratamento de dados: explica como coletamos, usamos, divulgamos e protegemos suas informações quando você acessa o site e utiliza nossos serviços — inclusive experiências, formulários e operações ligadas a alimentação e bebidas em eventos do Tranquilo.
+
+Em regra, seus dados servem para operar o Tranquilo com você (avisos, cadastros, eventos e experiências). Não vendemos dados pessoais e não fazemos repasse irrestrito da sua base para outras marcas. Situações pontuais de compartilhamento operacional (por exemplo, com bar, casa ou fornecedor de alimentação e bebidas) estão descritas nas seções 5 e 9 — sempre com necessidade, base legal adequada e/ou consentimento.
+
+2. O que NÃO fazemos
+
+Para deixar bem claro: somos uma produtora de eventos, não uma empresa de dados. Por isso:
+
+Não vendemos seus dados para ninguém
+Não repassamos seu nome, e-mail ou telefone para outras empresas de festas ou eventos como lista comercial, nem autorizamos uso livre por patrocinadores
+Não usamos suas informações para anúncios de terceiros ou remarketing de outras marcas
+Não compartilhamos sua lista de contatos com outras marcas
+Não fazemos perfil de usuário para revenda ou cruzamento com outras bases
+Não usamos alergias ou restrições alimentares para publicidade, segmentação comercial não essencial ou campanhas sem consentimento específico
+
+Dados como nome, e-mail, telefone e cidade são usados para avisos sobre pré-venda e eventos do Tranquilo, para operar experiências que você pediu, e para cumprir obrigações legais quando aplicável. Detalhes de alimentação e bebidas: seção 5.
+
+3. Informações que Coletamos
+
+Podemos coletar informações de você de várias maneiras:
+
+Informações fornecidas voluntariamente: Nome, endereço de e-mail, número de telefone, cidade de interesse e outras informações que você fornecer através de formulários em nosso site. Pedimos um e-mail pessoal identificável (que você realmente confira). Não aceitamos endereços gerados por recursos de ocultação de e-mail (por exemplo, “Ocultar meu e-mail” da Apple / iCloud), porque eles impedem a identificação confiável para avisos, confirmações e atendimento. Nesses casos, pedimos outro e-mail ou, quando houver telefone válido, podemos manter o cadastro só com o telefone, sem gravar o e-mail oculto.
+Alimentação e bebidas: preferências, restrições, alergias, intenção de consumo, pedidos, reservas, check-ins, avaliações/feedbacks e o evento ou cidade associados — ver seção 5.
+Informações de navegação: Dados coletados automaticamente quando você usa o site com consentimento para análise — por exemplo páginas visitadas, tipo de dispositivo e navegador e, quando aplicável, endereço IP tratado pelas ferramentas descritas na seção 4.
+Cookies e tecnologias similares: Usamos cookies essenciais ao funcionamento do site e, se você aceitar no banner de consentimento, cookies e tecnologias de análise de uso. Detalhes na seção 4.
+Cadastro #descubra: e-mail de login (código de acesso), nome, contatos, link opcional do perfil no Spotify, respostas do formulário e dados demográficos opcionais que você escolher informar.
+Autenticação (#descubra): usamos um provedor de identidade para enviar o código por e-mail e manter sua sessão com segurança. Não armazenamos sua senha — o acesso é por código temporário.
+4. Cookies e análise do site
+
+Quando você escolhe Aceitar Tudo no banner de cookies, ativamos ferramentas para entender como o site é usado — não para anúncios de terceiros, remarketing ou venda de dados. Se escolher Apenas Necessários, essas ferramentas não coletam dados de análise.
+
+Google Analytics (GA4): ajuda a medir acessos e eventos de uso do site (por exemplo, páginas visitadas e ações agregadas). Opera sob as configurações de consentimento do Google no navegador.
+
+O Google processa esses dados em nome do Tranquilo, como provedor de serviço, com finalidade limitada à análise. O tratamento pode ocorrer fora do Brasil (por exemplo, infraestrutura nos Estados Unidos), conforme a operação desse provedor. Preferências do banner ficam no seu navegador (armazenamento local); você pode limpar os dados do site ou voltar a recusar cookies de análise ao limpar o armazenamento e escolher de novo no banner.
+
+5. Alimentação e bebidas
+
+Em eventos e experiências do Tranquilo, podemos tratar dados ligados a alimentação e bebidas quando você os informa no site, em formulários, enquetes, listas, pedidos, reservas, check-ins ou canais associados à operação do evento.
+
+5.1 Quais dados podem ser tratados
+Preferências de alimentação e bebidas (por exemplo, tipo de bebida ou opção de cardápio)
+Restrições alimentares que você declarar
+Alergias ou outras informações de cuidado que você optar por informar
+Histórico ou intenção de consumo no contexto do evento
+Pedidos, reservas, check-ins, cupons, listas ou benefícios ligados à experiência
+Avaliações, feedbacks ou respostas de pesquisa/enquete
+Evento, cidade ou experiência relacionada (para organizar a operação no lugar certo)
+
+Não coletamos “qualquer outro dado” sem relação com a experiência: pedimos o mínimo necessário para operar, cuidar da sua experiência ou melhorar a oferta com base no que você enviou.
+
+5.2 Finalidades do tratamento
+
+Usamos esses dados para:
+
+Organizar a operação do evento (oferta, abastecimento, filas)
+Melhorar a experiência do público e o cuidado no atendimento
+Respeitar restrições ou cuidados alimentares que você informou
+Planejar oferta e abastecimento com parceiros operacionais
+Gerar relatórios agregados (sem identificar pessoas) para operação, melhoria e negociação com parceiros
+Comunicar informações relevantes sobre alimentação e bebidas do Tranquilo — inclusive personalização ou segmentação dessas mensagens — somente quando isso estiver descrito no ponto de coleta e houver consentimento adequado
+5.3 Dados individualizados e dados agregados
+Individualizados: identificam ou podem identificar você (nome, contato, pedido, alergia vinculada ao seu cadastro). Só são compartilhados com parceiros de alimentação e bebidas quando houver necessidade operacional, base legal adequada e/ou consentimento — nunca como repasse comercial irrestrito.
+Agregados: estatísticas ou resumos em que não é razoável identificar uma pessoa. Podem ser usados na operação, na melhoria da experiência e em conversas com parceiros (bares, casas, fornecedores ou, quando aplicável, patrocinadores), sem entregar a sua ficha individual.
+5.4 Alergias e restrições — cuidado reforçado
+
+Alergias, restrições alimentares e informações que possam indicar condição de saúde são tratadas com cuidado reforçado:
+
+Uso limitado à finalidade informada no momento da coleta (cuidado com a experiência e operação segura)
+Coleta minimizada: informe só o necessário para cuidarmos melhor de você
+Sem uso comercial, publicitário ou de segmentação não essencial sem consentimento específico — o padrão é não usar esses dados para marketing
+Acesso restrito a quem precisa operar a experiência; retenção curta sempre que possível
+5.5 Consentimento no ponto de coleta
+
+Quando houver coleta ativa de preferências, alergias, restrições ou comunicação segmentada sobre alimentação e bebidas, o site deve exibir aviso curto, links para esta Política e para os Termos de Uso, e — quando o consentimento for específico — checkbox não pré-marcado.
+
+5.6 Terceiros na operação de alimentação e bebidas
+
+Categorias que podem participar do processamento:
+
+Parceiros de alimentação e bebidas
+Bares e operações de bar no evento
+Casas / venues
+Fornecedores logísticos ou de cardápio
+Patrocinadores, somente quando aplicável e tipicamente via dados agregados ou com consentimento/necessidade explícita — nunca como lista aberta de contatos
+Provedores técnicos que processam dados em nosso nome (hospedagem, formulários, mensagens), com finalidade limitada
+
+Distinguimos: (a) compartilhamento operacional necessário para cumprir pedido, reserva, cuidado alimentar ou abastecimento do evento; (b) análise, marketing ou parceria comercial, que depende de transparência no ponto de coleta e, quando exigido, de consentimento — sem autorizar repasse irrestrito de dados pessoais individualizados.
+
+6. Como Usamos Suas Informações
+
+Usamos as informações coletadas para:
+
+Fornecer e melhorar nossos serviços
+Enviar comunicações, mas apenas com consentimento prévio
+Responder a consultas e solicitações
+Analisar o uso do site (com consentimento, conforme a seção 4)
+Operar experiências de alimentação e bebidas (seção 5)
+Cumprir obrigações legais
+7. Consentimento e Comunicações
+
+De acordo com as políticas da Meta e WhatsApp Business, apenas enviamos mensagens para usuários que forneceram consentimento explícito para receber comunicações.
+
+O banner de cookies do site pede consentimento separado para cookies e ferramentas de análise (seção 4). Aceitar o banner também confirma que você pode receber comunicações nossas, inclusive via WhatsApp Business quando houver número fornecido — veja também a Política de Mensagens WhatsApp.
+
+Comunicações segmentadas sobre alimentação e bebidas exigem o aceite descrito no formulário ou canal correspondente (seção 5.5). Você pode gerenciar preferências a qualquer momento pelo link de “descadastrar-se” ou entrando em contato conosco.
+
+8. Proteção de Dados
+
+Implementamos medidas de segurança técnicas e organizacionais para proteger suas informações contra acesso não autorizado, alteração, divulgação ou destruição. Dados de alergia e restrição seguem controle de acesso e retenção mais restritos (seção 5.4).
+
+9. Compartilhamento de Informações
+
+Não compartilhamos, vendemos ou alugamos suas informações pessoais com terceiros, exceto:
+
+Quando exigido por lei
+Com provedores de serviços que processam dados em nosso nome (por exemplo, envio de e-mail, mensagens, pagamento, hospedagem do site, e ferramentas de análise como Google Analytics), sob obrigações de confidencialidade e finalidade limitada — sem venda da sua base a terceiros
+Com parceiros operacionais de alimentação e bebidas (bares, casas/venues, fornecedores e, quando aplicável, patrocinadores em contextos limitados), conforme a seção 5 — priorizando dados agregados e restringindo dados individualizados à necessidade operacional, base legal e/ou consentimento
+Com sua permissão explícita
+10. Seus Direitos
+
+Você tem o direito de:
+
+Acessar suas informações pessoais
+Corrigir informações imprecisas
+Solicitar a exclusão de suas informações
+Revogar consentimentos anteriores
+Receber suas informações em formato portável
+
+Para exercer esses direitos, entre em contato conosco através dos dados fornecidos na seção de Contato.
+
+11. Contato
+
+Se você tiver dúvidas sobre esta Política de Privacidade ou sobre como lidamos com suas informações, entre em contato conosco:
+
+Tranquilo. Eventos Ltda
+
+CNPJ: 50.142.229/0001-39
+
+Telefone: (31) 97343-4771
+
+Email: contato@tranquilomusica.com.br
+
+12. Alterações a Esta Política
+
+Podemos atualizar esta Política de Privacidade periodicamente. Notificaremos você sobre mudanças significativas publicando a nova política nesta página. A data de vigência abaixo reflete a última revisão publicada no site.
+
+Esta versão é a base funcional publicada no site para transparência e operação; a validação jurídica/compliance continua sendo requisito de governança para tratá-la como redação definitiva.
+
+Última atualização: 07/08/2026
+
+CIDADES
+São Paulo
+Belo Horizonte
+Floripa
+Rio de Janeiro
+Salvador
+Brasília
+Campinas
+Curitiba
+Recife
+Itajaí
+Porto Alegre
+Santo André
+Santos
+Sorocaba
+TRANQUILO PRA VOCÊ
+Tocar no Tranquilo
+Enviar meu single
+Recomendar uma casa
+Trabalhar no Tranquilo
+Indicar artista
+Artistas
+Fale com a gente
+INSTITUCIONAL
+Página inicial
+Política de Privacidade
+Política de mensagens
+Termos de Uso
+Kit de Marca
+Comunidade e redes
+Parceiros que caminham com o Tranquilo
+Ital'in House — alimentação / backstage (abre em nova aba)
+
+Ital'in House — alimentação / backstage
+
+Lambe-Lambe — bebidas nas turnês (abre em nova aba)
+
+Lambe-Lambe — bebidas nas turnês
+
+Estrella Galicia — cerveja nos encontros (abre em nova aba)
+
+Estrella Galicia — cerveja nos encontros
+
+Política de Privacidade
+·
+Termos de Uso
+·
+Política de mensagens
+
+© 2026 Tranquilo. Eventos Ltda — CNPJ 50.142.229/0001-39
+
+Rua Castelo Évora, 90 — Castelo — Belo Horizonte/MG
+
+WhatsApp: (31) 97343-4771 · Email: contato@tranquilomusica.com.br
+
+🍪 Cookies e Consentimento de Comunicação
+
+Usamos cookies e ferramentas de análise (como Google Analytics) para entender o uso do site e melhorar a experiência — só se você aceitar. Ao aceitar, você também confirma que pode receber comunicações nossas (incluindo via WhatsApp Business quando fornecido seu número). Detalhes na Política de Privacidade e na Política de Mensagens WhatsApp.
+
+Aceitar Tudo ✨
+Apenas Necessários

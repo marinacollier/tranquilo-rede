@@ -1,0 +1,4 @@
+erro /artistas/jonatasbelgrande: page.goto: Timeout 60000ms exceeded.
+Call log:
+  - navigating to "https://tranquilomusica.com.br/artistas/jonatasbelgrande", waiting until "networkidle"
+
