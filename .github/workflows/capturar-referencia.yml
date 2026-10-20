@@ -1,0 +1,68 @@
+name: Capturar site de referência
+
+# Baixa páginas públicas do site do Tranquilo (HTML, CSS e capturas de tela) para servir de referência visual
+# e de textos (políticas, consentimento). Só lê; o resultado vai para a branch "referencia".
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capturar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Capturar
+        run: |
+          mkdir -p ref && cd ref
+          npm init -y >/dev/null && npm i playwright@1.56.1 >/dev/null && npx playwright install --with-deps chromium >/dev/null
+          cat > cap.js <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const BASE = 'https://tranquilomusica.com.br';
+          (async () => {
+            const b = await chromium.launch();
+            const vistos = new Set(), fila = ['/', '/descubra', '/saopaulo', '/kit-de-marca', '/artistas/jonatasbelgrande'];
+            const log = [];
+            for (const [n, vp] of [['d', { width: 1366, height: 860 }], ['m', { width: 390, height: 844 }]]) {
+              const c = await b.newContext({ viewport: vp, locale: 'pt-BR', geolocation: { latitude: -23.55, longitude: -46.63 }, permissions: [] });
+              const p = await c.newPage();
+              p.on('dialog', (d) => { log.push('dialog: ' + d.message()); d.dismiss(); });
+              await p.goto(BASE + '/', { waitUntil: 'networkidle', timeout: 60000 }).catch((e) => log.push('erro home ' + e.message));
+              await p.waitForTimeout(2500);
+              await p.screenshot({ path: `home-${n}-primeira-visita.png` });
+              await p.screenshot({ path: `home-${n}-inteira.png`, fullPage: true });
+              await c.close();
+            }
+            const c = await b.newContext({ viewport: { width: 1366, height: 860 }, locale: 'pt-BR' });
+            const p = await c.newPage();
+            while (fila.length && vistos.size < 30) {
+              const r = fila.shift(); if (vistos.has(r)) continue; vistos.add(r);
+              try {
+                await p.goto(BASE + r, { waitUntil: 'networkidle', timeout: 60000 }); await p.waitForTimeout(1500);
+                const nome = (r.replace(/\W+/g, '_').replace(/^_|_$/g, '') || 'home');
+                fs.writeFileSync(`pag-${nome}.html`, await p.content());
+                fs.writeFileSync(`pag-${nome}.txt`, await p.evaluate(() => document.body.innerText));
+                await p.screenshot({ path: `pag-${nome}.png`, fullPage: true });
+                const links = await p.$$eval('a[href]', (as) => as.map((a) => a.href));
+                fs.appendFileSync('links.txt', `# ${r}\n${links.join('\n')}\n`);
+                for (const l of links) { try { const u = new URL(l); if (u.hostname.endsWith('tranquilomusica.com.br') && !vistos.has(u.pathname) && /privac|termo|cookie|polit|lgpd|sobre|contato|faq|descubra|kit/i.test(u.pathname)) fila.push(u.pathname); } catch {} }
+                const css = await p.evaluate(() => { const s = getComputedStyle(document.body); const h = document.querySelector('h1,h2'); const bt = document.querySelector('button,a[class*=btn],a[class*=button]'); return { body: { font: s.fontFamily, cor: s.color, fundo: s.backgroundColor }, titulo: h && { font: getComputedStyle(h).fontFamily, peso: getComputedStyle(h).fontWeight, tamanho: getComputedStyle(h).fontSize }, botao: bt && { fundo: getComputedStyle(bt).backgroundColor, cor: getComputedStyle(bt).color, raio: getComputedStyle(bt).borderRadius, texto: bt.innerText.slice(0, 40) }, vars: [...document.styleSheets].flatMap((ss) => { try { return [...ss.cssRules].filter((x) => x.selectorText === ':root').map((x) => x.cssText); } catch { return []; } }) }; });
+                fs.appendFileSync('estilos.json', JSON.stringify({ pagina: r, ...css }) + '\n');
+              } catch (e) { log.push(`erro ${r}: ${e.message}`); }
+            }
+            fs.writeFileSync('log.txt', log.join('\n') + '\n');
+            await b.close();
+          })();
+          JS
+          node cap.js
+          rm -rf node_modules package*.json
+      - name: Guardar na branch referencia
+        run: |
+          cd ref
+          git init -q -b referencia && git add -A
+          git -c user.name="Rede Tranquilo (robô)" -c user.email="robo@tranquilo.invalid" commit -q -m "Referência $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" referencia
