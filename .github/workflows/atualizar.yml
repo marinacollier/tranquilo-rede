@@ -1,0 +1,49 @@
+name: Atualizar site da Rede
+
+# Caminho 1 (preferido quando houver chave do Notion): lê a API oficial toda noite.
+# Caminho 2: quando o retrato em data/ muda (rotina noturna do Claude), reconstrói o site.
+# Sem SITE_SECRET configurado, o job termina sem publicar nada.
+on:
+  schedule:
+    - cron: '0 6 * * *'   # 03:00 em Brasília
+    - cron: '0 9 * * *'   # 06:00, segunda tentativa
+  push:
+    branches: [main]
+    paths: ['data/**', 'src/**', 'scripts/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verificar segredos
+        id: seg
+        env:
+          SITE_SECRET: ${{ secrets.SITE_SECRET }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          echo "tem_segredo=$([ -n "$SITE_SECRET" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+          echo "tem_notion=$([ -n "$NOTION_TOKEN" ] && echo 1 || echo 0)" >> "$GITHUB_OUTPUT"
+      - name: Gerar e publicar
+        if: steps.seg.outputs.tem_segredo == '1' && (github.event_name != 'schedule' || steps.seg.outputs.tem_notion == '1')
+        env:
+          SITE_SECRET: ${{ secrets.SITE_SECRET }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: ./scripts/publicar.sh
+      - name: Abrir aviso se falhar
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh issue create --title "Atualização do site falhou ($(date -u +%d/%m))" --body "O site continua com a versão anterior. Veja o log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true

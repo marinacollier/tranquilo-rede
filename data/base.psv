@@ -1,0 +1,123 @@
+# Retrato do banco Base de conhecimento do Notion (collection 32d83bbf-4e84-8062-bf81-000b12eb93fb)
+# id|pergunta|status
+32d83bbf4e8480649bd3d11043f605f9|A gente consegue usar algum endpoint da API da Ingresse relacionado a ingressos vendidos?|Pronto para uso
+0115b3f5fdbc4167954dd4acced72727|Ao interagir com a Tranks, eu visualizo a mensagem “Ocorreu um erro, tente novamente”|Pronto para uso
+ddcccbc865a0488ca9170adc6df04d25|Como a pessoa faz para se cadastrar no aplicativo da Ingresse quando não aparece opção de cadastro?|Pronto para uso
+20ea82c96be6403b95df5eaa7ef40d04|Como a Tranks conecta conversas do Slack com registros no Notion|Pronto para uso
+3f083bbf4e8481e6a6f4da5358966d1a|Como abrir as vendas de um evento na Ingresse (criar evento e lotes)?|Pronto para uso
+2a0b49af294c42d0b1da90725cf08a46|Como acessar a página de modelos de mensagem do WhatsApp pelo Nextags e Meta Business Suite|Pronto para uso
+34983bbf4e8480a1bbefc36052d902ae|Como acessar e fazer login no Claude com e-mail do Tranquilo?|Pronto para uso
+33683bbf4e8480f08cffc331c8681cb7|Como acessar o Backstage da Ingresse e entrar no evento certo?|Rascunho
+f884468bbf574719bec04d9c2070a4b6|Como acessar o CapCut Pro no computador usando código QR|Pronto para uso
+962417b31b1047a7a3cf512ab802bbab|Como acessar o painel de automações no Meta Business Suite|Pronto para uso
+32d83bbf4e8480b0bc8ad583ca0b2706|Como acesso o Backstage pela primeira vez?|Pronto para uso
+32d83bbf4e848091ad59f2b0441dd7a9|Como alterar a URL canônica de um evento na Ingresse?|Pronto para uso
+fe601433a37e43d08508092768b1b2c9|Como alterar o nome que aparece no perfil do Canva quando a conta do Google Workspace já foi usada por outra pessoa?|Pronto para uso
+3c0d1d802f844a96afa13a59d6dfeefc|Como alterações nas listas de espera disparam mensagens no Slack?|Pronto para uso
+d3fd7a9da5a84471b2c57206f9dee283|Como anexar um contrato assinado (Drive + Notion)?|Pronto para uso
+479cde66896c456b8d192872f15138a5|Como armazenar informações de como chegar (transporte + estacionamento)?|Em revisão
+1b2fa639197c4bf79af2dd9e3bac197f|Como buscar mensagens e threads antigas no Slack|Pronto para uso
+6a11bc84dcd24425aaf72072482aad70|Como cadastrar a pessoa da portaria para ler ingressos no Ingresse Backstage|Pronto para uso
+ce5a73f2385c41299bb6ae7dbe1bd686|Como calcular os preços de disparo de WhatsApp usando a calculadora da Nextags?|Pronto para uso
+af35c5b404fd44dbac94957486b1c948|Como conectar o Claude ao Notion?|Pronto para uso
+33683bbf4e8480eeb43dd358179df89a|Como conferir carrinhos abandonados?|Rascunho
+4f933178212b4192b49359197c7c35af|Como configurar acesso ao CapCut Pro no celular|Pronto para uso
+b8cf3eb4805f4abc8e77aa96fa670059|Como configurar automação de comentário para DM e resposta pública no Meta Business Suite|Pronto para uso
+9d486f11cea54c4b8d2e9ddfa3080977|Como configurar automação de palavra-chave em DM no Meta Business Suite|Pronto para uso
+33683bbf4e8480538140dbe0d3e85c57|Como configurar cortesias e lista de convidados (se aplicável)?|Rascunho
+e05d7e5fccc24642b10d19d8c825fe08|Como corrigir erro de chave Pix inválida no QR de formulário de entrada|Pronto para uso
+f924ef4e628845a18df83f6485b78eab|Como corrigir o erro “(#131008) Required parameter is missing” em um fluxo do Nextags?|Pronto para uso
+33683bbf4e84805f97f9c271708634ef|Como corrigir quando todos os lotes aparecem abertos mesmo com virada automática cadastrada?|Pronto para uso
+33683bbf4e8480479de4f127e4ec925f|Como criar cupom (se aplicável)?|Pronto para uso
+9836cf7966a44f319d1ce7ebab3cf802|Como criar demandas e tarefas pelo Slack usando a Tranks|Pronto para uso
+33683bbf4e848069a83ef6f40ab97d7c|Como criar um evento na Ingresse? (passo a passo)|Rascunho
+e578634da7b9438fbfee434693ebcfa2|Como criar um link para abrir um lote específico (sem mostrar os outros) no Ingresse|Pronto para uso
+f904a1e574624f8eb13f500e72710cf2|Como criar um Público Personalizado na Meta Ads usando uma lista existente do Mailchimp ou um arquivo CSV|Pronto para uso
+34c83bbf4e84806cb4bcc5b6c730c693|Como criar uma conta de anúncios no Meta Business Suite?|Pronto para uso
+7dba6b36fa1e4c5dacad03e4e09ebfea|Como dar acesso ao Meta Business Suite pelo celular|Pronto para uso
+586178b4484e4e92be1f2a7ba84d9160|Como deixar todos os lotes (incluindo esgotados e fechados) sempre visíveis no Ingresse Backstage|Pronto para uso
+6f1d272f44504fb0a5da42819fb1cd81|Como diagnosticar e corrigir o erro #132000 de parâmetros no cabeçalho do WhatsApp no Nextags?|Pronto para uso
+33683bbf4e848032899ec323804e6183|Como editar um lote existente sem quebrar o que já está vendendo?|Rascunho
+7fadc7e22f2448b183f3a49037f3878b|Como emitir cortesias nos eventos da Ingresse?|Rascunho
+33683bbf4e84808ca1d0c201fac5228d|Como exportar relatório de vendas e qual formato usar?|Rascunho
+3f983bbf4e8481109bf1fdbeba3f7225|Como fazer login no Instagram do Tranquilo São Paulo usando o 1Password?|Pronto para uso
+e4a18cd8496b4a6a9bf3ccedb7d0842a|Como fazer login no Manychat usando o e-mail de comunicação do Tranquilo?|Pronto para uso
+3f883bbf4e84812a8cc7c77fcb171d39|Como fazer o primeiro acesso a uma conta do Google Workspace que já tem verificação em duas etapas?|Pronto para uso
+35283bbf4e8480d5958ed432f0688679|Como faço login depois de configurar a chave de acesso?|Rascunho
+8727678085554bbab6985f4f318bb1ed|Como fechar um lote da venda na porta quando ele atinge a quantidade limite|Pronto para uso
+18233df39f314196952ed4c20f55bd5a|Como funciona a opção de descontar taxas no repasse de saldo na Ingresse Backstage|Rascunho
+e7bf25403724440ca37354536a059569|Como funciona o conceito de threads no Slack|Pronto para uso
+33683bbf4e84801e9182d31e34f16333|Como gerar e conferir link de vendas?|Rascunho
+0b8d176e6a85438093123137796a8995|Como interpretar números do Manychat ao importar dados para o Notion|Pronto para uso
+33683bbf4e848017a8b1dce571730ce9|Como lançar um lote de ingresso?|Pronto para uso
+a7990f73278243f58ce040fa32e1cab0|Como navegar pelo menu lateral esquerdo do Ingresse Backstage|Pronto para uso
+32d83bbf4e84801293d1e5b7ae4b5c06|Como obter autorização para visualizar eventos? A Ingresse precisa do meu e-mail cadastrado?|Pronto para uso
+3fa83bbf4e8481cbb27eeec68bbedf23|Como publicar a página de uma artista no site?|Pronto para uso
+33683bbf4e8480b4b432edf1f0065e4e|Como publicar/ocultar um evento e quais são os riscos?|Rascunho
+7540fa3d30564c34adfcca4abf7bb0c8|Como recuperar a página Contagem de Membros quando as visualizações somem e aparece “Vincular uma fonte de dados”?|Pronto para uso
+6b3f7661a888471ab959e9f59bd95b39|Como recuperar acesso ao 1Password quando eu perdi o Secret Key e/ou o Kit de Emergência|Pronto para uso
+d5336303c0d346078e4facb054785dd6|Como registrar uma automação no database Automações|Pronto para uso
+00bc4dee4d3546028f4c710e862835c6|Como registrar uma casa de shows no Notion pelo Slack|Pronto para uso
+d51aab2ac3f045efbc1552277ca6217b|Como remarcar um evento adiado na Ingresse Backstage?|Pronto para uso
+2a05a79c27bc4f44a98373bcf991c08c|Como resolver erro de acesso ao Meta Business Suite quando aparece conteúdo indisponível|Pronto para uso
+ededaba3bf70462e8a9161eff45f4dcf|Como resolver erro “É necessário ter uma senha para fazer login com essa chave” ao entrar no Google Drive (Google Workspace)|Rascunho
+34d83bbf4e8480f1b8d3fd99192b970d|Como resolver o erro "Conta de anúncios pertencente a outra empresa" no Meta Business Suite?|Rascunho
+34d83bbf4e8480eab72afb8b32dee72b|Como resolver o erro #3858385 de autenticação ao criar anúncios no Meta Business Suite|Pronto para uso
+35283bbf4e84807f820fde7192e28584|Como resolver o erro “Erro ao atualizar o evento” ao editar um evento|Rascunho
+7b2d2d9eaa004be08c42ef5541dca737|Como resolver quando o Manychat pede para reconectar o Instagram com verificação de duas etapas|Pronto para uso
+32d83bbf4e84803880e0fabac80cb28b|Como saber se já possuo um cadastro? Como acessar o Backstage se já fiz login antes?|Pronto para uso
+8060fbfdaf4246379dfd2f280a4230f3|Como verificar se houve erro ao enviar duas mensagens seguidas pelo Nextags?|Pronto para uso
+33e83bbf4e8480248131f5ec6154ca54|Como visualizar o gráfico de evolução de membros de um grupo ou comunidade?|Em revisão
+32d83bbf4e8480b4b01fe5f7fb237111|Existe alguma página de Perguntas Frequentes (FAQ) que cubra dúvidas de quem está comprando ingressos?|Pronto para uso
+35283bbf4e848026b6a3ed946b405eb7|O código de verificação está dando erro "código incorreto”|Rascunho
+e2c3d5d80f974c39b9f62f640b579ea2|O que checar quando um lote de ingressos não aparece na página do evento na Ingresse?|Pronto para uso
+05e44336d45b4fd8bd7c3693a71aa3af|O que fazer depois de cadastrar uma pessoa como Operador de Porta no Ingresse Backstage?|Pronto para uso
+32d83bbf4e8480869bc3d34afaed1c61|O que fazer quando aparece a mensagem “o número de telefone informado já está em uso”?|Pronto para uso
+95d0d41a5b644dd8848131a069c569cb|O que fazer quando aparece “Este link já está em uso” ao alterar o link no Ingresse Backstage?|Pronto para uso
+27f9243616f3467db6437eda697f7c30|O que fazer quando aparece “Ingresso inválido” ao validar um ingresso no Ingresse Backstage?|Rascunho
+25cb477b43e24d3dbb846e7ecc1df54f|O que fazer quando aparece “Outro portão” ao validar um ingresso no Ingresse Backstage?|Rascunho
+f7a926897f394e76a7f49c64ae20341f|O que fazer quando eu não consigo enviar mensagens no WhatsApp web?|Rascunho
+32d83bbf4e8480e5865fd19df7dfd314|O que fazer quando meu número de telefone e/ou e-mail já estão em uso por outra conta?|Pronto para uso
+32d83bbf4e84802fb2e5da0d97d17030|O que fazer quando o erro 1212 aparece após uma tentativa de compra?|Pronto para uso
+ed4122f0f8374848ae86aa300ad0623c|O que fazer quando o Facebook pede para aprovar o login em outro dispositivo?|Pronto para uso
+b8d65c2c24c34132b19c447bd3834dc5|O que fazer quando o Meta Business Suite pede código de login e não autentica|Pronto para uso
+32d83bbf4e8480ffb6d2e5ccf2fed0d7|O que fazer quando o OTP que eu informei não está sendo aceito?|Pronto para uso
+e7efe61757c244fea8b8bb08f35d3102|O que fazer quando o ícone desaparece do navegador?|Em revisão
+32d83bbf4e8480908548c27221c02b18|O que fazer quando recebo um erro de login na conta da Ingresse?|Pronto para uso
+32d83bbf4e8480fa87aff31982681ef8|O que fazer se acessei o Backstage com a conta de outra pessoa?|Pronto para uso
+58b8e7eaacd44f68bee4223ddef0bffe|O que é AWA?|Pronto para uso
+f507c5f1b3134488b09a0eba36d6bb4c|O que é o ID do evento na Ingresse e por que ele deve ser cadastrado?|Pronto para uso
+32d83bbf4e84805aa98def4d4822ecd5|O que é OTP (senha de uso único)?|Pronto para uso
+7acee6b085384ca5baf297629073926e|Onde cadastrar contatos de produtores que eu adiantei?|Pronto para uso
+eb70a313d7c24c4dad583726e25a1e32|Onde configurar o e-mail de confirmação de compra no Ingresse Backstage para enviar QR code e orientações|Rascunho
+8d6852b4ef82470b9897bfce02cdca09|Onde encontro o ID e o rótulo de conversão do Google Ads?|Em revisão
+ed508a1b6a44489bb211eb0a72dd48b4|Onde encontro os valores de cachê?|Pronto para uso
+a3d28cf7a3a4487d81048aeeab10ebbe|Onde guardar contatos de artistas no Notion?|Pronto para uso
+32d83bbf4e84802f9370f681390397e6|Onde ver quais vendas foram feitas hoje?|Pronto para uso
+2386f7d7fde2493abcbbe80509623279|Por que aparece “Erro inesperado. Por favor, entre em contato conosco” ao completar o cadastro (data de nascimento) na Ingresse?|Pronto para uso
+380c722ba856498d8b4cea225b014f4d|Por que apareceram dois perfis no Google Chrome depois de fazer login com a conta de comunicação|Pronto para uso
+35283bbf4e848052a09bfeb6b6046ef4|Por que configurar verificação em duas etapas (2FA) no Google?|Pronto para uso
+32d83bbf4e8480d7a6e6ef7abdfe75d1|Por que não consigo realizar a retirada do dinheiro dos eventos?|Pronto para uso
+3f883bbf4e8481e1a497d6f609a4e073|Por que o Notion do Tranquilo não abre quando estou logada com meu e-mail pessoal?|Pronto para uso
+32d83bbf4e8480a5b658e7514c01e4ca|Por que os eventos do Tranquilo não aparecem mesmo após ter feito o cadastro e/ou login com sucesso?|Pronto para uso
+32d83bbf4e84808f90beeef0de199038|Por que preciso criar um cadastro separado para meu e-mail @tranquilomusica.com.br?|Pronto para uso
+8f4da6897cb1465aa0c80fd8e481283c|Por que uma inscrição realizada não apareceu no Slack?|Pronto para uso
+32d83bbf4e848036a214eb1cd8e1b05e|Preciso do 1Password ou posso usar o Google Auth/Authenticator?|Pronto para uso
+04fc63dafb9041c9a7bfab00c1472d63|Quais limitações existem para agendar stories no Meta Business Suite|Pronto para uso
+32d83bbf4e8480dbbb00e1f868033963|Quais são as boas práticas de compartilhamento das planilhas de mailing?|Pronto para uso
+16778b3baba3436d9ae2bfb40168b51d|Quais são as boas práticas para criar modelos de mensagem do WhatsApp?|Pronto para uso
+32d83bbf4e848037b69ad1af8b62c470|Quais tipos de permissão a Ingresse pode liberar?|Pronto para uso
+c09a606a440f437aaf364cf5e527e665|Qual canal do Slack usar para cada tipo de demanda|Pronto para uso
+18ddc47891d54e25befc26bb69b88c5c|Qual código do Google Analytics devo colocar nos eventos da Ingresse?|Pronto para uso
+034c9ef32a7a40658b1a49ed74f663c2|Qual permissão liberar para consulta do relatório de vendas de eventos na Ingresse?|Pronto para uso
+3318905350ae457faed3cb22b9433180|Qual é o caminho para editar o formulário de feedback?|Pronto para uso
+32d83bbf4e848013bc91f9a6c9cadd4e|Qual é o prazo previsto, pós-assinatura, para receber o dinheiro das luvas?|Pronto para uso
+32d83bbf4e8480eea231e4dc8e067bbb|Quando podemos solicitar o repasse/depósito do dinheiro dos eventos?|Pronto para uso
+c23186513f3d4651bdf2a7f21600cdfe|Quanto tempo a Ingresse leva para atualizar as informações de um evento (incluindo link)?|Pronto para uso
+32d83bbf4e8480c89133e12cceb63150|Uma pessoa adquiriu um ingresso, mas não consegue acessá-lo quando entra no app da Ingresse. O que fazer?|Pronto para uso
+32d83bbf4e8480bfa18bc761967b9841|Uma pessoa está tentando comprar ingressos mas visualiza a mensagem “Erro inesperado. Por favor, entre em contato conosco”.|Pronto para uso
+32d83bbf4e8480a38338f04d7b7d8f91|Uma pessoa não recebeu o link de confirmação de compra. O que fazer?|Pronto para uso
+33083bbf4e84802cae70d445f28f8ee2|É possível comprar na Ingresse com Pix?|Pronto para uso
+32d83bbf4e84808ca90cef274e268ecc|É possível que o evento fique visível mas não comprável para clientes que acessarem a página da Ingresse?|Pronto para uso
+32d83bbf4e848098ac2ec6607018ba76|É possível saber quantas visitas estamos recebendo nas páginas dos eventos/ingressos?|Pronto para uso
+9c57ff8aa363425382855b1ac286fb89|É possível subir um evento sem endereço no Ingresse Backstage?|Pronto para uso

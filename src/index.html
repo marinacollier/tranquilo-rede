@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tranquilo · Rede</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><circle cx='16' cy='16' r='14' fill='%23c2410c'/><path d='M9 12h14M16 12v12' stroke='white' stroke-width='3' stroke-linecap='round'/></svg>">
+<style>
+:root{
+  --bg:#f6f5f1;--surface:#fcfcfb;--surface-2:#efede7;--line:#dedbd2;
+  --ink:#0b0b0b;--ink-2:#52514e;--ink-3:#77756f;
+  --accent:#c2410c;--accent-ink:#fff;--bar:#2a78d6;--bar-soft:#d6e6fa;
+  --good:#0ca30c;--warn:#fab219;--serious:#ec835a;--crit:#d03b3b;--good-ink:#006300;
+  --radius:12px;--shadow:0 1px 2px rgba(0,0,0,.05),0 4px 16px rgba(0,0,0,.04);
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121211;--surface:#1a1a19;--surface-2:#242422;--line:#34332f;
+  --ink:#f0efec;--ink-2:#c3c2b7;--ink-3:#9c9a90;--accent:#f97316;--accent-ink:#111;
+  --bar:#3987e5;--bar-soft:#1e3557;--good-ink:#5fd35f;--shadow:none;
+}}
+:root[data-theme="dark"]{
+  --bg:#121211;--surface:#1a1a19;--surface-2:#242422;--line:#34332f;
+  --ink:#f0efec;--ink-2:#c3c2b7;--ink-3:#9c9a90;--accent:#f97316;--accent-ink:#111;
+  --bar:#3987e5;--bar-soft:#1e3557;--good-ink:#5fd35f;--shadow:none;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+a{color:inherit}
+button,input,select{font:inherit;color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+header.top{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:12px;min-height:58px;flex-wrap:wrap}
+.logo{font-weight:800;letter-spacing:-.02em;font-size:18px;display:flex;align-items:center;gap:8px;text-decoration:none}
+.logo i{width:12px;height:12px;border-radius:50%;background:var(--accent);display:inline-block}
+.logo small{font-weight:500;color:var(--ink-3);font-size:13px}
+.sp{flex:1}
+.chip{font-size:12px;color:var(--ink-2);background:var(--surface-2);border-radius:99px;padding:3px 10px;white-space:nowrap}
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:7px 14px;cursor:pointer;font-weight:600;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{border-color:var(--ink-3)}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:4px 10px;font-size:13px;font-weight:500}
+nav.tabs{display:flex;gap:4px;overflow-x:auto;padding:8px 0;scrollbar-width:none}
+nav.tabs button{border:0;background:none;padding:7px 12px;border-radius:9px;cursor:pointer;white-space:nowrap;color:var(--ink-2);font-weight:600;font-size:14px}
+nav.tabs button.on{background:var(--ink);color:var(--bg)}
+main{padding:20px 0 64px}
+h1{font-size:clamp(26px,4vw,38px);letter-spacing:-.03em;line-height:1.1;margin:8px 0 6px}
+h2{font-size:20px;letter-spacing:-.01em;margin:30px 0 4px}
+h3{font-size:16px;margin:18px 0 6px}
+.sub{color:var(--ink-2);margin:0 0 14px;max-width:72ch}
+.muted{color:var(--ink-3)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:16px;box-shadow:var(--shadow)}
+.grid{display:grid;gap:12px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(260px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.kpi .v{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.kpi .l{color:var(--ink-2);font-size:13px}
+.kpi .d{font-size:12px;color:var(--ink-3);margin-top:4px}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:8px 0 14px}
+.filters select,.filters input{border:1px solid var(--line);background:var(--surface);border-radius:9px;padding:7px 10px;font-size:14px;max-width:100%}
+.filters input{min-width:200px;flex:1}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;color:var(--ink-2);font-weight:600;white-space:nowrap;background:var(--surface-2);position:sticky;top:0;cursor:pointer;user-select:none}
+th.n,td.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--surface-2)}
+.barcell{display:flex;align-items:center;gap:8px;min-width:150px}
+.barcell .track{flex:1;height:10px;background:var(--bar-soft);border-radius:0 4px 4px 0;position:relative}
+.barcell .fill{position:absolute;inset:0 auto 0 0;background:var(--bar);border-radius:0 4px 4px 0}
+.barcell .ref{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--ink-2)}
+.barcell span{font-variant-numeric:tabular-nums;min-width:34px;text-align:right}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;border-radius:99px;padding:2px 9px;background:var(--surface-2);white-space:nowrap}
+.badge::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--ink-3)}
+.b-good::before{background:var(--good)}.b-warn::before{background:var(--warn)}.b-serious::before{background:var(--serious)}.b-crit::before{background:var(--crit)}
+.pill{display:inline-block;font-size:12px;border:1px solid var(--line);border-radius:99px;padding:1px 8px;margin:2px 4px 2px 0;color:var(--ink-2)}
+.list{display:flex;flex-direction:column;gap:8px}
+.row{display:flex;gap:12px;align-items:flex-start;justify-content:space-between;flex-wrap:wrap}
+.date{font-variant-numeric:tabular-nums;font-weight:700;min-width:84px}
+.alert{border-left:4px solid var(--serious);padding:10px 14px;background:var(--surface);border-radius:8px;border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.alert.crit{border-left-color:var(--crit)}.alert.warn{border-left-color:var(--warn)}.alert.good{border-left-color:var(--good)}
+.alert b{display:block}
+.login{max-width:420px}
+.login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:17px;letter-spacing:.08em;text-transform:uppercase;background:var(--surface)}
+.err{color:var(--crit);font-size:14px;min-height:20px;margin:6px 0}
+.stale{background:var(--crit);color:#fff;padding:8px 16px;text-align:center;font-weight:600;font-size:14px}
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.month div{aspect-ratio:1;border-radius:8px;background:var(--surface-2);font-size:11px;padding:4px;display:flex;flex-direction:column;justify-content:space-between;min-width:0}
+.month div.has{background:var(--bar-soft)}
+.month div b{font-size:15px;color:var(--ink)}
+.month .hd{aspect-ratio:auto;background:none;text-align:center;color:var(--ink-3)}
+.progress{height:14px;background:var(--surface-2);border-radius:0 6px 6px 0;overflow:hidden}
+.progress>i{display:block;height:100%;background:var(--bar);border-radius:0 6px 6px 0}
+.md h1{font-size:24px}.md h2{font-size:18px}.md blockquote{margin:10px 0;padding:6px 14px;border-left:3px solid var(--accent);color:var(--ink-2)}
+.md li{margin:2px 0}
+dialog{border:0;border-radius:16px;padding:0;max-width:640px;width:calc(100% - 32px);background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog .in{padding:20px}
+.kv{display:grid;grid-template-columns:150px 1fr;gap:6px 12px;font-size:14px}
+.kv dt{color:var(--ink-3)}.kv dd{margin:0}
+code.cod{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.05em;background:var(--surface-2);padding:2px 8px;border-radius:6px;white-space:nowrap}
+.foot{color:var(--ink-3);font-size:13px;border-top:1px solid var(--line);padding:18px 0 30px}
+.hero{padding:26px 0 10px}
+.tag{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:700}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin:6px 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:14px;height:10px;border-radius:0 3px 3px 0;background:var(--bar)}
+.sw.ref{width:2px;height:14px;background:var(--ink-2);border-radius:0}
+@media (max-width:640px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}.kpi .v{font-size:24px}}
+</style>
+</head>
+<body>
+<div id="stale"></div>
+<header class="top"><div class="wrap">
+  <a class="logo" href="#" id="home"><i></i>Tranquilo <small>Rede</small></a>
+  <span class="chip" id="atualizado">carregando…</span>
+  <span class="sp"></span>
+  <span id="quem" class="chip" hidden></span>
+  <button class="btn sm" id="sair" hidden>Sair</button>
+  <button class="btn sm pri" id="entrar">Entrar com código</button>
+</div>
+<div class="wrap"><nav class="tabs" id="tabs" hidden></nav></div>
+</header>
+<main class="wrap" id="app"><p class="muted">Carregando…</p></main>
+<div class="wrap foot" id="foot"></div>
+
+<dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
+
+<script>
+"use strict";
+// ---------- utilidades ----------
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n) => n == null || Number.isNaN(n) ? "–" : Math.round(n).toLocaleString("pt-BR");
+const pct = (n) => n == null || !isFinite(n) ? "–" : `${n > 0 ? "+" : ""}${Math.round(n * 100)}%`;
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const MESES_L = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const SEMANA = ["dom","seg","ter","qua","qui","sex","sáb"];
+const dt = (iso) => { const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
+const dtc = (iso) => { const [y,m,d] = iso.split("-"); return `${d} ${MESES[+m-1]}`; };
+const dia = (iso) => SEMANA[new Date(iso + "T12:00:00").getDay()];
+const notion = (id) => `https://www.notion.so/${id}`;
+const media = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+const mediana = (a) => { if (!a.length) return null; const s = [...a].sort((x,y)=>x-y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1]+s[m]) / 2; };
+const soma = (a) => a.reduce((s, x) => s + x, 0);
+const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch {} }, del(k){ try { localStorage.removeItem(k); } catch {} } };
+const normCod = (c) => c.toUpperCase().replace(/[^A-Z0-9]/g, "");
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const hex = (buf) => [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+async function abrirPacote(cod) {
+  const n = normCod(cod);
+  if (n.length < 12) throw new Error("Código incompleto. Ele tem 12 letras e números.");
+  const enc = new TextEncoder();
+  const arq = hex(await crypto.subtle.digest("SHA-256", enc.encode("tranquilo-rede:" + n))).slice(0, 32);
+  const r = await fetch(`b/${arq}.bin`, { cache: "no-store" });
+  if (!r.ok) throw new Error("Código não encontrado. Confira as letras ou peça um novo código à equipe.");
+  const p = await r.json();
+  const base = await crypto.subtle.importKey("raw", enc.encode(n), "PBKDF2", false, ["deriveKey"]);
+  const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(p.s), iterations: 210000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const claro = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.i) }, k, b64(p.c));
+  return JSON.parse(new TextDecoder().decode(claro));
+}
+
+// ---------- estado ----------
+const S = { pub: null, pac: null, aba: null, filtros: { periodo: "2026", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
+const PERFIS = {
+  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Artistas"],["casas","Casas"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
+  equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["base","Base de conhecimento"],["metodo","Método"]] },
+  artista: { rotulo: "Artista", abas: [["agenda","Minha agenda"],["pracas","Praças da rede"]] },
+  casa: { rotulo: "Casa", abas: [["minhas","Minhas datas"],["roteiro","Roteiro da noite"]] },
+};
+
+// ---------- métricas ----------
+function filtrarPeriodo(evs, periodo, hoje) {
+  if (periodo === "tudo") return evs;
+  if (periodo === "12m") { const lim = new Date(new Date(hoje).getTime() - 365*864e5).toISOString().slice(0,10); return evs.filter((e) => e.d >= lim); }
+  if (periodo === "90d") { const lim = new Date(new Date(hoje).getTime() - 90*864e5).toISOString().slice(0,10); return evs.filter((e) => e.d >= lim); }
+  return evs.filter((e) => e.d.startsWith(periodo));
+}
+function metricas(evs) {
+  const real = evs.filter((e) => e.r), comP = real.filter((e) => e.p != null);
+  const ps = comP.map((e) => e.p);
+  const ult = comP.slice(-3).map((e) => e.p), ant = comP.slice(-6, -3).map((e) => e.p);
+  const encerr = evs.filter((e) => e.z).length, base = real.length + encerr;
+  const ocup = comP.filter((e) => e.x).map((e) => e.p / e.x);
+  return {
+    noites: real.length, comPublico: comP.length, total: soma(ps), media: media(ps), mediana: mediana(ps),
+    tendencia: ult.length === 3 && ant.length === 3 ? media(ult) / media(ant) - 1 : null,
+    cancel: base ? encerr / base : null, cancelados: encerr, futuras: evs.filter((e) => e.f).length,
+    registro: real.length ? comP.length / real.length : null, ocupacao: ocup.length ? media(ocup) : null,
+    cidades: new Set(real.map((e) => e.c)).size,
+  };
+}
+function sinal(m, rede) {
+  if (m.comPublico < 2) return { k: "", t: "Sem base de público", o: 0 };
+  const ind = rede.media ? m.media / rede.media : 1;
+  if (ind < 0.7 || (m.tendencia != null && m.tendencia < -0.25) || (m.cancel ?? 0) >= 0.3) return { k: "b-crit", t: "Atenção", o: 1 };
+  if (ind >= 1.1 && (m.tendencia == null || m.tendencia >= -0.1) && (m.cancel ?? 0) < 0.2) return { k: "b-good", t: "Escalar", o: 3 };
+  return { k: "b-warn", t: "Manter e observar", o: 2 };
+}
+function agrupar(evs, chaveFn) {
+  const g = new Map();
+  for (const e of evs) for (const k of [].concat(chaveFn(e)).filter(Boolean)) { if (!g.has(k)) g.set(k, []); g.get(k).push(e); }
+  return g;
+}
+
+// ---------- componentes ----------
+const kpi = (v, l, d = "") => `<div class="card kpi"><div class="v">${v}</div><div class="l">${l}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
+function barra(valor, max, ref, rot) {
+  if (valor == null) return `<span class="muted">sem público lançado</span>`;
+  const w = Math.max(2, Math.min(100, (valor / max) * 100)), r = ref != null ? Math.min(100, (ref / max) * 100) : null;
+  return `<div class="barcell" title="${esc(rot || "")}"><span>${fmt(valor)}</span><div class="track"><div class="fill" style="width:${w}%"></div>${r != null ? `<div class="ref" style="left:${r}%"></div>` : ""}</div></div>`;
+}
+function tabela(id, colunas, linhas, ordem) {
+  const st = (S.ord ||= {})[id] || ordem || { i: 0, dir: -1 };
+  S.ord[id] = st;
+  const col = colunas[st.i];
+  const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
+  return `<div class="tbl"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" title="Ordenar">${esc(c.t)}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}" class="muted">Nada para mostrar com estes filtros.</td></tr>`}</tbody></table></div>`;
+}
+function evLinha(e, extra = "") {
+  const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
+  return `<div class="card row click" data-ev="${e.id}" style="cursor:pointer"><div style="display:flex;gap:12px;min-width:0"><div class="date">${dtc(e.d)}<div class="muted" style="font-weight:400;font-size:12px">${dia(e.d)}</div></div><div style="min-width:0"><b>${esc(e.c)}</b> · ${esc(art)}<div class="muted" style="font-size:13px">${esc(e.m)} · ${esc(e.h || "casa a definir")}${extra}</div></div></div><div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div></div>`;
+}
+function abrirEvento(id) {
+  const e = S.pac.eventos.find((x) => x.id === id); if (!e) return;
+  const interno = S.pac.perfil === "adm" || S.pac.perfil === "equipe";
+  const refC = S.pac.referencia.find((r) => r.cidade === e.c);
+  $("#dlgIn").innerHTML = `<div class="tag">${esc(e.m)} · ${esc(e.s)}</div><h2 style="margin-top:4px">${esc(e.c)} · ${dt(e.d)}</h2><p class="sub">${esc(e.n)}</p>
+  <dl class="kv"><dt>Casa</dt><dd>${esc(e.h || "–")}</dd><dt>Line-up</dt><dd>${e.a.length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "–"}</dd>
+  <dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>
+  ${e.v != null ? `<dt>Ingressos + porta + lista</dt><dd>${fmt(e.v)}</dd>` : ""}${e.x ? `<dt>Capacidade trabalhada</dt><dd>${fmt(e.x)}${e.p ? ` · ocupação ${Math.round(e.p / e.x * 100)}%` : ""}</dd>` : ""}
+  ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}</dl>
+  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${esc(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  $("#dlg").showModal();
+}
+
+// ---------- página pública ----------
+function telaPublica() {
+  const p = S.pub, porMes = agrupar(p.agenda, (e) => e.d.slice(0, 7));
+  $("#app").innerHTML = `
+  <section class="hero"><div class="tag">Rede Tranquilo</div><h1>Música ao vivo circulando por ${p.totais.cidades} cidades</h1>
+  <p class="sub">Agenda aberta da rede. Casas, artistas e equipe entram com o código de acesso para ver datas, público e métricas do próprio perfil.</p></section>
+  <div class="grid g4">${kpi(fmt(p.totais.futuras), "próximas datas")}${kpi(fmt(p.totais.noites), "noites realizadas desde 2023")}${kpi(fmt(p.totais.cidades), "cidades na rede")}${kpi(fmt(p.circulacao.length), "artistas em circulação")}</div>
+  <h2>Acesso restrito</h2><p class="sub">Cada código abre só o que é daquele perfil: administração, equipe, artista ou casa.</p>
+  <div class="card login">${formLogin()}</div>
+  <h2>Artistas em circulação</h2><p class="sub">Turnês e datas avulsas confirmadas na rede.</p>
+  <div class="grid g3">${p.circulacao.map((a) => `<div class="card"><b style="font-size:17px">${esc(a.nome)}</b><div class="muted" style="font-size:13px">${a.datas} ${a.datas > 1 ? "datas" : "data"} · a partir de ${dtc(a.proxima)}</div><div style="margin-top:8px">${a.cidades.map((c) => `<span class="pill">${esc(c)}</span>`).join("")}</div></div>`).join("")}</div>
+  <h2>Agenda</h2>
+  ${[...porMes].map(([m, evs]) => `<h3>${MESES_L[+m.slice(5) - 1]} de ${m.slice(0, 4)} <span class="muted">· ${evs.length} datas</span></h3><div class="list">${evs.map((e) => `<div class="card row"><div style="display:flex;gap:12px"><div class="date">${dtc(e.d)}<div class="muted" style="font-weight:400;font-size:12px">${dia(e.d)}</div></div><div><b>${esc(e.c)}</b> · ${esc(e.a.length ? e.a.join(", ") : e.m === "Descubra" ? "Tranquilo Descubra" : "Line-up em breve")}<div class="muted" style="font-size:13px">${esc(e.m)}${e.h && !/^Casa em/.test(e.h) ? " · " + esc(e.h) : ""}</div></div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : `<span class="muted" style="font-size:13px">ingressos em breve</span>`}</div>`).join("")}</div>`).join("")}`;
+  ligarLogin();
+}
+const formLogin = () => `<label for="cod"><b>Código de acesso</b></label><input id="cod" autocomplete="off" placeholder="XXXX-XXXX-XXXX" spellcheck="false"><div class="err" id="err"></div><label style="display:flex;gap:8px;align-items:center;font-size:14px;color:var(--ink-2);margin-bottom:10px"><input type="checkbox" id="lembrar" checked style="width:auto"> Lembrar neste aparelho</label><button class="btn pri" id="ok">Entrar</button>`;
+function ligarLogin() {
+  const ir = async () => {
+    const c = $("#cod").value; $("#err").textContent = "Abrindo…";
+    try { await entrar(c, $("#lembrar").checked); } catch (e) { $("#err").textContent = e.message || "Não foi possível abrir."; }
+  };
+  $("#ok").onclick = ir; $("#cod").onkeydown = (e) => { if (e.key === "Enter") ir(); };
+}
+async function entrar(cod, lembrar) {
+  S.pac = await abrirPacote(cod);
+  if (lembrar) store.set("tq-codigo", normCod(cod));
+  S.aba = PERFIS[S.pac.perfil].abas[0][0];
+  render();
+}
+
+// ---------- abas internas ----------
+const TELAS = {
+  estrategia() {
+    const P = S.pac, f = S.filtros;
+    const modelos = ["Todos", ...new Set(P.eventos.map((e) => e.m))];
+    let evs = filtrarPeriodo(P.eventos, f.periodo, P.hoje);
+    if (f.modelo !== "Todos") evs = evs.filter((e) => e.m === f.modelo);
+    const rede = metricas(evs);
+    const dims = [["cidade","Cidade",(e) => e.c],["modelo","Modelo",(e) => e.m],["casa","Casa",(e) => e.h],["artista","Artista",(e) => e.a]];
+    const blocos = {};
+    for (const [k, , fn] of dims) blocos[k] = [...agrupar(evs, fn)].map(([nome, es]) => { const m = metricas(es); return { nome, ...m, sinal: sinal(m, rede), es }; });
+    const maxMed = Math.max(1, ...Object.values(blocos).flat().map((x) => x.media || 0));
+    const col = (nome) => [
+      { t: nome, v: (l) => l.nome },
+      { t: "Noites", n: 1, v: (l) => l.noites },
+      { t: "Público médio (linha = média da rede)", v: (l) => l.media, h: (l) => barra(l.media, maxMed, rede.media, `${l.comPublico} noites com público lançado`) },
+      { t: "Mediana", n: 1, v: (l) => l.mediana, h: (l) => fmt(l.mediana) },
+      { t: "Tendência", n: 1, v: (l) => l.tendencia, h: (l) => `<span title="média das 3 últimas noites vs. 3 anteriores">${pct(l.tendencia)}</span>` },
+      { t: "Cancel./adiadas", n: 1, v: (l) => l.cancel, h: (l) => l.cancel == null ? "–" : `${Math.round(l.cancel * 100)}%` },
+      { t: "Público lançado", n: 1, v: (l) => l.registro, h: (l) => l.registro == null ? "–" : `${Math.round(l.registro * 100)}%` },
+      { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Sinal", v: (l) => l.sinal.o, h: (l) => `<span class="badge ${l.sinal.k}">${l.sinal.t}</span>` },
+    ];
+    const destaques = Object.entries(blocos).flatMap(([k, ls]) => ls.filter((l) => l.sinal.o === 3).map((l) => ({ k, ...l }))).sort((a, b) => b.media - a.media).slice(0, 6);
+    const atencao = Object.entries(blocos).flatMap(([k, ls]) => ls.filter((l) => l.sinal.o === 1).map((l) => ({ k, ...l }))).sort((a, b) => a.media - b.media).slice(0, 6);
+    const NOMEK = { cidade: "Cidade", modelo: "Modelo", casa: "Casa", artista: "Artista" };
+    // Oportunidades: cidades fortes com pouca agenda + artistas fortes em praças onde ainda não tocaram.
+    const cidadesFortes = blocos.cidade.filter((c) => c.sinal.o >= 2 && c.comPublico >= 2).sort((a, b) => b.media - a.media);
+    const futurasPorCidade = Object.fromEntries([...agrupar(P.eventos.filter((e) => e.f), (e) => e.c)].map(([c, es]) => [c, es.length]));
+    const artistasFortes = blocos.artista.filter((a) => a.comPublico >= 1 && a.media >= (rede.media || 0)).sort((a, b) => b.media - a.media).slice(0, 8);
+    const ativos = P.referencia.filter((r) => r.futuras > 0 || r.noites > 0).map((r) => r.cidade);
+    return `<div class="tag">Painel estratégico</div><h1>O que está dando certo</h1>
+    <p class="sub">Cidade, modelo, casa e artista comparados com a média da rede no mesmo recorte. Base: público lançado no Notion em cada noite realizada.</p>
+    <div class="filters"><select id="fPer">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
+    <select id="fMod">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
+    <div class="grid g4">${kpi(fmt(rede.noites), "noites realizadas", `${rede.cidades} cidades`)}${kpi(fmt(rede.media), "público médio por noite", `mediana ${fmt(rede.mediana)}`)}${kpi(fmt(rede.total), "pessoas nas noites com público lançado")}${kpi(rede.registro == null ? "–" : Math.round(rede.registro * 100) + "%", "noites com público lançado", `${rede.noites - rede.comPublico} sem número no Notion`)}${kpi(rede.cancel == null ? "–" : Math.round(rede.cancel * 100) + "%", "canceladas ou adiadas", `${rede.cancelados} datas`)}${kpi(fmt(rede.futuras), "datas futuras neste recorte")}</div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média da rede, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && rede.media ? "+" + Math.round((d.media / rede.media - 1) * 100) + "% vs. rede" : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
+      <div class="card"><h3 style="margin-top:0">Atenção</h3><p class="muted" style="margin-top:0;font-size:13px">Abaixo de 70% da média, queda de mais de 25% ou 30%+ de cancelamentos.</p><div class="list">${atencao.map((d) => `<div class="alert crit"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}${d.cancel ? ` · ${Math.round(d.cancel * 100)}% canceladas/adiadas` : ""}</div>`).join("") || `<p class="muted">Nada em atenção neste recorte.</p>`}</div></div>
+    </div>
+    <h2>Onde implementar a seguir</h2><p class="sub">Cidades que respondem e quantas datas já estão na agenda; artistas acima da média e as praças ativas onde ainda não tocaram.</p>
+    <div class="grid g2"><div class="card"><h3 style="margin-top:0">Cidades com resposta</h3><div class="list">${cidadesFortes.slice(0, 8).map((c) => `<div class="row"><span><b>${esc(c.nome)}</b> <span class="muted">· ${fmt(c.media)} por noite · ${c.comPublico} noites</span></span><span class="badge ${futurasPorCidade[c.nome] ? "b-good" : "b-warn"}">${futurasPorCidade[c.nome] || 0} na agenda</span></div>`).join("") || `<p class="muted">Sem base suficiente.</p>`}</div></div>
+    <div class="card"><h3 style="margin-top:0">Artistas para novas praças</h3><div class="list">${artistasFortes.map((a) => { const tocou = new Set(a.es.map((e) => e.c)); const novas = ativos.filter((c) => !tocou.has(c)); const agendadas = new Set(P.eventos.filter((e) => e.f && e.a.includes(a.nome)).map((e) => e.c)); return `<div><b>${esc(a.nome)}</b> <span class="muted">· ${fmt(a.media)} por noite em ${a.comPublico} ${a.comPublico > 1 ? "noites" : "noite"}</span><div>${novas.slice(0, 8).map((c) => `<span class="pill">${agendadas.has(c) ? "✓ " : ""}${esc(c)}</span>`).join("")}</div></div>`; }).join("") || `<p class="muted">Sem base suficiente.</p>`}</div></div></div>
+    <h2>Por cidade</h2>${tabela("cid", col("Cidade"), blocos.cidade, { i: 1, dir: -1 })}
+    <h2>Por modelo</h2><p class="sub">Descubra, Apresenta, Turnê, Noite Tranquilo e o formato clássico de 2023–25.</p>${tabela("mod", col("Modelo"), blocos.modelo, { i: 1, dir: -1 })}
+    <h2>Por casa</h2>${tabela("cas", col("Casa"), blocos.casa.filter((l) => l.noites || l.futuras).map((l) => ({ ...l, _click: "casa:" + l.nome })), { i: 1, dir: -1 })}
+    <h2>Por artista</h2><p class="sub">Artistas com público lançado neste recorte. A lista completa está na aba Artistas.</p>${tabela("art", col("Artista"), blocos.artista.filter((l) => l.comPublico).map((l) => ({ ...l, _click: "artista:" + l.nome })), { i: 2, dir: -1 })}
+    <p class="muted" style="font-size:13px;margin-top:14px">Sinal: <span class="badge b-good">Escalar</span> <span class="badge b-warn">Manter e observar</span> <span class="badge b-crit">Atenção</span> <span class="badge">Sem base de público</span> (menos de 2 noites com público lançado).</p>`;
+  },
+  operacao() {
+    const P = S.pac, hoje = P.hoje;
+    const mesAtual = hoje.slice(0, 7), prox = new Date(+hoje.slice(0, 4), +hoje.slice(5, 7), 1).toISOString().slice(0, 7);
+    const doMes = (m) => P.eventos.filter((e) => e.d.startsWith(m) && !e.z);
+    const em14 = new Date(new Date(hoje).getTime() + 14 * 864e5).toISOString().slice(0, 10);
+    const em21 = new Date(new Date(hoje).getTime() + 21 * 864e5).toISOString().slice(0, 10);
+    const ha90 = new Date(new Date(hoje).getTime() - 90 * 864e5).toISOString().slice(0, 10);
+    const alertas = [
+      ...P.eventos.filter((e) => e.d < hoje && e.r && !["Realizado"].includes(e.s)).map((e) => ({ k: "crit", t: `Status desatualizado: ${e.s}`, e })),
+      ...P.eventos.filter((e) => e.r && e.p == null && e.d >= ha90).map((e) => ({ k: "serious", t: "Noite realizada sem público lançado", e })),
+      ...P.eventos.filter((e) => e.f && e.d <= em21 && !e.l).map((e) => ({ k: "warn", t: "Data em até 21 dias sem link de ingressos", e })),
+      ...P.eventos.filter((e) => e.f && !e.k).map((e) => ({ k: "warn", t: "Data futura sem casa vinculada", e })),
+    ];
+    const cal = (m) => { const [y, mm] = m.split("-").map(Number), ini = new Date(y, mm - 1, 1).getDay(), dias = new Date(y, mm, 0).getDate(), evs = doMes(m); let h = SEMANA.map((s) => `<div class="hd">${s}</div>`).join("") + "<div></div>".repeat(ini).replace(/<div><\/div>/g, '<div style="background:none"></div>'); for (let d = 1; d <= dias; d++) { const iso = `${m}-${String(d).padStart(2, "0")}`, n = evs.filter((e) => e.d === iso); h += `<div class="${n.length ? "has" : ""}" title="${esc(n.map((e) => e.c + " · " + (e.a[0] || e.m)).join("\n"))}"><span>${d}</span>${n.length ? `<b>${n.length}</b>` : ""}</div>`; } return `<div class="month">${h}</div>`; };
+    const bloco = (m) => { const evs = doMes(m), n = evs.length, porC = [...agrupar(evs, (e) => e.c)].sort((a, b) => b[1].length - a[1].length); return `<div class="card"><div class="row"><b>${MESES_L[+m.slice(5) - 1]} de ${m.slice(0, 4)}</b><span class="muted">${n} de 50</span></div><div class="progress" style="margin:8px 0 12px" title="${n} de 50 datas"><i style="width:${Math.min(100, n / 50 * 100)}%"></i></div>${cal(m)}<div style="margin-top:10px">${porC.map(([c, es]) => `<span class="pill">${esc(c)} · ${es.length}</span>`).join("")}</div></div>`; };
+    return `<div class="tag">Operação</div><h1>Rodada dos 50</h1><p class="sub">Quantas datas já estão de pé neste mês e no próximo, o que precisa de atenção e o que acontece nos próximos 14 dias.</p>
+    <div class="grid g2">${bloco(mesAtual)}${bloco(prox)}</div>
+    <h2>Precisa de atenção <span class="muted">· ${alertas.length}</span></h2><p class="sub">Gerado a partir do Notion a cada atualização. Clique para ver a ficha.</p>
+    <div class="list">${alertas.map((a) => `<div class="alert ${a.k === "crit" ? "crit" : a.k === "warn" ? "warn" : ""}" data-ev="${a.e.id}" style="cursor:pointer"><b>${esc(a.t)}</b>${dt(a.e.d)} · ${esc(a.e.c)} · ${esc(a.e.a[0] || a.e.m)} · ${esc(a.e.h || "sem casa")}</div>`).join("") || `<p class="muted">Nada pendente.</p>`}</div>
+    <h2>Próximos 14 dias</h2><div class="list">${P.eventos.filter((e) => e.f && e.d <= em14).map((e) => evLinha(e)).join("") || `<p class="muted">Sem datas nos próximos 14 dias.</p>`}</div>`;
+  },
+  datas() {
+    const P = S.pac, f = S.datas, opts = (k) => [...new Set(P.eventos.map((e) => e[k]))].sort();
+    let evs = P.eventos;
+    if (f.quando === "futuras") evs = evs.filter((e) => e.f); else if (f.quando === "passadas") evs = evs.filter((e) => e.d < P.hoje);
+    if (f.cidade) evs = evs.filter((e) => e.c === f.cidade);
+    if (f.modelo) evs = evs.filter((e) => e.m === f.modelo);
+    if (f.status) evs = evs.filter((e) => e.s === f.status);
+    if (f.q) { const q = f.q.toLowerCase(); evs = evs.filter((e) => (e.n + " " + (e.h || "")).toLowerCase().includes(q)); }
+    const sel = (id, k, rot) => `<select id="${id}"><option value="">${rot}</option>${opts(k).map((o) => `<option${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    return `<div class="tag">Datas</div><h1>${evs.length} datas</h1>
+    <div class="filters"><select id="dQuando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
+    ${tabela("datas", [
+      { t: "Data", v: (e) => e.d, h: (e) => `<b>${dt(e.d)}</b> <span class="muted">${dia(e.d)}</span>` },
+      { t: "Cidade", v: (e) => e.c }, { t: "Modelo", v: (e) => e.m },
+      { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || "–") },
+      { t: "Casa", v: (e) => e.h }, { t: "Status", v: (e) => e.s },
+      { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
+      { t: "Ingressos", v: (e) => e.l ? 1 : 0, h: (e) => e.l ? `<a href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir</a>` : `<span class="muted">–</span>` },
+    ], evs.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: f.quando === "futuras" ? 1 : -1 })}`;
+  },
+  artistas() {
+    const P = S.pac, g = agrupar(P.eventos, (e) => e.a);
+    const linhas = [...g].map(([nome, es]) => ({ nome, ...metricas(es), cidadesL: [...new Set(es.map((e) => e.c))], ult: es.filter((e) => e.d < P.hoje).map((e) => e.d).pop(), _click: "artista:" + nome }));
+    const max = Math.max(1, ...linhas.map((l) => l.media || 0)), rede = metricas(P.eventos.filter((e) => e.d >= "2026-01-01"));
+    return `<div class="tag">Artistas</div><h1>${linhas.length} artistas na história da rede</h1><p class="sub">Clique em uma artista para ver a ficha por praça. A linha na barra é a média da rede em 2026.</p>
+    ${tabela("artl", [
+      { t: "Artista", v: (l) => l.nome, h: (l) => `<b>${esc(l.nome)}</b>` },
+      { t: "Noites", n: 1, v: (l) => l.noites }, { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Público médio", v: (l) => l.media, h: (l) => barra(l.media, max, rede.media) },
+      { t: "Cidades", v: (l) => l.cidadesL.length, h: (l) => l.cidadesL.map((c) => `<span class="pill">${esc(c)}</span>`).join("") },
+      { t: "Última noite", v: (l) => l.ult, h: (l) => l.ult ? dt(l.ult) : "–" },
+    ], linhas, { i: 2, dir: -1 })}`;
+  },
+  casas() {
+    const P = S.pac, g = agrupar(P.eventos, (e) => e.h);
+    const linhas = [...g].map(([nome, es]) => ({ nome, cidade: es[0].c, ...metricas(es), _click: "casa:" + nome }));
+    const max = Math.max(1, ...linhas.map((l) => l.media || 0));
+    return `<div class="tag">Casas</div><h1>${linhas.length} casas</h1><p class="sub">Nomes vêm do título do evento no Notion. Casas sem nome no título aparecem como "Casa em cidade" até o banco de Casas ser liberado para a integração.</p>
+    ${tabela("casl", [
+      { t: "Casa", v: (l) => l.nome, h: (l) => `<b>${esc(l.nome)}</b>` }, { t: "Cidade", v: (l) => l.cidade },
+      { t: "Noites", n: 1, v: (l) => l.noites }, { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Público médio", v: (l) => l.media, h: (l) => barra(l.media, max) },
+      { t: "Ocupação", n: 1, v: (l) => l.ocupacao, h: (l) => l.ocupacao ? Math.round(l.ocupacao * 100) + "%" : "–" },
+      { t: "Cancel./adiadas", n: 1, v: (l) => l.cancelados },
+    ], linhas, { i: 2, dir: -1 })}`;
+  },
+  base() {
+    const P = S.pac, q = (S.bq || "").toLowerCase();
+    const itens = P.base.filter((b) => !q || b.q.toLowerCase().includes(q));
+    const prontos = P.base.filter((b) => b.s === "Pronto para uso").length;
+    return `<div class="tag">Base de conhecimento</div><h1>${P.base.length} artigos</h1><p class="sub">${prontos} prontos para uso. O artigo abre no Notion (precisa de login da equipe).</p>
+    <div class="filters"><input id="bq" placeholder="Buscar: portaria, lote, cortesia, Pix…" value="${esc(S.bq || "")}"></div>
+    <div class="list">${itens.map((b) => `<a class="card row" href="${notion(b.id)}" target="_blank" rel="noopener" style="text-decoration:none"><span>${esc(b.q)}</span><span class="badge ${b.s === "Pronto para uso" ? "b-good" : b.s === "Em revisão" ? "b-warn" : ""}">${esc(b.s)}</span></a>`).join("")}</div>`;
+  },
+  metodo() {
+    return `<div class="row"><div class="tag">Método</div><a class="btn sm" href="${notion("ddd0e9fd76994af0b100dcc6e026f7bc")}" target="_blank" rel="noopener">Documento completo no Notion</a></div><div class="card md" style="margin-top:10px">${markdown(S.pac.metodo)}</div>`;
+  },
+  acessos() {
+    const P = S.pac, url = location.origin + location.pathname, f = S.acf || "";
+    const lista = P.acessos.filter((a) => !f || a.tipo === f);
+    return `<div class="tag">Acessos</div><h1>Códigos de acesso</h1><p class="sub">Cada código abre só o painel daquele perfil. O link já entra direto. Os códigos continuam os mesmos a cada atualização noturna; mudam apenas se o segredo do site for trocado.</p>
+    <div class="filters"><select id="acf"><option value="">Todos (${P.acessos.length})</option>${["adm","equipe","artista","casa"].map((t) => `<option value="${t}"${f === t ? " selected" : ""}>${PERFIS[t].rotulo}</option>`).join("")}</select></div>
+    ${tabela("acs", [
+      { t: "Perfil", v: (a) => PERFIS[a.tipo].rotulo }, { t: "Nome", v: (a) => a.nome, h: (a) => `<b>${esc(a.nome)}</b>${a.cidades ? `<div class="muted" style="font-size:12px">${esc(a.cidades)}</div>` : ""}` },
+      { t: "Código", v: (a) => a.codigo, h: (a) => `<code class="cod">${a.codigo}</code>` },
+      { t: "", v: () => 0, h: (a) => { const link = `${url}#c=${normCod(a.codigo)}`; const msg = `Oi! Este é o seu acesso ao painel da Rede Tranquilo (${PERFIS[a.tipo].rotulo.toLowerCase()}: ${a.nome}).\n\n${link}\n\nSe pedir, o código é ${a.codigo}.`; return `<button class="btn sm" data-copy="${esc(link)}">Copiar link</button> <a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp</a>`; } },
+    ], lista, { i: 0, dir: 1 })}`;
+  },
+  agenda() {
+    const P = S.pac, fut = P.eventos.filter((e) => e.f), pas = P.eventos.filter((e) => e.d < P.hoje).reverse();
+    const ref = Object.fromEntries(P.referencia.map((r) => [r.cidade, r]));
+    const m = metricas(P.eventos);
+    return `<div class="tag">Artista</div><h1>Olá, ${esc(P.nome)}</h1><p class="sub">Suas datas na Rede Tranquilo e o público de cada noite, comparado com a faixa típica de cada praça.</p>
+    <div class="grid g4">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(fmt(new Set(P.eventos.map((e) => e.c)).size), "cidades")}</div>
+    <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura na agenda.</p>`}</div>
+    <h2>Histórico</h2>${tabela("hist", [
+      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Cidade", v: (e) => e.c }, { t: "Casa", v: (e) => e.h }, { t: "Modelo", v: (e) => e.m },
+      { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
+      { t: "Faixa da praça", v: (e) => ref[e.c]?.mediana, h: (e) => { const r = ref[e.c]; if (!r?.mediana) return `<span class="muted">sem base</span>`; const pos = e.p == null ? "" : e.p > r.p75 ? `<span class="badge b-good">acima</span>` : e.p < r.p25 ? `<span class="badge b-serious">abaixo</span>` : `<span class="badge b-warn">na faixa</span>`; return `${fmt(r.p25)}–${fmt(r.p75)} ${pos}`; } },
+    ], pas.filter((e) => !e.z).map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: -1 })}`;
+  },
+  pracas() {
+    const P = S.pac, tocou = new Set(P.eventos.filter((e) => e.r).map((e) => e.c)), agend = new Set(P.eventos.filter((e) => e.f).map((e) => e.c));
+    const minha = (c) => metricas(P.eventos.filter((e) => e.c === c));
+    const max = Math.max(1, ...P.referencia.map((r) => r.p75 || 0));
+    return `<div class="tag">Praças da rede</div><h1>Você em cada praça</h1><p class="sub">Onde você já tocou vale o seu histórico. Onde nunca tocou, vale a faixa típica da praça (25% a 75% das noites${" "}dos últimos 12 meses).</p>
+    <div class="legend"><span><i class="sw"></i> mediana da praça</span></div>
+    ${tabela("prc", [
+      { t: "Praça", v: (r) => r.cidade, h: (r) => `<b>${esc(r.cidade)}</b>` },
+      { t: "Você", v: (r) => tocou.has(r.cidade) ? 2 : agend.has(r.cidade) ? 1 : 0, h: (r) => tocou.has(r.cidade) ? `<span class="badge b-good">já tocou · ${fmt(minha(r.cidade).media)} por noite</span>` : agend.has(r.cidade) ? `<span class="badge b-warn">data marcada</span>` : `<span class="badge">ainda não tocou</span>` },
+      { t: "Mediana da praça", v: (r) => r.mediana, h: (r) => r.mediana ? barra(r.mediana, max) : `<span class="muted">sem base de público</span>` },
+      { t: "Faixa típica", v: (r) => r.p25, h: (r) => r.p25 != null ? `${fmt(r.p25)}–${fmt(r.p75)}` : "–" },
+      { t: "Base", v: (r) => r.noites, h: (r) => r.noites ? `${r.noites} noites · ${r.janela}` : "–" },
+      { t: "", v: () => 0, h: (r) => tocou.has(r.cidade) || agend.has(r.cidade) ? "" : `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Oi, equipe Tranquilo! Aqui é ${P.nome}. Tenho interesse em circular em ${r.cidade}. Podemos conversar sobre uma data?`)}">Quero tocar aqui</a>` },
+    ], P.referencia, { i: 2, dir: -1 })}`;
+  },
+  minhas() {
+    const P = S.pac, fut = P.eventos.filter((e) => e.f), pas = P.eventos.filter((e) => e.d < P.hoje).reverse();
+    const m = metricas(P.eventos), ref = P.referencia.find((r) => r.cidade === P.cidade);
+    const max = Math.max(1, ...P.eventos.map((e) => e.p || 0), ref?.p75 || 0);
+    return `<div class="tag">Casa · ${esc(P.cidade)}</div><h1>${esc(P.nome)}</h1><p class="sub">Suas datas com o Tranquilo, o público de cada noite e como ele se compara com a praça e com a rede.</p>
+    <div class="grid g4">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio por noite", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(ref?.mediana ? fmt(ref.mediana) : "–", `mediana de ${esc(P.cidade)}`, ref?.noites ? `${ref.noites} noites · ${ref.janela}` : "")}${kpi(P.rede ? fmt(P.rede.mediana) : "–", "mediana da rede", "últimos 12 meses")}${m.ocupacao ? kpi(Math.round(m.ocupacao * 100) + "%", "ocupação média") : ""}</div>
+    <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura. Fale com a equipe para receber novas datas.</p>`}</div>
+    <h2>Histórico</h2><div class="legend"><span><i class="sw"></i> público da noite</span><span><i class="sw ref"></i> mediana de ${esc(P.cidade)}</span></div>
+    ${tabela("hcasa", [
+      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || e.m) },
+      { t: "Status", v: (e) => e.s }, { t: "Público", v: (e) => e.p, h: (e) => barra(e.p, max, ref?.mediana) },
+    ], pas.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: -1 })}`;
+  },
+  roteiro() {
+    const md = S.pac.metodo || "", pega = (t) => { const i = md.indexOf("## " + t); if (i < 0) return ""; const j = md.indexOf("\n## ", i + 3); return md.slice(i, j < 0 ? undefined : j); };
+    return `<div class="tag">Roteiro da noite</div><h1>O que a casa registra</h1><p class="sub">Do método V0.1 do Tranquilo: depois do handoff, a casa produz a data e registra prontidão, execução e ocorrências. Ninguém da matriz precisa acompanhar em tempo real.</p>
+    <div class="grid g2">${["Checklist pré-evento (a casa registra)", "Registro durante o evento", "Ocorrências", "Resultado Mínimo Tranquilo", "Qualificação pela execução", "O handoff é o centro operacional"].map((t) => `<div class="card md">${markdown(pega(t))}</div>`).join("")}</div>`;
+  },
+};
+
+function markdown(md) {
+  const linhas = (md || "").split("\n"); let h = "", lista = false;
+  const inl = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  for (const l of linhas) {
+    const li = l.match(/^\s*[-*]\s+(.*)/) || l.match(/^\s*\d+\.\s+(.*)/);
+    if (li) { if (!lista) { h += "<ul>"; lista = true; } h += `<li>${inl(li[1])}</li>`; continue; }
+    if (lista) { h += "</ul>"; lista = false; }
+    if (/^### /.test(l)) h += `<h3>${inl(l.slice(4))}</h3>`;
+    else if (/^## /.test(l)) h += `<h2>${inl(l.slice(3))}</h2>`;
+    else if (/^# /.test(l)) h += `<h1>${inl(l.slice(2))}</h1>`;
+    else if (/^> /.test(l)) h += `<blockquote>${inl(l.slice(2))}</blockquote>`;
+    else if (/^---/.test(l)) h += "<hr>";
+    else if (l.trim()) h += `<p>${inl(l)}</p>`;
+  }
+  return h + (lista ? "</ul>" : "");
+}
+
+// ---------- fichas de artista/casa vistas pela administração ----------
+function fichaPor(tipo, nome) {
+  const P = S.pac, evs = P.eventos.filter((e) => tipo === "artista" ? e.a.includes(nome) : e.h === nome);
+  const m = metricas(evs), ref = Object.fromEntries(P.referencia.map((r) => [r.cidade, r]));
+  const porC = [...agrupar(evs.filter((e) => e.r), (e) => e.c)].map(([c, es]) => ({ c, ...metricas(es) }));
+  $("#dlgIn").innerHTML = `<div class="tag">${tipo === "artista" ? "Artista" : "Casa"}</div><h2 style="margin-top:4px">${esc(nome)}</h2>
+  <div class="grid g4" style="margin:10px 0">${kpi(fmt(m.noites), "noites")}${kpi(fmt(m.media), "público médio")}${kpi(fmt(m.futuras), "próximas")}${kpi(m.cancelados, "canceladas/adiadas")}</div>
+  <h3>Por praça</h3><div class="list">${porC.map((x) => `<div class="row"><span><b>${esc(x.c)}</b> · ${x.noites} noites · ${fmt(x.media)} por noite</span><span class="muted">praça: ${ref[x.c]?.mediana ? fmt(ref[x.c].mediana) : "sem base"}</span></div>`).join("") || `<p class="muted">Sem noites realizadas.</p>`}</div>
+  <h3>Datas</h3><div class="list" style="max-height:300px;overflow:auto">${evs.slice().reverse().map((e) => `<div class="row" style="font-size:14px"><span>${dt(e.d)} · ${esc(e.c)} · ${esc(e.s)}</span><span>${e.p != null ? fmt(e.p) + " pessoas" : ""}</span></div>`).join("")}</div>
+  <div style="margin-top:16px"><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  $("#dlg").showModal();
+}
+
+// ---------- render ----------
+function render() {
+  const P = S.pac;
+  $("#entrar").hidden = !!P; $("#sair").hidden = !P; $("#quem").hidden = !P; $("#tabs").hidden = !P;
+  if (!P) return telaPublica();
+  $("#quem").textContent = `${PERFIS[P.perfil].rotulo}${P.perfil === "artista" || P.perfil === "casa" ? " · " + P.nome : ""}`;
+  $("#tabs").innerHTML = PERFIS[P.perfil].abas.map(([k, t]) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}">${t}</button>`).join("");
+  $("#app").innerHTML = TELAS[S.aba]();
+  ligar();
+}
+function ligar() {
+  const on = (sel, ev, fn) => { const el = $(sel); if (el) el[ev] = fn; };
+  on("#fPer", "onchange", (e) => { S.filtros.periodo = e.target.value; render(); });
+  on("#fMod", "onchange", (e) => { S.filtros.modelo = e.target.value; render(); });
+  for (const [id, k] of [["#dQuando","quando"],["#dCidade","cidade"],["#dModelo","modelo"],["#dStatus","status"]]) on(id, "onchange", (e) => { S.datas[k] = e.target.value; render(); });
+  on("#dQ", "oninput", (e) => { S.datas.q = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#dQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); });
+  on("#bq", "oninput", (e) => { S.bq = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#bq"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
+  on("#acf", "onchange", (e) => { S.acf = e.target.value; render(); });
+}
+document.addEventListener("click", (ev) => {
+  const t = ev.target;
+  const aba = t.closest("[data-aba]"); if (aba) { S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
+  const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
+  const cp = t.closest("[data-copy]"); if (cp) { navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado"; setTimeout(() => (cp.textContent = "Copiar link"), 1500); }); return; }
+  const evEl = t.closest("[data-ev]"); if (evEl) return abrirEvento(evEl.dataset.ev);
+  const cl = t.closest("[data-click]"); if (cl) { const [k, ...r] = cl.dataset.click.split(":"), v = r.join(":"); if (k === "ev") abrirEvento(v); else fichaPor(k, v); }
+});
+const dlg = $("#dlg");
+dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+$("#entrar").onclick = () => { S.pac = null; render(); setTimeout(() => $("#cod")?.focus(), 50); $("#cod")?.scrollIntoView({ block: "center" }); };
+$("#sair").onclick = () => { store.del("tq-codigo"); S.pac = null; render(); };
+$("#home").onclick = (e) => { e.preventDefault(); if (S.pac) { S.aba = PERFIS[S.pac.perfil].abas[0][0]; } render(); };
+
+(async function iniciar() {
+  try { S.pub = await (await fetch("public.json", { cache: "no-store" })).json(); }
+  catch { $("#app").innerHTML = `<p>Não foi possível carregar os dados agora. Tente de novo em instantes.</p>`; return; }
+  const ger = new Date(S.pub.geradoEm), horas = (Date.now() - ger) / 36e5;
+  $("#atualizado").textContent = `Notion · atualizado ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+  if (horas > 36) $("#stale").innerHTML = `<div class="stale">Atenção: dados com mais de ${Math.floor(horas)} horas. A atualização automática pode ter falhado.</div>`;
+  $("#foot").innerHTML = `Dados lidos do Notion do Tranquilo (${esc(S.pub.fonte)}). Atualização automática toda noite. Números de público vêm do fechamento lançado em cada evento.`;
+  const hash = new URLSearchParams(location.hash.slice(1)).get("c");
+  if (hash) history.replaceState(null, "", location.pathname);
+  const cod = hash || store.get("tq-codigo");
+  if (cod) { try { await entrar(cod, true); return; } catch { store.del("tq-codigo"); } }
+  render();
+})();
+</script>
+</body>
+</html>

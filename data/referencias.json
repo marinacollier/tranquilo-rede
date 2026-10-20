@@ -1,0 +1,29 @@
+{
+  "_sobre": "Mapeamentos de IDs do Notion para nomes. Usados quando a integração não tem acesso aos bancos relacionados (Praças, Tipos de evento, Casas). Quando o acesso existir, os nomes vêm direto do Notion e estes valores viram apenas reserva.",
+  "pracas": {
+    "d88ba849b4564f2db9ee2cf7b8ff6951": "São Paulo",
+    "23ddb1369c294a23b248fda12aafa549": "Belo Horizonte",
+    "2b683bbf4e8480ffb876e985858fc894": "Florianópolis",
+    "2b583bbf4e84806782a6cb40caf1f197": "Rio de Janeiro",
+    "2b683bbf4e8480f682f8d6bc2f31bdc9": "Salvador",
+    "0c213a3979ca49b4a110e42e2699ee99": "Recife",
+    "c51cd29a18e64fbd846ef3f20d30fba2": "Curitiba",
+    "5f51b08166eb4630b17af85a95769d14": "Brasília",
+    "3eb83bbf4e84801d8b40eb83170b4de0": "Santo André",
+    "2b683bbf4e848051a4aaeb76a8023b22": "Campinas",
+    "3eb83bbf4e848045b605dcf6fb977e18": "Santos",
+    "3eb83bbf4e848085b958da4a5bc5109a": "Sorocaba",
+    "73a2e5b920624051acf2e5eb2bea98dd": "Porto Alegre",
+    "3eb83bbf4e848034b09ccc2243b79938": "Itajaí"
+  },
+  "modelos": {
+    "34183bbf4e8480339da4d4a870f4d7a1": "Descubra",
+    "32883bbf4e84804aa6b9d3628769d7b4": "Apresenta",
+    "0e776a9914b54eae9485378d18ef84c9": "Turnê",
+    "d7bbd90637b547e895add3ce5050aa79": "Noite Tranquilo"
+  },
+  "casas": {
+    "d4fc90df16a24bdfbe19ca956f0d75aa": "D House",
+    "3a5b872a910648449ec1306baa21ad31": "D House"
+  }
+}
