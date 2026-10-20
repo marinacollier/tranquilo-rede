@@ -477,6 +477,21 @@ body.logado .foot{padding:22px 16px 30px}
 .aceite-legal a{color:var(--ink-3)}
 .loc-btn{border:0;background:none;color:var(--ink-3);font-size:13px;cursor:pointer;padding:4px 0;text-align:left;text-decoration:underline;text-underline-offset:3px}
 .loc-btn:hover{color:#fff}
+.sec-cidades{margin-top:36px}
+.faixa-aviso,#acesso{max-width:860px;margin-left:auto;margin-right:auto}
+#agenda{scroll-margin-top:100px}
+@media (max-width:640px){
+  header.top .wrap{min-height:60px;gap:8px}
+  .logo>span:not(.tl){display:none}
+  .tl{font-size:26px}
+  .cid-btn{min-width:0;padding:7px 12px;font-size:14px;gap:6px}
+  .cid-btn span{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .btn-entrar{padding:4px;font-size:0;gap:0}
+  .btn-entrar .av{width:30px;height:30px}
+  .cid-menu{width:min(290px,calc(100vw - 24px))}
+  .hero-ofc{padding-top:22px}
+  .cidade{min-height:128px}
+}
 </style>
 </head>
 <body>
@@ -563,11 +578,15 @@ function aplicarCidade() {
   const c = S.cidade ? cidadeOfc(S.cidade) : null;
   document.documentElement.style.setProperty("--city", c?.cor || "#7c8ff3");
 }
-function escolherCidade(nome) {
-  S.cidade = nome || ""; S.agCidade = S.cidade; S.agTudo = false;
+function escolherCidade(nome, rolar = true) {
+  S.cidade = nome || ""; S.agCidade = S.cidade; S.agTudo = false; S.cidMenu = false;
   if (nome) store.set("tq-cidade", nome); else store.del("tq-cidade");
   aplicarCidade(); render();
+  if (rolar && nome) setTimeout(() => document.getElementById("agenda")?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
 }
+window.TQConsent = () => consentimento();
+window.TQLocalizar = localizar;
+window.TQCidadeOfc = cidadeOfc;
 function seletorCidade() {
   const c = S.cidade ? cidadeOfc(S.cidade) : null, contagem = Object.fromEntries([...agrupar(S.pub?.agenda || [], (e) => cidadeOfc(e.c)?.nome || e.c)].map(([k, v]) => [k, v.length]));
   return `<button class="cid-btn" id="cidBtn" aria-haspopup="true" aria-expanded="${!!S.cidMenu}">${c ? `<span>${c.emoji} <b>${esc(c.nome)}</b></span>` : "<span>Escolher cidade</span>"}<svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
@@ -590,7 +609,7 @@ function localizar(aoAchar) {
 }
 // Banner de privacidade e consentimento, no formato do site oficial. Este site não usa cookies de análise nem de anúncios.
 function consentimento() {
-  if (store.get("tq-consentimento") || TQTour.aberto()) return;
+  if (store.get("tq-consentimento") || TQTour.aberto() || S.pac || S.conta) return;
   $("#consent").innerHTML = `<div class="consent" role="dialog" aria-label="Privacidade e consentimento de comunicação"><b>🍪 Privacidade e Consentimento de Comunicação</b>
   <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
   <div class="acoes"><button class="btn claro" data-consent="ok">Entendi ✨</button><a class="btn ghost" href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Ler a política</a></div></div>`;
@@ -689,37 +708,66 @@ function abrirEvento(id) {
 // ---------- página pública ----------
 const CORES = ["var(--sun)", "var(--pink)", "var(--green)", "var(--violet)", "var(--cream)"];
 const corDe = (t) => CORES[[...t].reduce((n, c) => n + c.charCodeAt(0), 0) % CORES.length];
+const SEM_C = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"], SEM_L = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+// Título no formato do site oficial: "Tranquilo Descubra — São Paulo", "Tranquilo Apresenta — Brasília — YOÙN".
+const juntar = (l) => l.length > 1 ? l.slice(0, -1).join(", ") + " e " + l[l.length - 1] : l.join("");
+function tituloOfc(e) {
+  if (e.t && /^Tranquilo\b/.test(e.t)) return e.t;
+  const art = e.a?.length ? juntar(e.a) : "";
+  if (e.m === "Descubra") return `Tranquilo Descubra — ${e.c}`;
+  if (e.m === "Apresenta") return `Tranquilo Apresenta — ${e.c}${art ? " — " + art : ""}`;
+  return `Tranquilo ${e.c}${art ? " — " + art : ""}`;
+}
+function cartaoEvento(e, primeiro) {
+  const d = new Date(e.d + "T12:00:00"), dias = Math.round((d - new Date(S.pub.hoje + "T12:00:00")) / 864e5);
+  const falta = dias <= 0 ? "<b>hoje</b>" : dias === 1 ? "<b>amanhã</b>" : `em <b>${dias} dias</b>`;
+  return `<div class="evo${primeiro ? " prox" : ""}" style="--cor:${corCidade(e.c)}">
+    <div class="bloco" aria-hidden="true"><span>${SEM_C[d.getDay()]}</span><span class="m">${MESES[d.getMonth()].toUpperCase()}</span><b>${e.d.slice(8, 10)}</b><span class="a">${e.d.slice(0, 4)}</span></div>
+    <div class="meio"><div class="longa">${SEM_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}</div>
+      <div class="titulo">${esc(tituloOfc(e))}${e.m && !/^sem /i.test(e.m) ? `<span class="badge">${esc(e.m)}</span>` : ""}</div>
+      ${e.h && !/^Casa (em|da rede)/.test(e.h) ? `<div class="longa" style="margin-top:2px">${esc(e.h)}</div>` : ""}</div>
+    <div class="lado"><div class="falta">${primeiro ? "Próximo evento · " : ""}${falta}</div>
+      ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
+}
 function telaPublica() {
-  const p = S.pub, cid = S.agCidade || "";
-  const filtrada = p.agenda.filter((e) => !cid || e.c === cid), LIM = 12, mostrar = S.agTudo || cid ? filtrada : filtrada.slice(0, LIM);
-  const porMes = agrupar(mostrar, (e) => e.d.slice(0, 7));
-  const contagem = [...agrupar(p.agenda, (e) => e.c)].sort((a, b) => b[1].length - a[1].length);
+  const p = S.pub, cid = S.cidade ? cidadeOfc(S.cidade) : null;
+  const daCidade = (e) => !cid || cidadeOfc(e.c)?.slug === cid.slug;
+  const filtrada = p.agenda.filter(daCidade), LIM = 10, mostrar = S.agTudo || cid ? filtrada : filtrada.slice(0, LIM);
+  const contagem = Object.fromEntries([...agrupar(p.agenda, (e) => cidadeOfc(e.c)?.slug || "")].map(([k, v]) => [k, v.length]));
   const cidades = [...new Set([...p.agenda.map((e) => e.c), ...(window.TQRegras?.CIDADES_REDE || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const evPub = (e) => `<div class="ev pub">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b><div class="art">${esc(e.a.length ? e.a.join(", ") : e.m === "Descubra" ? "Tranquilo Descubra" : "Line-up em breve")}</div><div class="muted">${esc(e.m)}${e.h && !/^Casa em/.test(e.h) ? " · " + esc(e.h) : ""}</div></div>${e.l ? `<a class="btn sm pri" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : `<span class="badge">em breve</span>`}</div>`;
+  const selAviso = cid ? cidades.find((c) => cidadeOfc(c)?.slug === cid.slug) || "" : "";
+  const cartaoCidade = (c) => `<button class="cidade${cid?.slug === c.slug ? " on" : ""}" style="background:${c.cor}" data-cidade-ofc="${esc(c.nome)}" aria-pressed="${cid?.slug === c.slug}">
+    ${c.novo ? `<span class="novo">NOVO</span>` : ""}<span class="tq">TRANQUILO/</span>
+    <span><span class="nm">${esc(c.nome)}</span><span class="ct" style="display:block">${contagem[c.slug] ? contagem[c.slug] + (contagem[c.slug] > 1 ? " próximas datas" : " próxima data") : "datas em breve"}</span></span></button>`;
   $("#app").innerHTML = `
-  <section class="hero"><div>
-    <div class="tag">Rede Tranquilo</div>
-    <h1>Música ao vivo circulando por <em>${p.totais.cidades} cidades</em></h1>
-    <p class="sub">A agenda aberta da rede: noites de música ao vivo em casas parceiras pelo Brasil. Artistas e casas entram para se inscrever e acompanhar cada etapa, do convite ao pós-show.</p>
-    <div class="barra-acoes"><a class="btn lg sun" href="#avise" data-rolar="avise">Me avise na minha cidade</a><a class="btn lg" href="#agenda" data-rolar="agenda">Ver a agenda</a><button class="btn lg ghost" data-como-funciona>Como funciona</button></div>
-  </div>
-  <div class="tiles">
-    <div class="tile t1"><small>próximas<br>datas</small><b>${fmt(p.totais.futuras)}</b></div>
-    <div class="tile t2"><small>noites desde<br>2023</small><b>${fmt(p.totais.noites)}</b></div>
-    <div class="tile t3"><small>cidades<br>na rede</small><b>${fmt(p.totais.cidades)}</b></div>
-    <div class="tile t4"><small>artistas em<br>circulação</small><b>${fmt(p.circulacao.length)}</b></div>
-  </div></section>
+  <section class="hero-ofc">
+    <h1 class="marca">TRANQUILO.</h1>
+    <p class="lema">Ouvidos atentos. Corações abertos.</p>
+    <p class="rede">Esta é a Rede Tranquilo: a agenda aberta das ${p.totais.cidades} cidades e o espaço onde artistas, casas e equipe acompanham cada noite.</p>
+    <div class="barra-acoes"><a class="btn lg claro" href="#agenda" data-rolar="agenda">Ver próximos eventos</a><a class="btn lg ghost" href="#avise" data-rolar="avise">Me avise na minha cidade</a><button class="btn lg ghost" data-como-funciona>Como funciona</button></div>
+  </section>
 
-  <section class="secao" id="agenda"><div class="secao-topo"><div><div class="tag">Agenda</div><h2>Próximas noites</h2></div><a class="btn sm" href="#avise" data-rolar="avise">Não achou sua cidade?</a></div>
-  <div class="cidades-f" role="group" aria-label="Filtrar por cidade"><button data-agcidade="" class="${cid ? "" : "on"}">Todas · ${p.agenda.length}</button>${contagem.map(([c, es]) => `<button data-agcidade="${esc(c)}" class="${cid === c ? "on" : ""}">${esc(c)} · ${es.length}</button>`).join("")}</div>
-  ${[...porMes].map(([m, evs]) => `<div class="mes"><b>${MESES_L[+m.slice(5) - 1]}</b><span>${m.slice(0, 4)} · ${evs.length} ${evs.length > 1 ? "datas" : "data"}</span></div><div class="agenda">${evs.map(evPub).join("")}</div>`).join("") || vazio("Agenda sendo montada", "As próximas datas aparecem aqui assim que forem confirmadas.")}
-  ${mostrar.length < filtrada.length ? `<div class="mais"><button class="btn" data-agtudo>Ver todas as ${filtrada.length} datas</button></div>` : ""}</section>
+  <section class="secao sec-cidades"><h2 class="tit-sec centro">Cidades</h2>
+    <div class="cidades">${CIDADES_OFC.map(cartaoCidade).join("")}</div></section>
 
-  ${p.circulacao.length ? `<section class="secao"><div class="secao-topo"><div><div class="tag">Line-up</div><h2>Artistas em circulação</h2><p class="sub">Turnês e datas avulsas confirmadas na rede.</p></div></div>
+  <section class="secao agenda-ofc" id="agenda" style="margin:0 auto">
+    ${cid ? `<div class="secao-topo"><div><h2 class="marca-cidade" style="font-size:clamp(30px,5vw,46px);margin:0">${esc(cid.nome.toUpperCase())}</h2><p class="sub" style="margin:8px 0 0">Acompanhe os próximos eventos de ${esc(cid.nome)}.</p></div><div class="barra-acoes"><a class="btn sm ghost" href="${OFICIAL}/${cid.slug}" target="_blank" rel="noopener">Página da cidade no site</a><button class="btn sm" data-cidade-ofc="">Ver todas as cidades</button></div></div>` : ""}
+    <h2 class="tit-sec">Próximos eventos</h2>
+    ${mostrar.map((e, i) => cartaoEvento(e, i === 0)).join("") || vazio(cid ? `Ainda não tem data em ${esc(cid.nome)}` : "Agenda sendo montada", cid ? "Deixe seu contato no “me avise” logo abaixo: você fica sabendo assim que abrir data." : "As próximas datas aparecem aqui assim que forem confirmadas.")}
+    ${mostrar.length < filtrada.length ? `<div class="mais"><button class="btn" data-agtudo>Ver todos os ${filtrada.length} eventos</button></div>` : ""}
+  </section>
+
+  ${p.circulacao.length && !cid ? `<section class="secao agenda-ofc" style="margin:0 auto"><h2 class="tit-sec">Artistas em circulação</h2><p class="sub" style="margin:-6px 0 14px">Turnês e datas confirmadas na rede.</p>
   <div class="artistas">${p.circulacao.map((a) => `<div class="card artista"><span class="av" style="background:${corDe(a.nome)}">${esc(a.nome.trim()[0] || "")}</span><div><b>${esc(a.nome)}</b><div class="muted" style="font-size:13px">${a.datas} ${a.datas > 1 ? "datas" : "data"} · a partir de ${dtc(a.proxima)}</div><div style="margin-top:8px">${a.cidades.map((c) => `<span class="pill">${esc(c)}</span>`).join("")}</div></div></div>`).join("")}</div></section>` : ""}
 
-  <section class="secao faixa-aviso" id="avise"><div><div class="tag">Avise-me</div><h2>Show na sua cidade? A gente te conta antes.</h2><p class="sub" style="margin:0">Deixe o e-mail ou o WhatsApp. Sem senha, sem cadastro, e dá para sair quando quiser.</p></div>
-  <div>${TQConta.formAviso(cidades)}</div></section>
+  <section class="secao faixa-aviso" id="avise"><div><div class="tag">Me avise</div><h2>Show na sua cidade? A gente te conta antes.</h2><p class="sub" style="margin:0">Deixe o e-mail ou o WhatsApp. Sem senha, sem cadastro, e dá para sair quando quiser.</p></div>
+  <div>${TQConta.formAviso(cidades, selAviso)}</div></section>
+
+  <section class="sobre"><h3>Sobre o Tranquilo</h3>
+    <p>O Tranquilo é uma série de encontros de música ao vivo.</p>
+    <p>A gente faz shows e experiências em diversas cidades do Brasil.</p>
+    <p>Os ingressos e a comunicação oficial são sempre pelo <a href="${OFICIAL}" target="_blank" rel="noopener">site do Tranquilo</a> e pelos nossos canais no Instagram e WhatsApp.</p>
+    <p>Música ao vivo. Curadoria. Encontros que viram casa.</p></section>
 
   <section class="secao" id="acesso"><div class="secao-topo"><div><div class="tag">Para artistas e casas</div><h2>Entrar ou se cadastrar</h2><p class="sub">Artistas se inscrevem na curadoria e acompanham cada etapa até o pós-show. Casas se cadastram para receber datas. Cada perfil vê só o que é dele.</p></div></div>
   ${TQConta.formEntrada()}</section>`;
@@ -1005,8 +1053,10 @@ function menu(abrir) { document.body.classList.toggle("menu-aberto", abrir); $("
 function render() {
   const P = S.pac, logado = !!(P || S.conta);
   document.body.classList.toggle("logado", logado);
-  $("#entrar").hidden = logado; $("#side").hidden = !logado; $("#menu").hidden = !logado; $("#atualizado").hidden = logado;
+  $("#entrar").hidden = logado; $("#side").hidden = !logado; $("#menu").hidden = !logado; $("#atualizado").hidden = true;
   menu(false);
+  $("#cidSel").hidden = logado; $("#cidSel").innerHTML = logado ? "" : seletorCidade();
+  if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
   if (!logado) { $("#topTit").textContent = ""; return telaPublica(); }
   $("#quem").innerHTML = quemHtml();
   const abas = abasAtuais();
@@ -1027,6 +1077,13 @@ function ligar() {
 }
 document.addEventListener("click", (ev) => {
   const t = ev.target;
+  if (t.closest("#cidBtn")) { S.cidMenu = !S.cidMenu; $("#cidSel").innerHTML = seletorCidade(); return; }
+  const co = t.closest("[data-cidade-ofc]"); if (co) { escolherCidade(co.dataset.cidadeOfc); return; }
+  if (t.closest("[data-localizar]")) { localizar(); return; }
+  if (t.closest("[data-avloc]")) { localizar((nome, c) => { const sel = $("#avCidade"); if (!sel) return; const op = [...sel.options].find((o) => o.value && cidadeOfc(o.value)?.slug === c?.slug);
+    const nota = $("#avLocNota"); if (nome && op) { sel.value = op.value; $("#avOutra").hidden = true; if (nota) nota.textContent = `Achamos: ${c.nome}.`; } else if (nota && c) { sel.value = "__outra"; $("#avOutra").hidden = false; $("#avOutra").focus(); } }); return; }
+  const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", new Date().toISOString()); $("#consent").innerHTML = ""; return; }
+  if (S.cidMenu && !t.closest("#cidSel")) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); }
   const aba = t.closest("[data-aba]"); if (aba) { S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
   const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
   const cp = t.closest("[data-copy]"); if (cp) { const antes = cp.textContent; navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado ✓"; setTimeout(() => (cp.textContent = antes), 1500); }); return; }
@@ -1051,7 +1108,7 @@ document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.
   const ger = new Date(S.pub.geradoEm), horas = (Date.now() - ger) / 36e5;
   $("#atualizado").textContent = $("#atualizado2").textContent = `Notion · ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
   if (horas > 36) $("#stale").innerHTML = `<div class="stale">Atenção: dados com mais de ${Math.floor(horas)} horas. A atualização automática pode ter falhado.</div>`;
-  $("#foot").innerHTML = `Rede Tranquilo · agenda e números vindos do Notion do Tranquilo, atualizados toda noite. O público de cada noite é o fechamento lançado no evento.`;
+  S.cidade = store.get("tq-cidade") || ""; aplicarCidade(); rodape();
   const params = new URLSearchParams(location.hash.slice(1));
   const hash = params.get("c");
   // Links de tutorial (#tutorial-artista) e de convite (#criar&email=…&tipo=…) chegam por WhatsApp ou e-mail.
@@ -1066,8 +1123,9 @@ document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.
   if (convite) { const em = $("#email"); if (em) { em.value = convite.email; $("#acesso")?.scrollIntoView({ block: "start" }); $("#enome")?.focus(); } return; }
   if (tutorialLink) return tutorialLink === "publico" ? TQConta.tutorialPublico(true) : TQConta.abrirTutorial(tutorialLink, false);
   // Link direto para o "me avise" (divulgado pela equipe): vai para o formulário sem abrir o tutorial.
-  if (/^#(avise|agenda)$/.test(location.hash)) { const alvo = document.getElementById(location.hash.slice(1)); setTimeout(() => alvo?.scrollIntoView({ block: "start" }), 50); return; }
+  if (/^#(avise|agenda)$/.test(location.hash)) { const alvo = document.getElementById(location.hash.slice(1)); setTimeout(() => alvo?.scrollIntoView({ block: "start" }), 50); consentimento(); return; }
   TQConta.tutorialPublico(false);
+  if (!TQTour.aberto()) consentimento();
 })();
 </script>
 </body>

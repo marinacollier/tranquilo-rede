@@ -13,6 +13,8 @@ import {
   eventosDoRetrato, baseDoRetrato, eventosDaApi, baseDaApi, titulosDaApi, textoDaPaginaApi, normalizar, chave,
 } from './dados.mjs';
 
+// Título como o site oficial mostra: sem a data na frente e sem a casa entre parênteses no fim.
+const tituloPublico = (n) => (n || '').replace(/^\d{2}\/\d{2}\/\d{4}\s+—\s+/, '').replace(/\s+\([^()]*\)\s*$/, '').replace(/\s+—\s*$/, '').trim() || null;
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(RAIZ, 'dist');
 const METODO_ID = 'ddd0e9fd76994af0b100dcc6e026f7bc';
@@ -172,7 +174,7 @@ const circulacao = artistasAtivos
   .sort((x, y) => y.datas - x.datas);
 const publico = {
   geradoEm, hoje, fonte,
-  agenda: futuros.map((e) => ({ d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link })),
+  agenda: futuros.map((e) => ({ d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link, t: tituloPublico(e.nome) })),
   circulacao,
   cidades: cidades.map((c) => ({ cidade: c, noites: eventos.filter((e) => e.cidade === c && e.realizado).length, futuras: futuros.filter((e) => e.cidade === c).length })),
   casas: [...casas.values()].map((c) => ({ id: c.id, nome: c.nome, cidade: c.cidade })).sort((a, b) => a.cidade.localeCompare(b.cidade) || a.nome.localeCompare(b.nome)),

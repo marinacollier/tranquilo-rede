@@ -647,6 +647,7 @@ const TQConta = (() => {
       <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
       <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="6" placeholder="pelo menos 6 caracteres"></label>
       <div class="err" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Criar conta</button>
+      <p class="aceite-legal">Ao criar a conta, você concorda com os <a href="https://tranquilomusica.com.br/termos-de-uso" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="https://tranquilomusica.com.br/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> do Tranquilo.</p>
       <p class="links">Já tem conta? <a href="#" data-entrada="entrar">Entrar</a></p>`
       : `<h3>Entrar</h3><p class="dica">Com o e-mail e a senha da sua conta.</p>
       <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
@@ -890,17 +891,18 @@ const TQConta = (() => {
       $("#avForm").innerHTML = `<div class="alert good"><b>Pronto! Vamos te avisar.</b>Quando abrir show em ${esc(cidade)}, você fica sabendo antes.${REAL ? "" : " (Modo demonstração: o pedido ficou só neste navegador.)"}</div>`;
     } catch (e) { err.textContent = e.message; }
   }
-  function formAviso(cidades) {
+  function formAviso(cidades, sel = "") {
     return `<div id="avForm"><div class="fgrid">
-      <label class="fcampo"><b>Sua cidade</b><select id="avCidade"><option value="">Escolha</option>${cidades.map((c) => `<option>${esc(c)}</option>`).join("")}<option value="__outra">Outra cidade</option></select><input id="avOutra" placeholder="Qual cidade?" hidden style="margin-top:6px"></label>
+      <label class="fcampo"><b>Sua cidade</b><select id="avCidade"><option value="">Escolha</option>${cidades.map((c) => `<option${c === sel ? " selected" : ""}>${esc(c)}</option>`).join("")}<option value="__outra">Outra cidade</option></select><input id="avOutra" placeholder="Qual cidade?" hidden style="margin-top:6px">
+      <button type="button" class="loc-btn" data-avloc>📍 Usar minha localização</button><span class="aceite-legal" id="avLocNota" style="margin:0"></span></label>
       <label class="fcampo"><b>E-mail ou WhatsApp</b><input id="avContato" autocomplete="email" placeholder="voce@email.com ou (11) 99999-9999"></label>
-      <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade. Dá para pedir para sair a qualquer momento.</span></label></div>
+      <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade, inclusive pelo WhatsApp Business se eu deixar meu número. Dá para pedir para sair a qualquer momento. Veja a <a href="https://tranquilomusica.com.br/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e a <a href="https://tranquilomusica.com.br/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</span></label></div>
       <div class="err" id="averr"></div><button class="btn sun lg" id="avOk">Me avise</button></div>`;
   }
   function tutorialPublico(forcar) {
     if (S.conta || TQTour.aberto()) return;
     if (!forcar && store.get("tq-tutorial-publico")) return;
-    TQTour.abrir("publico", { aoFechar: () => store.set("tq-tutorial-publico", new Date().toISOString()) });
+    TQTour.abrir("publico", { aoFechar: () => { store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
   }
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }

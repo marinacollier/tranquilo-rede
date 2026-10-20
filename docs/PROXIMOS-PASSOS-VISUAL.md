@@ -18,6 +18,11 @@ Publicar só depois de a Marina aprovar.
   "🍪 Cookies e Consentimento de Comunicação" (Aceitar Tudo / Apenas Necessários, por causa do Google Analytics).
 - Políticas: /politica-de-privacidade, /politica-mensagens-whatsapp, /termos-de-uso (da Tranquilo. Eventos Ltda).
 
+## Concluído em 20/10 (sessão 2)
+- Itens 1, 2, 3 e 4 da lista "Falta" feitos: seletor de cidade, banner, rodapé, home no formato do site oficial, títulos vindos do Notion, "me avise" com localização e links das políticas, aceite dos Termos na criação de conta, cabeçalho compacto no celular, cor neutra na área logada.
+- `npm test` passa. Capturas de computador e celular conferidas, sem estouro de largura.
+- **Falta só a aprovação da Marina e a publicação (item 6).**
+
 ## Feito nesta branch (src/index.html; parte só em código, sem teste)
 - Tokens e fontes trocados para os do site oficial; `--city` muda conforme a cidade escolhida.
 - Bloco de CSS "ajustes para o visual do site oficial". Classes:
