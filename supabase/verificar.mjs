@@ -57,6 +57,14 @@ const aut = await pedir('/auth/v1/settings');
 const a = aut.corpo || {};
 reg('login por e-mail habilitado', aut.status === 200 && a.external?.email === true && !a.disable_signup, aut.status === 200 ? `email=${a.external?.email} cadastro_aberto=${!a.disable_signup} confirmacao_por_email=${!a.mailer_autoconfirm}` : `HTTP ${aut.status}`);
 
+// 4b. Contas de teste: tenta entrar com uma senha propositalmente errada (a senha real não fica no repositório).
+// 400 é o esperado (a resposta não diz se a conta existe); 500 indica conta criada com campos nulos no auth.
+for (const email of ['teste-artista@gmail.com', 'teste-casa@gmail.com', 'teste-equipe@gmail.com', 'teste-adm@gmail.com']) {
+  const r = await pedir('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: 'senha-errada-de-proposito' }) });
+  const msg = r.corpo?.error_code || r.corpo?.msg || r.corpo?.error_description || codigo(r.corpo);
+  reg(`login de ${email.split('@')[0]}`, r.status === 400, `HTTP ${r.status} ${msg}`);
+}
+
 // 5. Site publicado com esta configuração e biblioteca acessível
 const site = await fetch('https://marinacollier.github.io/tranquilo-rede/config.js', { cache: 'no-store' }).then((r) => r.text()).catch((e) => String(e));
 reg('site publicado aponta para este Supabase', site.includes(url), site.includes(url) ? 'config.js do site confere' : site.slice(0, 120));
