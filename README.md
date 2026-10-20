@@ -47,4 +47,12 @@ Para ligar de verdade (uma vez):
 3. Em Authentication → URL Configuration, coloque `https://marinacollier.github.io/tranquilo-rede/` em Site URL e em Redirect URLs.
 4. Em Project Settings → API, copie a Project URL e a anon public key para `src/config.js` e faça push.
 
+### Convites, primeiro acesso e "me avise"
+
+- **Convites** (abas Convites e Pessoas): para artistas e casas que já trabalham com o Tranquilo. A equipe escolhe o nome na lista, coloca o e-mail e envia. A pessoa recebe um link de acesso, entra, cria a senha e já cai vinculada ao próprio histórico. O vínculo só vale depois que o e-mail é confirmado. Equipe convida artista e casa; só a administração convida equipe e administração.
+- **Tutorial**: abre sozinho no primeiro acesso de cada perfil (artista, casa, equipe, administração e visitante), com Avançar, Voltar e Pular. Dá para rever na aba Conta e mandar por link: `#tutorial-artista`, `#tutorial-casa`, `#tutorial-equipe`, `#tutorial-adm`, `#tutorial-publico`.
+- **Me avise de shows na minha cidade**: na página pública, sem senha. A aba Demanda soma os pedidos por cidade e destaca as cidades pedidas que ainda não têm data.
+- **E-mail**: os links saem pelo Supabase. Sem um servidor de e-mail próprio (Authentication → Emails → SMTP), o Supabase só entrega para e-mails da equipe do projeto e poucos por hora. Por isso todo convite e todo tutorial também saem com a mensagem pronta para WhatsApp.
+- Depois de atualizar o código, rode `supabase/schema.sql` de novo no SQL Editor (é idempotente) para criar as tabelas de convites e avisos.
+
 Testes: `npm install && npm test` (permissões e regras rodam num Postgres local, sem precisar do Supabase).

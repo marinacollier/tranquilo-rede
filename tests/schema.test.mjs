@@ -7,7 +7,7 @@ const q = (s, p) => db.query(s, p);
 await db.exec(`
 create role anon nologin; create role authenticated nologin;
 create schema auth;
-create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb);
+create table auth.users (id uuid primary key default gen_random_uuid(), email text, raw_user_meta_data jsonb, encrypted_password text default 'hash', email_confirmed_at timestamptz);
 create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('tq.uid', true), '')::uuid $$;
 grant usage on schema auth to authenticated, anon; grant execute on function auth.uid() to authenticated, anon;
 `);
@@ -82,3 +82,55 @@ await como(casa, async () => {
 await como(art, async () => { ok((await q(`select * from registros_noite`)).rows.length === 0 && (await q(`select * from chaves_internas`)).rows.length === 0, 'artista não vê registros de casa nem chaves'); });
 const pc = (await q(`select pre_curadoria($1) r`, [{}])).rows[0].r;
 ok(pc.score === 0 && pc.faixa === 'Abaixo do corte' && pc.alertas.length === 2, 'inscrição vazia: score 0, abaixo do corte, alertas');
+
+// ---------- v2: convites, primeiro acesso e avisos ----------
+await como(eq, async () => {
+  await q(`insert into convites (email, tipo, nome, codigo_acesso, vinculo_nome) values ('joyce@x.com', 'artista', 'Joyce', 'AAAA-BBBB-CCCC', 'Joyce Alane')`);
+  ok(!!(await tenta(() => q(`insert into convites (email, tipo) values ('chefe@x.com', 'adm')`))), 'equipe não convida para administração');
+  ok(!!(await tenta(() => q(`insert into convites (email, tipo) values ('eq2@x.com', 'equipe')`))), 'equipe não convida para equipe');
+});
+await como(adm, async () => { await q(`insert into convites (email, tipo, nome) values ('eq2@x.com', 'equipe', 'Nova equipe')`); });
+await como(art, async () => {
+  ok((await q(`select * from convites`)).rows.length === 0, 'artista não lê convites');
+  ok(!!(await tenta(() => q(`insert into convites (email, tipo, codigo_acesso) values ('art@x.com', 'artista', 'ROUBO')`))), 'artista não cria convite para si');
+  ok(!!(await tenta(() => q(`select aplicar_convite($1, 'joyce@x.com')`, [art]))), 'artista não chama aplicar_convite');
+});
+// Alguém cria conta com o e-mail convidado, sem confirmar: nada é vinculado.
+const joy = (await q(`insert into auth.users (email, raw_user_meta_data) values ('Joyce@x.com', '{"tipo":"artista"}') returning id`)).rows[0].id;
+let pj = (await q(`select tipo, codigo_acesso, vinculo_nome, senha_definida from perfis where id = $1`, [joy])).rows[0];
+ok(pj.codigo_acesso === null, 'convite não vale antes de confirmar o e-mail');
+await q(`update auth.users set email_confirmed_at = now() where id = $1`, [joy]);
+pj = (await q(`select tipo, codigo_acesso, vinculo_nome, nome from perfis where id = $1`, [joy])).rows[0];
+ok(pj.codigo_acesso === 'AAAA-BBBB-CCCC' && pj.vinculo_nome === 'Joyce Alane' && pj.tipo === 'artista', 'ao confirmar o e-mail, o convite liga a conta à artista');
+ok((await q(`select aceito_em from convites where email = 'joyce@x.com'`)).rows[0].aceito_em !== null, 'convite fica marcado como aceito');
+// Link mágico: a conta já nasce confirmada e sem senha.
+const nova = (await q(`insert into auth.users (email, encrypted_password, email_confirmed_at) values ('eq2@x.com', '', now()) returning id`)).rows[0].id;
+const pn = (await q(`select tipo, senha_definida, nome from perfis where id = $1`, [nova])).rows[0];
+ok(pn.tipo === 'equipe' && pn.senha_definida === false && pn.nome === 'Nova equipe', 'convite por link cria a conta de equipe pedindo para definir senha');
+// Conta que já existia antes do convite.
+await como(eq, async () => { await q(`insert into convites (email, tipo, codigo_acesso, vinculo_nome) values ('casa@x.com', 'casa', 'CASA-CASA-CASA', 'Coringa Madá')`); });
+await q(`update auth.users set email_confirmed_at = now() where id = $1`, [art2]);
+await como(casa, async () => {
+  const r = (await q(`select reivindicar_convite() r`)).rows[0].r;
+  ok(r === false, 'sem e-mail confirmado, reivindicar não vincula');
+});
+await q(`update auth.users set email_confirmed_at = now() where id = $1`, [casa]);
+const pc2 = (await q(`select vinculo_nome from perfis where id = $1`, [casa])).rows[0];
+ok(pc2.vinculo_nome === 'Coringa Madá', 'conta antiga recebe o vínculo ao confirmar o e-mail');
+await como(art, async () => {
+  await q(`update perfis set tutorial_visto_em = now(), senha_definida = true where id = $1`, [art]);
+  ok((await q(`select tutorial_visto_em from perfis where id = $1`, [art])).rows[0].tutorial_visto_em !== null, 'pessoa marca o próprio tutorial como visto');
+});
+await db.exec(`set role anon;`);
+await q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Recife', 'fa@x.com', 'email', true)`);
+const semConsent = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Recife', 'fb@x.com', 'email', false)`));
+const dup = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('recife', 'FA@x.com', 'email', true)`));
+await db.exec(`reset role;`);
+ok(!!semConsent, 'aviso sem consentimento é recusado');
+ok(!!dup, 'mesmo contato na mesma cidade não duplica');
+await db.exec(`set role anon;`);
+const visto = await q(`select count(*)::int n from avisos_cidade`).then((r) => r.rows[0].n, () => 0);
+await db.exec(`reset role;`);
+ok(visto === 0, 'visitante não lê os avisos de ninguém');
+await como(eq, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 1, 'equipe lê os avisos por cidade'); });
+await como(art, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 0, 'artista não lê os avisos'); });

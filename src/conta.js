@@ -15,6 +15,7 @@ const TQConta = (() => {
     const CH = "tq-demo-v1";
     const ler = () => { try { return JSON.parse(localStorage.getItem(CH)) || null; } catch { return null; } };
     let db = ler() || { usuarios: {}, insc: {}, casas: {}, chk: [], reg: [], sessao: null };
+    db.conv ||= {}; db.avisos ||= [];
     const gravar = () => { try { localStorage.setItem(CH, JSON.stringify(db)); } catch {} };
     const id = () => crypto.randomUUID();
     const eu = () => db.sessao && db.usuarios[db.sessao]?.perfil;
@@ -84,6 +85,25 @@ const TQConta = (() => {
       },
       async checklistTodos() { exigeEquipe(); return db.chk; },
       async registrosTodos() { exigeEquipe(); return db.reg; },
+      // convites, primeiro acesso e avisos
+      async convidar(c) {
+        exigeEquipe(); if (eu().tipo !== "adm" && !["artista", "casa"].includes(c.tipo)) throw new Error("Só a administração convida para equipe ou administração.");
+        const email = c.email.toLowerCase().trim(); db.conv[email] = { ...db.conv[email], ...c, email, criado_em: db.conv[email]?.criado_em || agora(), aceito_em: db.conv[email]?.aceito_em || null }; gravar();
+        return { enviado: false, demo: true };
+      },
+      async convites() { exigeEquipe(); return Object.values(db.conv); },
+      async cancelarConvite(email) { exigeEquipe(); delete db.conv[email]; gravar(); },
+      async marcarTutorialEnviado(email) { if (db.conv[email]) { db.conv[email].tutorial_enviado_em = agora(); gravar(); } },
+      async enviarLinkSenha() { return { enviado: false, demo: true }; },
+      precisaSenha() { return false; },
+      async definirSenha(senha) { db.usuarios[db.sessao].senha = senha; eu().senha_definida = true; gravar(); },
+      async marcarTutorial() { eu().tutorial_visto_em = agora(); gravar(); },
+      async reivindicar() {
+        const p = eu(), c = p && db.conv[p.email]; if (!c || c.aceito_em) return false;
+        Object.assign(p, { tipo: c.tipo, codigo_acesso: c.codigo_acesso || p.codigo_acesso, vinculo_nome: c.vinculo_nome || p.vinculo_nome }); c.aceito_em = agora(); gravar(); return true;
+      },
+      async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
+      async avisos() { exigeEquipe(); return db.avisos; },
     };
   }
 
@@ -91,6 +111,10 @@ const TQConta = (() => {
   async function Supa() {
     const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm");
     const sb = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    // Link de "esqueci a senha": o Supabase abre a sessão e avisa que a pessoa precisa escolher uma senha nova.
+    let recuperacao = /type=recovery/.test(location.hash);
+    sb.auth.onAuthStateChange((evento) => { if (evento === "PASSWORD_RECOVERY") recuperacao = true; });
+    const base = () => location.origin + location.pathname;
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     const perfil = async () => { const u = await uid(); if (!u) return null; return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle()); };
@@ -148,6 +172,34 @@ const TQConta = (() => {
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
       async registrosTodos() { return ok(await sb.from("registros_noite").select("*").order("criado_em", { ascending: false })); },
+      // convites, primeiro acesso e avisos
+      async convidar(c) {
+        const linha = { email: c.email.toLowerCase().trim(), tipo: c.tipo, nome: c.nome || "", whatsapp: c.whatsapp || null, codigo_acesso: c.codigo_acesso || null, vinculo_nome: c.vinculo_nome || null, criado_por: await uid() };
+        ok(await sb.from("convites").upsert(linha, { onConflict: "email" }));
+        // Link de acesso por e-mail. A conta nasce ao clicar; o convite aplica perfil e vínculo nessa hora.
+        const { error } = await sb.auth.signInWithOtp({ email: linha.email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome: linha.nome, tipo: linha.tipo === "casa" ? "casa" : "artista" } } });
+        return { enviado: !error, erro: error ? traduz(error.message) : null };
+      },
+      async convites() { return ok(await sb.from("convites").select("*").order("criado_em", { ascending: false })); },
+      async cancelarConvite(email) { ok(await sb.from("convites").delete().eq("email", email)); },
+      async marcarTutorialEnviado(email) { await sb.from("convites").update({ tutorial_enviado_em: new Date().toISOString() }).eq("email", email); },
+      async enviarLinkSenha(email) {
+        const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: base() });
+        return { enviado: !error, erro: error ? traduz(error.message) : null };
+      },
+      precisaSenha() { return recuperacao; },
+      async definirSenha(senha) {
+        ok(await sb.auth.updateUser({ password: senha }));
+        recuperacao = false;
+        ok(await sb.from("perfis").update({ senha_definida: true }).eq("id", await uid()));
+      },
+      async marcarTutorial() { ok(await sb.from("perfis").update({ tutorial_visto_em: new Date().toISOString() }).eq("id", await uid())); },
+      async reivindicar() { const { data, error } = await sb.rpc("reivindicar_convite"); return !error && data === true; },
+      async avisar(a) {
+        const { error } = await sb.from("avisos_cidade").insert({ ...a, consentimento: true });
+        if (error && error.code !== "23505") throw new Error(traduz(error.message));   // 23505: já pediu esta cidade
+      },
+      async avisos() { return ok(await sb.from("avisos_cidade").select("*").order("criado_em", { ascending: false })); },
     };
   }
   function traduz(m) {
@@ -155,11 +207,15 @@ const TQConta = (() => {
     if (/Email not confirmed/i.test(m)) return "Confirme o e-mail pelo link que enviamos antes de entrar.";
     if (/already registered/i.test(m)) return "Já existe uma conta com este e-mail.";
     if (/Password should be at least/i.test(m)) return "A senha precisa de pelo menos 6 caracteres.";
+    if (/rate limit|too many|security purposes/i.test(m)) return "Limite de envio de e-mails do Supabase atingido. Tente de novo em alguns minutos ou mande pelo WhatsApp.";
+    if (/not allowed|not authorized|Signups not allowed/i.test(m)) return "O Supabase recusou o envio para este e-mail. Confira a configuração de e-mail do projeto.";
     return m;
   }
 
   // ---------- estado e carregamento ----------
   async function carregar(perfil) {
+    // Convite feito depois que a conta já existia: aplica ao entrar (o banco confere o e-mail confirmado).
+    try { if (await api.reivindicar?.()) perfil = (await api.sessao()) || perfil; } catch { /* segue sem o convite */ }
     S.conta = { perfil, insc: null, casa: null, chk: [], reg: [] };
     if (perfil.tipo === "artista") S.conta.insc = await api.minhaInscricao();
     if (perfil.tipo === "casa") { S.conta.casa = await api.minhaCasa(); S.conta.reg = await api.meusRegistros(); }
@@ -179,7 +235,7 @@ const TQConta = (() => {
     }
     if (!api) api = Demo();
     const p = await api.sessao();
-    if (p) await carregar(p);
+    if (p) { await carregar(p); setTimeout(primeiroAcesso, 0); }
     return !!p;
   }
   async function recarregar() { const p = await api.sessao(); if (p) { const aba = S.aba; await carregar(p); if (abas().some(([k]) => k === aba)) S.aba = aba; } render(); }
@@ -189,7 +245,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["conta", "Conta"]];
     if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["conta", "Conta"]];
-    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"]];
+    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -336,7 +392,7 @@ const TQConta = (() => {
       <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
       ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
-      <div style="margin-top:20px"><button class="btn" id="sairConta">Sair da conta</button></div>`;
+      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
     },
     // ---------- equipe ----------
     curadoria() {
@@ -408,7 +464,53 @@ const TQConta = (() => {
         { t: "Perfil", v: (p) => p.tipo, h: (p) => `<select data-tipo="${p.id}">${Object.entries(ROTULO).map(([k, t]) => `<option value="${k}"${p.tipo === k ? " selected" : ""}>${t}</option>`).join("")}</select>` },
         { t: "Vínculo", v: (p) => p.vinculo_nome || "", h: (p) => ["artista", "casa"].includes(p.tipo) ? seletorVinculo(p) : "–" },
         { t: "Criada", v: (p) => p.criado_em, h: (p) => dt(p.criado_em.slice(0, 10)) },
+        { t: "Acesso", v: (p) => p.tutorial_visto_em || "", h: (p) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-link-senha="${esc(p.email)}">Enviar link de senha</button><button class="btn sm" data-enviar-tutorial="${esc(p.tipo)}|${esc(p.email)}|${esc(p.vinculo_nome || p.nome || "")}|${esc(p.whatsapp || "")}">Enviar tutorial</button></div><div class="muted" style="font-size:12px;margin-top:4px">${p.tutorial_visto_em ? "viu o tutorial em " + dt(p.tutorial_visto_em.slice(0, 10)) : "ainda não viu o tutorial"}</div>` },
       ], E.perfis, { i: 3, dir: -1 })}`;
+    },
+    convites() {
+      const E = S.eq; if (!E?.conv) { carregarEquipe(); return carregando("convites"); }
+      const adm = S.conta.perfil.tipo === "adm", tipoSel = S.convTipo || "artista", pre = S.convPre || {};
+      const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === tipoSel);
+      const contas = new Set((E.perfis || []).map((p) => p.email));
+      return `<div class="tag">Convites</div><h1>Chamar quem já está na rede</h1>
+      <p class="sub">Para artistas e casas que já trabalham com o Tranquilo. A pessoa recebe um link por e-mail, entra, cria a senha e já cai na própria área, vinculada ao histórico dela. O tutorial abre sozinho no primeiro acesso.</p>
+      <div class="card"><div class="fgrid">
+        <label class="fcampo"><b>Perfil</b><select id="cvTipo">${[["artista", "Artista"], ["casa", "Casa"], ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+        ${["artista", "casa"].includes(tipoSel) ? `<label class="fcampo"><b>${tipoSel === "casa" ? "Casa" : "Artista"} da rede</b>${acessos.length ? `<select id="cvVinc"><option value="">Sem vínculo por enquanto</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${pre.nome === a.nome ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>` : `<span class="muted" style="font-size:13px">A lista de nomes vem com o código de administração. Sem ele, o convite sai sem vínculo e a administração liga depois em Pessoas.</span>`}</label>` : ""}
+        <label class="fcampo"><b>Nome</b><input id="cvNome" value="${esc(pre.nome || "")}" autocomplete="off"></label>
+        <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" autocomplete="off"></label>
+        <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" autocomplete="off"></label>
+      </div><div class="err" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk">Enviar convite</button></div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">Os e-mails saem pelo Supabase. Sem um servidor de e-mail próprio (SMTP) configurado, o Supabase só entrega para e-mails da equipe do projeto e poucos por hora. Por isso cada convite também tem a mensagem pronta para WhatsApp.</p></div>
+      <h2>Convites enviados</h2>
+      ${tabela("conv", [
+        { t: "Pessoa", v: (c) => c.nome || c.email, h: (c) => `<b>${esc(c.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(c.email)}</div>` },
+        { t: "Perfil", v: (c) => c.tipo, h: (c) => ROTULO[c.tipo] },
+        { t: "Vínculo", v: (c) => c.vinculo_nome || "", h: (c) => esc(c.vinculo_nome || "–") },
+        { t: "Situação", v: (c) => c.aceito_em ? 2 : contas.has(c.email) ? 1 : 0, h: (c) => c.aceito_em ? `<span class="badge b-good">entrou em ${dt(c.aceito_em.slice(0, 10))}</span>` : contas.has(c.email) ? `<span class="badge b-warn">conta criada, falta confirmar o e-mail</span>` : `<span class="badge">aguardando</span>` },
+        { t: "Tutorial", v: (c) => c.tutorial_enviado_em || "", h: (c) => c.tutorial_enviado_em ? `enviado em ${dt(c.tutorial_enviado_em.slice(0, 10))}` : `<span class="muted">não enviado</span>` },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
+      ], E.conv, { i: 3, dir: 1 })}`;
+    },
+    demanda() {
+      const E = S.eq; if (!E?.avisos) { carregarEquipe(); return carregando("demanda por cidade"); }
+      const norm = (c) => c.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+      const agenda = S.pub?.agenda || [], datasPor = {};
+      for (const e of agenda) datasPor[norm(e.c)] = (datasPor[norm(e.c)] || 0) + 1;
+      const grupos = {};
+      for (const a of E.avisos) { const k = norm(a.cidade); (grupos[k] ||= { cidade: a.cidade.trim(), lista: [] }).lista.push(a); }
+      const linhas = Object.entries(grupos).map(([k, g]) => ({ ...g, k, n: g.lista.length, datas: datasPor[k] || 0, ultimo: g.lista.map((a) => a.criado_em).sort().pop() }));
+      const semData = linhas.filter((l) => !l.datas);
+      return `<div class="tag">Demanda</div><h1>Quem pediu show em cada cidade</h1>
+      <p class="sub">Visitantes do site deixam e-mail ou WhatsApp pedindo aviso de shows na própria cidade. Cidade com muitos pedidos e nenhuma data marcada é candidata a abrir praça. Os contatos só podem ser usados para avisar de shows, como a pessoa autorizou.</p>
+      <div class="grid g4">${kpi(fmt(E.avisos.length), "pedidos de aviso")}${kpi(fmt(linhas.length), "cidades pedidas")}${kpi(fmt(semData.length), "cidades pedidas sem data marcada")}${kpi(fmt(semData.reduce((s, l) => s + l.n, 0)), "pessoas esperando nessas cidades")}</div>
+      ${tabela("dem", [
+        { t: "Cidade", v: (l) => l.cidade, h: (l) => `<b>${esc(l.cidade)}</b>` },
+        { t: "Pedidos", n: 1, v: (l) => l.n },
+        { t: "Datas na agenda", n: 1, v: (l) => l.datas, h: (l) => l.datas ? fmt(l.datas) : `<span class="badge b-warn">nenhuma</span>` },
+        { t: "Último pedido", v: (l) => l.ultimo, h: (l) => dt(l.ultimo.slice(0, 10)) },
+        { t: "", v: () => 0, h: (l) => `<button class="btn sm" data-copy="${esc(l.lista.map((a) => a.contato).join("\n"))}">Copiar contatos</button>` },
+      ], linhas, { i: 1, dir: -1 })}`;
     },
   };
 
@@ -467,12 +569,12 @@ const TQConta = (() => {
     if (S.eqCarregando) return; S.eqCarregando = true;
     try {
       const quem = S.conta?.perfil.id;
-      const [insc, casas, perfis, chk, reg] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos()]);
+      const [insc, casas, perfis, chk, reg, conv, avisos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), api.convites(), api.avisos()]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      S.eq = { insc, casas, perfis, chk, reg };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos };
     } catch (e) {
       if (!S.conta) return;
-      S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [] }; alert("Não foi possível carregar: " + e.message);
+      S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);
     } finally { S.eqCarregando = false; }
     render();
   }
@@ -540,7 +642,59 @@ const TQConta = (() => {
       <p class="muted" style="font-size:13px"><a href="#" data-entrada="criar">Criar conta de artista ou casa</a> · <a href="#" id="esqueci">Esqueci a senha</a></p>`;
     return `${demo}<div class="grid g2"><div class="card login" style="max-width:none">${email}</div><div class="card login" style="max-width:none"><h3 style="margin-top:0">Tenho um código de acesso</h3>${formLogin()}</div></div>`;
   }
-  async function aposEntrar(perfil) { await carregar(perfil); render(); scrollTo(0, 0); }
+  async function aposEntrar(perfil) { await carregar(perfil); render(); scrollTo(0, 0); primeiroAcesso(); }
+
+  // ---------- primeiro acesso: senha e tutorial ----------
+  function primeiroAcesso() {
+    const p = S.conta?.perfil; if (!p) return;
+    if (p.senha_definida === false || api.precisaSenha?.()) return pedirSenha();
+    if (!p.tutorial_visto_em && !TQTour.aberto()) abrirTutorial(p.tipo, true);
+  }
+  function abrirTutorial(tipo, primeira) {
+    TQTour.abrir(tipo, {
+      // Atalhos para abas só fazem sentido com a conta aberta; pelo link público o tutorial é só leitura.
+      aoIr: S.conta ? (aba) => { if (S.conta && abas().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } } : null,
+      aoFechar: async () => {
+        if (!primeira || !S.conta) return;
+        S.conta.perfil.tutorial_visto_em = new Date().toISOString();
+        try { await api.marcarTutorial(); } catch { /* fica para a próxima vez */ }
+      },
+    });
+  }
+  function pedirSenha() {
+    $("#dlgIn").innerHTML = `<div class="tag">Primeiro acesso</div><h2 style="margin-top:4px">Crie a sua senha</h2>
+    <p class="sub">Você entrou pelo link do e-mail. Escolha uma senha para as próximas vezes.</p>
+    <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8"></label>
+    <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
+    <div class="err" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button></div>`;
+    $("#dlg").dataset.alvo = "senha"; $("#dlg").showModal(); setTimeout(() => $("#ns1")?.focus(), 30);
+  }
+
+  // ---------- envio de acesso e tutorial ----------
+  const site = () => location.origin + location.pathname;
+  const soDigitos = (w) => (w || "").replace(/\D/g, "");
+  function mensagemTutorial(tipo, nome) {
+    return `Oi${nome ? ", " + nome : ""}! Este é o passo a passo da sua área na Rede Tranquilo (${ROTULO[tipo].toLowerCase()}): ${TQTour.linkDe(tipo)}\n\nQuando você entrar pela primeira vez, ele também abre sozinho.`;
+  }
+  function mensagemConvite(c) {
+    const criar = `${site()}#criar&email=${encodeURIComponent(c.email)}&tipo=${c.tipo === "casa" ? "casa" : "artista"}`;
+    return `Oi${c.nome ? ", " + c.nome : ""}! Você foi convidada para a área ${c.tipo === "casa" ? "da casa" : c.tipo === "artista" ? "da artista" : "interna"} da Rede Tranquilo${c.vinculo_nome ? ` (${c.vinculo_nome})` : ""}.\n\nEnviei um link de acesso para ${c.email}. Se ele não chegar, crie a senha por aqui, usando este mesmo e-mail: ${criar}\n\nNo primeiro acesso, um tutorial mostra tudo o que dá para fazer.`;
+  }
+  function dialogoEnvio({ titulo, texto, email, whatsapp, assunto, aoEnviar, aviso }) {
+    const wa = `https://wa.me/${soDigitos(whatsapp)}?text=${encodeURIComponent(texto)}`;
+    const mail = `mailto:${encodeURIComponent(email || "")}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`;
+    $("#dlgIn").innerHTML = `<div class="tag">Enviar</div><h2 style="margin-top:4px">${esc(titulo)}</h2>
+    ${aviso ? `<div class="alert ${/não saiu|demonstração/.test(aviso) ? "warn" : "good"}" style="margin-bottom:10px">${esc(aviso)}</div>` : ""}
+    <textarea id="envTxt" rows="7" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(texto)}</textarea>
+    <p class="muted" style="font-size:13px">O botão abre o WhatsApp ou o seu programa de e-mail com a mensagem pronta. Nada é enviado sem você confirmar lá.</p>
+    <div class="barra-acoes"><a class="btn pri" data-envio href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn" data-envio href="${esc(mail)}">E-mail</a><button class="btn" data-copiar-envio>Copiar mensagem</button><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+    $("#dlg").dataset.alvo = "envio"; S.aoEnviar = aoEnviar; $("#dlg").showModal();
+  }
+  function enviarTutorial(tipo, nome, email, whatsapp) {
+    dialogoEnvio({ titulo: `Tutorial de ${ROTULO[tipo].toLowerCase()}`, texto: mensagemTutorial(tipo, nome), email, whatsapp, assunto: "Seu passo a passo na Rede Tranquilo",
+      aoEnviar: () => api.marcarTutorialEnviado(email).catch(() => {}) });
+  }
+  const resultadoEnvio = (r, oque) => r.demo ? `No modo demonstração nenhum e-mail sai. Use o WhatsApp ou o e-mail abaixo.` : r.enviado ? `${oque} enviado por e-mail.` : `O e-mail não saiu: ${r.erro} Use o WhatsApp ou o e-mail abaixo.`;
 
   // ---------- eventos ----------
   document.addEventListener("click", async (ev) => {
@@ -630,6 +784,50 @@ const TQConta = (() => {
       const txt = [`Nome artístico: ${d.nome_artistico}`, `Cidade: ${d.cidade_base}/${d.estado}`, `Gêneros: ${d.generos}`, `Instagram: ${d.instagram}`, `Spotify: ${d.spotify}`, `Contato: ${d.whatsapp} ${d.contato_producao || ""}`, `Rider: ${d.rider_tipo} ${d.rider_link || ""}`, `Cidades: ${(d.cidades_interesse || []).join(", ")}`, `Pré-curadoria: ${i.score}/100 (${i.faixa})`, `Mini release: ${d.release}`].join("\n");
       navigator.clipboard?.writeText(txt); t.textContent = "Copiada"; return;
     }
+    // ---------- primeiro acesso, convites e avisos ----------
+    if (t.closest("[data-rever-tutorial]")) { abrirTutorial(S.conta.perfil.tipo, false); return; }
+    if (t.id === "nsok") {
+      const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
+      if (a.length < 8) { err.textContent = "Use pelo menos 8 caracteres."; return; }
+      if (a !== b) { err.textContent = "As duas senhas não são iguais."; return; }
+      err.textContent = "Salvando…";
+      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; $("#dlg").close(); primeiroAcesso(); } catch (e) { err.textContent = e.message; }
+      return;
+    }
+    if (t.id === "cvOk") {
+      const err = $("#cverr"), email = $("#cvEmail").value.trim().toLowerCase(), nome = $("#cvNome").value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = "Escreva um e-mail válido."; return; }
+      const [codigo_acesso, vinculo_nome] = ($("#cvVinc")?.value || "").split("|");
+      const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null };
+      err.textContent = "Enviando…";
+      try {
+        const r = await api.convidar(c); err.textContent = ""; S.convPre = null; S.eq = null; render();
+        dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Convite") });
+      } catch (e) { err.textContent = e.message; }
+      return;
+    }
+    const rc = t.closest("[data-reconvidar]"); if (rc) {
+      const c = (S.eq?.conv || []).find((x) => x.email === rc.dataset.reconvidar); if (!c) return;
+      rc.textContent = "Enviando…";
+      try { const r = await api.convidar(c); dialogoEnvio({ titulo: `Acesso de ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Link de acesso") }); }
+      catch (e) { alert(e.message); }
+      S.eq = null; render(); return;
+    }
+    const cc = t.closest("[data-cancelar-convite]"); if (cc) {
+      if (!confirm(`Cancelar o convite de ${cc.dataset.cancelarConvite}?`)) return;
+      try { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); } catch (e) { alert(e.message); }
+      return;
+    }
+    const et = t.closest("[data-enviar-tutorial]"); if (et) { const [tipo, email, nome, wa] = et.dataset.enviarTutorial.split("|"); enviarTutorial(tipo, nome, email, wa); return; }
+    const ls = t.closest("[data-link-senha]"); if (ls) {
+      ls.textContent = "Enviando…";
+      try { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); ls.textContent = r.enviado ? "Link enviado" : "Não enviado"; if (!r.enviado) alert(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); }
+      catch (e) { ls.textContent = "Erro"; alert(e.message); }
+      return;
+    }
+    if (t.closest("[data-envio]")) { try { S.aoEnviar?.(); } catch { /* registro opcional */ } return; }
+    if (t.closest("[data-copiar-envio]")) { navigator.clipboard?.writeText($("#envTxt").value).then(() => { t.textContent = "Copiada"; }); return; }
+    if (t.id === "avOk") { await avisarCidade(); return; }
     const cl = t.closest("[data-click]");
     if (cl && /^(insc|casacad):/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); const [k, id] = cl.dataset.click.split(":"); return k === "insc" ? fichaInscricao(id) : fichaCasa(id); }
   }, true);
@@ -656,6 +854,9 @@ const TQConta = (() => {
       return;
     }
     if (t.id === "eqStatus" || t.id === "eqFaixa") { S.eqf[t.id === "eqStatus" ? "status" : "faixa"] = t.value; render(); }
+    if (t.id === "cvTipo") { S.convTipo = t.value; S.convPre = null; render(); return; }
+    if (t.id === "cvVinc") { const nome = t.value.split("|")[1] || "", n = $("#cvNome"); if (n && !n.value) n.value = nome; return; }
+    if (t.id === "avCidade") { const o = $("#avOutra"); if (o) o.hidden = t.value !== "__outra"; return; }
   });
   document.addEventListener("input", (ev) => {
     const t = ev.target;
@@ -663,7 +864,33 @@ const TQConta = (() => {
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
 
+  // ---------- público: "me avise de shows na minha cidade" ----------
+  async function avisarCidade() {
+    const err = $("#averr"), sel = $("#avCidade").value, cidade = (sel === "__outra" ? $("#avOutra").value : sel).trim(), contato = $("#avContato").value.trim();
+    if (cidade.length < 2) { err.textContent = "Escolha ou escreva a sua cidade."; return; }
+    const email = /@/.test(contato), digitos = contato.replace(/\D/g, "");
+    if (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contato) : digitos.length < 10) { err.textContent = "Escreva um e-mail ou um WhatsApp com DDD."; return; }
+    if (!$("#avOk2").checked) { err.textContent = "Marque a autorização para podermos avisar você."; return; }
+    err.textContent = "Enviando…";
+    try {
+      await api.avisar({ cidade, contato: email ? contato.toLowerCase() : digitos, canal: email ? "email" : "whatsapp" });
+      $("#avForm").innerHTML = `<div class="alert good"><b>Pronto! Vamos te avisar.</b>Quando abrir show em ${esc(cidade)}, você fica sabendo antes.${REAL ? "" : " (Modo demonstração: o pedido ficou só neste navegador.)"}</div>`;
+    } catch (e) { err.textContent = e.message; }
+  }
+  function formAviso(cidades) {
+    return `<div id="avForm" class="fgrid" style="align-items:end">
+      <label class="fcampo"><b>Sua cidade</b><select id="avCidade"><option value="">Escolha</option>${cidades.map((c) => `<option>${esc(c)}</option>`).join("")}<option value="__outra">Outra cidade</option></select><input id="avOutra" placeholder="Qual cidade?" hidden style="margin-top:6px"></label>
+      <label class="fcampo"><b>E-mail ou WhatsApp</b><input id="avContato" autocomplete="email" placeholder="voce@email.com ou (11) 99999-9999"></label>
+      <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade. Dá para pedir para sair a qualquer momento.</span></label>
+      <div><div class="err" id="averr"></div><button class="btn pri" id="avOk">Me avise</button></div></div>`;
+  }
+  function tutorialPublico(forcar) {
+    if (S.conta || TQTour.aberto()) return;
+    if (!forcar && store.get("tq-tutorial-publico")) return;
+    TQTour.abrir("publico", { aoFechar: () => store.set("tq-tutorial-publico", new Date().toISOString()) });
+  }
+
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }
 
-  return { get REAL() { return REAL; }, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo };
+  return { get REAL() { return REAL; }, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial };
 })();

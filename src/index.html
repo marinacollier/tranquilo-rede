@@ -86,7 +86,8 @@ tbody tr.click:hover{background:var(--surface-2)}
 .alert.crit{border-left-color:var(--crit)}.alert.warn{border-left-color:var(--warn)}.alert.good{border-left-color:var(--good)}
 .alert b{display:block}
 .login{max-width:420px}
-.login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:17px;letter-spacing:.08em;text-transform:uppercase;background:var(--surface)}
+.login input{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;font-size:17px;background:var(--surface)}
+.login input#cod,.login input#vcod{letter-spacing:.08em;text-transform:uppercase}
 .err{color:var(--crit);font-size:14px;min-height:20px;margin:6px 0}
 .stale{background:var(--crit);color:#fff;padding:8px 16px;text-align:center;font-weight:600;font-size:14px}
 .month{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
@@ -137,7 +138,29 @@ code.cod{font:600 15px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
 ul.passos li:not(:has(label)){padding-left:14px;position:relative}
 ul.passos li:not(:has(label))::before{content:"•";position:absolute;left:2px;color:var(--ink-3)}
 details summary{cursor:pointer;color:var(--ink-2);font-size:14px;font-weight:600}
-@media (max-width:640px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}.kpi .v{font-size:24px}}
+.tour{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.5);display:grid;place-items:center;padding:16px;animation:tourIn .18s ease-out}
+.tour-caixa{background:var(--surface);color:var(--ink);border-radius:18px;max-width:520px;width:100%;padding:22px 22px 18px;box-shadow:0 24px 70px rgba(0,0,0,.35);display:flex;flex-direction:column;gap:10px;max-height:calc(100vh - 32px);overflow:auto}
+.tour-topo{display:flex;justify-content:space-between;align-items:center}
+.tour-x{border:0;background:none;color:var(--ink-3);font-weight:600;cursor:pointer;padding:4px 6px;border-radius:8px}
+.tour-x:hover{color:var(--ink);background:var(--surface-2)}
+.tour-num{font-size:44px;font-weight:800;letter-spacing:-.04em;line-height:1;color:var(--accent);font-variant-numeric:tabular-nums}
+.tour-num small{font-size:16px;color:var(--ink-3);font-weight:600;margin-left:2px}
+.tour-caixa h2{margin:0;font-size:22px}
+.tour-caixa p{margin:0;color:var(--ink-2)}
+.tour-caixa ul{margin:0;padding-left:18px;color:var(--ink-2);font-size:14px}
+.tour-caixa .btn.sm{align-self:flex-start}
+.tour-pontos{display:flex;gap:6px;justify-content:center;margin-top:6px}
+.tour-pontos button{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:var(--line);cursor:pointer}
+.tour-pontos button.feito{background:var(--ink-3)}
+.tour-pontos button.on{background:var(--accent);width:22px;border-radius:99px}
+.tour-acoes{display:flex;justify-content:space-between;gap:8px;margin-top:4px}
+.tour-acoes .btn{min-width:110px;justify-content:center}
+.tour-acoes .btn[disabled]{opacity:.4;cursor:default}
+.tour-foco{position:relative;z-index:61;outline:3px solid var(--accent);outline-offset:4px;border-radius:var(--radius)}
+@keyframes tourIn{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.tour{animation:none}}
+.btn:focus-visible,.tour-pontos button:focus-visible,.tour-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:640px){.kv{grid-template-columns:1fr}.kv dt{margin-top:6px}.kpi .v{font-size:24px}.tour{place-items:end center;padding:0}.tour-caixa{border-radius:18px 18px 0 0;max-height:88vh}}
 </style>
 </head>
 <body>
@@ -159,6 +182,7 @@ details summary{cursor:pointer;color:var(--ink-2);font-size:14px;font-weight:600
 
 <script src="config.js"></script>
 <script src="regras.js"></script>
+<script src="tour.js"></script>
 <script src="conta.js"></script>
 <script>
 "use strict";
@@ -275,10 +299,13 @@ function telaPublica() {
   const p = S.pub, porMes = agrupar(p.agenda, (e) => e.d.slice(0, 7));
   $("#app").innerHTML = `
   <section class="hero"><div class="tag">Rede Tranquilo</div><h1>Música ao vivo circulando por ${p.totais.cidades} cidades</h1>
-  <p class="sub">Agenda aberta da rede. Artistas e casas criam a conta para se inscrever e acompanhar os próximos passos; cada perfil vê só o que é dele.</p></section>
+  <p class="sub">Agenda aberta da rede. Artistas e casas criam a conta para se inscrever e acompanhar os próximos passos; cada perfil vê só o que é dele.</p>
+  <div class="barra-acoes" style="margin-top:0"><a class="btn pri" href="#avise" onclick="event.preventDefault();document.getElementById('avise').scrollIntoView({block:'start'})">Me avise na minha cidade</a><button class="btn" data-como-funciona>Como funciona</button></div></section>
   <div class="grid g4">${kpi(fmt(p.totais.futuras), "próximas datas")}${kpi(fmt(p.totais.noites), "noites realizadas desde 2023")}${kpi(fmt(p.totais.cidades), "cidades na rede")}${kpi(fmt(p.circulacao.length), "artistas em circulação")}</div>
   <h2 id="acesso">Entrar ou se cadastrar</h2><p class="sub">Artistas se inscrevem para a curadoria e acompanham cada etapa até o pós-show. Casas se cadastram para receber datas. Equipe e administração entram para avaliar e acompanhar a rede.</p>
   ${TQConta.formEntrada()}
+  <h2 id="avise">Me avise de shows na minha cidade</h2><p class="sub">Não tem data perto de você? Deixe o e-mail ou o WhatsApp: quando abrir show na sua cidade, você fica sabendo antes. Sem senha e sem cadastro.</p>
+  <div class="card">${TQConta.formAviso([...new Set([...p.agenda.map((e) => e.c), ...(window.TQRegras?.CIDADES_REDE || [])])].sort((a, b) => a.localeCompare(b, "pt-BR")))}</div>
   <h2>Artistas em circulação</h2><p class="sub">Turnês e datas avulsas confirmadas na rede.</p>
   <div class="grid g3">${p.circulacao.map((a) => `<div class="card"><b style="font-size:17px">${esc(a.nome)}</b><div class="muted" style="font-size:13px">${a.datas} ${a.datas > 1 ? "datas" : "data"} · a partir de ${dtc(a.proxima)}</div><div style="margin-top:8px">${a.cidades.map((c) => `<span class="pill">${esc(c)}</span>`).join("")}</div></div>`).join("")}</div>
   <h2>Agenda</h2>
@@ -543,6 +570,7 @@ document.addEventListener("click", (ev) => {
   const aba = t.closest("[data-aba]"); if (aba) { S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
   const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
   const cp = t.closest("[data-copy]"); if (cp) { navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado"; setTimeout(() => (cp.textContent = "Copiar link"), 1500); }); return; }
+  if (t.closest("[data-como-funciona]")) return TQConta.tutorialPublico(true);
   const evEl = t.closest("[data-ev]"); if (evEl) return abrirEvento(evEl.dataset.ev);
   const cl = t.closest("[data-click]"); if (cl) { const [k, ...r] = cl.dataset.click.split(":"), v = r.join(":"); if (k === "ev") abrirEvento(v); else fichaPor(k, v); }
 });
@@ -559,12 +587,20 @@ $("#home").onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = 
   $("#atualizado").textContent = `Notion · atualizado ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
   if (horas > 36) $("#stale").innerHTML = `<div class="stale">Atenção: dados com mais de ${Math.floor(horas)} horas. A atualização automática pode ter falhado.</div>`;
   $("#foot").innerHTML = `Dados lidos do Notion do Tranquilo (${esc(S.pub.fonte)}). Atualização automática toda noite. Números de público vêm do fechamento lançado em cada evento.`;
-  const hash = new URLSearchParams(location.hash.slice(1)).get("c");
-  if (hash) history.replaceState(null, "", location.pathname);
+  const params = new URLSearchParams(location.hash.slice(1));
+  const hash = params.get("c");
+  // Links de tutorial (#tutorial-artista) e de convite (#criar&email=…&tipo=…) chegam por WhatsApp ou e-mail.
+  const tutorialLink = (location.hash.match(/^#tutorial-(artista|casa|equipe|adm|publico)\b/) || [])[1];
+  const convite = params.has("criar") ? { email: params.get("email") || "", tipo: params.get("tipo") === "casa" ? "casa" : "artista" } : null;
+  if (hash || tutorialLink || convite) history.replaceState(null, "", location.pathname);
   const cod = hash || store.get("tq-codigo");
-  try { if (await TQConta.iniciar()) return render(); } catch (e) { console.error(e); }
+  try { if (await TQConta.iniciar()) { render(); if (tutorialLink && tutorialLink !== "publico") TQConta.abrirTutorial(tutorialLink, false); return; } } catch (e) { console.error(e); }
   if (cod) { try { await entrar(cod, true); return; } catch { store.del("tq-codigo"); } }
+  if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; }
   render();
+  if (convite) { const em = $("#email"); if (em) { em.value = convite.email; $("#acesso")?.scrollIntoView({ block: "start" }); $("#enome")?.focus(); } return; }
+  if (tutorialLink) return tutorialLink === "publico" ? TQConta.tutorialPublico(true) : TQConta.abrirTutorial(tutorialLink, false);
+  TQConta.tutorialPublico(false);
 })();
 </script>
 </body>

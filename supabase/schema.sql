@@ -107,7 +107,8 @@ language sql stable security definer set search_path = public as $$
   select exists (select 1 from perfis where id = auth.uid() and tipo = 'adm');
 $$;
 
--- Cria o perfil quando alguém confirma a conta. O tipo pedido no cadastro só vale para artista/casa.
+-- Cria o perfil quando alguém cria a conta. O tipo pedido no cadastro só vale para artista/casa.
+-- (Versão final desta função na seção v2, no fim do arquivo.)
 create or replace function novo_usuario() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
@@ -132,6 +133,8 @@ create trigger ao_criar_usuario after insert on auth.users for each row execute 
 create or replace function proteger_perfil() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
+  -- Aplicação de convite (feita pelo próprio banco, ver aplicar_convite) pode trocar tipo e vínculo.
+  if current_setting('tq.sistema', true) = '1' then return new; end if;
   if not eh_adm() then
     new.tipo := old.tipo;
     new.email := old.email;
@@ -340,3 +343,120 @@ grant select, insert, update, delete on checklist to authenticated;
 grant select, insert on registros_noite to authenticated;
 grant select on chaves_internas to authenticated;
 grant execute on function pre_curadoria(jsonb, text[]), pendencias_casa(jsonb), eh_equipe(), eh_adm() to authenticated;
+
+-- =====================================================================
+-- v2: convites, primeiro acesso (tutorial e senha) e "me avise na minha cidade"
+-- =====================================================================
+alter table perfis add column if not exists tutorial_visto_em timestamptz;
+alter table perfis add column if not exists senha_definida boolean not null default true;
+
+-- Convite feito pela equipe: e-mail já ligado a um perfil e, opcionalmente, a uma artista ou casa da rede.
+-- O vínculo só é aplicado quando a pessoa confirma o e-mail (clicando no link), nunca antes.
+create table if not exists convites (
+  email text primary key check (email = lower(email)),
+  tipo tipo_perfil not null,
+  nome text not null default '',
+  whatsapp text,
+  codigo_acesso text,
+  vinculo_nome text,
+  criado_por uuid references perfis (id) on delete set null,
+  criado_em timestamptz not null default now(),
+  aceito_em timestamptz,
+  tutorial_enviado_em timestamptz
+);
+
+create or replace function aplicar_convite(uid uuid, mail text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  perform set_config('tq.sistema', '1', true);
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = coalesce(c.codigo_acesso, p.codigo_acesso),
+    vinculo_nome = coalesce(c.vinculo_nome, p.vinculo_nome)
+  where p.id = uid;
+  perform set_config('tq.sistema', '', true);
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+-- Só o próprio banco chama esta função.
+revoke all on function aplicar_convite(uuid, text) from public, anon, authenticated;
+
+-- Perfil criado no cadastro; se o e-mail já chega confirmado (link de convite), o convite vale na hora.
+create or replace function novo_usuario() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  pedido text := coalesce(new.raw_user_meta_data ->> 'tipo', 'artista');
+begin
+  insert into perfis (id, email, nome, tipo, senha_definida)
+  values (
+    new.id, lower(new.email), coalesce(new.raw_user_meta_data ->> 'nome', ''),
+    case
+      when exists (select 1 from admins_iniciais where email = lower(new.email)) then 'adm'::tipo_perfil
+      when pedido = 'casa' then 'casa'::tipo_perfil
+      else 'artista'::tipo_perfil
+    end,
+    coalesce(new.encrypted_password, '') <> ''
+  ) on conflict (id) do nothing;
+  if new.email_confirmed_at is not null then perform aplicar_convite(new.id, new.email); end if;
+  return new;
+end $$;
+
+create or replace function ao_confirmar_email() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    perform aplicar_convite(new.id, new.email);
+  end if;
+  return new;
+end $$;
+drop trigger if exists ao_confirmar_usuario on auth.users;
+create trigger ao_confirmar_usuario after update on auth.users for each row execute function ao_confirmar_email();
+
+-- Para quem já tinha conta antes do convite: aplica ao entrar, se o e-mail estiver confirmado.
+create or replace function reivindicar_convite() returns boolean
+language plpgsql security definer set search_path = public as $$
+declare u record;
+begin
+  select id, email, email_confirmed_at into u from auth.users where id = auth.uid();
+  if u.id is null or u.email_confirmed_at is null then return false; end if;
+  return aplicar_convite(u.id, u.email);
+end $$;
+
+alter table convites enable row level security;
+drop policy if exists conv_ler on convites;
+create policy conv_ler on convites for select using (eh_equipe());
+drop policy if exists conv_criar on convites;
+create policy conv_criar on convites for insert with check (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa')));
+drop policy if exists conv_editar on convites;
+create policy conv_editar on convites for update using (eh_equipe()) with check (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa')));
+drop policy if exists conv_apagar on convites;
+create policy conv_apagar on convites for delete using (eh_equipe() and aceito_em is null);
+
+-- "Me avise de shows na minha cidade": qualquer visitante deixa o contato; só a equipe lê.
+create table if not exists avisos_cidade (
+  id uuid primary key default gen_random_uuid(),
+  cidade text not null check (length(cidade) between 2 and 60),
+  contato text not null check (length(contato) between 5 and 120),
+  canal text not null check (canal in ('email', 'whatsapp')),
+  consentimento boolean not null check (consentimento),
+  criado_em timestamptz not null default now()
+);
+create unique index if not exists avisos_unico on avisos_cidade (lower(cidade), lower(contato));
+alter table avisos_cidade enable row level security;
+drop policy if exists aviso_criar on avisos_cidade;
+create policy aviso_criar on avisos_cidade for insert with check (consentimento);
+drop policy if exists aviso_ler on avisos_cidade;
+create policy aviso_ler on avisos_cidade for select using (eh_equipe());
+drop policy if exists aviso_apagar on avisos_cidade;
+create policy aviso_apagar on avisos_cidade for delete using (eh_adm());
+
+grant select, insert, update, delete on convites to authenticated;
+grant insert on avisos_cidade to anon, authenticated;
+grant select, delete on avisos_cidade to authenticated;
+revoke all on function reivindicar_convite() from public, anon;
+grant execute on function reivindicar_convite() to authenticated;
