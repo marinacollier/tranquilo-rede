@@ -7,20 +7,21 @@
 <title>Tranquilo · Rede</title>
 <link rel="icon" href="img/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
 <style>
-/* Identidade do Tranquilo: fundo preto, texto creme, títulos serifados, interface sem serifa,
-   destaques coloridos como nos cartões de praça (violeta, sol, rosa, verde). */
+/* Identidade do site oficial (tranquilomusica.com.br): preto #000201, texto #e2edff, Playfair Display 900
+   nos títulos, Lexend Deca na interface, botões em pílula e uma cor por cidade (--city). */
 :root{
   color-scheme:dark;
-  --bg:#090909;--surface:#111110;--raised:#171716;--hover:#1d1d1b;--line:#262624;--line-2:#363633;
-  --ink:#F5F3EF;--ink-2:#CFCCC6;--ink-3:#9A978F;--ink-4:#6F6C66;
-  --violet:#8992FF;--violet-soft:rgba(137,146,255,.14);--sun:#FFC14E;--sun-soft:rgba(255,193,78,.12);
-  --pink:#F5C4D2;--pink-soft:rgba(245,196,210,.12);--green:#A6D8A5;--green-soft:rgba(166,216,165,.12);
-  --red:#EE7F6C;--red-soft:rgba(238,127,108,.13);--cream:#F1ECD3;
-  --accent:var(--violet);--accent-ink:#0b0b0b;--bar:var(--violet);--bar-soft:rgba(137,146,255,.16);
+  --bg:#000201;--surface:#0b0c0f;--raised:#121318;--hover:#181a20;--line:#1d1f25;--line-2:#2c2f37;
+  --ink:#e2edff;--ink-2:#c3cddd;--ink-3:#8d96a6;--ink-4:#5f6775;
+  --city:#7c8ff3;--city-ink:#000201;
+  --violet:var(--city);--violet-soft:color-mix(in srgb,var(--city) 16%,transparent);--sun:#f9b436;--sun-soft:rgba(249,180,54,.13);
+  --pink:#fcdbe5;--pink-soft:rgba(252,219,229,.11);--green:#c4d9ba;--green-soft:rgba(196,217,186,.12);
+  --red:#f56c52;--red-soft:rgba(245,108,82,.14);--cream:#f8f4cf;--sky:#8fcaff;--lilac:#ccbfda;--yellow:#ffde59;
+  --accent:var(--city);--accent-ink:var(--city-ink);--bar:var(--city);--bar-soft:color-mix(in srgb,var(--city) 18%,transparent);
   --good:var(--green);--warn:var(--sun);--serious:var(--pink);--crit:var(--red);--good-ink:var(--green);
-  --serif:"DM Serif Display",Georgia,serif;--sans:"DM Sans","Segoe UI",system-ui,sans-serif;
+  --serif:"Playfair Display",Georgia,serif;--sans:"Lexend Deca","Segoe UI",system-ui,sans-serif;
   --radius:16px;--side:264px;
 }
 *{box-sizing:border-box}
@@ -357,27 +358,148 @@ details summary:hover{color:var(--ink)}
   .ev{gap:12px;padding:12px}.ev .quando{width:48px;padding-right:12px}.ev .quando b{font-size:26px}
   header.top .chip{display:none}
 }
+/* ---------- ajustes para o visual do site oficial ---------- */
+body{background:var(--bg);font-size:15px;font-weight:400;letter-spacing:.005em}
+h1,h2,.fsec h3,.vazio b,.mes b,.tour-num,.tile b,.kpi .v,.entrada h3,.quem .av,.md blockquote,.tour-caixa h2{font-weight:900}
+h1{letter-spacing:-.015em}
+h1 em,h2 em{color:var(--city)}
+.btn{border-radius:999px;padding:9px 18px;font-weight:500}
+.btn.sm{border-radius:999px;padding:6px 14px}
+.btn.lg{border-radius:999px;padding:13px 24px}
+.btn.pri{background:var(--city);border-color:var(--city);color:var(--city-ink)}
+.btn.pri:hover{background:color-mix(in srgb,var(--city) 85%,#fff);border-color:color-mix(in srgb,var(--city) 85%,#fff)}
+.btn.claro{background:#f4f6fb;border-color:#f4f6fb;color:#000201}
+.btn.claro:hover{background:#fff}
+.btn.sun{background:var(--yellow);border-color:var(--yellow)}
+.tag::before{background:var(--city)}
+.badge{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-radius:999px}
+td .badge{letter-spacing:.06em}
+.pill{border-radius:999px}
+.chip::before{background:var(--city);box-shadow:0 0 0 3px var(--violet-soft)}
+select,.filters select,.filters input,.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]),textarea{background:#101116;border-color:var(--line-2);border-radius:10px}
+.card,.tbl,.stats,.vazio,.ev,.tempo{border-color:var(--line)}
+/* logo em texto, como no site: T. (o ponto ganha a cor da cidade) */
+.tl{font-family:var(--serif);font-weight:900;font-size:34px;line-height:1;letter-spacing:-.02em;color:#fff}
+.tl i{font-style:normal;color:var(--city)}
+.logo{gap:12px;font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.logo b{color:var(--ink-3);font-weight:600}
+header.top .wrap{min-height:84px}
+header.top{background:rgba(0,2,1,.86);border-bottom-color:#16181d}
+.btn-entrar{border:1px dashed var(--line-2);background:none;border-radius:999px;padding:5px 14px 5px 5px;display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:14px;cursor:pointer;color:var(--ink)}
+.btn-entrar:hover{border-color:var(--ink-4)}
+.btn-entrar .av{width:30px;height:30px;border-radius:50%;background:#1a1c22;display:grid;place-items:center}
+.btn-entrar svg{width:15px;height:15px}
+/* seletor de cidade */
+.cid-sel{position:relative}
+.cid-btn{display:inline-flex;align-items:center;gap:10px;min-width:210px;justify-content:space-between;border:1px solid var(--line-2);background:#0b0c0f;border-radius:999px;padding:9px 18px;font-size:15px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.cid-btn:hover{border-color:var(--ink-4)}
+.cid-btn b{font-weight:500;color:var(--ink)}
+.cid-menu{position:absolute;right:0;top:calc(100% + 8px);width:290px;max-height:min(70vh,520px);overflow:auto;background:#0b0c0f;border:1px solid var(--line-2);border-radius:18px;padding:8px;z-index:30;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.cid-menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink-2);padding:9px 12px;border-radius:12px;cursor:pointer;font-size:14.5px;text-align:left}
+.cid-menu button:hover,.cid-menu button.on{background:var(--raised);color:var(--ink)}
+.cid-menu .bola{width:12px;height:12px;border-radius:50%;flex:none}
+.cid-menu .n{margin-left:auto;font-size:12px;color:var(--ink-4)}
+.cid-menu .loc{border:1px dashed var(--line-2);margin-bottom:6px;color:var(--ink)}
+.cid-menu .nota{font-size:12px;color:var(--ink-4);padding:6px 12px 8px}
+/* home: marca e cartões de cidade */
+.hero-ofc{text-align:center;padding:38px 0 8px}
+.hero-ofc .marca{font-family:var(--serif);font-weight:900;font-size:clamp(34px,5vw,54px);letter-spacing:.01em;line-height:1;margin:0;color:#fff}
+.hero-ofc .lema{color:var(--ink-2);font-size:17px;margin:12px 0 0}
+.hero-ofc .rede{color:var(--ink-3);max-width:60ch;margin:16px auto 0;font-size:15px}
+.hero-ofc .barra-acoes{justify-content:center;margin-top:24px}
+.tit-sec{font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:0;margin:0 0 14px;color:var(--ink)}
+.tit-sec.centro{text-align:center}
+.cidades{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px;max-width:860px;margin:0 auto}
+.cidade{position:relative;overflow:hidden;border:0;border-radius:20px;padding:22px 24px;min-height:164px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;cursor:pointer;color:#000201;transition:transform .15s,filter .15s;font:inherit}
+.cidade:hover{transform:translateY(-2px);filter:brightness(1.04)}
+.cidade.on{outline:3px solid #fff;outline-offset:3px}
+.cidade .tq{font-family:var(--serif);font-weight:900;font-size:26px;letter-spacing:.01em}
+.cidade .nm{font-size:13px;font-weight:500;letter-spacing:.24em;text-transform:uppercase}
+.cidade .ct{font-size:12.5px;opacity:.75;margin-top:4px;letter-spacing:.02em;text-transform:none}
+.cidade .novo{position:absolute;right:-34px;top:16px;transform:rotate(45deg);background:#fff;color:#000;font-size:10px;font-weight:700;letter-spacing:.18em;padding:4px 40px}
+/* cartões de evento como no site */
+.evo{display:flex;align-items:center;gap:16px;padding:20px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(90deg,transparent 55%,color-mix(in srgb,var(--cor,var(--city)) 7%,transparent)),#08090b}
+.evo+.evo{margin-top:16px}
+.evo .bloco{width:64px;flex:none;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;text-align:center;font-variant-numeric:tabular-nums}
+.evo .bloco span{display:block;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:4px 0;color:var(--ink-3)}
+.evo .bloco .m{background:#15171c;color:var(--ink)}
+.evo .bloco b{display:block;font-size:20px;font-weight:700;padding:5px 0 0;color:#fff}
+.evo .bloco .a{padding:0 0 5px;font-size:10px;letter-spacing:.06em}
+.evo .meio{flex:1;min-width:0}
+.evo .longa{color:var(--ink-3);font-size:14px}
+.evo .titulo{font-size:16.5px;font-weight:600;color:#fff;margin-top:4px;line-height:1.35}
+.evo .titulo .badge{margin-left:8px;vertical-align:2px;background:none;border-color:var(--line-2);color:var(--ink-2)}
+.evo .titulo .badge::before{display:none}
+.evo .lado{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none;text-align:right}
+.evo .falta{font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:7px}
+.evo .falta::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.evo.prox .falta{color:var(--ink)}.evo.prox .falta::before{background:var(--cor,var(--city))}
+.evo .falta b{font-size:15px;letter-spacing:.02em;color:#fff;text-transform:none;font-weight:600}
+.evo .btn{background:var(--cor,var(--city));border-color:var(--cor,var(--city));color:#000201}
+.evo .btn:hover{filter:brightness(1.08)}
+.agenda-ofc{max-width:860px}
+@media (max-width:640px){.evo{flex-wrap:wrap;padding:16px}.evo .lado{flex-direction:row;align-items:center;justify-content:space-between;width:100%}.evo .bloco{width:56px}}
+/* sobre e rodapé institucional */
+.sobre{max-width:860px;margin:72px auto 0;background:#08090b;border:1px solid var(--line);border-radius:18px;padding:22px 22px}
+.sobre h3{margin:0 0 12px;font-size:16px}
+.sobre p{margin:0 0 12px;color:var(--ink-2)}
+.sobre p b{color:#fff;font-weight:600}
+.sobre p:last-child{margin:0;color:var(--ink-3)}
+.foot{border-top:1px solid #16181d;padding:48px 16px 40px;color:var(--ink-3);font-size:14px}
+.rod{max-width:900px;margin:0 auto}
+.rod h4{font-family:var(--serif);font-weight:700;font-size:25px;letter-spacing:.005em;text-transform:uppercase;color:#fff;margin:0 0 18px}
+.rod .lc{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:44px}
+.rod .lc a:nth-child(-n+2){font-weight:600;color:var(--ink-2)}
+.rod a{text-decoration:none;color:var(--ink-3)}
+.rod a:hover{color:#fff}
+.rod .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.rod .cols nav{display:flex;flex-direction:column;gap:14px}
+.rod .redes{display:flex;gap:10px;margin-top:4px}
+.rod .redes a{width:44px;height:44px;border:1px solid var(--line-2);border-radius:50%;display:grid;place-items:center;color:#fff}
+.rod .legal{border-top:1px solid #16181d;margin-top:36px;padding-top:28px;text-align:center;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.rod .legal a{text-decoration:underline;text-underline-offset:3px}
+.rod .legal b{color:#fff;font-weight:600}
+.rod .nota-dados{color:var(--ink-4);font-size:12.5px;max-width:70ch;margin:6px auto 0}
+body.logado .rod{display:none}
+body.logado .foot::after{content:attr(data-curto);display:block;color:var(--ink-4);font-size:13px}
+body.logado .foot{padding:22px 16px 30px}
+@media (max-width:700px){.rod .cols{grid-template-columns:1fr}}
+/* banner de privacidade e consentimento */
+.consent{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:min(900px,calc(100% - 24px));z-index:70;background:#000201;border:1.5px solid #e2edff;border-radius:12px;padding:18px 18px 14px;box-shadow:0 0 0 1px #000,0 20px 60px rgba(0,0,0,.7);animation:sobe .25s ease-out}
+.consent b{display:block;font-size:15px;font-weight:600;color:#fff;margin-bottom:8px}
+.consent p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-3)}
+.consent p a{color:#fff}
+.consent .acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;flex-wrap:wrap}
+.consent .btn{border-radius:2px;font-weight:600}
+.consent .btn.claro{border-radius:2px}
+@media (max-width:640px){.consent{bottom:10px;padding:16px}.consent .acoes{flex-direction:column}.consent .btn{width:100%}}
+.aceite-legal{font-size:12.5px;color:var(--ink-4);margin:10px 0 0}
+.aceite-legal a{color:var(--ink-3)}
+.loc-btn{border:0;background:none;color:var(--ink-3);font-size:13px;cursor:pointer;padding:4px 0;text-align:left;text-decoration:underline;text-underline-offset:3px}
+.loc-btn:hover{color:#fff}
 </style>
 </head>
 <body>
 <div id="stale"></div>
 <header class="top"><div class="wrap">
   <button class="menu-btn" id="menu" aria-label="Abrir menu" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
-  <a class="logo" href="#" data-home><img src="img/marca.png" alt="" width="34" height="34"><span>Tranquilo <b>Rede</b></span></a>
+  <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
   <span class="top-tit" id="topTit"></span>
   <span class="sp"></span>
-  <span class="chip" id="atualizado">carregando…</span>
-  <button class="btn sm pri" id="entrar">Entrar</button>
+  <span class="chip" id="atualizado" hidden>carregando…</span>
+  <button class="btn-entrar" id="entrar"><span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.4 4.2-6.5 8-6.5s7 2.1 8 6.5"/></svg></span>Entrar</button>
+  <div class="cid-sel" id="cidSel"></div>
 </div></header>
 <aside class="side" id="side" hidden>
-  <a class="logo" href="#" data-home><img src="img/marca.png" alt="" width="34" height="34"><span>Tranquilo <b>Rede</b></span></a>
+  <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
   <div class="quem" id="quem"></div>
   <nav class="tabs" id="tabs" aria-label="Seções"></nav>
   <div class="side-pe"><span class="chip" id="atualizado2"></span><button class="btn sm" id="sair">Sair da conta</button></div>
 </aside>
 <div class="veu" id="veu" hidden></div>
 <main class="wrap" id="app"><p class="muted">Carregando…</p></main>
-<div class="wrap foot" id="foot"></div>
+<footer class="foot" id="foot"></footer>
+<div id="consent"></div>
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
@@ -419,6 +541,72 @@ async function abrirPacote(cod) {
   const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(p.s), iterations: 210000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
   const claro = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.i) }, k, b64(p.c));
   return JSON.parse(new TextDecoder().decode(claro));
+}
+
+// ---------- cidades do site oficial: cor, link e coordenadas (para "usar minha localização") ----------
+const OFICIAL = "https://tranquilomusica.com.br";
+const CIDADES_OFC = [
+  ["saopaulo", "São Paulo", "#7c8ff3", -23.55, -46.63, 0, "💙"], ["bh", "Belo Horizonte", "#fcdbe5", -19.92, -43.94, 0, "🩷"],
+  ["floripa", "Floripa", "#f8f4cf", -27.59, -48.55, 0, "🤍"], ["riodejaneiro", "Rio de Janeiro", "#8fcaff", -22.91, -43.17, 0, "🩵"],
+  ["salvador", "Salvador", "#f9b436", -12.97, -38.50, 0, "🧡"], ["brasilia", "Brasília", "#ffde59", -15.79, -47.88, 0, "💛"],
+  ["campinas", "Campinas", "#ccbfda", -22.91, -47.06, 1, "💜"], ["curitiba", "Curitiba", "#c4d9ba", -25.43, -49.27, 0, "💚"],
+  ["recife", "Recife", "#f56c52", -8.05, -34.88, 0, "❤️"], ["itajai", "Itajaí", "#f4f4f5", -26.91, -48.66, 1, "🤍"],
+  ["portoalegre", "Porto Alegre", "#f4f4f5", -30.03, -51.23, 1, "🤍"], ["santoandre", "Santo André", "#f4f4f5", -23.66, -46.53, 1, "🤍"],
+  ["santos", "Santos", "#f4f4f5", -23.96, -46.33, 1, "🤍"], ["sorocaba", "Sorocaba", "#f4f4f5", -23.50, -47.46, 1, "🤍"],
+].map(([slug, nome, cor, lat, lon, novo, emoji]) => ({ slug, nome, cor, lat, lon, novo: !!novo, emoji }));
+const semAcento = (t) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const APELIDO = { florianopolis: "floripa", "belo horizonte": "belo horizonte", bh: "belo horizonte", rio: "rio de janeiro" };
+// Nome da cidade como aparece no Notion -> cidade do site oficial (ou null se a rede ainda não tem página dela).
+function cidadeOfc(nome) { const k = APELIDO[semAcento(nome)] || semAcento(nome); return CIDADES_OFC.find((c) => semAcento(c.nome) === k) || null; }
+const corCidade = (nome) => cidadeOfc(nome)?.cor || "#7c8ff3";
+function aplicarCidade() {
+  const c = S.cidade ? cidadeOfc(S.cidade) : null;
+  document.documentElement.style.setProperty("--city", c?.cor || "#7c8ff3");
+}
+function escolherCidade(nome) {
+  S.cidade = nome || ""; S.agCidade = S.cidade; S.agTudo = false;
+  if (nome) store.set("tq-cidade", nome); else store.del("tq-cidade");
+  aplicarCidade(); render();
+}
+function seletorCidade() {
+  const c = S.cidade ? cidadeOfc(S.cidade) : null, contagem = Object.fromEntries([...agrupar(S.pub?.agenda || [], (e) => cidadeOfc(e.c)?.nome || e.c)].map(([k, v]) => [k, v.length]));
+  return `<button class="cid-btn" id="cidBtn" aria-haspopup="true" aria-expanded="${!!S.cidMenu}">${c ? `<span>${c.emoji} <b>${esc(c.nome)}</b></span>` : "<span>Escolher cidade</span>"}<svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  ${S.cidMenu ? `<div class="cid-menu" role="menu"><button class="loc" data-localizar>📍 Usar minha localização</button><div class="nota" id="locNota">A localização fica só no seu aparelho: serve para achar a cidade da rede mais perto.</div>
+  ${c ? `<button data-cidade-ofc="">Todas as cidades</button>` : ""}${CIDADES_OFC.map((x) => `<button data-cidade-ofc="${esc(x.nome)}" class="${c?.slug === x.slug ? "on" : ""}" role="menuitem"><span class="bola" style="background:${x.cor}"></span>${esc(x.nome)}<span class="n">${contagem[x.nome] ? contagem[x.nome] + (contagem[x.nome] > 1 ? " datas" : " data") : x.novo ? "novo" : ""}</span></button>`).join("")}</div>` : ""}`;
+}
+function maisPerto(lat, lon) {
+  const rad = (g) => g * Math.PI / 180, dist = (c) => { const a = Math.sin(rad(c.lat - lat) / 2) ** 2 + Math.cos(rad(lat)) * Math.cos(rad(c.lat)) * Math.sin(rad(c.lon - lon) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(a)); };
+  return CIDADES_OFC.map((c) => ({ c, km: dist(c) })).sort((a, b) => a.km - b.km)[0];
+}
+function localizar(aoAchar) {
+  const nota = (t) => { const n = $("#locNota") || $("#avLocNota"); if (n) n.textContent = t; };
+  if (!navigator.geolocation) return nota("Este navegador não permite usar a localização. Escolha a cidade na lista.");
+  nota("Procurando a cidade mais perto…");
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const { c, km } = maisPerto(pos.coords.latitude, pos.coords.longitude);
+    if (km > 150) { nota(`Ainda não tem Tranquilo perto de você: a cidade mais perto é ${c.nome}, a ${Math.round(km)} km. Deixe o seu contato no "me avise" com a sua cidade.`); aoAchar?.(null, c, km); return; }
+    aoAchar ? aoAchar(c.nome, c, km) : escolherCidade(c.nome);
+  }, (e) => nota(e.code === 1 ? "Você não autorizou a localização. Tudo bem: escolha a cidade na lista." : "Não foi possível achar a localização agora. Escolha a cidade na lista."), { timeout: 10000, maximumAge: 600000 });
+}
+// Banner de privacidade e consentimento, no formato do site oficial. Este site não usa cookies de análise nem de anúncios.
+function consentimento() {
+  if (store.get("tq-consentimento") || TQTour.aberto()) return;
+  $("#consent").innerHTML = `<div class="consent" role="dialog" aria-label="Privacidade e consentimento de comunicação"><b>🍪 Privacidade e Consentimento de Comunicação</b>
+  <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
+  <div class="acoes"><button class="btn claro" data-consent="ok">Entendi ✨</button><a class="btn ghost" href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Ler a política</a></div></div>`;
+}
+function rodape() {
+  const L = (c, t) => `<a href="${OFICIAL}/${c}" target="_blank" rel="noopener">${t}</a>`;
+  $("#foot").dataset.curto = "Rede Tranquilo · agenda e números do Notion do Tranquilo, atualizados toda noite.";
+  $("#foot").innerHTML = `<div class="rod">
+  <h4>Cidades</h4><div class="lc">${CIDADES_OFC.map((c) => L(c.slug, esc(c.nome))).join("")}</div>
+  <div class="cols"><div><h4>Tranquilo pra você</h4><nav>${L("descubra", "Tocar no Tranquilo")}${L("compartilhe-seu-lancamento", "Enviar meu single")}${L("recomende-uma-casa-de-shows", "Recomendar uma casa")}${L("oportunidades", "Trabalhar no Tranquilo")}${L("indicar-artista", "Indicar artista")}${L("artistas", "Artistas")}${L("contato", "Fale com a gente")}</nav></div>
+  <div><h4>Institucional</h4><nav>${L("", "Site do Tranquilo")}${L("politica-de-privacidade", "Política de Privacidade")}${L("politica-mensagens-whatsapp", "Política de mensagens")}${L("termos-de-uso", "Termos de Uso")}${L("kit-de-marca", "Kit de Marca")}
+  <div class="redes"><a href="https://wa.me/5531973434771" target="_blank" rel="noopener" aria-label="WhatsApp do Tranquilo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1.1z"/><path d="M9 8.5c0 3 2.5 6.5 6.5 6.5l1-1.5-2-1-1 1c-1-.4-2.6-2-3-3l1-1-1-2z" stroke-linejoin="round"/></svg></a><a href="https://instagram.com/tranquiloponto" target="_blank" rel="noopener" aria-label="Instagram do Tranquilo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor"/></svg></a></div></nav></div></div>
+  <div class="legal"><div>${L("politica-de-privacidade", "Política de Privacidade")} · ${L("termos-de-uso", "Termos de Uso")} · ${L("politica-mensagens-whatsapp", "Política de mensagens")}</div>
+  <div>© ${new Date().getFullYear()} Tranquilo. Eventos Ltda — <b>CNPJ 50.142.229/0001-39</b></div><div>Rua Castelo Évora, 90 — Castelo — Belo Horizonte/MG</div>
+  <div>WhatsApp: <a href="https://wa.me/5531973434771" target="_blank" rel="noopener" style="text-decoration:none">(31) 97343-4771</a> · Email: <a href="mailto:contato@tranquilomusica.com.br" style="text-decoration:none">contato@tranquilomusica.com.br</a></div>
+  <p class="nota-dados">Agenda e números lidos do Notion do Tranquilo e atualizados toda noite. Ingressos e comunicação oficial sempre pelo site e pelos canais do Tranquilo.</p></div></div>`;
 }
 
 // ---------- estado ----------
