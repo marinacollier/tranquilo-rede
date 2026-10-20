@@ -4,7 +4,8 @@
 "use strict";
 const TQConta = (() => {
   const cfg = window.TQ_CONFIG || {};
-  const REAL = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
+  const CONFIGURADO = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
+  let REAL = false;   // vira true quando o banco responde com as tabelas criadas
   const R = window.TQRegras;
   const hojeIso = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
   let api = null;
@@ -88,7 +89,7 @@ const TQConta = (() => {
 
   // ---------- Supabase ----------
   async function Supa() {
-    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
+    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm");
     const sb = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
@@ -99,6 +100,11 @@ const TQConta = (() => {
       return linhas.map((l) => ({ ...l, perfil: ps.find((p) => p.id === l.user_id) }));
     };
     return {
+      // O banco está pronto quando a tabela de perfis existe (schema.sql já rodou).
+      async pronto() {
+        const { error } = await sb.from("perfis").select("id").limit(1);
+        return !error || !/PGRST205|42P01|does not exist|Could not find the table/i.test(`${error.code} ${error.message}`);
+      },
       async sessao() { return perfil(); },
       async entrar(email, senha) { ok(await sb.auth.signInWithPassword({ email, password: senha })); return perfil(); },
       async cadastrar({ email, senha, nome, tipo }) {
@@ -167,7 +173,11 @@ const TQConta = (() => {
     S.aba = abas()[0][0];
   }
   async function iniciar() {
-    api = REAL ? await Supa() : Demo();
+    if (CONFIGURADO) {
+      try { const s = await Supa(); if (await s.pronto()) { api = s; REAL = true; } }
+      catch (e) { console.error("Banco indisponível, seguindo em modo demonstração", e); }
+    }
+    if (!api) api = Demo();
     const p = await api.sessao();
     if (p) await carregar(p);
     return !!p;
@@ -655,5 +665,5 @@ const TQConta = (() => {
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }
 
-  return { REAL, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo };
+  return { get REAL() { return REAL; }, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo };
 })();
