@@ -46,4 +46,7 @@ jobs:
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh issue create --title "Atualização do site falhou ($(date -u +%d/%m))" --body "O site continua com a versão anterior. Veja o log: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
+        run: |
+          gh issue create \
+            --title "Atualização do site falhou ($(date -u +%d/%m))" \
+            --body "O site continua com a versão anterior. Log da execução - ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || true
