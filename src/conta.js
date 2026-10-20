@@ -197,6 +197,7 @@ const TQConta = (() => {
       async reivindicar() { const { data, error } = await sb.rpc("reivindicar_convite"); return !error && data === true; },
       async avisar(a) {
         const { error } = await sb.from("avisos_cidade").insert({ ...a, consentimento: true });
+        if (error && /PGRST205|42P01|Could not find the table/i.test(`${error.code} ${error.message}`)) throw new Error("Os avisos por cidade ainda não estão ligados. Tente de novo mais tarde.");
         if (error && error.code !== "23505") throw new Error(traduz(error.message));   // 23505: já pediu esta cidade
       },
       async avisos() { return ok(await sb.from("avisos_cidade").select("*").order("criado_em", { ascending: false })); },
@@ -468,7 +469,8 @@ const TQConta = (() => {
       ], E.perfis, { i: 3, dir: -1 })}`;
     },
     convites() {
-      const E = S.eq; if (!E?.conv) { carregarEquipe(); return carregando("convites"); }
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("convites"); }
+      if (E.conv === null) return faltaSchema("Convites");
       const adm = S.conta.perfil.tipo === "adm", tipoSel = S.convTipo || "artista", pre = S.convPre || {};
       const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === tipoSel);
       const contas = new Set((E.perfis || []).map((p) => p.email));
@@ -493,7 +495,8 @@ const TQConta = (() => {
       ], E.conv, { i: 3, dir: 1 })}`;
     },
     demanda() {
-      const E = S.eq; if (!E?.avisos) { carregarEquipe(); return carregando("demanda por cidade"); }
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("demanda por cidade"); }
+      if (E.avisos === null) return faltaSchema("Demanda");
       const norm = (c) => c.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
       const agenda = S.pub?.agenda || [], datasPor = {};
       for (const e of agenda) datasPor[norm(e.c)] = (datasPor[norm(e.c)] || 0) + 1;
@@ -565,11 +568,14 @@ const TQConta = (() => {
 
   const CLASSE = { confiavel: "🟢 Confiável", desenvolvimento: "🟡 Desenvolvimento", correcao: "🔴 Correção necessária", suspenso: "⛔ Suspensa" };
   const carregando = (o) => `<p class="muted">Carregando ${o}…</p>`;
+  const faltaSchema = (aba) => `<div class="tag">${aba}</div><h1>Falta atualizar o banco</h1><div class="alert warn"><b>Esta aba precisa da versão nova do banco.</b>No Supabase, abra SQL Editor → New query, cole o arquivo supabase/schema.sql inteiro e clique em Run. Ele é seguro de rodar de novo e não apaga nada. Depois recarregue esta página.</div>`;
   async function carregarEquipe() {
     if (S.eqCarregando) return; S.eqCarregando = true;
     try {
       const quem = S.conta?.perfil.id;
-      const [insc, casas, perfis, chk, reg, conv, avisos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), api.convites(), api.avisos()]);
+      // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
+      const novo = (pr) => pr.catch(() => null);
+      const [insc, casas, perfis, chk, reg, conv, avisos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
       S.eq = { insc, casas, perfis, chk, reg, conv, avisos };
     } catch (e) {

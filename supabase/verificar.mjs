@@ -25,7 +25,7 @@ const raiz = await pedir('/rest/v1/perfis?select=id&limit=1');
 reg('API REST e chave publicável', raiz.status === 200, `HTTP ${raiz.status} ${raiz.status === 200 ? 'chave aceita' : codigo(raiz.corpo)}`);
 
 // 2. Tabelas: existir é o que importa (sem login, as regras de acesso podem negar a leitura, o que é esperado)
-for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais']) {
+for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais', 'convites', 'avisos_cidade']) {
   const r = await pedir(`/rest/v1/${t}?select=*&limit=1`);
   const falta = /PGRST205|42P01|Could not find the table/i.test(codigo(r.corpo));
   const vazou = r.status === 200 && Array.isArray(r.corpo) && r.corpo.length > 0;
