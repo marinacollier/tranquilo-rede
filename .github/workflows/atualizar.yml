@@ -1,7 +1,7 @@
 name: Atualizar site da Rede
 
 # Caminho 1 (preferido quando houver chave do Notion): lê a API oficial toda noite.
-# Caminho 2: quando o retrato em data/ muda (rotina noturna do Claude), reconstrói o site.
+# Caminho 2: a cada push na main (a rotina noturna do Claude faz um por noite), reconstrói o site a partir de data/
 # Sem SITE_SECRET configurado, o job termina sem publicar nada.
 on:
   schedule:
@@ -9,7 +9,6 @@ on:
     - cron: '0 9 * * *'   # 06:00, segunda tentativa
   push:
     branches: [main]
-    paths: ['data/**', 'src/**', 'scripts/**']
   workflow_dispatch:
 
 permissions:
