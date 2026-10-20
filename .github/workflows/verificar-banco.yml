@@ -1,0 +1,33 @@
+name: Verificar banco (Supabase)
+
+# Verificação somente leitura. O resultado vai para a branch "verificacao" (arquivo verificacao.json).
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**', 'src/config.js', '.github/workflows/verificar-banco.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verificar
+        id: v
+        run: node supabase/verificar.mjs
+        continue-on-error: true
+      - name: Guardar resultado na branch verificacao
+        run: |
+          mkdir -p /tmp/v && cp verificacao.json /tmp/v/ && cd /tmp/v
+          git init -q -b verificacao && git add -A
+          git -c user.name="Rede Tranquilo (robô)" -c user.email="robo@tranquilo.invalid" commit -q -m "Verificação $(date -u +%FT%TZ)"
+          git push -q -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}" verificacao
+      - name: Resultado
+        if: steps.v.outcome == 'failure'
+        run: exit 1
