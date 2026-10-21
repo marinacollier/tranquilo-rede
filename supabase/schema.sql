@@ -460,3 +460,61 @@ grant insert on avisos_cidade to anon, authenticated;
 grant select, delete on avisos_cidade to authenticated;
 revoke all on function reivindicar_convite() from public, anon;
 grant execute on function reivindicar_convite() to authenticated;
+
+-- ---------- v3: diário de uso e cópia dos registros do Supabase ----------
+-- Diário: o que cada pessoa fez no site (telas, cliques, erros vistos, falhas de chamada), para corrigir e ajustar.
+-- Nunca recebe senha nem o que a pessoa digita nos campos. Qualquer visitante grava; só a equipe lê; só a adm apaga.
+create table if not exists diario_uso (
+  id bigint generated always as identity primary key,
+  criado_em timestamptz not null default now(),
+  quando_cliente timestamptz,
+  sessao text not null check (length(sessao) between 8 and 64),
+  user_id uuid default auth.uid(),          -- conta autenticada no momento do envio (verificado pelo banco)
+  conta_id uuid,                            -- conta aberta quando o evento aconteceu (informado pelo navegador)
+  perfil text check (length(perfil) <= 30),
+  tipo text not null check (tipo in ('sessao', 'tela', 'acao', 'erro', 'falha_rede')),
+  tela text check (length(tela) <= 80),
+  alvo text check (length(alvo) <= 240),
+  detalhe jsonb check (pg_column_size(detalhe) <= 4000),
+  url text check (length(url) <= 300),
+  dispositivo text check (length(dispositivo) <= 160)
+);
+create index if not exists diario_quando on diario_uso (criado_em desc);
+create index if not exists diario_conta on diario_uso (coalesce(user_id, conta_id), criado_em);
+create index if not exists diario_sessao on diario_uso (sessao, criado_em);
+alter table diario_uso enable row level security;
+drop policy if exists diario_criar on diario_uso;
+create policy diario_criar on diario_uso for insert with check (user_id is null or user_id = auth.uid());
+drop policy if exists diario_ler on diario_uso;
+create policy diario_ler on diario_uso for select using (eh_equipe());
+drop policy if exists diario_apagar on diario_uso;
+create policy diario_apagar on diario_uso for delete using (eh_adm());
+grant insert on diario_uso to anon, authenticated;
+grant select, delete on diario_uso to authenticated;
+
+-- Cópia dos registros do próprio Supabase (login, chamadas à API, erros do banco), que no plano gratuito somem
+-- em cerca de um dia. Quem grava é a rotina .github/workflows/copiar-registros.yml; no site, só a adm lê.
+create table if not exists registros_supabase (
+  id text primary key,
+  fonte text not null,
+  quando timestamptz not null,
+  mensagem text,
+  dados jsonb,
+  copiado_em timestamptz not null default now()
+);
+create index if not exists registros_quando on registros_supabase (quando desc);
+alter table registros_supabase enable row level security;
+drop policy if exists registros_ler on registros_supabase;
+create policy registros_ler on registros_supabase for select using (eh_adm());
+grant select on registros_supabase to authenticated;
+revoke insert, update, delete on registros_supabase from anon, authenticated;
+
+-- Relatório por conta: o que cada pessoa fez, onde travou e quais erros apareceram.
+create or replace view diario_por_conta with (security_invoker = true) as
+select coalesce(d.user_id, d.conta_id) as conta, p.email, p.tipo, min(d.criado_em) as primeiro, max(d.criado_em) as ultimo,
+       count(*) as eventos, count(distinct d.sessao) as sessoes,
+       count(*) filter (where d.tipo = 'tela') as telas, count(*) filter (where d.tipo = 'acao') as acoes,
+       count(*) filter (where d.tipo = 'erro') as erros, count(*) filter (where d.tipo = 'falha_rede') as falhas_rede
+from diario_uso d left join perfis p on p.id = coalesce(d.user_id, d.conta_id)
+group by 1, 2, 3;
+grant select on diario_por_conta to authenticated;

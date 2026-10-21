@@ -536,6 +536,7 @@ body.logado .foot{padding:22px 16px 30px}
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
 <script src="config.js"></script>
+<script src="diario.js"></script>
 <script src="regras.js"></script>
 <script src="tour.js"></script>
 <script src="conta.js"></script>
@@ -624,12 +625,13 @@ function localizar(aoAchar) {
     aoAchar ? aoAchar(c.nome, c, km) : escolherCidade(c.nome);
   }, (e) => nota(e.code === 1 ? "Você não autorizou a localização. Tudo bem: escolha a cidade na lista." : "Não foi possível achar a localização agora. Escolha a cidade na lista."), { timeout: 10000, maximumAge: 600000 });
 }
-// Banner de privacidade e consentimento, no formato do site oficial. Este site não usa cookies de análise nem de anúncios.
+// Banner de privacidade e consentimento, no formato do site oficial. Não há cookies de anúncios; o diário de uso
+// (diario.js) só registra visitantes que escolhem "Aceitar tudo".
 function consentimento() {
-  if (store.get("tq-consentimento") || TQTour.aberto() || S.pac || S.conta) return;
+  if (["tudo", "necessarios"].includes(store.get("tq-consentimento")) || TQTour.aberto() || S.pac || S.conta) return;
   $("#consent").innerHTML = `<div class="consent" role="dialog" aria-label="Privacidade e consentimento de comunicação"><b>🍪 Privacidade e Consentimento de Comunicação</b>
-  <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
-  <div class="acoes"><button class="btn claro" data-consent="ok">Entendi ✨</button><a class="btn ghost" href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Ler a política</a></div></div>`;
+  <p>Este espaço da Rede Tranquilo não usa cookies de anúncios. Guardamos no seu navegador o necessário para funcionar (sessão, cidade escolhida e preferências) e, só se você aceitar, um registro de uso (telas abertas, cliques e erros, sem nada do que você digita) para melhorar o site. Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
+  <div class="acoes"><button class="btn claro" data-consent="tudo">Aceitar tudo ✨</button><button class="btn ghost" data-consent="necessarios">Apenas necessários</button></div></div>`;
 }
 function rodape() {
   const L = (c, t) => `<a href="${OFICIAL}/${c}" target="_blank" rel="noopener">${t}</a>`;
@@ -647,6 +649,7 @@ function rodape() {
 
 // ---------- estado ----------
 const S = { pub: null, pac: null, aba: null, filtros: { periodo: "2026", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
+window.S = S;   // o diário de uso (diario.js) lê o perfil e a aba atual daqui
 const PERFIS = {
   adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Artistas"],["casas","Casas"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
   equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["base","Base de conhecimento"],["metodo","Método"]] },
@@ -1079,7 +1082,7 @@ function render() {
   menu(false);
   $("#cidSel").hidden = logado; $("#cidSel").innerHTML = logado ? "" : seletorCidade();
   if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
-  if (!logado) { $("#topTit").textContent = ""; return telaPublica(); }
+  if (!logado) { $("#topTit").textContent = ""; TQDiario.tela("publica"); return telaPublica(); }
   $("#quem").innerHTML = quemHtml();
   const abas = abasAtuais();
   if (!abas.some(([k]) => k === S.aba)) S.aba = abas[0][0];
@@ -1087,6 +1090,7 @@ function render() {
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
   $("#app").innerHTML = (TQConta.telas[S.aba] || TELAS[S.aba])();
   ligar();
+  TQDiario.tela(S.aba);
 }
 function ligar() {
   const on = (sel, ev, fn) => { const el = $(sel); if (el) el[ev] = fn; };
@@ -1104,7 +1108,7 @@ document.addEventListener("click", (ev) => {
   if (t.closest("[data-localizar]")) { localizar(); return; }
   if (t.closest("[data-avloc]")) { localizar((nome, c) => { const sel = $("#avCidade"); if (!sel) return; const op = [...sel.options].find((o) => o.value && cidadeOfc(o.value)?.slug === c?.slug);
     const nota = $("#avLocNota"); if (nome && op) { sel.value = op.value; $("#avOutra").hidden = true; if (nota) nota.textContent = `Achamos: ${c.nome}.`; } else if (nota && c) { sel.value = "__outra"; $("#avOutra").hidden = false; $("#avOutra").focus(); } }); return; }
-  const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", new Date().toISOString()); $("#consent").innerHTML = ""; return; }
+  const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", cs.dataset.consent); if (cs.dataset.consent !== "tudo") TQDiario.semVisitante(); $("#consent").innerHTML = ""; return; }
   if (S.cidMenu && !t.closest("#cidSel")) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); }
   const aba = t.closest("[data-aba]"); if (aba) { S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
   const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }

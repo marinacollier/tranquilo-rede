@@ -134,3 +134,38 @@ await db.exec(`reset role;`);
 ok(visto === 0, 'visitante não lê os avisos de ninguém');
 await como(eq, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 1, 'equipe lê os avisos por cidade'); });
 await como(art, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 0, 'artista não lê os avisos'); });
+// ---------- v3: diário de uso e cópia dos registros ----------
+const linha = (extra = '') => `insert into diario_uso (sessao, perfil, tipo, tela, alvo${extra ? ', user_id' : ''}) values ('sessao-teste-1', 'visitante', 'acao', 'publica', 'button#avOk'${extra})`;
+await db.exec(`set role anon;`);
+const anonGrava = await tenta(() => q(linha()));
+const anonForja = await tenta(() => q(linha(`, '${art}'`)));
+const anonLeDiario = await q(`select count(*)::int n from diario_uso`).then((r) => r.rows[0].n, () => -1);
+const anonTipoInvalido = await tenta(() => q(`insert into diario_uso (sessao, tipo) values ('sessao-teste-1', 'qualquer')`));
+await db.exec(`reset role;`);
+ok(anonGrava === null, 'visitante grava evento no diário');
+ok(!!anonForja, 'visitante não grava evento em nome de uma conta');
+ok(anonLeDiario <= 0, 'visitante não lê o diário');
+ok(!!anonTipoInvalido, 'diário recusa tipo de evento desconhecido');
+await como(art, async () => {
+  await q(`insert into diario_uso (sessao, perfil, tipo, tela) values ('sessao-art-0001', 'artista', 'tela', 'passos')`);
+  ok(!!(await tenta(() => q(linha(`, '${casa}'`)))), 'artista não grava evento em nome de outra conta');
+  ok((await q(`select * from diario_uso`)).rows.length === 0, 'artista não lê o diário (nem o próprio)');
+  ok((await q(`select * from diario_por_conta`)).rows.length === 0, 'artista não vê o relatório por conta');
+  ok(!!(await tenta(() => q(`insert into registros_supabase (id, fonte, quando) values ('x', 'auth', now())`))), 'artista não grava nos registros do Supabase');
+});
+const doArt = (await q(`select user_id from diario_uso where sessao = 'sessao-art-0001'`)).rows[0];
+ok(doArt?.user_id === art, 'evento de quem está logado fica com a conta verificada pelo banco');
+await como(eq, async () => {
+  ok((await q(`select * from diario_uso`)).rows.length === 2, 'equipe lê o diário');
+  const rel = (await q(`select * from diario_por_conta where conta = $1`, [art])).rows[0];
+  ok(rel?.eventos === 1 || rel?.eventos === '1', 'relatório por conta soma os eventos da artista');
+  await q(`delete from diario_uso`);
+  ok((await q(`select count(*)::int n from diario_uso`)).rows[0].n === 2, 'equipe não apaga o diário');
+  ok((await q(`select * from registros_supabase`)).rows.length === 0, 'equipe não lê os registros do Supabase');
+});
+await q(`insert into registros_supabase (id, fonte, quando, mensagem) values ('log-1', 'auth', now(), 'login')`);
+await como(adm, async () => {
+  ok((await q(`select * from registros_supabase`)).rows.length === 1, 'administração lê os registros do Supabase');
+  await q(`delete from diario_uso where sessao = 'sessao-teste-1'`);
+  ok((await q(`select count(*)::int n from diario_uso`)).rows[0].n === 1, 'administração apaga eventos do diário');
+});

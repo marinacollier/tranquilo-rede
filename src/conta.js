@@ -104,6 +104,8 @@ const TQConta = (() => {
       },
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
+      // Sem banco no ar o diário fica guardado na fila do navegador até o banco voltar.
+      async diario() { return false; },
     };
   }
 
@@ -201,6 +203,13 @@ const TQConta = (() => {
         if (error && error.code !== "23505") throw new Error(traduz(error.message));   // 23505: já pediu esta cidade
       },
       async avisos() { return ok(await sb.from("avisos_cidade").select("*").order("criado_em", { ascending: false })); },
+      async diario(linhas) {
+        const { error } = await sb.from("diario_uso").insert(linhas);
+        if (!error) return true;
+        // Linha rejeitada por tamanho ou formato: descarta o lote para a fila não travar. Tabela ausente ou rede: tenta depois.
+        if (/^(23514|22001|22P02|23502)$/.test(error.code || "")) return true;
+        throw new Error(error.message);
+      },
     };
   }
   function traduz(m) {
@@ -393,6 +402,7 @@ const TQConta = (() => {
       <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
       ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
+      <p class="muted" style="font-size:13px;margin-top:16px">Fase de testes: o site registra as telas que você abre, os cliques e os erros que aparecem, para a equipe corrigir o que travar. Nada do que você digita nos campos é gravado.</p>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
     },
     // ---------- equipe ----------
@@ -932,5 +942,6 @@ const TQConta = (() => {
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }
 
-  return { get REAL() { return REAL; }, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial };
+  const diario = (linhas) => (api ? api.diario(linhas) : false);
+  return { get REAL() { return REAL; }, diario, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial };
 })();
