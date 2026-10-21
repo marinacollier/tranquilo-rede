@@ -492,6 +492,23 @@ body.logado .foot{padding:22px 16px 30px}
   .hero-ofc{padding-top:22px}
   .cidade{min-height:128px}
 }
+/* Comece por aqui: três atalhos grandes e a fila do dia */
+.inicio-oi{font-size:15px;color:var(--ink-3);margin:0 0 22px;max-width:62ch}
+.atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px}
+.atalho{display:flex;flex-direction:column;gap:14px;text-align:left;border:1px solid var(--line);background:#08090b;border-radius:20px;padding:22px;cursor:pointer;color:var(--ink);font:inherit;transition:border-color .15s,transform .15s;min-height:210px;position:relative;overflow:hidden}
+.atalho:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.atalho::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--cor)}
+.atalho .num{font-family:var(--serif);font-weight:900;font-size:52px;line-height:.9;color:#fff}
+.atalho .num small{font-family:var(--sans);font-weight:500;font-size:15px;color:var(--ink-3);margin-left:6px}
+.atalho b{font-size:18px;font-weight:600}
+.atalho p{margin:0;color:var(--ink-3);font-size:14px;flex:1}
+.atalho .ir{font-size:14px;font-weight:600;color:var(--cor)}
+.fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:12px}
+.fila button{display:flex;align-items:center;gap:14px;border:0;background:var(--surface);padding:16px 18px;cursor:pointer;color:var(--ink-2);font:inherit;text-align:left}
+.fila button:hover{background:var(--raised);color:#fff}
+.fila .q{font-family:var(--serif);font-weight:900;font-size:28px;color:#fff;min-width:34px}
+.fila .q.zero{color:var(--ink-4)}
+.inicio-pe{color:var(--ink-4);font-size:13px;margin-top:26px}
 </style>
 </head>
 <body>
@@ -788,6 +805,18 @@ async function entrar(cod, lembrar) {
   render();
 }
 
+// O que a operação precisa olhar: usado na aba Operação e no "Comece por aqui".
+function alertasOperacao(P) {
+  const hoje = P.hoje, dias = (n) => new Date(new Date(hoje).getTime() + n * 864e5).toISOString().slice(0, 10);
+  const em21 = dias(21), ha90 = dias(-90);
+  return [
+    ...P.eventos.filter((e) => e.d < hoje && e.r && !["Realizado"].includes(e.s)).map((e) => ({ k: "crit", t: `Status desatualizado: ${e.s}`, e })),
+    ...P.eventos.filter((e) => e.r && e.p == null && e.d >= ha90).map((e) => ({ k: "serious", t: "Noite realizada sem público lançado", e })),
+    ...P.eventos.filter((e) => e.f && e.d <= em21 && !e.l).map((e) => ({ k: "warn", t: "Data em até 21 dias sem link de ingressos", e })),
+    ...P.eventos.filter((e) => e.f && !e.k).map((e) => ({ k: "warn", t: "Data futura sem casa vinculada", e })),
+  ];
+}
+
 // ---------- abas internas ----------
 const TELAS = {
   estrategia() {
@@ -842,14 +871,7 @@ const TELAS = {
     const mesAtual = hoje.slice(0, 7), prox = new Date(+hoje.slice(0, 4), +hoje.slice(5, 7), 1).toISOString().slice(0, 7);
     const doMes = (m) => P.eventos.filter((e) => e.d.startsWith(m) && !e.z);
     const em14 = new Date(new Date(hoje).getTime() + 14 * 864e5).toISOString().slice(0, 10);
-    const em21 = new Date(new Date(hoje).getTime() + 21 * 864e5).toISOString().slice(0, 10);
-    const ha90 = new Date(new Date(hoje).getTime() - 90 * 864e5).toISOString().slice(0, 10);
-    const alertas = [
-      ...P.eventos.filter((e) => e.d < hoje && e.r && !["Realizado"].includes(e.s)).map((e) => ({ k: "crit", t: `Status desatualizado: ${e.s}`, e })),
-      ...P.eventos.filter((e) => e.r && e.p == null && e.d >= ha90).map((e) => ({ k: "serious", t: "Noite realizada sem público lançado", e })),
-      ...P.eventos.filter((e) => e.f && e.d <= em21 && !e.l).map((e) => ({ k: "warn", t: "Data em até 21 dias sem link de ingressos", e })),
-      ...P.eventos.filter((e) => e.f && !e.k).map((e) => ({ k: "warn", t: "Data futura sem casa vinculada", e })),
-    ];
+    const alertas = alertasOperacao(P);
     const cal = (m) => { const [y, mm] = m.split("-").map(Number), ini = new Date(y, mm - 1, 1).getDay(), dias = new Date(y, mm, 0).getDate(), evs = doMes(m); let h = SEMANA.map((s) => `<div class="hd">${s}</div>`).join("") + "<div></div>".repeat(ini).replace(/<div><\/div>/g, '<div style="background:none"></div>'); for (let d = 1; d <= dias; d++) { const iso = `${m}-${String(d).padStart(2, "0")}`, n = evs.filter((e) => e.d === iso); h += `<div class="${n.length ? "has" : ""}" title="${esc(n.map((e) => e.c + " · " + (e.a[0] || e.m)).join("\n"))}"><span>${d}</span>${n.length ? `<b>${n.length}</b>` : ""}</div>`; } return `<div class="month">${h}</div>`; };
     const bloco = (m) => { const evs = doMes(m), n = evs.length, porC = [...agrupar(evs, (e) => e.c)].sort((a, b) => b[1].length - a[1].length); return `<div class="card"><div class="row"><b>${MESES_L[+m.slice(5) - 1]} de ${m.slice(0, 4)}</b><span class="muted">${n} de 50</span></div><div class="progress" style="margin:8px 0 12px" title="${n} de 50 datas"><i style="width:${Math.min(100, n / 50 * 100)}%"></i></div>${cal(m)}<div style="margin-top:10px">${porC.map(([c, es]) => `<span class="pill">${esc(c)} · ${es.length}</span>`).join("")}</div></div>`; };
     return `<div class="tag">Operação</div><h1>Rodada dos 50</h1><p class="sub">Quantas datas já estão de pé neste mês e no próximo, o que precisa de atenção e o que acontece nos próximos 14 dias.</p>
@@ -1007,7 +1029,7 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Agora", ["passos", "operacao", "agenda", "minhas"]],
+  ["Agora", ["inicio", "passos", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "convites", "prontidao", "pessoas"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa"]],
@@ -1016,7 +1038,7 @@ const GRUPOS = [
 ];
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONES = {
-  passos: ic('<path d="M5 12l4 4L19 6"/>'), operacao: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  inicio: ic('<path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>'), passos: ic('<path d="M5 12l4 4L19 6"/>'), operacao: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   agenda: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'), minhas: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   curadoria: ic('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'), casas_cad: ic('<path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/>'),
   convites: ic('<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>'), prontidao: ic('<path d="M9 5h10M9 12h10M9 19h10"/><path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2"/>'),

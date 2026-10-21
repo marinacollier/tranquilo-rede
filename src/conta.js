@@ -246,7 +246,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["conta", "Conta"]];
     if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["conta", "Conta"]];
-    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"]];
+    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -396,6 +396,31 @@ const TQConta = (() => {
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
     },
     // ---------- equipe ----------
+    inicio() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o seu resumo"); }
+      const p = S.conta.perfil, adm = p.tipo === "adm", P = S.pac;
+      const hora = new Date().getHours(), oi = hora < 12 ? "Bom dia" : hora < 18 ? "Boa tarde" : "Boa noite";
+      const primeiro = (p.nome || "").split(" ")[0];
+      const mes = P ? P.eventos.filter((e) => e.d.startsWith(P.hoje.slice(0, 7)) && !e.z).length : null;
+      const alertas = P ? alertasOperacao(P).length : null;
+      const conv = (E.conv || []).filter((c) => !c.aceito_em).length;
+      const fila = [
+        ["curadoria", (E.insc || []).filter((i) => i.status === "em_curadoria").length, "artistas esperando curadoria"],
+        ["casas_cad", (E.casas || []).filter((c) => c.status === "em_analise").length, "casas esperando análise"],
+        ["demanda", (E.avisos || []).length, "pedidos de show no \u201cme avise\u201d"],
+      ];
+      const atalho = (aba, cor, num, sufixo, titulo, texto, ir) => `<button class="atalho" data-ir="${aba}" style="--cor:${cor}">${num == null ? "" : `<div class="num">${num}<small>${sufixo}</small></div>`}<b>${titulo}</b><p>${texto}</p><span class="ir">${ir} →</span></button>`;
+      return `<div class="tag">Comece por aqui</div><h1>${oi}${primeiro ? ", " + esc(primeiro) : ""}</h1>
+      <p class="inicio-oi">Três coisas para olhar hoje. O menu completo continua à esquerda${matchMedia("(max-width:959px)").matches ? ", no botão ☰" : ""}.</p>
+      <div class="atalhos">
+        ${atalho(adm ? "estrategia" : "operacao", "#7c8ff3", mes, mes == null ? "" : "de 50 datas este mês", "Como a rede está indo", adm ? "Cidades, casas e artistas que estão acima ou abaixo da média, e onde abrir datas a seguir." : "Calendário do mês, meta de 50 datas e o que acontece nos próximos 14 dias.", adm ? "Ver o painel" : "Ver a operação")}
+        ${atalho("operacao", "#f9b436", alertas, alertas == null ? "" : alertas === 1 ? "ponto" : "pontos", "O que precisa de atenção", "Datas sem link de ingressos, noites sem público lançado e status desatualizados no Notion.", "Ver os alertas")}
+        ${atalho("convites", "#fcdbe5", conv, conv === 1 ? "convite esperando" : "convites esperando", "Chamar alguém para a rede", "Convide uma artista ou casa que já trabalha com o Tranquilo. Ela recebe o link e o tutorial.", "Fazer um convite")}
+      </div>
+      <h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">Fila de hoje</h2>
+      <div class="fila">${fila.map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q${n ? "" : " zero"}">${n}</span><span>${t}</span></button>`).join("")}</div>
+`;
+    },
     curadoria() {
       const L = S.eq?.insc; if (!L) { carregarEquipe(); return carregando("fila de curadoria"); }
       const f = S.eqf ||= { status: "em_curadoria", faixa: "", q: "" };
