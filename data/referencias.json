@@ -25,5 +25,14 @@
   "casas": {
     "d4fc90df16a24bdfbe19ca956f0d75aa": "D House",
     "3a5b872a910648449ec1306baa21ad31": "D House"
+  },
+  "artistas": {
+    "_sobre": "Grafias diferentes da mesma artista nos títulos do Notion (chave sem acento -> nome exibido).",
+    "giovanni cidreira": "Giovani Cidreira",
+    "caike souza": "Caike Sousa",
+    "outroeu": "Outro Eu",
+    "castello": "Castello Branco",
+    "tofani": "Marcelo Tofani",
+    "jay": "Jay Horsth"
   }
 }

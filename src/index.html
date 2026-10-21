@@ -277,6 +277,7 @@ code.cod{font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
 .passos li.feito b{text-decoration:line-through;color:var(--ink-4)}
 .passos li.atrasado label{border-color:rgba(238,127,108,.45)}
 .passos li.atrasado b{color:var(--red)}
+.passos li.passou b{color:var(--ink-4)}
 ul.passos li:not(:has(label)){padding-left:18px;position:relative;color:var(--ink-2)}
 ul.passos li:not(:has(label))::before{content:"";position:absolute;left:3px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--violet)}
 details summary{cursor:pointer;color:var(--ink-3);font-size:14px;font-weight:600;margin-top:4px}
@@ -629,7 +630,7 @@ function rodape() {
 }
 
 // ---------- estado ----------
-const S = { pub: null, pac: null, aba: null, filtros: { periodo: "2026", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
+const S = { pub: null, pac: null, aba: null, filtros: { periodo: "12m", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
 const PERFIS = {
   adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Artistas"],["casas","Casas"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
   equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["base","Base de conhecimento"],["metodo","Método"]] },
@@ -658,9 +659,21 @@ function metricas(evs) {
     cidades: new Set(real.map((e) => e.c)).size,
   };
 }
-function sinal(m, rede) {
-  if (m.comPublico < 2) return { k: "", t: "Sem base de público", o: 0 };
-  const ind = rede.media ? m.media / rede.media : 1;
+// Sinal: compara cada item com noites do MESMO modelo no recorte (um Descubra de 60 pessoas não
+// é comparável a um Clássico de 400). Exige pelo menos 3 noites com público lançado.
+const BASE_MIN = 3;
+function referenciaPorModelo(evs) {
+  const g = {};
+  for (const e of evs) if (e.r && e.p != null) (g[e.m] ||= []).push(e.p);
+  return Object.fromEntries(Object.entries(g).map(([m, ps]) => [m, ps.reduce((a, b) => a + b, 0) / ps.length]));
+}
+function esperadoPara(evs, refMod) {
+  const ps = evs.filter((e) => e.r && e.p != null && refMod[e.m]).map((e) => refMod[e.m]);
+  return ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : null;
+}
+function sinal(m, rede, esperado = rede.media) {
+  if (m.comPublico < BASE_MIN) return { k: "", t: "Sem base de público", o: 0 };
+  const ind = esperado ? m.media / esperado : 1;
   if (ind < 0.7 || (m.tendencia != null && m.tendencia < -0.25) || (m.cancel ?? 0) >= 0.3) return { k: "b-crit", t: "Atenção", o: 1 };
   if (ind >= 1.1 && (m.tendencia == null || m.tendencia >= -0.1) && (m.cancel ?? 0) < 0.2) return { k: "b-good", t: "Escalar", o: 3 };
   return { k: "b-warn", t: "Manter e observar", o: 2 };
@@ -788,6 +801,18 @@ async function entrar(cod, lembrar) {
   render();
 }
 
+// Passo a passo por data para quem entra por código (só leitura; marcar como feito exige conta).
+function passosLeitura(evs, modelo, hoje) {
+  const R = window.TQRegras; if (!R) return "";
+  const prox = evs.filter((e) => e.f).slice(0, 3);
+  if (!prox.length) return "";
+  return `<h2>O que fazer agora</h2><p class="sub">Passo a passo de cada data, com prazo. Para marcar o que já fez, peça à equipe o convite por e-mail e crie sua conta.</p><div class="list">${prox.map((e) => {
+    const ps = R.passosDaData(modelo, e.d, {}, hoje), agora = ps.find((p) => !p.passou && p.prazo >= hoje) || ps.find((p) => !p.passou);
+    return `<div class="card"><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span>
+      ${agora ? `<div class="alert warn" style="margin:10px 0"><b>Próximo passo: ${esc(agora.titulo)}</b>${esc(agora.texto)} <span class="muted">· até ${dt(agora.prazo)}</span></div>` : ""}
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li><b>${esc(p.titulo)}</b> <span class="muted">· até ${dt(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></li>`).join("")}</ul></details></div>`;
+  }).join("")}</div>`;
+}
 // ---------- abas internas ----------
 const TELAS = {
   estrategia() {
@@ -795,15 +820,15 @@ const TELAS = {
     const modelos = ["Todos", ...new Set(P.eventos.map((e) => e.m))];
     let evs = filtrarPeriodo(P.eventos, f.periodo, P.hoje);
     if (f.modelo !== "Todos") evs = evs.filter((e) => e.m === f.modelo);
-    const rede = metricas(evs);
+    const rede = metricas(evs), refMod = referenciaPorModelo(evs);
     const dims = [["cidade","Cidade",(e) => e.c],["modelo","Modelo",(e) => e.m],["casa","Casa",(e) => e.h],["artista","Artista",(e) => e.a]];
     const blocos = {};
-    for (const [k, , fn] of dims) blocos[k] = [...agrupar(evs, fn)].map(([nome, es]) => { const m = metricas(es); return { nome, ...m, sinal: sinal(m, rede), es }; });
+    for (const [k, , fn] of dims) blocos[k] = [...agrupar(evs, fn)].map(([nome, es]) => { const m = metricas(es); const esp = k === "modelo" ? rede.media : esperadoPara(es, refMod); return { nome, ...m, esperado: esp, sinal: sinal(m, rede, esp), es }; });
     const maxMed = Math.max(1, ...Object.values(blocos).flat().map((x) => x.media || 0));
     const col = (nome) => [
       { t: nome, v: (l) => l.nome },
       { t: "Noites", n: 1, v: (l) => l.noites },
-      { t: "Público médio (linha = média da rede)", v: (l) => l.media, h: (l) => barra(l.media, maxMed, rede.media, `${l.comPublico} noites com público lançado`) },
+      { t: "Público médio (linha = média do mesmo formato)", v: (l) => l.media, h: (l) => barra(l.media, maxMed, l.esperado ?? rede.media, `${l.comPublico} noites com público lançado · referência ${fmt(l.esperado ?? rede.media)}`) },
       { t: "Mediana", n: 1, v: (l) => l.mediana, h: (l) => fmt(l.mediana) },
       { t: "Tendência", n: 1, v: (l) => l.tendencia, h: (l) => `<span title="média das 3 últimas noites vs. 3 anteriores">${pct(l.tendencia)}</span>` },
       { t: "Cancel./adiadas", n: 1, v: (l) => l.cancel, h: (l) => l.cancel == null ? "–" : `${Math.round(l.cancel * 100)}%` },
@@ -815,18 +840,18 @@ const TELAS = {
     const atencao = Object.entries(blocos).flatMap(([k, ls]) => ls.filter((l) => l.sinal.o === 1).map((l) => ({ k, ...l }))).sort((a, b) => a.media - b.media).slice(0, 6);
     const NOMEK = { cidade: "Cidade", modelo: "Modelo", casa: "Casa", artista: "Artista" };
     // Oportunidades: cidades fortes com pouca agenda + artistas fortes em praças onde ainda não tocaram.
-    const cidadesFortes = blocos.cidade.filter((c) => c.sinal.o >= 2 && c.comPublico >= 2).sort((a, b) => b.media - a.media);
+    const cidadesFortes = blocos.cidade.filter((c) => c.sinal.o >= 2 && c.comPublico >= BASE_MIN).sort((a, b) => b.media - a.media);
     const futurasPorCidade = Object.fromEntries([...agrupar(P.eventos.filter((e) => e.f), (e) => e.c)].map(([c, es]) => [c, es.length]));
-    const artistasFortes = blocos.artista.filter((a) => a.comPublico >= 1 && a.media >= (rede.media || 0)).sort((a, b) => b.media - a.media).slice(0, 8);
+    const artistasFortes = blocos.artista.filter((a) => a.comPublico >= 2 && a.esperado && a.media >= a.esperado).sort((a, b) => b.media - a.media).slice(0, 8);
     const ativos = P.referencia.filter((r) => r.futuras > 0 || r.noites > 0).map((r) => r.cidade);
     return `<div class="tag">Painel estratégico</div><h1>O que está dando certo</h1>
-    <p class="sub">Cidade, modelo, casa e artista comparados com a média da rede no mesmo recorte. Base: público lançado no Notion em cada noite realizada.</p>
+    <p class="sub">Cidade, casa e artista comparados com noites do mesmo formato no recorte; modelo comparado com a rede. Base: público lançado no Notion em cada noite realizada.</p>
     <div class="filters"><select id="fPer">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
     <select id="fMod">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
     <div class="stats">${kpi(fmt(rede.noites), "noites realizadas", `${rede.cidades} cidades`)}${kpi(fmt(rede.media), "público médio por noite", `mediana ${fmt(rede.mediana)}`)}${kpi(fmt(rede.total), "pessoas nas noites com público lançado")}${kpi(rede.registro == null ? "–" : Math.round(rede.registro * 100) + "%", "noites com público lançado", `${rede.noites - rede.comPublico} sem número no Notion`)}${kpi(rede.cancel == null ? "–" : Math.round(rede.cancel * 100) + "%", "canceladas ou adiadas", `${rede.cancelados} datas`)}${kpi(fmt(rede.futuras), "datas futuras neste recorte")}</div>
     <div class="grid g2" style="margin-top:12px">
-      <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média da rede, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && rede.media ? "+" + Math.round((d.media / rede.media - 1) * 100) + "% vs. rede" : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
-      <div class="card"><h3 style="margin-top:0">Atenção</h3><p class="muted" style="margin-top:0;font-size:13px">Abaixo de 70% da média, queda de mais de 25% ou 30%+ de cancelamentos.</p><div class="list">${atencao.map((d) => `<div class="alert crit"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}${d.cancel ? ` · ${Math.round(d.cancel * 100)}% canceladas/adiadas` : ""}</div>`).join("") || `<p class="muted">Nada em atenção neste recorte.</p>`}</div></div>
+      <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média de noites do mesmo formato, em 3 ou mais noites, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && d.esperado ? "+" + Math.round((d.media / d.esperado - 1) * 100) + "% vs. " + (d.k === "modelo" ? "rede" : "mesmo formato") : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
+      <div class="card"><h3 style="margin-top:0">Atenção</h3><p class="muted" style="margin-top:0;font-size:13px">Abaixo de 70% da média do mesmo formato, queda de mais de 25% ou 30%+ de cancelamentos (mínimo de 3 noites).</p><div class="list">${atencao.map((d) => `<div class="alert crit"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}${d.cancel ? ` · ${Math.round(d.cancel * 100)}% canceladas/adiadas` : ""}</div>`).join("") || `<p class="muted">Nada em atenção neste recorte.</p>`}</div></div>
     </div>
     <h2>Onde implementar a seguir</h2><p class="sub">Cidades que respondem e quantas datas já estão na agenda; artistas acima da média e as praças ativas onde ainda não tocaram.</p>
     <div class="grid g2"><div class="card"><h3 style="margin-top:0">Cidades com resposta</h3><div class="list">${cidadesFortes.slice(0, 8).map((c) => `<div class="row"><span><b>${esc(c.nome)}</b> <span class="muted">· ${fmt(c.media)} por noite · ${c.comPublico} noites</span></span><span class="badge ${futurasPorCidade[c.nome] ? "b-good" : "b-warn"}">${futurasPorCidade[c.nome] || 0} na agenda</span></div>`).join("") || `<p class="muted">Sem base suficiente.</p>`}</div></div>
@@ -835,7 +860,7 @@ const TELAS = {
     <h2>Por modelo</h2><p class="sub">Descubra, Apresenta, Turnê, Noite Tranquilo e o formato clássico de 2023–25.</p>${tabela("mod", col("Modelo"), blocos.modelo, { i: 1, dir: -1 })}
     <h2>Por casa</h2>${tabela("cas", col("Casa"), blocos.casa.filter((l) => l.noites || l.futuras).map((l) => ({ ...l, _click: "casa:" + l.nome })), { i: 1, dir: -1 })}
     <h2>Por artista</h2><p class="sub">Artistas com público lançado neste recorte. A lista completa está na aba Artistas.</p>${tabela("art", col("Artista"), blocos.artista.filter((l) => l.comPublico).map((l) => ({ ...l, _click: "artista:" + l.nome })), { i: 2, dir: -1 })}
-    <p class="muted" style="font-size:13px;margin-top:14px">Sinal: <span class="badge b-good">Escalar</span> <span class="badge b-warn">Manter e observar</span> <span class="badge b-crit">Atenção</span> <span class="badge">Sem base de público</span> (menos de 2 noites com público lançado).</p>`;
+    <p class="muted" style="font-size:13px;margin-top:14px">Sinal: <span class="badge b-good">Escalar</span> <span class="badge b-warn">Manter e observar</span> <span class="badge b-crit">Atenção</span> <span class="badge">Sem base de público</span> (menos de 3 noites com público lançado). Cidade, casa e artista são comparados com noites do mesmo formato (Descubra com Descubra, Clássico com Clássico); modelo é comparado com a rede.</p>`;
   },
   operacao() {
     const P = S.pac, hoje = P.hoje;
@@ -933,6 +958,7 @@ const TELAS = {
     return `<div class="tag">Artista</div><h1>Olá, ${esc(P.nome)}</h1><p class="sub">Suas datas na Rede Tranquilo e o público de cada noite, comparado com a faixa típica de cada praça.</p>
     <div class="stats">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(fmt(new Set(P.eventos.map((e) => e.c)).size), "cidades")}</div>
     <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura na agenda.</p>`}</div>
+    ${passosLeitura(fut, "artista", P.hoje)}
     <h2>Histórico</h2>${tabela("hist", [
       { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Cidade", v: (e) => e.c }, { t: "Casa", v: (e) => e.h }, { t: "Modelo", v: (e) => e.m },
       { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
@@ -961,6 +987,7 @@ const TELAS = {
     return `<div class="tag">Casa · ${esc(P.cidade)}</div><h1>${esc(P.nome)}</h1><p class="sub">Suas datas com o Tranquilo, o público de cada noite e como ele se compara com a praça e com a rede.</p>
     <div class="stats">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio por noite", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(ref?.mediana ? fmt(ref.mediana) : "–", `mediana de ${esc(P.cidade)}`, ref?.noites ? `${ref.noites} noites · ${ref.janela}` : "")}${kpi(P.rede ? fmt(P.rede.mediana) : "–", "mediana da rede", "últimos 12 meses")}${m.ocupacao ? kpi(Math.round(m.ocupacao * 100) + "%", "ocupação média") : ""}</div>
     <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura. Fale com a equipe para receber novas datas.</p>`}</div>
+    ${passosLeitura(fut, "casa", P.hoje)}
     <h2>Histórico</h2><div class="legend"><span><i class="sw"></i> público da noite</span><span><i class="sw ref"></i> mediana de ${esc(P.cidade)}</span></div>
     ${tabela("hcasa", [
       { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || e.m) },

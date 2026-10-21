@@ -84,7 +84,10 @@
     return lista.map(([chave, dias, titulo, texto]) => {
       const prazo = new Date(base.getTime() + dias * 864e5).toISOString().slice(0, 10);
       const feito = !!(feitos && feitos[chave]);
-      return { chave, dias, titulo, texto, prazo, feito, atrasado: !feito && prazo < hoje, agora: !feito && prazo >= hoje };
+      // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
+      // não "atrasado". Só conta como atraso o que ainda dá para fazer.
+      const passou = !feito && dias <= 0 && dataIso < hoje;
+      return { chave, dias, titulo, texto, prazo, feito, passou, atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje };
     });
   }
 
