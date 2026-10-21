@@ -1,7 +1,7 @@
 name: Copiar registros do Supabase
 
 # Os registros do Supabase (login, chamadas à API, erros do banco) somem em cerca de um dia no plano gratuito.
-# Esta rotina copia tudo para a tabela registros_supabase, dentro do próprio banco (só a administração lê).
+# Esta rotina copia tudo para a tabela diario_servidor, dentro do próprio banco (só a equipe lê).
 # Precisa do segredo SUPABASE_ACCESS_TOKEN; sem ele, termina sem fazer nada.
 on:
   schedule:

@@ -25,7 +25,7 @@ const raiz = await pedir('/rest/v1/perfis?select=id&limit=1');
 reg('API REST e chave publicável', raiz.status === 200, `HTTP ${raiz.status} ${raiz.status === 200 ? 'chave aceita' : codigo(raiz.corpo)}`);
 
 // 2. Tabelas: existir é o que importa (sem login, as regras de acesso podem negar a leitura, o que é esperado)
-for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais', 'convites', 'avisos_cidade']) {
+for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais', 'convites', 'avisos_cidade', 'diario', 'diario_servidor', 'notas_internas', 'documentos', 'lembretes']) {
   const r = await pedir(`/rest/v1/${t}?select=*&limit=1`);
   const falta = /PGRST205|42P01|Could not find the table/i.test(codigo(r.corpo));
   const vazou = r.status === 200 && Array.isArray(r.corpo) && r.corpo.length > 0;
@@ -57,13 +57,8 @@ const aut = await pedir('/auth/v1/settings');
 const a = aut.corpo || {};
 reg('login por e-mail habilitado', aut.status === 200 && a.external?.email === true && !a.disable_signup, aut.status === 200 ? `email=${a.external?.email} cadastro_aberto=${!a.disable_signup} confirmacao_por_email=${!a.mailer_autoconfirm}` : `HTTP ${aut.status}`);
 
-// 4b. Contas de teste: tenta entrar com uma senha propositalmente errada (a senha real não fica no repositório).
-// 400 é o esperado (a resposta não diz se a conta existe); 500 indica conta criada com campos nulos no auth.
-for (const email of ['teste-artista@gmail.com', 'teste-casa@gmail.com', 'teste-equipe@gmail.com', 'teste-adm@gmail.com']) {
-  const r = await pedir('/auth/v1/token?grant_type=password', { method: 'POST', body: JSON.stringify({ email, password: 'senha-errada-de-proposito' }) });
-  const msg = r.corpo?.error_code || r.corpo?.msg || r.corpo?.error_description || codigo(r.corpo);
-  reg(`login de ${email.split('@')[0]}`, r.status === 400, `HTTP ${r.status} ${msg}`);
-}
+// Sem confirmação de e-mail, quem se cadastra primeiro com um e-mail convidado herdaria o convite (equipe/adm).
+reg('confirmação de e-mail ligada', aut.status === 200 && a.mailer_autoconfirm !== true, aut.status === 200 ? `confirmacao_por_email=${!a.mailer_autoconfirm}` : `HTTP ${aut.status}`);
 
 // 5. Site publicado com esta configuração e biblioteca acessível
 const site = await fetch('https://marinacollier.github.io/tranquilo-rede/config.js', { cache: 'no-store' }).then((r) => r.text()).catch((e) => String(e));

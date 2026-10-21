@@ -1,4 +1,4 @@
-// Copia os registros do Supabase (login, chamadas à API e erros do banco) para a tabela registros_supabase,
+// Copia os registros do Supabase (login, chamadas à API e erros do banco) para a tabela diario_servidor,
 // antes que sumam (no plano gratuito duram cerca de um dia). Roda no GitHub Actions a cada 4 horas.
 // Precisa do segredo SUPABASE_ACCESS_TOKEN (token pessoal do Supabase, em supabase.com/dashboard/account/tokens).
 // O log desta rotina mostra só contagens: o repositório é público e os registros têm e-mails e IPs.
@@ -24,8 +24,10 @@ async function chamar(url, init = {}) {
 const sql = (query) => chamar(`${API}/database/query`, { method: 'POST', body: JSON.stringify({ query }) });
 
 // A tabela vem do supabase/schema.sql; sem ela, avisa e para.
-const existe = await sql(`select to_regclass('public.registros_supabase') is not null as ok`);
-if (!existe?.[0]?.ok) { console.log('Tabela registros_supabase não existe: rode o supabase/schema.sql no SQL Editor.'); process.exit(1); }
+const existe = await sql(`select to_regclass('public.diario_servidor') is not null as ok`);
+if (!existe?.[0]?.ok) { console.log('Tabela diario_servidor não existe: rode o supabase/schema.sql no SQL Editor.'); process.exit(1); }
+// Procura o primeiro valor de uma chave em qualquer profundidade dos metadados (o formato varia por fonte).
+const achar = (o, chaves) => { if (!o || typeof o !== 'object') return null; for (const [k, v] of Object.entries(o)) { if (chaves.includes(k) && v != null && typeof v !== 'object') return v; const r = achar(v, chaves); if (r != null) return r; } return null; };
 
 const agora = Date.now(), total = {};
 for (const fonte of FONTES) {
@@ -35,12 +37,14 @@ for (const fonte of FONTES) {
     const q = `select id, timestamp, event_message, metadata from ${fonte} order by timestamp asc limit 1000`;
     const r = await chamar(`${API}/analytics/endpoints/logs.all?${new URLSearchParams({ sql: q, iso_timestamp_start: ini, iso_timestamp_end: fim })}`);
     if (r.error) throw new Error(`${fonte}: ${JSON.stringify(r.error).slice(0, 200)}`);
-    const linhas = (r.result || []).map((x) => ({ id: `${fonte}:${x.id}`, fonte, timestamp: x.timestamp, event_message: x.event_message, metadata: x.metadata ?? null }));
+    const linhas = (r.result || []).map((x) => ({ id: `${fonte}:${x.id}`, fonte, timestamp: x.timestamp, event_message: x.event_message, metadata: x.metadata ?? null,
+      status: Number(achar(x.metadata, ['status_code', 'status'])) || null, metodo: achar(x.metadata, ['method']), caminho: achar(x.metadata, ['path']) }));
     total[fonte].lidos += linhas.length;
     for (let i = 0; i < linhas.length; i += 200) {
       const json = JSON.stringify(linhas.slice(i, i + 200)).replaceAll('$tqreg$', '$ tqreg$');
-      const res = await sql(`with novos as (insert into registros_supabase (id, fonte, quando, mensagem, dados)
-        select x->>'id', x->>'fonte', to_timestamp((x->>'timestamp')::double precision / 1000000), left(x->>'event_message', 4000), x->'metadata'
+      const res = await sql(`with novos as (insert into diario_servidor (id, fonte, quando, status, metodo, caminho, mensagem, dados)
+        select x->>'id', x->>'fonte', to_timestamp((x->>'timestamp')::double precision / 1000000), (x->>'status')::int, left(x->>'metodo', 20),
+               left(x->>'caminho', 300), left(x->>'event_message', 4000), x->'metadata'
         from jsonb_array_elements($tqreg$${json}$tqreg$::jsonb) x on conflict (id) do nothing returning 1) select count(*)::int n from novos`);
       total[fonte].novos += res?.[0]?.n || 0;
     }
