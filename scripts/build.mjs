@@ -176,11 +176,14 @@ const circulacao = artistasAtivos
   .sort((x, y) => y.datas - x.datas);
 const publico = {
   geradoEm, hoje, fonte,
-  agenda: futuros.map((e) => ({ d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link, t: tituloPublico(e.nome) })),
+  // id = página do evento no Notion: liga a agenda aos passos marcados (checklist) e aos lembretes de prazo.
+  agenda: futuros.map((e) => ({ id: e.id, d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link, t: tituloPublico(e.nome) })),
   circulacao,
   cidades: cidades.map((c) => ({ cidade: c, noites: eventos.filter((e) => e.cidade === c && e.realizado).length, futuras: futuros.filter((e) => e.cidade === c).length })),
   casas: [...casas.values()].map((c) => ({ id: c.id, nome: c.nome, cidade: c.cidade })).sort((a, b) => a.cidade.localeCompare(b.cidade) || a.nome.localeCompare(b.nome)),
   totais: { noites: eventos.filter((e) => e.realizado).length, cidades: cidades.length, futuras: futuros.length },
+  // Dúvidas frequentes (data/faq.json): artista, casa, portaria e ingressos. Conteúdo pensado para quem é de fora.
+  faq: JSON.parse(await readFile(path.join(RAIZ, 'data/faq.json'), 'utf8')).itens,
 };
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
 for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'conta.js', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });

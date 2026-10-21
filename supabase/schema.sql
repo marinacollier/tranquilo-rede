@@ -796,3 +796,49 @@ revoke all on diario, diario_servidor from anon, authenticated;
 grant insert on diario to anon, authenticated;
 grant select on diario, diario_servidor to authenticated;
 grant usage on sequence diario_id_seq to anon, authenticated;
+
+-- =====================================================================
+-- v5: documentos da data, lembretes de prazo e configuração interna. Idempotente.
+-- (Pasta de materiais no armazenamento: supabase/armazenamento.sql. Função: supabase/functions/lembretes.)
+-- =====================================================================
+create table if not exists documentos (
+  id uuid primary key default gen_random_uuid(),
+  evento_id text,
+  user_id uuid references perfis (id) on delete cascade,
+  tipo text not null check (tipo in ('contrato', 'modelo', 'outro')),
+  titulo text not null check (length(titulo) between 2 and 120),
+  url text not null check (url ~* '^https://' and length(url) <= 500),
+  criado_por uuid default auth.uid(),
+  criado_em timestamptz not null default now()
+);
+create index if not exists documentos_user on documentos (user_id, evento_id);
+alter table documentos enable row level security;
+drop policy if exists documentos_ler on documentos;
+create policy documentos_ler on documentos for select using (user_id = auth.uid() or user_id is null or eh_equipe());
+drop policy if exists documentos_criar on documentos;
+create policy documentos_criar on documentos for insert with check (eh_equipe() and criado_por = auth.uid());
+drop policy if exists documentos_apagar on documentos;
+create policy documentos_apagar on documentos for delete using (eh_equipe());
+revoke all on documentos from anon, authenticated;
+grant select, insert, delete on documentos to authenticated;
+
+create table if not exists lembretes (
+  user_id uuid not null,
+  evento_id text not null,
+  item text not null,
+  momento text not null,
+  enviado_em timestamptz not null default now(),
+  situacao text not null,
+  detalhe text,
+  primary key (user_id, evento_id, item, momento)
+);
+alter table lembretes enable row level security;
+drop policy if exists lembretes_ler on lembretes;
+create policy lembretes_ler on lembretes for select using (eh_equipe());
+revoke all on lembretes from anon, authenticated;
+grant select on lembretes to authenticated;
+
+-- Chave de disparo e liga/desliga dos lembretes: sem políticas, nenhuma conta lê.
+create table if not exists config_interna (nome text primary key, valor text not null, atualizado_em timestamptz not null default now());
+alter table config_interna enable row level security;
+revoke all on config_interna from anon, authenticated;

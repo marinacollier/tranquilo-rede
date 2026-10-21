@@ -185,3 +185,17 @@ await como(art, async () => {
 });
 ok((await q(`select user_id from diario where sessao = 'sessao-qa-2'`)).rows[0].user_id === art, 'o diário liga ao usuário do token, não ao enviado');
 await como(eq, async () => { ok((await q(`select * from diario`)).rows.length === 2, 'equipe lê o diário'); });
+
+// ---------- v5: documentos e configuração interna ----------
+await como(eq, async () => {
+  await q(`insert into documentos (tipo, titulo, url, user_id, evento_id) values ('contrato', 'Contrato BH', 'https://drive.google.com/x', $1, 'ev1')`, [art]);
+  await q(`insert into documentos (tipo, titulo, url) values ('modelo', 'Modelo de contrato', 'https://drive.google.com/m')`);
+  ok(!!(await tenta(() => q(`insert into documentos (tipo, titulo, url) values ('outro', 'Link ruim', 'javascript:alert(1)')`))), 'documento só aceita link https');
+});
+await como(art, async () => {
+  ok((await q(`select titulo from documentos order by titulo`)).rows.map((r) => r.titulo).join('|') === 'Contrato BH|Modelo de contrato', 'artista vê o próprio contrato e o modelo');
+  ok(!!(await tenta(() => q(`insert into documentos (tipo, titulo, url) values ('modelo', 'Falso', 'https://x.com')`))), 'artista não anexa documento');
+});
+await como(art2, async () => { ok((await q(`select titulo from documentos`)).rows.map((r) => r.titulo).join('|') === 'Modelo de contrato', 'outra artista não vê o contrato alheio'); });
+await q(`insert into config_interna values ('teste', 'segredo') on conflict do nothing`);
+await como(adm, async () => { ok((await q(`select * from config_interna`).catch(() => ({ rows: [] }))).rows.length === 0, 'nem a adm lê a configuração interna pelo site'); });

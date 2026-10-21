@@ -110,6 +110,13 @@ const TQConta = (() => {
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
       async relatos() { exigeEquipe(); return []; },
+      async documentos() { return []; },
+      async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
+      async apagarDocumento() {},
+      async meusArquivos() { return {}; },
+      async enviarArquivo() { throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração)."); },
+      async linkArquivo() { return null; },
+      async arquivosTodos() { return []; },
     };
   }
 
@@ -233,6 +240,33 @@ const TQConta = (() => {
         if (error && error.code !== "23505") throw new Error(traduz(error.message));   // 23505: já pediu esta cidade
       },
       async avisos() { return ok(await sb.from("avisos_cidade").select("*").order("criado_em", { ascending: false })); },
+      // Documentos da data (contrato) e modelo geral: a equipe cadastra; cada conta só lê os seus e os gerais.
+      async documentos() { return ok(await sb.from("documentos").select("*").order("criado_em", { ascending: false })); },
+      async criarDocumento(d) { return ok(await sb.from("documentos").insert(d).select().single()); },
+      async apagarDocumento(id) { ok(await sb.from("documentos").delete().eq("id", id)); },
+      // Materiais enviados (rider, mapa de palco, fotos): pasta privada <conta>/<data>/ no armazenamento "materiais".
+      async meusArquivos() {
+        const u = await uid(), st = sb.storage.from("materiais"), out = {};
+        const { data: pastas } = await st.list(u, { limit: 200 });
+        for (const p of pastas || []) { const { data: fs } = await st.list(`${u}/${p.name}`, { limit: 100, sortBy: { column: "created_at", order: "desc" } }); out[p.name] = (fs || []).map((f) => ({ nome: f.name, caminho: `${u}/${p.name}/${f.name}`, tamanho: f.metadata?.size, em: f.created_at })); }
+        return out;
+      },
+      async enviarArquivo(eventoId, arquivo) {
+        if (arquivo.size > 25 * 1024 * 1024) throw new Error("Arquivo maior que 25 MB. Mande um link (Drive, WeTransfer) pelo contato da casa.");
+        const limpo = arquivo.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^\w.-]+/g, "_").slice(-80);
+        const { error } = await sb.storage.from("materiais").upload(`${await uid()}/${eventoId}/${Date.now()}-${limpo}`, arquivo, { upsert: false });
+        if (error) throw new Error(/mime|type/i.test(error.message) ? "Tipo de arquivo não aceito. Use PDF, imagem (JPG/PNG), Word, ZIP ou MP3." : traduz(error.message));
+      },
+      async linkArquivo(caminho) { const { data } = await sb.storage.from("materiais").createSignedUrl(caminho, 3600); return data?.signedUrl || null; },
+      async arquivosTodos() {
+        const st = sb.storage.from("materiais"), out = [];
+        const { data: contas } = await st.list("", { limit: 500 });
+        for (const c of contas || []) {
+          const { data: pastas } = await st.list(c.name, { limit: 200 });
+          for (const p of pastas || []) { const { data: fs } = await st.list(`${c.name}/${p.name}`, { limit: 100 }); for (const f of fs || []) out.push({ user_id: c.name, evento_id: p.name, nome: f.name, caminho: `${c.name}/${p.name}/${f.name}`, em: f.created_at }); }
+        }
+        return out.sort((a, b) => String(b.em).localeCompare(String(a.em)));
+      },
       async relatos() { return ok(await sb.from("diario").select("criado_em,user_id,perfil,tela,detalhe,navegador").eq("acao", "relato").order("criado_em", { ascending: false }).limit(300)); },
     };
   }
@@ -264,7 +298,11 @@ const TQConta = (() => {
     const conta = { perfil, insc: null, casa: null, chk: [], reg: [] };
     if (perfil.tipo === "artista") conta.insc = await api.minhaInscricao();
     if (perfil.tipo === "casa") { conta.casa = await api.minhaCasa(); conta.reg = await api.meusRegistros(); }
-    if (perfil.tipo === "artista" || perfil.tipo === "casa") conta.chk = await api.meuChecklist();
+    if (perfil.tipo === "artista" || perfil.tipo === "casa") {
+      conta.chk = await api.meuChecklist();
+      // Documentos e materiais são da versão nova do banco: se falharem, o resto da conta funciona.
+      [conta.docs, conta.arqs] = await Promise.all([api.documentos().catch(() => []), api.meusArquivos().catch(() => ({}))]);
+    }
     S.conta = conta;
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
     const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso;
@@ -292,9 +330,11 @@ const TQConta = (() => {
   const ROTULO = { artista: "Artista", casa: "Casa", equipe: "Equipe", adm: "Administração" };
   function abas() {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
-    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["conta", "Conta"]];
-    if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["conta", "Conta"]];
-    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["relatos", "Relatos"]];
+    // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
+    const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
+    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ...duv, ["conta", "Conta"]];
+    if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ...duv, ["conta", "Conta"]];
+    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -435,7 +475,19 @@ const TQConta = (() => {
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
-      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details></div>`;
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${blocoMateriais(e)}</div>`;
+  }
+  // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
+  function blocoMateriais(e) {
+    const docs = (S.conta.docs || []).filter((d) => d.evento_id === e.id || (!d.evento_id && d.tipo === "modelo"));
+    const meus = (S.conta.arqs || {})[e.id] || [];
+    const artista = S.conta.perfil.tipo === "artista";
+    return `<details style="margin-top:6px"><summary>Contrato e materiais${docs.length + meus.length ? ` (${docs.length + meus.length})` : ""}</summary>
+      <div style="margin-top:10px">${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
+      <b style="font-size:14px">Seus arquivos</b>
+      ${meus.length ? `<ul class="passos" style="margin:6px 0">${meus.map((f) => `<li><a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a> <span class="muted" style="font-size:12px">· ${f.em ? dt(f.em.slice(0, 10)) : ""}</span></li>`).join("")}</ul>` : `<p class="muted" style="font-size:13px;margin:4px 0">Nenhum arquivo enviado para esta data.</p>`}
+      <label class="fcampo" style="margin-top:8px"><b>Enviar ${artista ? "rider, mapa de palco, fotos ou release" : "rider da casa, fotos do palco ou documentos"}</b><input type="file" data-enviar-arquivo="${esc(e.id)}" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip,.txt,.mp3"></label>
+      <div class="err" role="status" aria-live="polite" id="arqErr-${esc(e.id)}"></div></div></details>`;
   }
 
   const TELAS = {
@@ -572,6 +624,35 @@ const TQConta = (() => {
         { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
       ], E.conv, { i: 3, dir: 1 }, vazio("Nenhum convite ainda", "Escolha a artista ou a casa acima, coloque o e-mail e envie. O convite aparece aqui com a situação de cada pessoa.", "", "convites"))}`;
     },
+    documentos() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("documentos"); }
+      if (E.docs === null) return faltaSchema("Documentos");
+      const contas = (E.perfis || []).filter((p) => ["artista", "casa"].includes(p.tipo)).sort((a, b) => (a.vinculo_nome || a.nome || a.email).localeCompare(b.vinculo_nome || b.nome || b.email, "pt-BR"));
+      const nomeConta = Object.fromEntries((E.perfis || []).map((p) => [p.id, p.vinculo_nome || p.nome || p.email]));
+      const datas = (S.pub?.agenda || []).filter((e) => e.id);
+      const dataTxt = (id) => { const e = (S.pub?.agenda || []).find((x) => x.id === id) || S.pac?.eventos?.find((x) => x.id === id); return e ? `${dt(e.d)} · ${e.c}` : id ? id.slice(0, 8) : "–"; };
+      return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Anexe o contrato de cada data à conta da artista ou da casa: ele aparece no passo a passo dela, em "Contrato e materiais". O modelo de contrato aparece para todos. Abaixo, os arquivos que artistas e casas enviaram.</p>
+      <div class="card"><h3 style="margin-top:0">Anexar documento</h3><div class="grid g2">
+        <label class="fcampo"><b>Tipo</b><select id="docTipo"><option value="contrato">Contrato de uma data</option><option value="modelo">Modelo de contrato (para todos)</option><option value="outro">Outro documento de uma data</option></select></label>
+        <label class="fcampo"><b>Nome</b><input id="docTit" maxlength="120" placeholder="ex.: Contrato Joyce Alane · BH 05/11"></label>
+        <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Data</b><select id="docEv"><option value="">Escolha a data</option>${datas.map((e) => `<option value="${esc(e.id)}">${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
+        <label class="fcampo" style="grid-column:1/-1"><b>Link (Drive, Dropbox, DocuSign…)</b><input id="docUrl" maxlength="500" placeholder="https://"></label>
+      </div><div class="barra-acoes"><button class="btn pri" id="docOk">Anexar</button></div><div class="err" role="status" aria-live="polite" id="docErr"></div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">Confira se o link está compartilhado com a pessoa (ou "qualquer pessoa com o link").</p></div>
+      <h2>Anexados</h2>${tabela("docs", [
+        { t: "Documento", v: (d) => d.titulo, h: (d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.titulo)}</a>` },
+        { t: "Tipo", v: (d) => d.tipo }, { t: "Conta", v: (d) => nomeConta[d.user_id] || (d.tipo === "modelo" ? "todos" : "–") },
+        { t: "Data", v: (d) => d.evento_id, h: (d) => d.tipo === "modelo" ? "–" : esc(dataTxt(d.evento_id)) },
+        { t: "", v: () => 0, h: (d) => `<button class="btn sm" data-apagar-doc="${d.id}">Remover</button>` },
+      ], E.docs || [], { i: 0, dir: 1 }, vazio("Nenhum documento anexado", "Anexe o modelo de contrato e o contrato de cada data.", "", "convites"))}
+      <h2>Materiais recebidos</h2>${tabela("arqs", [
+        { t: "Arquivo", v: (f) => f.nome, h: (f) => `<a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a>` },
+        { t: "Quem enviou", v: (f) => nomeConta[f.user_id] || f.user_id.slice(0, 8) },
+        { t: "Data", v: (f) => f.evento_id, h: (f) => esc(dataTxt(f.evento_id)) },
+        { t: "Enviado em", v: (f) => f.em, h: (f) => f.em ? dt(String(f.em).slice(0, 10)) : "–" },
+      ], E.arqs || [], { i: 3, dir: -1 }, vazio("Nenhum material enviado ainda", "Riders, mapas de palco e fotos enviados pelas artistas e casas aparecem aqui.", "", "convites"))}`;
+    },
     relatos() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("relatos"); }
       if (E.relatos === null) return faltaSchema("Relatos");
@@ -674,9 +755,9 @@ const TQConta = (() => {
       const quem = S.conta?.perfil.id;
       // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
       const novo = (pr) => pr.catch(() => null);
-      const [insc, casas, perfis, chk, reg, conv, avisos, relatos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos())]);
+      const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);
@@ -880,6 +961,27 @@ const TQConta = (() => {
       } catch (e) { $("#derr").textContent = e.message; }
       return;
     }
+    const arq = t.closest("[data-arquivo]"); if (arq) {
+      ev.preventDefault();
+      const url = await api.linkArquivo(arq.dataset.arquivo);
+      if (url) window.open(url, "_blank", "noopener"); else alert("Não foi possível abrir o arquivo agora.");
+      return;
+    }
+    const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
+      if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
+      try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(e.message); }
+      return;
+    }
+    if (t.id === "docOk") {
+      const err = $("#docErr"), url = $("#docUrl").value.trim(), titulo = $("#docTit").value.trim(), tipo = $("#docTipo").value;
+      const [user_id, evento_id] = [$("#docConta").value || null, $("#docEv").value || null];
+      if (!/^https:\/\//i.test(url)) { err.textContent = "Cole o link completo, começando com https:// (Drive, Dropbox, DocuSign…)."; return; }
+      if (titulo.length < 2) { err.textContent = "Dê um nome curto ao documento."; return; }
+      if (tipo === "contrato" && (!user_id || !evento_id)) { err.textContent = "Contrato precisa da conta e da data."; return; }
+      try { await api.criarDocumento({ tipo, titulo, url, user_id: tipo === "modelo" ? null : user_id, evento_id: tipo === "modelo" ? null : evento_id }); S.eq = null; render(); }
+      catch (e) { err.textContent = e.message; }
+      return;
+    }
     const dec = t.closest("[data-decisao]"); if (dec) {
       const [tipo, id] = $("#dlg").dataset.alvo.split(":"), status = dec.dataset.decisao;
       const campos = { parecer: $("#parecer").value.trim() || null, nota_interna: $("#nota").value.trim() || null };
@@ -978,6 +1080,13 @@ const TQConta = (() => {
     if (t.id === "casaNotion" && t.value && t.value !== "outra") {
       const c = (S.pub.casas || []).find((x) => x.id === t.value);
       if (c) { const n = document.querySelector('[data-k="nome"]'), ci = document.querySelector('[data-k="cidade"]'); if (n && !n.value) n.value = /^Casa em/.test(c.nome) ? "" : c.nome; if (ci && !ci.value) ci.value = c.cidade; }
+      return;
+    }
+    if (t.dataset?.enviarArquivo && t.files?.[0]) {
+      const ev = t.dataset.enviarArquivo, msg = $(`#arqErr-${CSS.escape(ev)}`);
+      if (msg) msg.textContent = "Enviando…";
+      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos(); TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) m2.textContent = "Arquivo enviado. A equipe do Tranquilo já consegue ver."; }
+      catch (e) { if (msg) msg.textContent = e.message; t.value = ""; }
       return;
     }
     const ps = t.dataset?.passo; if (ps) {

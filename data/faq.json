@@ -1,0 +1,303 @@
+{
+  "_sobre": "Dúvidas frequentes mostradas no site. Artista e casa: escritas a partir do Método V0.1 e dos passos do site. Portaria e ingressos: artigos da Base de conhecimento do Notion reescritos para quem é de fora (sem dados internos). Ajuste aqui ou peça ajuste.",
+  "geradoEm": "2026-10-21",
+  "itens": [
+    {
+      "publico": "artista",
+      "pergunta": "Como funciona a entrada na rede?",
+      "resposta": "Você preenche a inscrição aqui no site (release, links, rider e as cidades onde quer tocar). Ao enviar, a pré-curadoria mostra na hora a força da inscrição, de 0 a 100. Depois a curadoria da equipe responde aqui mesmo: aprova, pede ajustes ou não segue por agora. Quem é aprovada recebe proposta de data, e a primeira data já é um show de verdade.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Quanto tempo a curadoria leva para responder?",
+      "resposta": "A equipe avalia por ordem de chegada e a resposta aparece no seu painel, em Próximos passos. Se pedirem ajustes, a mensagem aparece no topo: é só editar a inscrição e reenviar.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "O que conta na pré-curadoria?",
+      "resposta": "Cinco partes, somando até 100:\n1. Perfil completo (até 20): release com pelo menos 200 caracteres, foto, dois links de áudio ou vídeo e contato de produção.\n2. Público (até 35): ouvintes mensais e seguidores.\n3. Rider (até 20): circulável vale mais que condicionado ou especial.\n4. Cidades da rede (até 15): cidades de interesse onde a rede já tem casas.\n5. Condições (até 10).\nAcima de 65 a inscrição entra como prioridade; de 40 a 64, para avaliar. A decisão final é sempre da curadoria.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "O que é um rider \"circulável\"?",
+      "resposta": "É um rider que funciona com a estrutura padrão das casas da rede, sem exigências especiais. Ele facilita levar o show para várias cidades sem negociar cada detalhe técnico de novo.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Minha data foi confirmada. E agora, com quem eu falo?",
+      "resposta": "O Tranquilo faz o repasse da data: você recebe casa, endereço, responsável local, contato direto, rider da casa, estrutura, logística e a condição acordada. A partir daí você combina direto com a casa. O Tranquilo acompanha e entra se houver uma exceção crítica.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Quais são os prazos antes e depois do show?",
+      "resposta": "Contados a partir da data do show:\n1. 35 dias antes: ler e assinar o contrato.\n2. 28 dias antes: fechar formação e equipe; enviar rider e mapa de palco.\n3. 21 dias antes: validar o som com a casa e confirmar a logística.\n4. 15 dias antes: começar a divulgação.\n5. 7 dias antes: confirmar horários e acompanhantes.\n6. 2 dias antes: revisar o roteiro da noite.\n7. No dia: passagem de som no horário combinado.\n8. 1 dia depois: nota fiscal ou recibo.\n9. 3 dias depois: contar como foi.\nNo seu painel, cada data mostra esses passos com o dia exato.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Quantas pessoas posso levar ao backstage?",
+      "resposta": "No máximo 2 acompanhantes por banda. Mande a lista com os nomes até 7 dias antes do show, junto com a confirmação dos horários.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Como recebo o cachê?",
+      "resposta": "Até 1 dia depois do show, envie a nota fiscal ou o recibo com os dados de pagamento. Isso entra no fechamento da data e no pagamento do cachê.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Deu um problema no dia do show. O que eu faço?",
+      "resposta": "Problema comum (atraso, ajuste de som, detalhe de camarim): resolva direto com a casa. Exceção crítica avise o Tranquilo na hora. São exceções: risco de cancelamento, mudança comercial ou de contrato, incidente grave ou risco de segurança.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Esqueci a senha ou não consigo entrar. E agora?",
+      "resposta": "Na tela de entrada, clique em \"Esqueci a senha\" e use o link que chega no seu e-mail (confira também o spam). Se você entra pelo código que a equipe mandou, não precisa de senha: é só colar o código. Se algo travar, use o botão \"Algo deu errado?\" no canto da tela.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que a casa precisa para ser habilitada?",
+      "resposta": "Preencher a ficha com o mínimo: responsável local, WhatsApp, endereço e cidade, capacidade de público, como resolve o som e o aceite das responsabilidades da casa. Com isso a equipe analisa e responde aqui. Uma casa habilitada recebe a primeira data como teste real.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que eu recebo quando uma data é confirmada?",
+      "resposta": "O repasse da data traz: artista, data, condição econômica, contatos, formação, rider, logística, bilheteria, materiais de marca, obrigações, patrocinadores e o canal para exceções. A partir daí a casa combina direto com o artista, sem passar pelo Tranquilo.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Quais são os prazos da casa?",
+      "resposta": "Contados a partir da data do show:\n1. 30 dias antes: receber o repasse da data.\n2. 28 dias antes: revisar a ficha da casa e conferir o rider do artista.\n3. 21 dias antes: confirmar técnico de som e setup; fechar o roteiro do dia.\n4. 14 dias antes: confirmar tudo por escrito, incluindo maquininha com plano B (Pix ou link).\n5. 7 dias antes: travas finais (horários, camarim, bar, limpeza, caixa).\n6. No dia: prontidão da noite e registro do público e das ocorrências.\n7. 1 dia depois: fechamento e prestação de contas.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Deu um problema na noite. O que eu faço?",
+      "resposta": "Problema comum: resolva e registre em \"Registrar a noite\". Exceção crítica avise o Tranquilo na hora, além de registrar. São exceções: risco de cancelamento, mudança comercial ou de contrato, incidente grave, risco de segurança, jurídico ou de marca, ou um problema que a casa não consegue resolver sozinha.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Como a casa é avaliada?",
+      "resposta": "Pela execução das noites: confiável (recebe mais datas e menos acompanhamento), em desenvolvimento (continua recebendo datas, com pontos de atenção), correção necessária (a próxima data depende de um ajuste) ou suspensa (não recebe novas datas).",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que preciso registrar depois do show?",
+      "resposta": "Logo depois do show, use \"Registrar a noite\": público presente e o que aconteceu. No dia seguinte, o fechamento: pagamentos e conferência de Pix, cartão e dinheiro. O público registrado vira a base das métricas da sua casa e da cidade.",
+      "links": [],
+      "fonte": "Método V0.1 e passo a passo do site"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Baixei o app da Ingresse e não aparece a opção de cadastro. Como crio minha conta?",
+      "resposta": "Crie a conta pelo navegador e depois entre no app:\n1. No computador ou no celular, acesse https://backstage.ingresse.com/auth\n2. Clique em Criar conta.\n3. Preencha os dados pedidos e escolha uma senha segura.\n4. Clique em Cadastrar.\n5. Abra o app da Ingresse e entre com o e-mail e a senha que você cadastrou.",
+      "links": [
+        "https://backstage.ingresse.com/auth"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "ddcccbc865a0488ca9170adc6df04d25"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Como cadastro a pessoa da portaria para ler os ingressos?",
+      "resposta": "Antes: confirme que a pessoa já tem cadastro na Ingresse com o e-mail que você vai usar. Sem isso, o e-mail não aparece ao adicionar.\n1. Acesse https://backstage.ingresse.com/ e faça login.\n2. Se aparecer \"Este é você?\", clique em Sim, continuar (ou Não, trocar, se não for você).\n3. Em Meus eventos, clique no evento.\n4. No menu lateral, clique em Permissões.\n5. Em Adicionar usuário, digite o e-mail da pessoa e escolha a permissão adequada.\n6. Depois, oriente a pessoa a entrar no app Ingresse Backstage para fazer o check-in.",
+      "links": [
+        "https://backstage.ingresse.com/"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "6a11bc84dcd24425aaf72072482aad70"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "O lote da venda na porta some sozinho quando atinge a quantidade limite?",
+      "resposta": "Não. Dá para registrar uma quantidade limite para o lote, mas hoje o site do Tranquilo não fecha o lote sozinho quando ela é atingida. Isso porque as vendas antecipadas da Ingresse não chegam em tempo real ao site, e abrir o link de venda na porta não significa que o pagamento foi feito.\nPara fechar um lote, peça à equipe do Tranquilo para encerrá-lo, informando o nome do lote e o evento. Depois de encerrado, ele sai da página de venda na porta em cerca de 1 minuto.",
+      "links": [],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "8727678085554bbab6985f4f318bb1ed"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Preciso de autorização para ver os eventos no Backstage? A Ingresse precisa do meu e-mail cadastrado?",
+      "resposta": "Sim. Para ver os eventos no Ingresse Backstage, é preciso pedir autorização à Ingresse. Antes disso, acesse https://backstage.ingresse.com/ e confirme que você tem um cadastro válido e consegue fazer login com o seu e-mail.",
+      "links": [
+        "https://backstage.ingresse.com/"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e84801293d1e5b7ae4b5c06"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Como sei se já tenho cadastro no Backstage? Como entro se já fiz login antes?",
+      "resposta": "1. Acesse https://backstage.ingresse.com/\n2. Se pedir, informe seu e-mail e senha. Se aparecer a tela \"Este é você?\", confira se o e-mail está certo e clique em Sim, continuar.\n3. Se não lembra se tem cadastro ou esqueceu a senha, clique em Esqueci minha senha.\n4. Se mesmo assim não conseguir recuperar a senha, peça ajuda ao suporte da Ingresse.",
+      "links": [
+        "https://backstage.ingresse.com/",
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e84803880e0fabac80cb28b"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Onde encontro respostas para dúvidas sobre a compra de ingressos?",
+      "resposta": "A Ingresse tem uma central de ajuda com perguntas frequentes para quem compra ingressos: https://ingresse.freshdesk.com/support/home\nSe não encontrar sua resposta lá, você pode falar com a Ingresse:\n- E-mail: contato@ingresse.com\n- WhatsApp: https://api.whatsapp.com/send/?phone=551151270203",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home",
+        "mailto:contato@ingresse.com",
+        "https://api.whatsapp.com/send/?phone=551151270203"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480b4b01fe5f7fb237111"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Já cadastrei a pessoa da portaria como Operador de Porta. E agora, como ela lê os ingressos?",
+      "resposta": "Oriente a pessoa da portaria a:\n1. Baixar o app Ingresse Backstage (App Store no iPhone ou loja do Android).\n2. Entrar com o e-mail e a senha cadastrados.\n3. Se a conta tiver verificação em duas etapas, informar o código de 6 dígitos do app de autenticação.\n4. Na aba Próximos, tocar no evento.\n5. Tocar no botão Entrada.\n6. Na aba Não validados, buscar por nome, e-mail ou código, ou tocar no botão de QR Code para escanear o ingresso.\n7. Se preferir selecionar na lista, tocar em um ou mais ingressos e em Validar.",
+      "links": [
+        "https://apps.apple.com/br/app/ingresse-backstage/id596595646"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "05e44336d45b4fd8bd7c3693a71aa3af"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Aparece \"o número de telefone informado já está em uso\". O que eu faço?",
+      "resposta": "Isso costuma acontecer quando você já tem um cadastro na Ingresse feito com outro e-mail.\n1. Tente lembrar se já se cadastrou na Ingresse antes e com qual e-mail.\n2. Use Esqueci minha senha com cada e-mail que você possa ter usado.\n3. Se não resolver, fale com o suporte da Ingresse.\n4. Se não tiver resposta, procure a casa ou o Tranquilo informando nome completo, e-mail e telefone usados no cadastro, para que o caso seja levado à Ingresse.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480869bc3d34afaed1c61"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Meu telefone ou e-mail já está em uso por outra conta da Ingresse. E agora?",
+      "resposta": "1. Confira se seu CPF, telefone, e-mail e data de nascimento estão corretos.\n2. Entre em contato com o suporte da Ingresse para regularizar seu cadastro.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480e5865fd19df7dfd314"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Apareceu o erro 1212 quando tentei comprar. O que faço?",
+      "resposta": "O erro 1212 aparece com a mensagem \"Ocorreu um problema e não conseguimos seguir em frente\". Ele pode indicar um bloqueio ou um cadastro desatualizado na Ingresse.\n1. Separe: nome completo, e-mail, telefone, CPF e data de nascimento usados no cadastro ou na compra.\n2. Tire prints da tela com o erro.\n3. Entre em contato com o suporte da Ingresse, envie esses dados e os prints e peça para verificarem se há bloqueio ou cadastro desatualizado.\n4. Depois que a Ingresse resolver, tente comprar de novo.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e84802fb2e5da0d97d17030"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Aparece um erro quando tento entrar na minha conta da Ingresse. E agora?",
+      "resposta": "Se aparecer \"Ocorreu um erro inesperado. Tente novamente mais tarde.\":\n1. No computador, tente entrar por outro navegador.\n2. No celular, tente por outro aplicativo (por exemplo, outro navegador).\n3. Se não funcionar, tente entrar pelo aplicativo da Ingresse.",
+      "links": [],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480908548c27221c02b18"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Entrei no Backstage com a conta de outra pessoa. Como saio?",
+      "resposta": "1. No computador, procure o menu de navegação à esquerda.\n2. Clique em Sair.\nDepois, entre de novo com o seu e-mail e senha.",
+      "links": [],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480fa87aff31982681ef8"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "O que é OTP (senha de uso único)?",
+      "resposta": "Ao fazer login na Ingresse, pode ser pedida uma senha de uso único, chamada OTP (do inglês one time password). É um código de segurança que vale uma vez só. OTP é um conceito de segurança, não um aplicativo: você não precisa instalar nem pagar por nenhum app chamado \"OTP\".",
+      "links": [],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e84805aa98def4d4822ecd5"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Ao completar o cadastro na Ingresse, depois da data de nascimento, aparece \"Erro inesperado. Por favor, entre em contato conosco\". O que faço?",
+      "resposta": "1. Tente de novo em uma aba anônima.\n2. Tente em outro navegador.\n3. Tente em outra conexão (4G/5G ou outro Wi-Fi).\n4. Digite a data de nascimento no formato pedido na tela (por exemplo, dia/mês/ano), sem copiar e colar.\n5. Se nada resolver, fale com o suporte da Ingresse e envie o e-mail do cadastro e prints do erro e do formulário. A causa pode ser instabilidade, cadastro duplicado ou antigo, ou alguma validação no cadastro.\nSe você já abriu um chamado e não teve retorno, informe o número do protocolo e peça a reabertura.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "2386f7d7fde2493abcbbe80509623279"
+    },
+    {
+      "publico": "casa_portaria",
+      "pergunta": "Fiz cadastro e login no Backstage, mas os eventos do Tranquilo não aparecem. Por quê?",
+      "resposta": "Isso pode acontecer quando:\n- você se cadastrou com um e-mail que já existia;\n- a Ingresse ainda não deu permissão para sua conta ver os eventos;\n- você trocou de e-mail há pouco tempo e as permissões ainda não foram atualizadas.\nO que fazer:\n1. Confira com qual e-mail você está fazendo cadastro ou login.\n2. Se o e-mail estiver certo, peça à equipe do Tranquilo para solicitar a liberação das permissões.",
+      "links": [],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480a5b658e7514c01e4ca"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Comprei meu ingresso, mas não acho ele no app da Ingresse. E agora?",
+      "resposta": "1. Separe o CPF, o e-mail e o telefone que você usou no cadastro e na compra.\n2. Tire prints das telas do app.\n3. Envie essas informações ao suporte da Ingresse.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480c89133e12cceb63150"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Ao finalizar a compra aparece \"Erro inesperado. Por favor, entre em contato conosco\". O que faço?",
+      "resposta": "1. Tente de novo em uma aba anônima do navegador.\n2. Tente em outro navegador.\n3. Tente em outra conexão (4G, 5G ou outro Wi-Fi).\n4. Confira se você não usou, sem querer, outro e-mail ou CPF.\n5. Se nada resolver, fale com o suporte da Ingresse e envie: o e-mail do seu cadastro na Ingresse, o CPF usado na compra e prints do erro. A causa pode ser instabilidade, cadastro duplicado ou antigo, ou um bloqueio de segurança contra fraude.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480bfa18bc761967b9841"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Não recebi o e-mail de confirmação da compra. O que faço?",
+      "resposta": "Às vezes o problema está no e-mail: a Ingresse pode ter sido bloqueada pelo seu provedor, você pode ter cancelado o recebimento de e-mails dela, ou sua caixa pode estar cheia.\n1. Instale o app da Ingresse e veja se o ingresso aparece lá.\n2. Se não aparecer, fale com o suporte da Ingresse informando seu e-mail e CPF.\n3. Peça para confirmarem se a compra foi aprovada e para reenviarem o e-mail de confirmação.",
+      "links": [
+        "https://ingresse.freshdesk.com/support/home"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "32d83bbf4e8480a38338f04d7b7d8f91"
+    },
+    {
+      "publico": "compra",
+      "pergunta": "Posso pagar meu ingresso com Pix?",
+      "resposta": "Sim.\n1. Abra a página do evento na Ingresse (ex.: ingresse.com/tranquilobh, /tranquilofloripa ou /tranquilosaopaulo) e clique em Comprar ingresso.\n2. Escolha o lote, toque em + e clique em Prosseguir.\n3. Faça login com e-mail e senha. Se pedir verificação, receba o código por SMS ou WhatsApp, digite e clique em Verificar.\n4. Clique em Prosseguir de novo.\n5. Em Escolha como pagar, selecione PIX e clique em Finalizar pedido.\n6. Pague o QR code pelo app do seu banco.\n7. Aparecerá \"Sua compra foi concluída!\". Em Ver meus ingressos você vê suas compras.",
+      "links": [
+        "https://ingresse.com/tranquilobh/",
+        "https://ingresse.com/tranquilofloripa/",
+        "https://ingresse.com/tranquilosaopaulo/"
+      ],
+      "fonte": "Base de conhecimento (Notion)",
+      "notion": "33083bbf4e84802cae70d445f28f8ee2"
+    }
+  ]
+}
