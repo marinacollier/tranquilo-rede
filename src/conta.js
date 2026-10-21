@@ -11,6 +11,7 @@ const TQConta = (() => {
   const hojeIso = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
   let api = null;
 
+  const hubDemo = () => { try { return JSON.parse(localStorage.getItem("tq-demo-hub") || "{}"); } catch { return {}; } };
   // ---------- modo demonstração ----------
   function Demo() {
     const CH = "tq-demo-v1";
@@ -110,6 +111,26 @@ const TQConta = (() => {
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
       async relatos() { exigeEquipe(); return []; },
+      // Campanhas e materiais no modo demonstração: só existem se um teste guardar exemplos em "tq-demo-hub".
+      async hubCampanhas() { const h = hubDemo(); return { campanhas: h.campanhas || [], itens: h.itens || [], feitos: db.campFeitos || [] }; },
+      async marcarCampanha(itemId, feito) {
+        db.campFeitos = (db.campFeitos || []).filter((f) => f.item_id !== itemId);
+        if (feito) db.campFeitos.push({ item_id: itemId, feito_por: db.sessao, feito_em: agora() });
+        gravar();
+      },
+      async andamentoCampanhas() {
+        const h = hubDemo(), hoje = new Date().toISOString().slice(0, 10), fs = new Set((db.campFeitos || []).map((f) => f.item_id));
+        return (h.campanhas || []).map((c) => { const its = (h.itens || []).filter((i) => i.campanha_id === c.id);
+          return { campanha_id: c.id, slug: c.slug, titulo: c.titulo, casa_ref: c.casa_ref, dias: its.length, feitos: its.filter((i) => fs.has(i.id)).length,
+            atrasados: its.filter((i) => !fs.has(i.id) && i.dia < hoje).length, proximo: its.filter((i) => !fs.has(i.id) && i.dia >= hoje).map((i) => i.dia).sort()[0] || null }; });
+      },
+      async hubMateriais() {
+        const h = hubDemo(), minhas = (db.ciencias || []).filter((c) => c.user_id === db.sessao);
+        const vig = (h.materiais || []).map((m) => (h.versoes || []).filter((v) => v.material_id === m.id).sort((a, b) => b.publicada_em.localeCompare(a.publicada_em))[0]).filter(Boolean);
+        return { materiais: h.materiais || [], versoes: h.versoes || [], minhas, todas: db.ciencias || [],
+          pendentes: vig.filter((v) => v.exige_ciencia && !minhas.some((c) => c.versao_id === v.id)).map((v) => ({ versao_id: v.id })) };
+      },
+      async darCiencia(versaoId) { (db.ciencias ||= []).push({ versao_id: versaoId, user_id: db.sessao, registrada_em: agora() }); gravar(); },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
@@ -286,6 +307,33 @@ const TQConta = (() => {
         }
         return out.sort((a, b) => String(b.em).localeCompare(String(a.em)));
       },
+      // Campanha da casa (conteúdo do Bruno): a casa só vê a dela (posso_casa no banco); "feito" vale para toda a casa.
+      async hubCampanhas() {
+        const [campanhas, itens, feitos] = await Promise.all([
+          sb.from("campanhas").select("id,slug,titulo,casa_ref,fonte_url").order("titulo"),
+          sb.from("campanha_itens").select("id,campanha_id,chave,dia,rotulo,acoes").eq("ativo", true).order("dia"),
+          sb.from("campanha_feitos").select("item_id,feito_por,feito_em,nota"),
+        ]);
+        return { campanhas: ok(campanhas), itens: ok(itens), feitos: ok(feitos) };
+      },
+      async marcarCampanha(itemId, feito) {
+        if (feito) ok(await sb.from("campanha_feitos").insert({ item_id: itemId }));
+        else ok(await sb.from("campanha_feitos").delete().eq("item_id", itemId));
+      },
+      async andamentoCampanhas() { return ok(await sb.rpc("andamento_campanhas")); },
+      // Materiais com versão vigente e ciência de leitura ("Li e estou ciente"), que fica registrada por versão.
+      async hubMateriais() {
+        const u = await uid();
+        const [materiais, versoes, minhas, pendentes, todas] = await Promise.all([
+          sb.from("materiais").select("*").eq("ativo", true).order("titulo"),
+          sb.from("material_versoes").select("id,material_id,versao,resumo,url,exige_ciencia,publicada_em").order("publicada_em", { ascending: false }),
+          sb.from("ciencias").select("versao_id,registrada_em").eq("user_id", u),
+          sb.rpc("minhas_ciencias_pendentes"),
+          sb.from("ciencias").select("versao_id,user_id,registrada_em"),
+        ]);
+        return { materiais: ok(materiais), versoes: ok(versoes), minhas: ok(minhas), pendentes: ok(pendentes), todas: ok(todas) };
+      },
+      async darCiencia(versaoId) { ok(await sb.from("ciencias").insert({ versao_id: versaoId })); },
       async relatos() { return ok(await sb.from("diario").select("criado_em,user_id,perfil,tela,detalhe,navegador").eq("acao", "relato").order("criado_em", { ascending: false }).limit(300)); },
     };
   }
@@ -325,7 +373,7 @@ const TQConta = (() => {
     S.conta = conta;
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
     const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso;
-    S.pac = null; S.eq = null;
+    S.pac = null; S.eq = null; S.hub = null; S.campAberta = null;   // nada da conta anterior fica na tela
     if (cod) {
       // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
       try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id && pac.perfil === perfil.tipo) S.pac = pac; }
@@ -351,9 +399,9 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ...duv, ["conta", "Conta"]];
-    if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ...duv, ["conta", "Conta"]];
-    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["relatos", "Relatos"]];
+    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+    if (t === "casa") return [["passos", "Próximos passos"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -668,6 +716,59 @@ const TQConta = (() => {
         { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
       ], E.conv, { i: 3, dir: 1 }, vazio("Nenhum convite ainda", "Escolha a artista ou a casa acima, coloque o e-mail e envie. O convite aparece aqui com a situação de cada pessoa.", "", "convites"))}`;
     },
+    campanha() {
+      const H = S.hub; if (!H) { carregarHub(); return carregando("campanha"); }
+      if (H.erro) return `<div class="alert crit"><b>Não foi possível carregar a campanha</b>${esc(H.erro)} <button class="btn sm" data-hub-recarregar>Tentar de novo</button></div>`;
+      const feitos = Object.fromEntries((H.feitos || []).map((f) => [f.item_id, f]));
+      if (!H.campanhas.length) return `<div class="tag">Campanha</div><h1>Campanha de divulgação</h1>${vazio("Nenhuma campanha para a sua casa ainda", "Quando a equipe do Tranquilo carregar a campanha da sua casa, os dias e as ações aparecem aqui. A conta precisa estar ligada à casa pelo convite da equipe.", "", "campanha")}`;
+      return `<div class="tag">Campanha</div><h1>Campanha de divulgação</h1><p class="sub">O que postar e mandar em cada dia. Marque "Feito" quando terminar: vale para toda a equipe da casa, e o Tranquilo acompanha.</p>
+      ${H.campanhas.map((c) => {
+        const its = H.itens.filter((i) => i.campanha_id === c.id), nf = its.filter((i) => feitos[i.id]).length;
+        return `<h2>${esc(c.titulo)}</h2><div class="row" style="margin-bottom:8px"><span class="muted">${nf} de ${its.length} dias feitos</span>${c.fonte_url ? `<a class="btn sm" href="${esc(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>
+        <div class="progress" style="margin-bottom:14px"><i style="width:${its.length ? Math.round((nf / its.length) * 100) : 0}%"></i></div>
+        <div class="list">${its.map((i) => diaCampanha(i, feitos, true)).join("")}</div>`;
+      }).join("")}`;
+    },
+    campanhas() {
+      if (!S.eq) carregarEquipe();   // nomes de quem marcou
+      const H = S.hub; if (!H) { carregarHub(); return carregando("campanhas"); }
+      if (H.erro) return `<div class="alert crit"><b>Não foi possível carregar as campanhas</b>${esc(H.erro)} <button class="btn sm" data-hub-recarregar>Tentar de novo</button></div>`;
+      const feitos = Object.fromEntries((H.feitos || []).map((f) => [f.item_id, f]));
+      const nomes = Object.fromEntries((S.eq?.perfis || []).map((p) => [p.id, p.nome || p.email]));
+      return `<div class="tag">Campanhas</div><h1>Andamento das campanhas</h1><p class="sub">Cada casa marca os dias da própria campanha. Atrasado = dia que já passou sem "Feito". Clique numa campanha para ver dia a dia.</p>
+      ${tabela("andcamp", [
+        { t: "Casa", v: (a) => a.casa_ref, h: (a) => `<b>${esc(a.casa_ref)}</b>` }, { t: "Campanha", v: (a) => a.titulo },
+        { t: "Feitos", n: 1, v: (a) => a.feitos / (a.dias || 1), h: (a) => `${a.feitos}/${a.dias}` },
+        { t: "Atrasados", n: 1, v: (a) => a.atrasados, h: (a) => a.atrasados ? `<span class="badge b-crit">${a.atrasados}</span>` : "0" },
+        { t: "Próximo dia", v: (a) => a.proximo || "", h: (a) => a.proximo ? dt(a.proximo) : "–" },
+      ], (H.andamento || []).map((a) => ({ ...a, _click: "camp:" + a.campanha_id })), { i: 3, dir: -1 }, vazio("Nenhuma campanha carregada", "As campanhas das casas aparecem aqui depois da importação (scripts/importar-campanha.mjs).", "", "campanhas"))}
+      ${S.campAberta ? (() => { const c = H.campanhas.find((x) => x.id === S.campAberta); if (!c) return ""; const its = H.itens.filter((i) => i.campanha_id === c.id);
+        return `<h2>${esc(c.casa_ref)} · ${esc(c.titulo)}</h2><div class="list">${its.map((i) => diaCampanha(i, feitos, false).replace("por alguém da casa", feitos[i.id] ? "por " + esc(nomes[feitos[i.id].feito_por] || "alguém da casa") : "")).join("")}</div>`; })() : ""}`;
+    },
+    materiais() {
+      const H = S.hub; if (!H) { carregarHub(); return carregando("materiais"); }
+      if (H.erro) return `<div class="alert crit"><b>Não foi possível carregar os materiais</b>${esc(H.erro)} <button class="btn sm" data-hub-recarregar>Tentar de novo</button></div>`;
+      const equipe = ["equipe", "adm"].includes(S.conta.perfil.tipo);
+      if (equipe && !S.eq) carregarEquipe();   // para listar quem ainda não confirmou a leitura
+      const vigente = (mid) => H.versoes.find((v) => v.material_id === mid);
+      const minha = Object.fromEntries((H.minhas || []).map((c) => [c.versao_id, c.registrada_em]));
+      const pend = new Set((H.pendentes || []).map((p) => p.versao_id));
+      const perfis = S.eq?.perfis || [];
+      const cards = H.materiais.map((m) => {
+        const v = vigente(m.id), url = v?.url || m.fonte_url;
+        const ciencia = !v?.exige_ciencia ? "" : equipe
+          ? (() => { const deram = (H.todas || []).filter((c) => c.versao_id === v.id); const alvo = perfis.filter((p) => (m.publico || []).includes(p.tipo));
+              const faltam = alvo.filter((p) => !deram.some((c) => c.user_id === p.id));
+              return `<div class="muted" style="font-size:13px;margin-top:8px"><b>Ciência da versão ${esc(v.versao)}:</b> ${deram.length} ${deram.length === 1 ? "pessoa" : "pessoas"}${alvo.length ? ` · faltam ${faltam.length}${faltam.length && faltam.length <= 8 ? ": " + faltam.map((p) => esc(p.vinculo_nome || p.nome || p.email)).join(", ") : ""}` : ""}</div>`; })()
+          : pend.has(v.id) ? `<div class="alert warn" style="margin-top:10px"><b>Leia e confirme</b>Esta versão muda o que a casa faz. Abra, leia e confirme.<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-ciencia="${v.id}">Li e estou ciente</button></div></div>`
+          : minha[v.id] ? `<div class="muted" style="font-size:13px;margin-top:8px">✓ Você confirmou a leitura da versão ${esc(v.versao)} em ${dt(String(minha[v.id]).slice(0, 10))}.</div>` : "";
+        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div></div>${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}</div>${ciencia}</div>`;
+      });
+      const nPend = H.pendentes?.length || 0;
+      return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem como leitura: para usar, faça uma cópia (Arquivo › Fazer uma cópia)."}</p>
+      ${!equipe && nPend ? `<div class="alert warn" style="margin-bottom:12px"><b>${nPend} ${nPend === 1 ? "material pede" : "materiais pedem"} sua confirmação de leitura</b>Eles aparecem abaixo com o botão "Li e estou ciente".</div>` : ""}
+      <div class="list">${cards.join("") || vazio("Nenhum material publicado ainda", "Quando a equipe publicar guias e modelos, eles aparecem aqui.", "", "materiais")}</div>`;
+    },
     documentos() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("documentos"); }
       if (E.docs === null) return faltaSchema("Documentos");
@@ -793,6 +894,32 @@ const TQConta = (() => {
   const CLASSE = { confiavel: "🟢 Confiável", desenvolvimento: "🟡 Desenvolvimento", correcao: "🔴 Correção necessária", suspenso: "⛔ Suspensa" };
   const carregando = (o) => `<p class="muted">Carregando ${o}…</p>`;
   const faltaSchema = (aba) => `<div class="tag">${aba}</div><h1>Falta atualizar o banco</h1><div class="alert warn"><b>Esta aba precisa da versão nova do banco.</b>No Supabase, abra SQL Editor → New query, cole o arquivo supabase/schema.sql inteiro e clique em Run. Ele é seguro de rodar de novo e não apaga nada. Depois recarregue esta página.</div>`;
+  // Campanhas e materiais (Hub): carregados quando a aba abre; S.hub = null força recarregar.
+  async function carregarHub() {
+    if (S.hubCarregando) return; S.hubCarregando = true;
+    const quem = S.conta?.perfil.id, equipe = ["equipe", "adm"].includes(S.conta?.perfil.tipo);
+    try {
+      const [camp, mat, and] = await Promise.all([api.hubCampanhas(), api.hubMateriais(), equipe ? api.andamentoCampanhas() : Promise.resolve([])]);
+      if (S.conta?.perfil.id !== quem) return;
+      S.hub = { ...camp, ...mat, andamento: and };
+    } catch (e) {
+      if (!S.conta) return;
+      S.hub = { erro: traduz(e.message || "") };
+    } finally { S.hubCarregando = false; }
+    render();
+  }
+  const hojeSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const linkAcao = (l) => /^https:\/\//i.test(l.url || "") ? `<a class="btn sm" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.rotulo || "abrir")}</a>` : "";
+  // Um dia da campanha: ações (canal, show, texto, links) e o "feito" compartilhado pela casa.
+  function diaCampanha(i, feitos, podeMarcar) {
+    const f = feitos[i.id], hoje = hojeSP(), atrasado = !f && i.dia < hoje, ehHoje = i.dia === hoje;
+    const quem = f ? (f.feito_por === S.conta.perfil.id ? "por você" : "por alguém da casa") : "";
+    return `<div class="card camp-dia${f ? " feito" : atrasado ? " atrasado" : ehHoje ? " hoje" : ""}">
+      <div class="row"><b>${esc(i.rotulo || dt(i.dia))}${ehHoje ? ' <span class="badge b-warn">hoje</span>' : ""}${atrasado ? ' <span class="badge b-crit">atrasado</span>' : ""}</b>
+      ${podeMarcar ? `<label class="fcheck" style="margin:0"><input type="checkbox" data-camp-feito="${i.id}"${f ? " checked" : ""}> Feito</label>` : f ? '<span class="badge b-good">feito</span>' : ""}</div>
+      ${f ? `<div class="muted" style="font-size:12px;margin-top:2px">Marcado ${quem} em ${new Date(f.feito_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</div>` : ""}
+      <ul class="passos" style="margin-top:8px">${(i.acoes || []).map((a) => `<li><b>${esc(a.canal || "")}</b>${a.show ? ` <span class="muted">· ${esc(a.show)}</span>` : ""}<br><span style="font-size:14px">${esc(a.texto || "")}</span>${(a.links || []).length ? `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${a.links.map(linkAcao).join("")}</div>` : ""}</li>`).join("")}</ul></div>`;
+  }
   async function carregarEquipe() {
     if (S.eqCarregando) return; S.eqCarregando = true;
     try {
@@ -1005,6 +1132,13 @@ const TQConta = (() => {
       } catch (e) { $("#derr").textContent = e.message; }
       return;
     }
+    if (t.closest("[data-hub-recarregar]")) { S.hub = null; render(); return; }
+    const cie = t.closest("[data-ciencia]"); if (cie) {
+      if (!confirm("Confirmar que você leu esta versão do material? A confirmação fica registrada com data e hora.")) return;
+      try { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
+      catch (e) { alert(traduz(e.message || "")); }
+      return;
+    }
     const arq = t.closest("[data-arquivo]"); if (arq) {
       ev.preventDefault();
       const url = await api.linkArquivo(arq.dataset.arquivo);
@@ -1093,6 +1227,7 @@ const TQConta = (() => {
     if (t.closest("[data-copiar-envio]")) { navigator.clipboard?.writeText($("#envTxt").value).then(() => { t.textContent = "Copiada"; }); return; }
     if (t.id === "avOk") { await avisarCidade(); return; }
     const cl = t.closest("[data-click]");
+    if (cl && /^camp:/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); S.campAberta = cl.dataset.click.slice(5); render(); return; }
     if (cl && /^(insc|casacad):/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); const [k, id] = cl.dataset.click.split(":"); return k === "insc" ? fichaInscricao(id) : fichaCasa(id); }
   }
   // Um clique por vez: enquanto a ação de um botão não termina, novos cliques nele são ignorados
@@ -1131,6 +1266,11 @@ const TQConta = (() => {
       if (msg) msg.textContent = "Enviando…";
       try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos(); TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) m2.textContent = "Arquivo enviado. A equipe do Tranquilo já consegue ver."; }
       catch (e) { if (msg) msg.textContent = e.message; t.value = ""; }
+      return;
+    }
+    if (t.dataset?.campFeito) {
+      try { await api.marcarCampanha(t.dataset.campFeito, t.checked); TQDiario.registrar("campanha_feito", { item: t.dataset.campFeito, feito: t.checked }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
+      catch (e) { alert(traduz(e.message || "")); t.checked = !t.checked; }
       return;
     }
     const ps = t.dataset?.passo; if (ps) {
@@ -1210,7 +1350,7 @@ const TQConta = (() => {
     TQTour.abrir("publico", { aoFechar: () => { store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
   }
 
-  async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }
+  async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
