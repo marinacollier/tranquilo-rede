@@ -7,7 +7,7 @@ import '../src/regras.js';
 const { preCuradoria, pendenciasCasa, CIDADES_REDE } = globalThis.TQRegras;
 const db = new PGlite();
 await db.exec(`create role anon nologin; create role authenticated nologin; create schema auth;
-create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb);
+create table auth.users (id uuid primary key, email text, raw_user_meta_data jsonb, encrypted_password text default 'hash', email_confirmed_at timestamptz);
 create function auth.uid() returns uuid language sql stable as $$ select null::uuid $$;`);
 await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
 
