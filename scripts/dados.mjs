@@ -8,6 +8,10 @@ import path from 'node:path';
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ref = JSON.parse(await readFile(path.join(RAIZ, 'data/referencias.json'), 'utf8'));
 
+// Dia do show no horário de Brasília: "2026-11-08T00:30Z" é 07/11 às 21h30, não 08/11.
+const diaSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
+export const diaEmSP = (iso) => (/T\d/.test(iso || '') ? diaSP.format(new Date(iso)) : (iso || '').slice(0, 10));
+
 export const EVENTOS_DS = '84c63e67-7b36-407c-9310-681ebc120393';
 export const BASE_DS = '32d83bbf-4e84-8062-bf81-000b12eb93fb';
 
@@ -31,7 +35,7 @@ export const CAMPOS_EVENTO = ['id', 'nome', 'status', 'data', 'geral', 'antecipa
 
 export async function eventosDoRetrato(arquivo = 'data/eventos.psv') {
   return (await lerPsv(arquivo, CAMPOS_EVENTO)).map((r) => ({
-    id: r.id, nome: r.nome, status: r.status || null, data: r.data.slice(0, 10),
+    id: r.id, nome: r.nome, status: r.status || null, data: diaEmSP(r.data),
     geral: num(r.geral), antecipada: num(r.antecipada), porta: num(r.porta), vip: num(r.vip),
     publicoNotion: null, cap: num(r.cap), link: r.link || null,
     casa: r.casa || null, tipo: r.tipo || null, praca: r.praca || null, clima: r.clima || null,
@@ -95,7 +99,7 @@ export async function eventosDaApi(token) {
     const P = pg.properties;
     const v = (nome) => valor(P[nome]);
     return {
-      id: semHifen(pg.id), nome: v('Nome') || '', status: v('Status'), data: (v('Data') || '').slice(0, 10),
+      id: semHifen(pg.id), nome: v('Nome') || '', status: v('Status'), data: diaEmSP(v('Data') || ''),
       geral: v('Geral público (manual)'), antecipada: v('Ticketeira antecipada (manual)'),
       porta: v('Vendas na porta (manual)'), vip: v('Pessoas na lista VIP ou cortesias (manual)'),
       publicoNotion: typeof v('Público total (preferir automático)') === 'number' ? v('Público total (preferir automático)') : null,
@@ -201,7 +205,7 @@ function modeloDe(e) {
 
 const ENCERRADO = new Set(['Cancelado', 'Adiado', 'Duplicado']);
 
-export function normalizar(eventosBrutos, titulos = {}, hoje = new Date().toISOString().slice(0, 10)) {
+export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date().toISOString())) {
   const nomesCasa = {};
   for (const e of eventosBrutos) {
     const { casa } = lerTitulo(e.nome);
@@ -221,7 +225,8 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = new Date().toISOS
     .map((e) => {
       const cidade = (e.praca && (titulos[e.praca]?.nome || ref.pracas[e.praca])) || cidadeDoTitulo(e.nome) || 'Sem praça';
       const { artistas } = lerTitulo(e.nome);
-      const soma = [e.antecipada, e.porta, e.vip].some((x) => x != null) ? (e.antecipada || 0) + (e.porta || 0) + (e.vip || 0) : null;
+      // Vendidos = antecipada + porta. VIP/cortesia não é venda e não entra na estimativa de público.
+      const soma = [e.antecipada, e.porta].some((x) => x != null) ? (e.antecipada || 0) + (e.porta || 0) : null;
       const publico = e.publicoNotion ?? e.geral ?? soma;
       const passado = e.data < hoje;
       const status = e.status || (passado ? 'Realizado' : 'Sem status');
@@ -230,12 +235,19 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = new Date().toISOS
         id: e.id, nome: e.nome, data: e.data, status, cidade,
         modelo: modeloDe(e), casaId: e.casa, casa: nomeCasa(e.casa, cidade), artistas,
         publico: publico != null && publico > 0 ? publico : null, vendidos: soma, cap,
-        link: e.link && !/linkdesativado|linkinutilizado/.test(e.link) ? e.link : null, clima: e.clima,
+        link: e.link && /^https?:\/\//i.test(e.link) && !/linkdesativado|linkinutilizado/.test(e.link) ? e.link : null, clima: e.clima,
         realizado: passado && !ENCERRADO.has(status),
         cancelado: ENCERRADO.has(status) && status !== 'Duplicado',
         futuro: !passado && !ENCERRADO.has(status),
       };
     })
     .sort((a, b) => a.data.localeCompare(b.data));
+  // Uma grafia só por artista (YOÚN / YOÙN, Giovanni / Giovani Cidreira): a dos apelidos em
+  // referencias.json ou, sem apelido, a mais recente. Assim painel, pacotes e códigos contam igual.
+  const apelidos = ref.artistas || {};
+  const chaveDe = (nome) => chave(apelidos[chave(nome)] || nome);
+  const exibido = {};
+  for (const e of eventos) for (const nome of e.artistas) exibido[chaveDe(nome)] = apelidos[chave(nome)] || nome;
+  for (const e of eventos) e.artistas = [...new Set(e.artistas.map((n) => exibido[chaveDe(n)]))];
   return eventos;
 }

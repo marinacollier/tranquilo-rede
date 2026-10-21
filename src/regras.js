@@ -53,7 +53,7 @@
   // Passo a passo por data. Dias relativos à data do show (negativo = antes).
   // Fonte: checklist de operações dos eventos (T-28, T-21, T-14, T-7, dia, pós) e método V0.1 (handoff) no Notion.
   const PASSOS_ARTISTA = [
-    ["contrato", -35, "Ler e assinar o contrato", "Condição econômica, responsabilidades e cancelamento. Sem contrato assinado a data não segue para o handoff."],
+    ["contrato", -35, "Ler e assinar o contrato", "Condição econômica, responsabilidades e cancelamento. Sem contrato assinado a data não é repassada para a casa."],
     ["formacao", -28, "Fechar formação e equipe", "Quem sobe ao palco e quem acompanha (técnico de som, produção). No backstage, no máximo 2 acompanhantes por banda."],
     ["rider", -28, "Enviar rider técnico e mapa de palco", "A casa precisa do rider 4 semanas antes para confirmar PA, monitores, microfones e DIs."],
     ["som", -21, "Validar o som com a casa", "Combine com o técnico da casa o setup (PA, mesa, monitores, microfones, DI, cabos) e o horário da passagem de som."],
@@ -66,7 +66,7 @@
     ["feedback", 3, "Contar como foi", "Casa, som, público e o que melhorar. Isso entra na qualificação da rede."],
   ];
   const PASSOS_CASA = [
-    ["handoff", -30, "Receber o handoff da data", "Artista, condição, contatos, rider, logística, materiais de marca e canal de escalonamento."],
+    ["handoff", -30, "Receber a data repassada pelo Tranquilo", "Artista, condição, contatos, rider, logística, materiais de marca e canal de escalonamento."],
     ["ficha", -28, "Revisar a ficha da casa para este formato", "Capacidade real, restrições de horário e som, acessos, carga e descarga."],
     ["rider", -28, "Conferir o rider do artista", "Rider técnico recebido e compatível com a casa."],
     ["tecnico", -21, "Confirmar técnico de som e setup", "PA, mesa, monitores, microfones, DI, cabos e luz frontal para o rosto."],
@@ -84,7 +84,10 @@
     return lista.map(([chave, dias, titulo, texto]) => {
       const prazo = new Date(base.getTime() + dias * 864e5).toISOString().slice(0, 10);
       const feito = !!(feitos && feitos[chave]);
-      return { chave, dias, titulo, texto, prazo, feito, atrasado: !feito && prazo < hoje, agora: !feito && prazo >= hoje };
+      // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
+      // não "atrasado". Só conta como atraso o que ainda dá para fazer.
+      const passou = !feito && dias <= 0 && dataIso < hoje;
+      return { chave, dias, titulo, texto, prazo, feito, passou, atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje };
     });
   }
 

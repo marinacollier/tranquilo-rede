@@ -12,6 +12,6 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   const enviados = await p.evaluate(async () => { window.__linhas = []; TQConta.diario = async (l) => { window.__linhas.push(...l); return true; }; await TQDiario.enviar(); return window.__linhas.length; });
   ok(antes > 0 && enviados > 0 && await p.evaluate(() => TQDiario.pendentes()) === 0, `fila enviada ao banco (${enviados} eventos) e esvaziada`);
   const campos = await p.evaluate(() => Object.keys(window.__linhas[0]).sort().join(','));
-  ok(campos === 'alvo,conta_id,detalhe,dispositivo,perfil,quando_cliente,sessao,tela,tipo,url', 'linha tem só as colunas da tabela diario_uso: ' + campos);
+  ok(campos === 'alvo,conta_id,detalhe,dispositivo,perfil,quando_cliente,sessao,tela,tipo,url,user_id', 'linha tem só as colunas da tabela diario_uso: ' + campos);
   await b.close();
 })();

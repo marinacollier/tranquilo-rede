@@ -43,7 +43,11 @@ const TQDiario = (() => {
       if (!fila.length || !estado().conta) return;
     }
     enviando = true;
-    const lote = fila.slice(0, LOTE);
+    // O banco só aceita evento atribuído à conta que está enviando: o que foi de outra conta (ou de antes do login)
+    // vai sem conta, com a conta informada só no detalhe.
+    const eu = estado().conta?.perfil.id || null;
+    const lote = fila.slice(0, LOTE).map((e) => e.conta_id && e.conta_id === eu ? { ...e, user_id: eu }
+      : { ...e, user_id: null, conta_id: null, detalhe: e.conta_id ? { ...(e.detalhe || {}), conta_informada: e.conta_id } : e.detalhe });
     try {
       const r = await conta.diario(lote);
       if (r !== false) { fila = fila.slice(lote.length); gravarLS(CH, JSON.stringify(fila)); espera = 4000; }
@@ -63,7 +67,9 @@ const TQDiario = (() => {
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("button,a,[data-aba],[data-ev],[data-click],[data-tour],[data-ir],summary,label.fcheck,tr.click,.cidade,.atalho");
     if (!el) return;
-    const ext = el.tagName === "A" && el.href && !el.href.startsWith(location.origin + location.pathname) ? { destino: corta(el.href.replace(/[?#].*$/, ""), 120) } : null;
+    // Link externo: guarda só o site de destino; WhatsApp e e-mail ficam sem o número ou o endereço.
+    const ext = el.tagName === "A" && el.href && !el.href.startsWith(location.origin + location.pathname)
+      ? { destino: /^mailto:/i.test(el.href) ? "e-mail" : /wa\.me|whatsapp/i.test(el.href) ? "whatsapp" : corta(el.href.replace(/[?#].*$/, ""), 120) } : null;
     reg("acao", rotulo(el), ext);
   }, true);
   document.addEventListener("change", (ev) => {

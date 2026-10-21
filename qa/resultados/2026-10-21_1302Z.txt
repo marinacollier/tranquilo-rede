@@ -1,0 +1,115 @@
+# Testes da Rede Tranquilo — 2026-10-21 13:03 UTC — commit 47197d9
+
+## Banco (PGlite com o supabase/schema.sql)
+OK    e-mail da lista não vira adm antes de confirmar o e-mail
+OK    e-mail da lista vira adm ao confirmar
+OK    pedir "equipe" no cadastro não dá equipe
+OK    cadastro de casa vira casa
+OK    artista não se autoaprova nem forja score (status rascunho, score 85, Prioridade)
+OK    artista envia para curadoria
+OK    inscrição em análise fica travada para a artista
+OK    artista não cria cadastro de casa
+OK    artista não vê inscrição de outra
+OK    artista só vê o próprio perfil
+OK    artista não se promove a adm
+OK    antes da promoção, não vê fila
+OK    adm promove para equipe
+OK    equipe vê a fila de curadoria
+OK    equipe aprova e fica registrada como avaliadora
+OK    equipe não vira adm sozinha
+OK    equipe lê só a chave de equipe
+OK    casa sem dados mínimos fica "incompleto" (WhatsApp do responsável; Endereço e cidade; Capacidade de público; Como resolve o som (PA próprio ou parceiro técnico); Aceite da matriz de responsabilidades da casa)
+OK    casa completa vai para análise e não se autoclassifica
+OK    equipe lê só a chave de equipe
+OK    equipe vê prontidão e registros da noite
+OK    adm lê as duas chaves
+OK    casa habilitada atualiza cadastro sem perder status
+OK    casa vê o próprio registro
+OK    artista não vê registros de casa nem chaves
+OK    inscrição vazia: score 0, abaixo do corte, alertas
+OK    equipe não convida para administração
+OK    equipe não convida para equipe
+OK    artista não lê convites
+OK    artista não cria convite para si
+OK    artista não chama aplicar_convite
+OK    convite não vale antes de confirmar o e-mail
+OK    ao confirmar o e-mail, o convite liga a conta à artista
+OK    convite fica marcado como aceito
+OK    convite por link cria a conta de equipe pedindo para definir senha
+OK    sem e-mail confirmado, reivindicar não vincula
+OK    conta antiga recebe o vínculo ao confirmar o e-mail
+OK    pessoa marca o próprio tutorial como visto
+OK    aviso sem consentimento é recusado
+OK    mesmo contato na mesma cidade não duplica
+OK    visitante não lê os avisos de ninguém
+OK    equipe lê os avisos por cidade
+OK    artista não lê os avisos
+OK    número quebrado não derruba o salvamento e datas/avaliação não são forjáveis (score 30)
+OK    artista não troca o nome do vínculo sem trocar o código
+OK    capacidade com decimal é aceita
+OK    equipe não manda convite que rebaixaria a adm
+OK    equipe avalia mas não reescreve o score
+OK    artista não registra noite de casa
+OK    conta logada não consegue TRUNCATE
+OK    público negativo é recusado
+OK    a última adm não se rebaixa
+OK    aviso: contato inválido, duplicata com espaço e TRUNCATE recusados
+OK    data do aviso vem do banco
+OK    enxurrada de avisos é barrada
+OK    visitante grava evento no diário
+OK    visitante não grava evento em nome de uma conta
+OK    visitante não lê o diário
+OK    diário recusa tipo de evento desconhecido
+OK    artista não grava evento em nome de outra conta
+OK    artista não lê o diário (nem o próprio)
+OK    artista não vê o relatório por conta
+OK    artista não grava nos registros do Supabase
+OK    evento de quem está logado fica com a conta verificada pelo banco
+OK    equipe lê o diário
+OK    relatório por conta soma os eventos da artista
+OK    equipe não apaga o diário
+OK    equipe não lê os registros do Supabase
+OK    administração lê os registros do Supabase
+OK    administração apaga eventos do diário
+OK    administração apaga eventos do diário
+
+## diario-envio
+OK    fila enviada ao banco (2 eventos) e esvaziada
+OK    linha tem só as colunas da tabela diario_uso: alvo,conta_id,detalhe,dispositivo,perfil,quando_cliente,sessao,tela,tipo,url,user_id
+
+## diario
+FALHA banner oferece "Aceitar tudo" e "Apenas necessários"
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+page.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-consent="tudo"]')[22m
+    at /home/user/tranquilo-rede/tests/e2e/diario.cjs:14:11 {
+  name: 'TimeoutError'
+}
+Node.js v22.22.0
+
+## fluxos
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+page.waitForSelector: Timeout 15000ms exceeded.
+Call log:
+[2m  - waiting for locator('.tour-caixa') to be visible[22m
+    at /home/user/tranquilo-rede/tests/e2e/fluxos.cjs:14:30 {
+  name: 'TimeoutError'
+}
+Node.js v22.22.0
+
+## inicio
+node:internal/process/promises:394
+    triggerUncaughtException(err, true /* fromPromise */);
+    ^
+page.click: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-demo="adm"]')[22m
+    at /home/user/tranquilo-rede/tests/e2e/inicio.cjs:14:13 {
+  name: 'TimeoutError'
+}
+Node.js v22.22.0

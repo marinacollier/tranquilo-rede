@@ -20,8 +20,10 @@ const como = async (uid, fn) => { await db.exec(`set role authenticated; select 
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) process.exitCode = 1; };
 const tenta = async (fn) => { try { await fn(); return null; } catch (e) { return e.message; } };
 
+ok((await q(`select tipo from perfis where id = $1`, [adm])).rows[0].tipo === 'artista', 'e-mail da lista não vira adm antes de confirmar o e-mail');
+await q(`update auth.users set email_confirmed_at = now() where id = $1`, [adm]);
 const perfis = (await q(`select email, tipo from perfis order by email`)).rows;
-ok(perfis.find(p => p.email === 'marina@x.com').tipo === 'adm', 'e-mail da lista vira adm');
+ok(perfis.find(p => p.email === 'marina@x.com').tipo === 'adm', 'e-mail da lista vira adm ao confirmar');
 ok(perfis.find(p => p.email === 'eq@x.com').tipo === 'artista', 'pedir "equipe" no cadastro não dá equipe');
 ok(perfis.find(p => p.email === 'casa@x.com').tipo === 'casa', 'cadastro de casa vira casa');
 
@@ -134,6 +136,42 @@ await db.exec(`reset role;`);
 ok(visto === 0, 'visitante não lê os avisos de ninguém');
 await como(eq, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 1, 'equipe lê os avisos por cidade'); });
 await como(art, async () => { ok((await q(`select * from avisos_cidade`)).rows.length === 0, 'artista não lê os avisos'); });
+
+
+// ---------- v3: correções do QA ----------
+await como(art2, async () => {
+  await q(`insert into inscricoes_artistas (user_id, dados, enviado_em, avaliado_por) values ($1, $2, '2000-01-01', $3)`, [art2, { ouvintes_mensais: '12000.5', seguidores_instagram: '3000000000', capacidade: '1.5', cidades_interesse: 'São Paulo' }, adm]);
+  const r = (await q(`select score, enviado_em, avaliado_por from inscricoes_artistas`)).rows[0];
+  ok(r.score === 30 && r.enviado_em === null && r.avaliado_por === null, `número quebrado não derruba o salvamento e datas/avaliação não são forjáveis (score ${r.score})`);
+  await q(`update perfis set vinculo_nome = 'Outra Artista Famosa' where id = $1`, [art2]);
+});
+ok((await q(`select vinculo_nome from perfis where id = $1`, [art2])).rows[0].vinculo_nome === null, 'artista não troca o nome do vínculo sem trocar o código');
+ok((await q(`select (pendencias_casa($1)->'habilitacao') ? 'Capacidade de público' r`, [{ capacidade: '100.5' }])).rows[0].r === false, 'capacidade com decimal é aceita');
+await como(eq, async () => {
+  ok(!!(await tenta(() => q(`insert into convites (email, tipo) values ('marina@x.com', 'artista')`))), 'equipe não manda convite que rebaixaria a adm');
+  await q(`update inscricoes_artistas set score = 100, status = 'ajustes', parecer = 'Mande o rider' where user_id = $1`, [art2]);
+  const r = (await q(`select score, status from inscricoes_artistas where user_id = $1`, [art2])).rows[0];
+  ok(r.score === 30 && r.status === 'ajustes', 'equipe avalia mas não reescreve o score');
+});
+await como(art, async () => {
+  ok(!!(await tenta(() => q(`insert into registros_noite (user_id, evento_id, publico) values ($1, 'ev9', 10)`, [art]))), 'artista não registra noite de casa');
+  ok(!!(await tenta(() => q(`truncate perfis cascade`))), 'conta logada não consegue TRUNCATE');
+});
+await como(casa, async () => { ok(!!(await tenta(() => q(`insert into registros_noite (user_id, evento_id, publico, gravidade) values ($1, 'ev2', -5, 'ordinaria')`, [casa]))), 'público negativo é recusado'); });
+await como(adm, async () => { ok(!!(await tenta(() => q(`update perfis set tipo = 'artista' where id = $1`, [adm]))), 'a última adm não se rebaixa'); });
+await db.exec(`set role anon;`);
+const lixo = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Recife', 'nao-e-email', 'email', true)`));
+const espaco = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Recife ', ' fa@x.com', 'email', true)`));
+const forjado = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento, criado_em) values ('Natal', 'fz@x.com', 'email', true, '1999-01-01')`));
+const trunc = await tenta(() => q(`truncate avisos_cidade`));
+await db.exec(`reset role;`);
+ok(!!lixo && !!espaco && !forjado && !!trunc, 'aviso: contato inválido, duplicata com espaço e TRUNCATE recusados');
+ok((await q(`select criado_em > now() - interval '1 hour' r from avisos_cidade where contato = 'fz@x.com'`)).rows[0].r, 'data do aviso vem do banco');
+await db.exec(`set role anon;`);
+let barrado = null;
+for (let i = 0; i < 40 && !barrado; i++) barrado = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Natal', $1, 'email', true)`, [`spam${i}@x.com`]));
+await db.exec(`reset role;`);
+ok(!!barrado && /Muitos pedidos/.test(barrado), 'enxurrada de avisos é barrada');
 // ---------- v3: diário de uso e cópia dos registros ----------
 const linha = (extra = '') => `insert into diario_uso (sessao, perfil, tipo, tela, alvo${extra ? ', user_id' : ''}) values ('sessao-teste-1', 'visitante', 'acao', 'publica', 'button#avOk'${extra})`;
 await db.exec(`set role anon;`);
@@ -169,3 +207,15 @@ await como(adm, async () => {
   await q(`delete from diario_uso where sessao = 'sessao-teste-1'`);
   ok((await q(`select count(*)::int n from diario_uso`)).rows[0].n === 1, 'administração apaga eventos do diário');
 });
+// Nota interna em tabela à parte: só a equipe lê e grava.
+const inscId = (await q(`select id from inscricoes_artistas limit 1`)).rows[0]?.id;
+await como(eq, async () => {
+  await q(`insert into notas_internas (alvo, alvo_id, nota) values ('insc', $1, 'ouvir o EP antes') on conflict (alvo, alvo_id) do update set nota = excluded.nota`, [inscId]);
+  ok((await q(`select nota from notas_internas where alvo_id = $1`, [inscId])).rows[0]?.nota === 'ouvir o EP antes', 'equipe grava e lê a nota interna');
+  await q(`update inscricoes_artistas set nota_interna = 'vazaria' where id = $1`, [inscId]);
+});
+ok((await q(`select nota_interna from inscricoes_artistas where id = $1`, [inscId])).rows[0].nota_interna === null, 'nota interna nunca fica na linha que a artista lê');
+await como(art, async () => { ok((await q(`select * from notas_internas`)).rows.length === 0, 'artista não lê notas internas'); });
+await como(casa, async () => { ok(!!(await tenta(() => q(`insert into notas_internas (alvo, alvo_id, nota) values ('casa', gen_random_uuid(), 'x')`))), 'casa não grava nota interna'); });
+await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
+ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

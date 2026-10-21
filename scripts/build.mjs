@@ -16,7 +16,7 @@ import {
 // Título como o site oficial mostra: sem a data na frente e sem a casa entre parênteses no fim.
 const tituloPublico = (n) => (n || '').replace(/^\d{2}\/\d{2}\/\d{4}\s+—\s+/, '').replace(/\s+\([^()]*\)\s*$/, '').replace(/\s+—\s*$/, '').trim() || null;
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const DIST = path.join(RAIZ, 'dist');
+const DIST = process.env.DIST_DIR ? path.resolve(process.env.DIST_DIR) : path.join(RAIZ, 'dist');
 const METODO_ID = 'ddd0e9fd76994af0b100dcc6e026f7bc';
 const MINIMO_EVENTOS = 150;
 const { subtle } = globalThis.crypto;
@@ -67,10 +67,12 @@ const b64 = (buf) => Buffer.from(buf).toString('base64');
 
 async function cifrar(cod, objeto) {
   const norm = normalizarCodigo(cod);
-  const arquivo = hex(await subtle.digest('SHA-256', enc.encode(`tranquilo-rede:${norm}`))).slice(0, 32);
+  const base = await subtle.importKey('raw', enc.encode(norm), 'PBKDF2', false, ['deriveKey', 'deriveBits']);
+  // O nome do arquivo custa o mesmo PBKDF2 da chave: um hash rápido aqui permitiria testar códigos
+  // por força bruta contra a lista pública de arquivos sem passar pelas 210 mil iterações.
+  const arquivo = hex(await subtle.deriveBits({ name: 'PBKDF2', salt: enc.encode('tranquilo-rede:arquivo'), iterations: 210000, hash: 'SHA-256' }, base, 128));
   const sal = crypto.getRandomValues(new Uint8Array(16));
   const iv = crypto.getRandomValues(new Uint8Array(12));
-  const base = await subtle.importKey('raw', enc.encode(norm), 'PBKDF2', false, ['deriveKey']);
   const chaveAes = await subtle.deriveKey({ name: 'PBKDF2', salt: sal, iterations: 210000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt']);
   const dados = await subtle.encrypt({ name: 'AES-GCM', iv }, chaveAes, enc.encode(JSON.stringify(objeto)));
   return { arquivo, conteudo: JSON.stringify({ v: 1, s: b64(sal), i: b64(iv), c: b64(dados) }) };
@@ -181,7 +183,7 @@ const publico = {
   totais: { noites: eventos.filter((e) => e.realizado).length, cidades: cidades.length, futuras: futuros.length },
 };
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
-for (const arq of ['index.html', 'config.js', 'regras.js', 'tour.js', 'conta.js', 'diario.js', 'img']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
+for (const arq of ['index.html', 'config.js', 'regras.js', 'tour.js', 'conta.js', 'diario.js', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
 await writeFile(path.join(DIST, '.nojekyll'), '');
 await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 

@@ -6,6 +6,7 @@ const TQConta = (() => {
   const cfg = window.TQ_CONFIG || {};
   const CONFIGURADO = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
   let REAL = false;   // vira true quando o banco responde com as tabelas criadas
+  let FORA = false;   // banco configurado, mas fora do ar: nunca cair no modo demonstração nesse caso
   const R = window.TQRegras;
   const hojeIso = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
   let api = null;
@@ -61,7 +62,11 @@ const TQConta = (() => {
         if (feito) db.chk.push({ user_id: db.sessao, evento_id, item, feito: true, atualizado_em: agora() });
         gravar();
       },
-      async registrar(evento_id, r) { db.reg.push({ id: id(), user_id: db.sessao, evento_id, ...r, criado_em: agora() }); gravar(); },
+      async registrar(evento_id, r) {
+        // Um registro por casa e por noite: registrar de novo corrige o anterior.
+        db.reg = db.reg.filter((x) => !(x.user_id === db.sessao && x.evento_id === evento_id));
+        db.reg.push({ id: id(), user_id: db.sessao, evento_id, ...r, criado_em: agora() }); gravar();
+      },
       async meusRegistros() { return db.reg.filter((r) => r.user_id === db.sessao); },
       async vincularCodigo(codigo, nome) {
         const p = eu(); if (p.codigo_acesso) throw new Error("Esta conta já está vinculada. Fale com a equipe para trocar.");
@@ -109,9 +114,29 @@ const TQConta = (() => {
     };
   }
 
+  // Aviso do topo do formulário de entrada (conectando, fora do ar ou modo demonstração).
+  function avisoConta() {
+    const h = FORA ? `<div class="alert crit" style="margin-bottom:14px"><b>Contas fora do ar agora</b>A agenda e os ingressos funcionam normalmente. Para entrar ou se cadastrar, tente de novo em alguns minutos.</div>`
+      : !api && CONFIGURADO ? `<div class="alert" style="margin-bottom:14px"><b>Conectando…</b>Preparando o acesso às contas. Leva alguns segundos.</div>`
+      : REAL ? "" : `<div class="alert warn" style="margin-bottom:14px"><b>Modo demonstração</b>As contas e respostas ficam só neste navegador, para testar os fluxos. Atalhos: <a href="#" data-demo="equipe">entrar como equipe</a> · <a href="#" data-demo="adm">entrar como administração</a></div>`;
+    return h ? h.replace('<div class="alert', '<div id="contaAviso" class="alert') : '<div id="contaAviso"></div>';
+  }
+
+  // ---------- banco configurado mas fora do ar ----------
+  // Ninguém cai no modo demonstração achando que enviou algo de verdade: toda ação explica e pede para tentar depois.
+  function Fora() {
+    const msg = "As contas estão fora do ar agora. A agenda e os ingressos funcionam normalmente; tente entrar de novo em alguns minutos.";
+    return new Proxy({}, { get: (_, k) => (k === "sessao" ? async () => null : async () => { throw new Error(msg); }) });
+  }
+
   // ---------- Supabase ----------
   async function Supa() {
-    const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm");
+    // Cópia do supabase-js servida pelo próprio site (vendor/); o CDN só entra se ela faltar.
+    if (!window.supabase?.createClient) {
+      await new Promise((ok, erro) => { const sc = document.createElement("script"); sc.src = "vendor/supabase-2.117.2.js"; sc.onload = ok; sc.onerror = erro; document.head.appendChild(sc); })
+        .catch(() => import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm").then((m) => { window.supabase = m; }));
+    }
+    const { createClient } = window.supabase;
     const sb = createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
     // Link de "esqueci a senha": o Supabase abre a sessão e avisa que a pessoa precisa escolher uma senha nova.
     let recuperacao = /type=recovery/.test(location.hash);
@@ -120,6 +145,23 @@ const TQConta = (() => {
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     const perfil = async () => { const u = await uid(); if (!u) return null; return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle()); };
+    // Nota interna fica em notas_internas (só a equipe lê). Banco ainda sem essa tabela: usa a coluna antiga.
+    const semTabela = (e) => /PGRST205|42P01|Could not find the table/i.test(`${e?.code} ${e?.message}`);
+    const comNotas = async (alvo, linhas) => {
+      if (!linhas.length) return linhas;
+      const { data, error } = await sb.from("notas_internas").select("alvo_id, nota").eq("alvo", alvo).in("alvo_id", linhas.map((l) => l.id));
+      if (error) return linhas;
+      const nota = Object.fromEntries(data.map((n) => [n.alvo_id, n.nota]));
+      return linhas.map((l) => ({ ...l, nota_interna: nota[l.id] ?? l.nota_interna ?? null }));
+    };
+    const guardarNota = async (alvo, id, campos) => {
+      if (!("nota_interna" in campos)) return campos;
+      const { nota_interna, ...resto } = campos;
+      const { error } = await sb.from("notas_internas").upsert({ alvo, alvo_id: id, nota: nota_interna, atualizado_em: new Date().toISOString() });
+      if (error && semTabela(error)) return campos;
+      if (error) throw new Error(traduz(error.message));
+      return resto;
+    };
     const comPerfis = async (linhas) => {
       if (!linhas.length) return linhas;
       const ps = ok(await sb.from("perfis").select("*").in("id", linhas.map((l) => l.user_id)));
@@ -129,7 +171,10 @@ const TQConta = (() => {
       // O banco está pronto quando a tabela de perfis existe (schema.sql já rodou).
       async pronto() {
         const { error } = await sb.from("perfis").select("id").limit(1);
-        return !error || !/PGRST205|42P01|does not exist|Could not find the table/i.test(`${error.code} ${error.message}`);
+        if (!error) return true;
+        if (/PGRST205|42P01|does not exist|Could not find the table/i.test(`${error.code} ${error.message}`)) return false;
+        if (!error.code || /fetch|network|timeout|5\d\d/i.test(`${error.code} ${error.message}`)) throw new Error("banco fora do ar");
+        return true;
       },
       async sessao() { return perfil(); },
       async entrar(email, senha) { ok(await sb.auth.signInWithPassword({ email, password: senha })); return perfil(); },
@@ -159,17 +204,17 @@ const TQConta = (() => {
         if (feito) ok(await sb.from("checklist").upsert({ user_id: u, evento_id, item, feito: true, atualizado_em: new Date().toISOString() }));
         else ok(await sb.from("checklist").delete().match({ user_id: u, evento_id, item }));
       },
-      async registrar(evento_id, r) { ok(await sb.from("registros_noite").insert({ user_id: await uid(), evento_id, ...r })); },
+      async registrar(evento_id, r) { ok(await sb.from("registros_noite").upsert({ user_id: await uid(), evento_id, ...r }, { onConflict: "user_id,evento_id" })); },
       async meusRegistros() { return ok(await sb.from("registros_noite").select("*").eq("user_id", await uid())); },
       async vincularCodigo(codigo, nome) {
         const p = await perfil(); if (p.codigo_acesso) throw new Error("Esta conta já está vinculada. Fale com a equipe para trocar.");
         return ok(await sb.from("perfis").update({ codigo_acesso: codigo, vinculo_nome: nome }).eq("id", p.id).select().single());
       },
       async chaveInterna(tipo) { return ok(await sb.from("chaves_internas").select("codigo").eq("tipo", tipo).maybeSingle())?.codigo || null; },
-      async inscricoes() { return comPerfis(ok(await sb.from("inscricoes_artistas").select("*").order("enviado_em", { ascending: false, nullsFirst: false }))); },
-      async avaliarInscricao(iid, campos) { ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
-      async casas() { return comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false }))); },
-      async avaliarCasa(cid, campos) { ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
+      async inscricoes() { return comNotas("insc", await comPerfis(ok(await sb.from("inscricoes_artistas").select("*").order("enviado_em", { ascending: false, nullsFirst: false })))); },
+      async avaliarInscricao(iid, campos) { campos = await guardarNota("insc", iid, campos); ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
+      async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
+      async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
       async perfis() { return ok(await sb.from("perfis").select("*").order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
@@ -183,7 +228,10 @@ const TQConta = (() => {
         return { enviado: !error, erro: error ? traduz(error.message) : null };
       },
       async convites() { return ok(await sb.from("convites").select("*").order("criado_em", { ascending: false })); },
-      async cancelarConvite(email) { ok(await sb.from("convites").delete().eq("email", email)); },
+      async cancelarConvite(email) {
+        const linhas = ok(await sb.from("convites").delete().eq("email", email).select("email"));
+        if (!linhas?.length) throw new Error("Este convite já foi aceito e não pode ser cancelado. Para mudar a conta, use a aba Pessoas.");
+      },
       async marcarTutorialEnviado(email) { await sb.from("convites").update({ tutorial_enviado_em: new Date().toISOString() }).eq("email", email); },
       async enviarLinkSenha(email) {
         const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: base() });
@@ -207,7 +255,7 @@ const TQConta = (() => {
         const { error } = await sb.from("diario_uso").insert(linhas);
         if (!error) return true;
         // Linha rejeitada por tamanho ou formato: descarta o lote para a fila não travar. Tabela ausente ou rede: tenta depois.
-        if (/^(23514|22001|22P02|23502)$/.test(error.code || "")) return true;
+        if (/^(23514|22001|22P02|23502|42501)$/.test(error.code || "")) return true;   // 42501: recusado pela regra de acesso
         throw new Error(error.message);
       },
     };
@@ -216,32 +264,47 @@ const TQConta = (() => {
     if (/Invalid login credentials/i.test(m)) return "E-mail ou senha incorretos.";
     if (/Email not confirmed/i.test(m)) return "Confirme o e-mail pelo link que enviamos antes de entrar.";
     if (/already registered/i.test(m)) return "Já existe uma conta com este e-mail.";
-    if (/Password should be at least/i.test(m)) return "A senha precisa de pelo menos 6 caracteres.";
+    if (/Password should be at least/i.test(m)) return "A senha precisa de pelo menos 8 caracteres.";
     if (/rate limit|too many|security purposes/i.test(m)) return "Limite de envio de e-mails do Supabase atingido. Tente de novo em alguns minutos ou mande pelo WhatsApp.";
     if (/not allowed|not authorized|Signups not allowed/i.test(m)) return "O Supabase recusou o envio para este e-mail. Confira a configuração de e-mail do projeto.";
+    if (/Email address .* is invalid|email_address_invalid|invalid email/i.test(m)) return "Esse e-mail não parece válido. Confira se está escrito certo.";
+    if (/weak|easy to guess|pwned|leaked/i.test(m)) return "Essa senha é fácil de adivinhar ou já vazou em outro site. Escolha outra, com pelo menos 8 caracteres.";
+    if (/JWT expired|invalid JWT|session.*(missing|expired)|refresh token/i.test(m)) return "Sua sessão expirou. Saia e entre de novo.";
+    if (/duplicate key/i.test(m)) return "Isso já foi salvo. Recarregue a página para ver.";
+    if (/invalid input syntax|out of range|violates check constraint/i.test(m)) return "Algum campo tem um valor que não dá para salvar (confira os números). Se continuar, fale com a equipe.";
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "Sem conexão com a internet agora. Confira a rede e tente de novo.";
+    if (/upstream|Bad Gateway|Service Unavailable|Gateway|timeout|statement timeout|5\d\d/i.test(m)) return "O servidor teve um problema agora. Tente de novo em instantes.";
+    if (/row-level security|permission denied/i.test(m)) return "Sua conta não tem permissão para fazer isso.";
+    if (/^[\x00-\x7F]+$/.test(m) && m.length > 0) { console.warn("Mensagem do servidor:", m); return "Algo deu errado do nosso lado. Tente de novo; se continuar, fale com a equipe."; }
     return m;
   }
 
   // ---------- estado e carregamento ----------
   async function carregar(perfil) {
+    if (!perfil) throw new Error("Sua conta ainda está sendo criada. Tente entrar de novo em 1 minuto.");
     // Convite feito depois que a conta já existia: aplica ao entrar (o banco confere o e-mail confirmado).
     try { if (await api.reivindicar?.()) perfil = (await api.sessao()) || perfil; } catch { /* segue sem o convite */ }
-    S.conta = { perfil, insc: null, casa: null, chk: [], reg: [] };
-    if (perfil.tipo === "artista") S.conta.insc = await api.minhaInscricao();
-    if (perfil.tipo === "casa") { S.conta.casa = await api.minhaCasa(); S.conta.reg = await api.meusRegistros(); }
-    if (perfil.tipo === "artista" || perfil.tipo === "casa") S.conta.chk = await api.meuChecklist();
-    const cod = perfil.codigo_acesso || (["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : null);
+    // Monta tudo antes de trocar a tela: se uma leitura falhar, a pessoa continua deslogada e vê a mensagem.
+    const conta = { perfil, insc: null, casa: null, chk: [], reg: [] };
+    if (perfil.tipo === "artista") conta.insc = await api.minhaInscricao();
+    if (perfil.tipo === "casa") { conta.casa = await api.minhaCasa(); conta.reg = await api.meusRegistros(); }
+    if (perfil.tipo === "artista" || perfil.tipo === "casa") conta.chk = await api.meuChecklist();
+    S.conta = conta;
+    // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
+    const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso;
     S.pac = null; S.eq = null;
     if (cod) {
-      try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id) S.pac = pac; }
+      // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
+      try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id && pac.perfil === perfil.tipo) S.pac = pac; }
       catch { /* código antigo ou inválido: segue sem métricas */ }
     }
     S.aba = ordenarAbas(abas())[0][0];
   }
   async function iniciar() {
     if (CONFIGURADO) {
-      try { const s = await Supa(); if (await s.pronto()) { api = s; REAL = true; } }
-      catch (e) { console.error("Banco indisponível, seguindo em modo demonstração", e); }
+      const limite = (ms) => new Promise((_, erro) => setTimeout(() => erro(new Error("tempo esgotado")), ms));
+      try { const s = await Promise.race([Supa(), limite(8000)]); if (await Promise.race([s.pronto(), limite(8000)])) { api = s; REAL = true; } }
+      catch (e) { console.error("Banco de contas indisponível", e); FORA = true; api = Fora(); }
     }
     if (!api) api = Demo();
     const p = await api.sessao();
@@ -262,6 +325,18 @@ const TQConta = (() => {
   const rotuloQuem = () => `${ROTULO[S.conta.perfil.tipo]} · ${S.conta.perfil.vinculo_nome || S.conta.perfil.nome || S.conta.perfil.email}`;
 
   // ---------- formulários ----------
+  const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  // Erros de formato que a pessoa consegue corrigir (vazio é tratado por "faltando").
+  function conferirFormato(d) {
+    const e = [], url = (k, nome) => { if (d[k] && !/^https?:\/\/\S+\.\S+/i.test(String(d[k]).trim())) e.push(`${nome} precisa ser um link começando com https://`); };
+    url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto");
+    if (d.estado && !/^[A-Za-z]{2}$/.test(String(d.estado).trim())) e.push("Estado: use a sigla com 2 letras (ex.: PE)");
+    if (d.whatsapp) { const n = String(d.whatsapp).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.whatsapp)) e.push("WhatsApp: só números, com DDD (ex.: 81 99999-9999)"); }
+    for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade"]]) {
+      if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) e.push(`${nome}: só números, sem sinal de menos`);
+    }
+    return e;
+  }
   const F_ARTISTA = [
     ["Quem é você", [
       ["nome_artistico", "Nome artístico", "text", null, 1],
@@ -330,13 +405,30 @@ const TQConta = (() => {
     let inp;
     if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}</select>`;
     else if (tipo === "textarea") inp = `<textarea data-k="${k}" rows="4"${dis}>${esc(v)}</textarea>`;
-    else inp = `<input data-k="${k}" type="${tipo === "number" ? "number" : tipo === "url" ? "url" : "text"}" value="${esc(v)}"${tipo === "number" ? ' min="0" inputmode="numeric"' : ""}${dis}>`;
+    else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : "text"}" value="${esc(v)}"${tipo === "number" ? ' data-num inputmode="numeric" placeholder="ex.: 12.000"' : ` maxlength="${k === "release" ? 3000 : 300}"`}${dis}>`;
     return `<label class="fcampo"><b>${esc(rot)}${req}</b>${inp}${aj}</label>`;
   }
   const formHtml = (def, d, travado) => def.map(([titulo, cs]) => `<section class="card fsec"><h3>${esc(titulo)}</h3><div class="fgrid">${cs.map((c) => campo(c, d, travado)).join("")}</div></section>`).join("");
+  // Número como as pessoas escrevem no Brasil: "50.000" e "50 mil" são cinquenta mil; "1.200,5" é 1200.
+  // Sinal de menos é mantido para o aviso de valor inválido aparecer. Corta em 999.999.999.
+  function inteiroBR(v) {
+    let t = String(v || "").trim().toLowerCase().replace(/\s+/g, "");
+    if (!t) return "";
+    const mil = /mil$/.test(t); t = t.replace(/mil$/, "");
+    const neg = t.startsWith("-");
+    t = t.replace(/,\d*$/, "");                       // descarta decimais com vírgula
+    if (/^-?\d{1,3}(\.\d{3})+$/.test(t)) t = t.replace(/\./g, ""); // separador de milhar
+    else t = t.replace(/\.\d*$/, "");                  // decimal com ponto
+    t = t.replace(/\D/g, "");
+    if (!t) return "";
+    const n = Math.min(999999999, Number(t) * (mil ? 1000 : 1));
+    return String(neg ? -n : n);
+  }
   function lerForm(raiz) {
     const d = {};
-    raiz.querySelectorAll("[data-k]").forEach((el) => { d[el.dataset.k] = el.type === "checkbox" ? String(el.checked) : el.value.trim(); });
+    // Campos numéricos viram inteiros (12000.5 → 12000; acima de 999.999.999 é cortado): o banco calcula a
+    // pré-curadoria com números inteiros e recusaria a inscrição inteira por causa de um valor quebrado.
+    raiz.querySelectorAll("[data-k]").forEach((el) => { d[el.dataset.k] = el.type === "checkbox" ? String(el.checked) : el.hasAttribute("data-num") ? inteiroBR(el.value) : el.value.trim(); });
     const cs = [...raiz.querySelectorAll("[data-cidade]")].filter((el) => el.checked).map((el) => el.dataset.cidade);
     if (raiz.querySelector("[data-cidade]")) d.cidades_interesse = cs;
     return d;
@@ -348,9 +440,9 @@ const TQConta = (() => {
   const STATUS_CASA = { rascunho: ["", "Rascunho"], incompleto: ["b-serious", "Faltam dados mínimos"], em_analise: ["b-warn", "Em análise pela equipe"], ajustes: ["b-serious", "Ajustes pedidos"], habilitada: ["b-good", "Habilitada"], suspensa: ["b-crit", "Suspensa"] };
   const badge = (m, s) => `<span class="badge ${m[s]?.[0] || ""}">${esc(m[s]?.[1] || s)}</span>`;
   const linhaTempo = (etapas, atual) => `<ol class="tempo">${etapas.map((e, i) => `<li class="${i < atual ? "ok" : i === atual ? "agora" : ""}"><i>${i < atual ? "✓" : i + 1}</i><span>${esc(e)}</span></li>`).join("")}</ol>`;
-  const medidor = (pc) => `<div class="card"><div class="row"><b>Força da inscrição</b><span><b style="font-size:22px">${pc.score}</b><span class="muted">/100</span> <span class="badge ${pc.faixa === "Prioridade" ? "b-good" : pc.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${pc.faixa}</span></span></div>
-    <div class="progress" style="margin:10px 0"><i style="width:${pc.score}%"></i></div>
-    <div class="grid g4" style="gap:6px;font-size:13px">${[["completude", "Perfil completo", 20], ["tracao", "Público", 35], ["tecnica", "Rider", 20], ["circulacao", "Cidades da rede", 15], ["condicoes", "Condições", 10]].map(([k, t, max]) => `<div><span class="muted">${t}</span><br><b>${pc.detalhe[k]}</b>/${max}</div>`).join("")}</div>
+  const medidor = (pc) => `<div class="card"><div class="row"><b>Força da inscrição</b><span><b style="font-size:22px">${+pc.score || 0}</b><span class="muted">/100</span> <span class="badge ${pc.faixa === "Prioridade" ? "b-good" : pc.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(pc.faixa)}</span></span></div>
+    <div class="progress" style="margin:10px 0"><i style="width:${Math.max(0, Math.min(100, +pc.score || 0))}%"></i></div>
+    <div class="grid g4" style="gap:6px;font-size:13px">${[["completude", "Perfil completo", 20], ["tracao", "Público", 35], ["tecnica", "Rider", 20], ["circulacao", "Cidades da rede", 15], ["condicoes", "Condições", 10]].map(([k, t, max]) => `<div><span class="muted">${t}</span><br><b>${+pc.detalhe?.[k] || 0}</b>/${max}</div>`).join("")}</div>
     ${pc.alertas.length ? `<div style="margin-top:8px">${pc.alertas.map((a) => `<span class="pill">${esc(a)}</span>`).join("")}</div>` : ""}</div>`;
 
   function eventosDaConta() {
@@ -362,12 +454,12 @@ const TQConta = (() => {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     const ps = R.passosDaData(modelo, e.d, feitos, hojeIso());
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
-    const proximo = ps.find((p) => !p.feito);
+    const proximo = ps.find((p) => !p.feito && !p.passou);
     const registro = modelo === "casa" && e.d <= hojeIso() ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
-      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details></div>`;
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details></div>`;
   }
 
   const TELAS = {
@@ -382,18 +474,18 @@ const TQConta = (() => {
       ${i?.parecer && i.status === "ajustes" ? `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer)}</div>` : ""}
       <div id="medidor">${medidor(R.preCuradoria(d))}</div>
       <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav)}</div>
-      ${trav ? "" : `<div class="err" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar para a curadoria</button></div>`}`;
+      ${trav ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar para a curadoria</button></div>`}`;
     },
     cadastro_casa() {
-      const c = S.conta.casa, d = c?.dados || {}, parceira = c ? c.ja_parceira : S.casaParceira;
+      const c = S.conta.casa, d = c?.dados || {}, parceira = S.casaParceira ?? !!c?.ja_parceira;
       const casasConhecidas = (S.pub.casas || []);
       return `<div class="tag">Cadastro da casa</div><h1>${c ? "Ficha da casa" : "Cadastre sua casa"}</h1>
-      <p class="sub">Habilitação mínima do método V0.1: primeiro o que bloqueia a habilitação, depois o que bloqueia um match específico, por fim o que só enriquece. Você pode atualizar a ficha a qualquer momento.</p>
+      <p class="sub">A ficha tem três partes: primeiro o que falta para a casa ser habilitada, depois o que falta para receber alguns tipos de show, por fim o que só deixa a ficha mais completa. Você pode atualizar a ficha a qualquer momento.</p>
       ${c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
       <div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
-      ${parceira ? `<select id="casaNotion"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>
+      ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>
       <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_CASA, d, c?.status === "suspensa")}</div>
-      <div class="err" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">${c && ["habilitada"].includes(c.status) ? "Atualizar ficha" : "Enviar para habilitação"}</button></div>`;
+      <div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">${c && ["habilitada"].includes(c.status) ? "Atualizar ficha" : "Enviar para habilitação"}</button></div>`;
     },
     conta() {
       const p = S.conta.perfil;
@@ -401,7 +493,7 @@ const TQConta = (() => {
       return `<div class="tag">Conta</div><h1>${esc(p.nome || p.email)}</h1>
       <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
-      ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
+      ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
       <p class="muted" style="font-size:13px;margin-top:16px">Fase de testes: o site registra as telas que você abre, os cliques e os erros que aparecem, para a equipe corrigir o que travar. Nada do que você digita nos campos é gravado.</p>
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
     },
@@ -439,12 +531,12 @@ const TQConta = (() => {
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
-      <div class="filters"><select id="eqStatus"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
-      <select id="eqFaixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
+      <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
+      <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
       ${tabela("curad", [
         { t: "Artista", v: (i) => i.dados.nome_artistico, h: (i) => `<b>${esc(i.dados.nome_artistico || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(i.dados.cidade_base || "")} ${esc(i.dados.estado || "")} · ${esc(i.dados.generos || "")}</div>` },
         { t: "Pontuação", n: 1, v: (i) => i.score, h: (i) => `<b>${i.score ?? "–"}</b>` },
-        { t: "Faixa", v: (i) => i.faixa, h: (i) => i.faixa ? `<span class="badge ${i.faixa === "Prioridade" ? "b-good" : i.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${i.faixa}</span>` : "–" },
+        { t: "Faixa", v: (i) => i.faixa, h: (i) => i.faixa ? `<span class="badge ${i.faixa === "Prioridade" ? "b-good" : i.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(i.faixa)}</span>` : "–" },
         { t: "Formato", v: (i) => i.dados.formato_interesse },
         { t: "Alertas", v: (i) => (i.alertas || []).length, h: (i) => (i.alertas || []).map((a) => `<span class="pill">${esc(a)}</span>`).join("") || "–" },
         { t: "Status", v: (i) => i.status, h: (i) => badge(STATUS_INSC, i.status) },
@@ -497,7 +589,7 @@ const TQConta = (() => {
       return `<div class="tag">Pessoas</div><h1>Contas na plataforma</h1><p class="sub">Artistas e casas criam a própria conta. Equipe e administração só são definidas aqui. O vínculo liga a conta ao histórico da artista ou da casa no Notion e libera as métricas dela.</p>
       ${tabela("pess", [
         { t: "Pessoa", v: (p) => p.nome || p.email, h: (p) => `<b>${esc(p.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(p.email)}</div>` },
-        { t: "Perfil", v: (p) => p.tipo, h: (p) => `<select data-tipo="${p.id}">${Object.entries(ROTULO).map(([k, t]) => `<option value="${k}"${p.tipo === k ? " selected" : ""}>${t}</option>`).join("")}</select>` },
+        { t: "Perfil", v: (p) => p.tipo, h: (p) => `<select data-tipo="${p.id}" data-antes="${p.tipo}" aria-label="Perfil de ${esc(p.nome || p.email)}"${p.id === S.conta.perfil.id ? ' disabled title="Você não pode mudar o seu próprio perfil"' : ""}>${Object.entries(ROTULO).map(([k, t]) => `<option value="${k}"${p.tipo === k ? " selected" : ""}>${t}</option>`).join("")}</select>` },
         { t: "Vínculo", v: (p) => p.vinculo_nome || "", h: (p) => ["artista", "casa"].includes(p.tipo) ? seletorVinculo(p) : "–" },
         { t: "Criada", v: (p) => p.criado_em, h: (p) => dt(p.criado_em.slice(0, 10)) },
         { t: "Acesso", v: (p) => p.tutorial_visto_em || "", h: (p) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-link-senha="${esc(p.email)}">Enviar link de senha</button><button class="btn sm" data-enviar-tutorial="${esc(p.tipo)}|${esc(p.email)}|${esc(p.vinculo_nome || p.nome || "")}|${esc(p.whatsapp || "")}">Enviar tutorial</button></div><div class="muted" style="font-size:12px;margin-top:4px">${p.tutorial_visto_em ? "viu o tutorial em " + dt(p.tutorial_visto_em.slice(0, 10)) : "ainda não viu o tutorial"}</div>` },
@@ -517,7 +609,7 @@ const TQConta = (() => {
         <label class="fcampo"><b>Nome</b><input id="cvNome" value="${esc(pre.nome || "")}" autocomplete="off"></label>
         <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" autocomplete="off"></label>
         <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" autocomplete="off"></label>
-      </div><div class="err" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk">Enviar convite</button></div>
+      </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk">Enviar convite</button></div>
       <p class="muted" style="font-size:13px;margin-bottom:0">Os e-mails saem pelo Supabase. Sem um servidor de e-mail próprio (SMTP) configurado, o Supabase só entrega para e-mails da equipe do projeto e poucos por hora. Por isso cada convite também tem a mensagem pronta para WhatsApp.</p></div>
       <h2>Convites enviados</h2>
       ${tabela("conv", [
@@ -560,7 +652,7 @@ const TQConta = (() => {
 
   function passosArtista() {
     const p = S.conta.perfil, i = S.conta.insc, evs = eventosDaConta();
-    const etapas = ["Inscrição", "Pré-curadoria", "Curadoria", "Aprovada", "Proposta de data", "Contrato e handoff", "Pré-show", "Show", "Pós-show"];
+    const etapas = ["Inscrição", "Pré-curadoria", "Curadoria", "Aprovada", "Proposta de data", "Contrato e repasse da data", "Pré-show", "Show", "Pós-show"];
     let etapa = 0, agora = "";
     if (!i || i.status === "rascunho") {
       const falta = faltando(F_ARTISTA, i?.dados || {});
@@ -578,7 +670,8 @@ const TQConta = (() => {
         <div class="card"><b>Enquanto isso</b><ul class="passos"><li>Confira se o release, a foto e os links estão atualizados: eles vão para a sua página no site do Tranquilo.</li><li>Mantenha a disponibilidade e as cidades de interesse em dia.</li><li>Se a equipe te mandou um código de acesso, vincule na aba Conta.</li></ul></div>`;
       else if (!evs.length) agora = `<div class="alert good"><b>Aprovada e vinculada como ${esc(p.vinculo_nome)}</b>Nenhuma data em andamento agora. Quando uma data for confirmada, os passos aparecem aqui.</div>`;
     }
-    if (p.codigo_acesso && evs.length && (!i || i.status === "aprovada" || !i)) etapa = Math.max(etapa, 6);
+    // Artista que já é da rede (vinculada, com datas) não precisa de inscrição: o aviso de inscrição sai.
+    if (p.codigo_acesso && evs.length && (!i || ["rascunho", "aprovada"].includes(i.status))) { etapa = Math.max(etapa, 6); if (!i || i.status === "rascunho") agora = ""; }
     const comoFunciona = etapa < 2 ? `<h2>Como funciona</h2><div class="grid g3">${[["1", "Inscrição", "Release, links, rider e as cidades onde quer tocar. A pré-curadoria mostra na hora a força da inscrição."], ["2", "Curadoria", "A equipe do Tranquilo avalia e responde por aqui: aprovada, ajustes ou não seguiu desta vez."], ["3", "Datas", "Com a data confirmada, cada show ganha um passo a passo com prazos, do material de divulgação ao pós-show."]].map(([n, t, x]) => `<div class="card"><div class="kpi"><div class="v" style="color:var(--violet)">${n}</div></div><h3 style="margin-top:12px">${t}</h3><p class="muted" style="margin:0">${x}</p></div>`).join("")}</div>` : "";
     return `<div class="tag">Artista</div><h1>Olá, ${esc(p.nome || i?.dados?.nome_artistico || "")}</h1>
     <p class="sub">Aqui fica o que você precisa fazer em cada etapa, do cadastro ao pós-show.</p>
@@ -590,7 +683,7 @@ const TQConta = (() => {
     const etapas = ["Cadastro", "Dados mínimos", "Análise da equipe", "Habilitada", "Primeira data", "Classificação"];
     let etapa = 0, agora = "";
     const pend = c?.pendencias || R.pendenciasCasa(c?.dados || {});
-    const listaPend = `<div class="grid g3" style="margin-top:10px">${[["habilitacao", "Bloqueia a habilitação", "b-crit"], ["match", "Bloqueia alguns matches", "b-warn"], ["enriquecimento", "Enriquece a ficha", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><ul class="passos">${pend[k].map((x) => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>Nada pendente</li>"}</ul></div>`).join("")}</div>`;
+    const listaPend = `<div class="grid g3" style="margin-top:10px">${[["habilitacao", "Bloqueia a habilitação", "b-crit"], ["match", "Falta para alguns shows", "b-warn"], ["enriquecimento", "Enriquece a ficha", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><ul class="passos">${pend[k].map((x) => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>Nada pendente</li>"}</ul></div>`).join("")}</div>`;
     if (!c || c.status === "rascunho") agora = `<div class="alert warn"><b>Complete o cadastro da casa</b>Com os dados mínimos, a casa entra na fila de habilitação.<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Abrir cadastro →</button></div></div>${listaPend}`;
     else if (c.status === "incompleto") { etapa = 1; agora = `<div class="alert crit"><b>Faltam dados mínimos para habilitar</b><div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Completar cadastro →</button></div></div>${listaPend}`; }
     else if (c.status === "em_analise") { etapa = 2; agora = `<div class="alert"><b>Cadastro com a equipe</b>A equipe confere os dados e responde aqui.</div>${listaPend}`; }
@@ -602,7 +695,7 @@ const TQConta = (() => {
     }
     if (!c && p.codigo_acesso && evs.length) etapa = 4;
     return `<div class="tag">Casa</div><h1>${esc(p.vinculo_nome || c?.dados?.nome || p.nome || "Sua casa")}</h1>
-    <p class="sub">Depois do handoff, a casa produz a data e registra prontidão, público e ocorrências. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
+    <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e registra prontidão, público e ocorrências. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
     ${linhaTempo(etapas, etapa)}${agora}
     ${evs.length ? `<h2>Suas datas</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : ""}
     ${S.conta.reg.length ? `<h2>Noites registradas</h2><div class="list">${S.conta.reg.map((r) => `<div class="card row"><span>${esc(S.pac?.eventos.find((e) => e.id === r.evento_id)?.n || r.evento_id)}</span><span>${r.publico != null ? fmt(r.publico) + " pessoas" : ""} ${r.gravidade === "excecao" ? '<span class="badge b-crit">exceção</span>' : ""}</span></div>`).join("")}</div>` : ""}`;
@@ -636,14 +729,14 @@ const TQConta = (() => {
   function fichaInscricao(id) {
     const i = S.eq.insc.find((x) => x.id === id); if (!i) return;
     const d = i.dados, adm = S.conta.perfil.tipo === "adm";
-    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("");
+    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(urlSegura(v))}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("");
     $("#dlgIn").innerHTML = `<div class="tag">Inscrição · ${badge(STATUS_INSC, i.status)}</div><h2 style="margin-top:4px">${esc(d.nome_artistico || "(sem nome)")}</h2><p class="muted">${esc(i.perfil?.email || "")}${i.enviado_em ? ` · enviada em ${dt(i.enviado_em.slice(0, 10))}` : ""}</p>
     ${medidor({ score: i.score ?? 0, faixa: i.faixa || "–", detalhe: i.score_detalhe || { completude: 0, tracao: 0, tecnica: 0, circulacao: 0, condicoes: 0 }, alertas: i.alertas || [] })}
     ${resp}
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button><button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button><button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "insc:" + id; $("#dlg").showModal();
   }
   function fichaCasa(id) {
@@ -657,37 +750,37 @@ const TQConta = (() => {
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
     ${adm && c.perfil ? `<label class="fcampo"><b>Vincular à casa da rede (libera métricas)</b>${seletorVinculo(c.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "casa:" + id; $("#dlg").showModal();
   }
   function fichaRegistro(eventoId) {
     const e = S.pac?.eventos.find((x) => x.id === eventoId);
     $("#dlgIn").innerHTML = `<div class="tag">Registrar a noite</div><h2 style="margin-top:4px">${e ? `${dt(e.d)} · ${esc(e.c)}` : ""}</h2><p class="sub">Problema ordinário: resolva e registre. Exceção crítica: registre e avise a equipe na hora.</p>
-    <label class="fcampo"><b>Público presente (pessoas)</b><input id="rpub" type="number" min="0" inputmode="numeric"></label>
+    <label class="fcampo"><b>Público presente (pessoas)</b><input id="rpub" type="text" inputmode="numeric" placeholder="ex.: 120"></label>
     <label class="fcampo"><b>Ocorrência (opcional)</b><textarea id="rocc" rows="3" placeholder="O que aconteceu"></textarea></label>
     <label class="fcampo"><b>Gravidade</b><select id="rgrav"><option value="ordinaria">Ordinária: resolvida pela casa</option><option value="excecao">Exceção crítica: precisa do Tranquilo</option></select></label>
     <label class="fcampo"><b>Como resolveu</b><textarea id="rres" rows="2"></textarea></label>
-    <div class="barra-acoes"><button class="btn pri" id="rsalvar">Registrar</button><button class="btn" onclick="dlg.close()">Cancelar</button></div><div class="err" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" id="rsalvar">Registrar</button><button class="btn" onclick="dlg.close()">Cancelar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "reg:" + eventoId; $("#dlg").showModal();
   }
 
   // ---------- entrada (público) ----------
   function formEntrada() {
     const modo = S.entrada || "entrar";
-    const demo = REAL ? "" : `<div class="alert warn" style="margin-bottom:14px"><b>Modo demonstração</b>As contas e respostas ficam só neste navegador, para testar os fluxos. Atalhos: <a href="#" data-demo="equipe">entrar como equipe</a> · <a href="#" data-demo="adm">entrar como administração</a></div>`;
+    const demo = avisoConta();
     const tipoSel = S.tipoNovo || "artista";
     const email = modo === "criar" ? `<h3>Criar conta</h3><p class="dica">Leva um minuto. Depois você completa a inscrição ou a ficha da casa no seu ritmo.</p>
       <div class="seg" role="radiogroup" aria-label="Tipo de conta"><label><input type="radio" name="tipoNovo" value="artista"${tipoSel === "artista" ? " checked" : ""}> Sou artista</label><label><input type="radio" name="tipoNovo" value="casa"${tipoSel === "casa" ? " checked" : ""}> Tenho uma casa</label></div>
       <label class="fcampo"><b>${tipoSel === "casa" ? "Seu nome (responsável)" : "Nome artístico"}</b><input id="enome" autocomplete="name"></label>
       <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
-      <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="6" placeholder="pelo menos 6 caracteres"></label>
-      <div class="err" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Criar conta</button>
+      <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="8" placeholder="pelo menos 8 caracteres"></label>
+      <div class="err" role="status" aria-live="polite" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Criar conta</button>
       <p class="aceite-legal">Ao criar a conta, você concorda com os <a href="https://tranquilomusica.com.br/termos-de-uso" target="_blank" rel="noopener">Termos de Uso</a> e a <a href="https://tranquilomusica.com.br/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> do Tranquilo.</p>
       <p class="links">Já tem conta? <a href="#" data-entrada="entrar">Entrar</a></p>`
       : `<h3>Entrar</h3><p class="dica">Com o e-mail e a senha da sua conta.</p>
       <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
       <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="current-password"></label>
-      <div class="err" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Entrar</button>
+      <div class="err" role="status" aria-live="polite" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Entrar</button>
       <p class="links"><a href="#" data-entrada="criar">Criar conta de artista ou casa</a> · <a href="#" id="esqueci">Esqueci a senha</a></p>`;
     return `${demo}<div class="entrada"><div class="card login" style="max-width:none">${email}</div><div class="card login" style="max-width:none"><h3>Recebeu um código?</h3><p class="dica">A equipe manda um código XXXX-XXXX-XXXX para quem já está na rede. Ele abre o seu painel sem senha.</p>${formLogin()}</div></div>`;
   }
@@ -703,6 +796,7 @@ const TQConta = (() => {
     TQTour.abrir(tipo, {
       // Atalhos para abas só fazem sentido com a conta aberta; pelo link público o tutorial é só leitura.
       aoIr: S.conta ? (aba) => { if (S.conta && abas().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } } : null,
+      temAba: S.conta ? (aba) => abas().some(([k]) => k === aba) : null,
       aoFechar: async () => {
         if (!primeira || !S.conta) return;
         S.conta.perfil.tutorial_visto_em = new Date().toISOString();
@@ -715,7 +809,7 @@ const TQConta = (() => {
     <p class="sub">Você entrou pelo link do e-mail. Escolha uma senha para as próximas vezes.</p>
     <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8"></label>
     <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
-    <div class="err" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button></div>`;
+    <div class="err" role="status" aria-live="polite" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button></div>`;
     $("#dlg").dataset.alvo = "senha"; $("#dlg").showModal(); setTimeout(() => $("#ns1")?.focus(), 30);
   }
 
@@ -734,7 +828,7 @@ const TQConta = (() => {
     const mail = `mailto:${encodeURIComponent(email || "")}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(texto)}`;
     $("#dlgIn").innerHTML = `<div class="tag">Enviar</div><h2 style="margin-top:4px">${esc(titulo)}</h2>
     ${aviso ? `<div class="alert ${/não saiu|demonstração/.test(aviso) ? "warn" : "good"}" style="margin-bottom:10px">${esc(aviso)}</div>` : ""}
-    <textarea id="envTxt" rows="7" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(texto)}</textarea>
+    <textarea id="envTxt" aria-label="Mensagem a enviar" rows="7" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(texto)}</textarea>
     <p class="muted" style="font-size:13px">O botão abre o WhatsApp ou o seu programa de e-mail com a mensagem pronta. Nada é enviado sem você confirmar lá.</p>
     <div class="barra-acoes"><a class="btn pri" data-envio href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn" data-envio href="${esc(mail)}">E-mail</a><button class="btn" data-copiar-envio>Copiar mensagem</button><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
     $("#dlg").dataset.alvo = "envio"; S.aoEnviar = aoEnviar; $("#dlg").showModal();
@@ -746,10 +840,14 @@ const TQConta = (() => {
   const resultadoEnvio = (r, oque) => r.demo ? `No modo demonstração nenhum e-mail sai. Use o WhatsApp ou o e-mail abaixo.` : r.enviado ? `${oque} enviado por e-mail.` : `O e-mail não saiu: ${r.erro} Use o WhatsApp ou o e-mail abaixo.`;
 
   // ---------- eventos ----------
-  document.addEventListener("click", async (ev) => {
+  async function cliques(ev) {
     const t = ev.target;
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); S.aba = ir.dataset.ir; render(); scrollTo(0, 0); return; }
-    const ent = t.closest("[data-entrada]"); if (ent) { ev.preventDefault(); S.entrada = ent.dataset.entrada; render(); $("#email")?.scrollIntoView({ block: "center" }); return; }
+    const ent = t.closest("[data-entrada]"); if (ent) {
+      ev.preventDefault(); const em = $("#email")?.value || ""; S.entrada = ent.dataset.entrada; render();
+      if ($("#email")) $("#email").value = em;
+      $("#email")?.scrollIntoView({ block: "center" }); ($("#enome") || $("#email"))?.focus({ preventScroll: true }); return;
+    }
     const dm = t.closest("[data-demo]"); if (dm) {
       ev.preventDefault(); const tipo = dm.dataset.demo, email = `${tipo}@demo.tranquilo`;
       try { await api.entrar(email, "demo123"); } catch { await api.cadastrar({ email, senha: "demo123", nome: tipo === "adm" ? "Administração (demo)" : "Equipe (demo)", tipo }); }
@@ -761,7 +859,8 @@ const TQConta = (() => {
       try {
         if ((S.entrada || "entrar") === "criar") {
           const nome = $("#enome").value.trim();
-          if (!nome || !email || senha.length < 6) { err.textContent = "Preencha nome, e-mail e uma senha com pelo menos 6 caracteres."; return; }
+          if (!nome || !email || senha.length < 8) { err.textContent = "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres."; return; }
+          if (!EMAIL_OK.test(email)) { err.textContent = "Esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)."; $("#email").focus(); return; }
           const r = await api.cadastrar({ email, senha, nome, tipo: S.tipoNovo || "artista" });
           if (r.confirmar) { err.textContent = ""; $("#eok").outerHTML = `<div class="alert good"><b>Confira seu e-mail</b>Enviamos um link de confirmação para ${esc(email)}. Depois de confirmar, entre com e-mail e senha.</div>`; return; }
           return aposEntrar(r.perfil);
@@ -780,7 +879,9 @@ const TQConta = (() => {
       const enviar = t.id === "enviar", raiz = $("#form"), d = lerForm(raiz), err = $("#ferr");
       const casa = S.conta.perfil.tipo === "casa";
       const falta = faltando(casa ? F_CASA : F_ARTISTA, d);
-      if (enviar && falta.length && !casa) { err.textContent = `Faltam: ${falta.join(", ")}.`; return; }
+      if (enviar && falta.length && !casa) { err.textContent = `Faltam: ${falta.join(", ").replace(/\.+$/, "")}. Os campos com * são obrigatórios.`; return; }
+      const erros = enviar ? conferirFormato(d) : [];
+      if (erros.length) { err.textContent = `Confira antes de enviar: ${erros.join("; ")}.`; return; }
       err.textContent = "Salvando…";
       try {
         if (casa) {
@@ -805,7 +906,8 @@ const TQConta = (() => {
     if (t.id === "sairConta") { await sairDeTudo(); return; }
     const reg = t.closest("[data-registrar]"); if (reg) return fichaRegistro(reg.dataset.registrar);
     if (t.id === "rsalvar") {
-      const eventoId = $("#dlg").dataset.alvo.slice(4), pub = $("#rpub").value;
+      const eventoId = $("#dlg").dataset.alvo.slice(4), pub = inteiroBR($("#rpub").value);
+      if (pub !== "" && (+pub < 0 || +pub > 20000)) { $("#derr").textContent = "Confira o público: um número entre 0 e 20.000 pessoas."; $("#rpub").focus(); return; }
       try {
         await api.registrar(eventoId, { publico: pub === "" ? null : +pub, ocorrencia: $("#rocc").value.trim() || null, gravidade: $("#rgrav").value, como_resolveu: $("#rres").value.trim() || null });
         S.conta.reg = await api.meusRegistros();
@@ -820,6 +922,9 @@ const TQConta = (() => {
       if (status) campos.status = status;
       if (tipo === "casa") campos.classificacao = $("#classe").value || null;
       if (status === "ajustes" && !campos.parecer) { $("#derr").textContent = "Escreva na mensagem o que precisa ser ajustado."; return; }
+      // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
+      if (status === "reprovada" && !campos.parecer) { $("#derr").textContent = "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."; $("#parecer").focus(); return; }
+      if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;
       try {
         if (tipo === "insc") await api.avaliarInscricao(id, campos); else await api.avaliarCasa(id, campos);
         const v = $("#dlg").querySelector("[data-vinculo]");
@@ -879,11 +984,32 @@ const TQConta = (() => {
     if (t.id === "avOk") { await avisarCidade(); return; }
     const cl = t.closest("[data-click]");
     if (cl && /^(insc|casacad):/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); const [k, id] = cl.dataset.click.split(":"); return k === "insc" ? fichaInscricao(id) : fichaCasa(id); }
+  }
+  // Um clique por vez: enquanto a ação de um botão não termina, novos cliques nele são ignorados
+  // (evita conta, inscrição, convite ou registro em dobro). Antes de o banco responder, nada é enviado.
+  document.addEventListener("click", async (ev) => {
+    const b = ev.target.closest("button, a[data-demo]");
+    if (b?.dataset.ocupado) { ev.preventDefault(); ev.stopImmediatePropagation(); return; }
+    if (!api && ev.target.closest("#eok, #esqueci, [data-demo], #avOk, #salvar, #enviar")) {
+      ev.preventDefault(); ev.stopImmediatePropagation();
+      const e = $("#eerr") || $("#averr") || $("#ferr"); if (e) e.textContent = "Conectando às contas… tente de novo em alguns segundos.";
+      return;
+    }
+    if (b) b.dataset.ocupado = "1";
+    try { await cliques(ev); }
+    catch (e) { console.error(e); const m = $("#eerr") || $("#ferr") || $("#derr") || $("#averr"); if (m) m.textContent = traduz(e.message || ""); }
+    finally { if (b) delete b.dataset.ocupado; }
   }, true);
 
   document.addEventListener("change", async (ev) => {
     const t = ev.target;
-    if (t.name === "tipoNovo") { S.tipoNovo = t.value; const n = $("#enome")?.value, e = $("#email")?.value; render(); if ($("#enome")) { $("#enome").value = n || ""; $("#email").value = e || ""; } return; }
+    if (t.name === "tipoNovo") {
+      S.tipoNovo = t.value; const n = $("#enome")?.value, e = $("#email")?.value, sn = $("#esenha")?.value;
+      render();
+      if ($("#enome")) { $("#enome").value = n || ""; $("#email").value = e || ""; if ($("#esenha")) $("#esenha").value = sn || ""; }
+      document.querySelector(`input[name="tipoNovo"][value="${t.value}"]`)?.focus();
+      return;
+    }
     if (t.name === "parceira") { S.casaParceira = t.value === "sim"; const d = lerForm($("#form")); render(); $("#form").innerHTML = formHtml(F_CASA, d, false); return; }
     if (t.id === "casaNotion" && t.value && t.value !== "outra") {
       const c = (S.pub.casas || []).find((x) => x.id === t.value);
@@ -896,7 +1022,13 @@ const TQConta = (() => {
       catch (e) { alert(e.message); t.checked = !t.checked; }
       return;
     }
-    if (t.dataset?.tipo) { try { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value }); S.eq = null; render(); } catch (e) { alert(e.message); } return; }
+    if (t.dataset?.tipo) {
+      // Mudar perfil muda o que a pessoa vê (e pode dar acesso de equipe): só com confirmação.
+      const nome = t.closest("tr")?.querySelector("b")?.textContent || "esta conta";
+      if (!confirm(`Mudar o perfil de ${nome} de ${ROTULO[t.dataset.antes] || t.dataset.antes} para ${ROTULO[t.value]}? O vínculo com o histórico atual é desfeito.`)) { t.value = t.dataset.antes; return; }
+      try { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value, codigo_acesso: null, vinculo_nome: null }); S.eq = null; render(); document.querySelector(`[data-tipo="${t.dataset.tipo}"]`)?.focus(); } catch (e) { alert(e.message); t.value = t.dataset.antes; }
+      return;
+    }
     if (t.dataset?.vinculo && !t.closest("dialog")) {
       const [codigo, nome] = t.value ? t.value.split("|") : [null, null];
       try { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); } catch (e) { alert(e.message); }
@@ -910,8 +1042,29 @@ const TQConta = (() => {
   document.addEventListener("input", (ev) => {
     const t = ev.target;
     if (t.closest("#form") && S.aba === "inscricao") { const m = $("#medidor"); if (m) m.innerHTML = medidor(R.preCuradoria(lerForm($("#form")))); }
+    if (t.closest("#form") && ["inscricao", "cadastro_casa"].includes(S.aba)) { clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200); }
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
+
+  // Salvamento automático do rascunho (inscrição da artista e cadastro da casa), 1,2 s depois da última
+  // alteração e também antes de trocar de aba. Atualiza o estado local na hora para a troca de aba não apagar nada.
+  function salvarPendente() {
+    clearTimeout(S.tauto); S.tauto = null;
+    const raiz = $("#form"); if (!raiz || !S.conta || !raiz.querySelector("[data-k]:not(:disabled)")) return Promise.resolve();
+    const d = lerForm(raiz), casa = S.conta.perfil.tipo === "casa";
+    const msg = (t) => { const e = $("#ferr"); if (e) e.textContent = t; };
+    let p;
+    if (casa) {
+      const parceira = document.querySelector('input[name="parceira"]:checked')?.value === "sim", notion = parceira ? $("#casaNotion")?.value : null;
+      S.conta.casa = { ...(S.conta.casa || { status: "rascunho" }), dados: d, ja_parceira: parceira, notion_casa_id: notion };
+      p = api.salvarCasa(d, { enviar: false, ja_parceira: parceira, notion_casa_id: notion }).then((c) => { S.conta.casa = c; });
+    } else {
+      S.conta.insc = { ...(S.conta.insc || { status: "rascunho" }), dados: d };
+      p = api.salvarInscricao(d, false).then((i) => { S.conta.insc = i; });
+    }
+    msg("Salvando…");
+    return p.then(() => msg(`Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não deu para salvar agora (${e.message}). Tente "Salvar rascunho".`));
+  }
 
   // ---------- público: "me avise de shows na minha cidade" ----------
   async function avisarCidade() {
@@ -932,7 +1085,7 @@ const TQConta = (() => {
       <button type="button" class="loc-btn" data-avloc>📍 Usar minha localização</button><span class="aceite-legal" id="avLocNota" style="margin:0"></span></label>
       <label class="fcampo"><b>E-mail ou WhatsApp</b><input id="avContato" autocomplete="email" placeholder="voce@email.com ou (11) 99999-9999"></label>
       <label class="fcheck"><input type="checkbox" id="avOk2"> <span>Autorizo o Tranquilo a me avisar de shows nesta cidade, inclusive pelo WhatsApp Business se eu deixar meu número. Dá para pedir para sair a qualquer momento. Veja a <a href="https://tranquilomusica.com.br/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e a <a href="https://tranquilomusica.com.br/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</span></label></div>
-      <div class="err" id="averr"></div><button class="btn sun lg" id="avOk">Me avise</button></div>`;
+      <div class="err" role="status" aria-live="polite" id="averr"></div><button class="btn sun lg" id="avOk">Me avise</button></div>`;
   }
   function tutorialPublico(forcar) {
     if (S.conta || TQTour.aberto()) return;
@@ -943,5 +1096,5 @@ const TQConta = (() => {
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; render(); scrollTo(0, 0); }
 
   const diario = (linhas) => (api ? api.diario(linhas) : false);
-  return { get REAL() { return REAL; }, diario, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial };
+  return { get REAL() { return REAL; }, diario, get FORA() { return FORA; }, avisoConta, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

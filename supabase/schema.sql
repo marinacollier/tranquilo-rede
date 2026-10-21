@@ -461,7 +461,281 @@ grant select, delete on avisos_cidade to authenticated;
 revoke all on function reivindicar_convite() from public, anon;
 grant execute on function reivindicar_convite() to authenticated;
 
--- ---------- v3: diário de uso e cópia dos registros do Supabase ----------
+-- =====================================================================
+-- v3: correções do QA de 21/10/2026 (backend e segurança). Idempotente.
+-- =====================================================================
+
+-- Números vindos do formulário: espelha parseInt do navegador (até 9 dígitos) e nunca derruba o salvamento.
+create or replace function int_seguro(v text) returns int
+language sql immutable set search_path = public as $$
+  select coalesce(nullif(substring(coalesce(v, '') from '^\s*(-?\d{1,9})'), '')::int, 0)
+$$;
+
+create or replace function pre_curadoria(d jsonb, cidades_rede text[] default array[
+  'São Paulo','Belo Horizonte','Rio de Janeiro','Brasília','Curitiba','Florianópolis','Porto Alegre',
+  'Campinas','Santos','Santo André','Sorocaba','Itajaí','Salvador','Recife']) returns jsonb
+language plpgsql immutable set search_path = public as $$
+declare
+  ouvintes int := int_seguro(d ->> 'ouvintes_mensais');
+  seguidores int := int_seguro(d ->> 'seguidores_instagram');
+  links int := (case when coalesce(d ->> 'spotify', '') <> '' then 1 else 0 end)
+             + (case when coalesce(d ->> 'youtube', '') <> '' then 1 else 0 end)
+             + (case when coalesce(d ->> 'outro_link', '') <> '' then 1 else 0 end);
+  integrantes int := case when coalesce(d ->> 'integrantes', '') = '' then 1 else int_seguro(d ->> 'integrantes') end;
+  cache int := int_seguro(d ->> 'cache_minimo');
+  cidades jsonb := case when jsonb_typeof(d -> 'cidades_interesse') = 'array' then d -> 'cidades_interesse' else '[]'::jsonb end;
+  cidades_ok int := 0;
+  completude int := 0; tracao int := 0; tecnica int := 0; circulacao int := 0; condicoes int := 0;
+  total int; faixa text; alertas jsonb := '[]'::jsonb;
+begin
+  if length(coalesce(d ->> 'release', '')) >= 200 then completude := completude + 5; end if;
+  if coalesce(d ->> 'foto', '') <> '' then completude := completude + 5; end if;
+  if links >= 2 then completude := completude + 5; end if;
+  if coalesce(d ->> 'contato_producao', '') <> '' then completude := completude + 5; end if;
+  tracao := case when ouvintes >= 50000 then 20 when ouvintes >= 10000 then 15 when ouvintes >= 2000 then 10 when ouvintes >= 500 then 5 else 0 end
+          + case when seguidores >= 20000 then 15 when seguidores >= 5000 then 10 when seguidores >= 1000 then 5 else 0 end;
+  tecnica := case d ->> 'rider_tipo' when 'circulavel' then 20 when 'condicionado' then 10 when 'especial' then 3 else 0 end;
+  select count(*) into cidades_ok from jsonb_array_elements(cidades) c
+  where jsonb_typeof(c) = 'string' and c #>> '{}' = any (cidades_rede);
+  circulacao := least(15, cidades_ok * 5);
+  condicoes := case when (d ->> 'aceita_bonus') = 'true' then 10 when cache > 0 and cache <= 800 then 5 else 0 end;
+  total := completude + tracao + tecnica + circulacao + condicoes;
+  faixa := case when total >= 65 then 'Prioridade' when total >= 40 then 'Avaliar' else 'Abaixo do corte' end;
+  if links = 0 then alertas := alertas || '["Sem link de áudio ou vídeo"]'::jsonb; end if;
+  if integrantes > 5 then alertas := alertas || '["Formação com mais de 5 pessoas: rota condicionada"]'::jsonb; end if;
+  if d ->> 'rider_tipo' = 'especial' then alertas := alertas || '["Rider de produção especial"]'::jsonb; end if;
+  if cache > 1500 then alertas := alertas || '["Cachê mínimo acima de R$ 1.500"]'::jsonb; end if;
+  if cidades_ok = 0 then alertas := alertas || '["Nenhuma cidade de interesse na rede atual"]'::jsonb; end if;
+  return jsonb_build_object(
+    'score', total, 'faixa', faixa, 'alertas', alertas,
+    'detalhe', jsonb_build_object('completude', completude, 'tracao', tracao, 'tecnica', tecnica, 'circulacao', circulacao, 'condicoes', condicoes)
+  );
+end $$;
+
+create or replace function pendencias_casa(d jsonb) returns jsonb
+language plpgsql immutable set search_path = public as $$
+declare hab jsonb := '[]'::jsonb; mat jsonb := '[]'::jsonb; enr jsonb := '[]'::jsonb;
+begin
+  if coalesce(d ->> 'responsavel', '') = '' then hab := hab || '["Responsável local"]'; end if;
+  if coalesce(d ->> 'whatsapp', '') = '' then hab := hab || '["WhatsApp do responsável"]'; end if;
+  if coalesce(d ->> 'endereco', '') = '' or coalesce(d ->> 'cidade', '') = '' then hab := hab || '["Endereço e cidade"]'; end if;
+  if int_seguro(d ->> 'capacidade') <= 0 then hab := hab || '["Capacidade de público"]'; end if;
+  if coalesce(d ->> 'som', '') in ('', 'nao_tem') then hab := hab || '["Como resolve o som (PA próprio ou parceiro técnico)"]'; end if;
+  if (d ->> 'aceite_responsabilidades') is distinct from 'true' then hab := hab || '["Aceite da matriz de responsabilidades da casa"]'; end if;
+  if coalesce(d ->> 'palco', '') = '' then mat := mat || '["Medidas do palco"]'; end if;
+  if coalesce(d ->> 'microfones', '') = '' then mat := mat || '["Microfones e DIs disponíveis"]'; end if;
+  if coalesce(d ->> 'luz', '') = '' then mat := mat || '["Luz (frontal para rosto)"]'; end if;
+  if coalesce(d ->> 'restricoes', '') = '' then mat := mat || '["Restrições de horário e volume"]'; end if;
+  if coalesce(d ->> 'camarim', '') = '' then mat := mat || '["Camarim"]'; end if;
+  if coalesce(d ->> 'backline', '') = '' then enr := enr || '["Backline"]'; end if;
+  if coalesce(d ->> 'acessibilidade', '') = '' then enr := enr || '["Acessibilidade"]'; end if;
+  if coalesce(d ->> 'instagram', '') = '' then enr := enr || '["Instagram"]'; end if;
+  if coalesce(d ->> 'como_chegar', '') = '' then enr := enr || '["Como chegar (transporte e estacionamento)"]'; end if;
+  return jsonb_build_object('habilitacao', hab, 'match', mat, 'enriquecimento', enr);
+end $$;
+
+-- Perfil: vínculo só muda de vazio para um código (ou pela adm); a última adm não se rebaixa.
+create or replace function proteger_perfil() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if current_setting('tq.sistema', true) = '1' then return new; end if;
+  if not eh_adm() then
+    new.tipo := old.tipo;
+    new.email := old.email;
+    if old.codigo_acesso is not null or new.codigo_acesso is not distinct from old.codigo_acesso then
+      new.codigo_acesso := old.codigo_acesso;
+      new.vinculo_nome := old.vinculo_nome;
+    end if;
+  elsif old.tipo = 'adm' and new.tipo <> 'adm' and (select count(*) from perfis where tipo = 'adm') <= 1 then
+    raise exception 'Esta é a última conta de administração: promova outra pessoa antes.';
+  end if;
+  return new;
+end $$;
+
+-- Inscrição: datas e avaliação vêm só do banco; a equipe avalia, mas não reescreve dados nem score.
+create or replace function antes_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  new.atualizado_em := now();
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    new.user_id := old.user_id; new.dados := old.dados; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    new.score := old.score; new.faixa := old.faixa; new.score_detalhe := old.score_detalhe; new.alertas := old.alertas;
+    if new.status is distinct from old.status then new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if old.status not in ('rascunho', 'ajustes') then
+      raise exception 'Inscrição em análise: aguarde o retorno da curadoria.';
+    end if;
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+  else
+    new.parecer := null; new.nota_interna := null; new.avaliado_por := null; new.avaliado_em := null;
+    new.criado_em := now(); new.enviado_em := null;
+  end if;
+  if new.status not in ('rascunho', 'em_curadoria') then
+    new.status := coalesce(old.status, 'rascunho');
+  end if;
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
+  return new;
+end $$;
+
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    new.user_id := old.user_id; new.dados := old.dados; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    if old.status in ('habilitada', 'suspensa') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+
+-- Adm da lista inicial só depois de confirmar o e-mail (ninguém "ocupa" o e-mail antes do dono).
+create or replace function novo_usuario() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  pedido text := coalesce(new.raw_user_meta_data ->> 'tipo', 'artista');
+begin
+  insert into perfis (id, email, nome, tipo, senha_definida)
+  values (
+    new.id, lower(new.email), coalesce(new.raw_user_meta_data ->> 'nome', ''),
+    case
+      when new.email_confirmed_at is not null and exists (select 1 from admins_iniciais where email = lower(new.email)) then 'adm'::tipo_perfil
+      when pedido = 'casa' then 'casa'::tipo_perfil
+      else 'artista'::tipo_perfil
+    end,
+    coalesce(new.encrypted_password, '') <> ''
+  ) on conflict (id) do nothing;
+  if new.email_confirmed_at is not null then perform aplicar_convite(new.id, new.email); end if;
+  return new;
+end $$;
+
+create or replace function ao_confirmar_email() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    if exists (select 1 from admins_iniciais where email = lower(new.email)) then
+      perform set_config('tq.sistema', '1', true);
+      update perfis set tipo = 'adm' where id = new.id;
+      perform set_config('tq.sistema', '', true);
+    end if;
+    perform aplicar_convite(new.id, new.email);
+  end if;
+  return new;
+end $$;
+
+-- Convite para equipe/adm não carrega vínculo de artista/casa; convite da equipe nunca rebaixa equipe/adm.
+create or replace function aplicar_convite(uid uuid, mail text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites; atual tipo_perfil;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  select tipo into atual from perfis where id = uid;
+  if atual in ('equipe', 'adm') and not exists (select 1 from perfis where id = c.criado_por and tipo = 'adm') then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
+  perform set_config('tq.sistema', '1', true);
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.codigo_acesso, p.codigo_acesso) end,
+    vinculo_nome = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.vinculo_nome, p.vinculo_nome) end
+  where p.id = uid;
+  perform set_config('tq.sistema', '', true);
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+revoke all on function aplicar_convite(uuid, text) from public, anon, authenticated;
+
+alter table convites alter column criado_por set default auth.uid();
+drop policy if exists conv_criar on convites;
+create policy conv_criar on convites for insert with check (
+  criado_por = auth.uid() and (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa')
+    and not exists (select 1 from perfis p where p.email = convites.email and p.tipo in ('equipe', 'adm'))))
+);
+drop policy if exists conv_editar on convites;
+create policy conv_editar on convites for update
+  using (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa') and aceito_em is null))
+  with check (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa') and aceito_em is null
+    and not exists (select 1 from perfis p where p.email = convites.email and p.tipo in ('equipe', 'adm'))));
+
+-- "Me avise": sem duplicata por espaço, formato do contato conferido, data do banco e freio contra enxurrada.
+drop index if exists avisos_unico;
+create unique index if not exists avisos_unico_v3 on avisos_cidade (lower(btrim(cidade)), lower(btrim(contato)));
+alter table avisos_cidade drop constraint if exists aviso_contato_formato;
+alter table avisos_cidade add constraint aviso_contato_formato check (
+  (canal = 'email' and contato ~* '^[^@[:space:]]+@[^@[:space:]]+\.[^@[:space:]]+$') or (canal = 'whatsapp' and contato ~ '^[0-9]{10,13}$')) not valid;
+create or replace function antes_aviso() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.id := gen_random_uuid(); new.criado_em := now();
+  new.cidade := btrim(new.cidade); new.contato := lower(btrim(new.contato));
+  if (select count(*) from avisos_cidade where criado_em > now() - interval '1 minute') >= 30 then
+    raise exception 'Muitos pedidos agora. Tente de novo em instantes.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_aviso on avisos_cidade;
+create trigger trg_aviso before insert on avisos_cidade for each row execute function antes_aviso();
+
+-- Registro da noite: só casa, público não negativo.
+alter table registros_noite drop constraint if exists publico_nao_negativo;
+alter table registros_noite add constraint publico_nao_negativo check (publico is null or publico >= 0) not valid;
+drop policy if exists reg_gravar on registros_noite;
+create policy reg_gravar on registros_noite for insert with check (
+  user_id = auth.uid() and exists (select 1 from perfis where id = auth.uid() and tipo = 'casa'));
+
+-- Privilégios: o Supabase concede tudo por padrão (inclusive TRUNCATE, que ignora RLS).
+-- Tira tudo e devolve só o que o site usa.
+revoke all on all tables in schema public from anon, authenticated;
+alter default privileges in schema public revoke all on tables from anon, authenticated;
+grant select, update on perfis to authenticated;
+grant select, insert, update on inscricoes_artistas, cadastros_casas to authenticated;
+grant select, insert, update, delete on checklist to authenticated;
+grant select, insert on registros_noite to authenticated;
+grant select on chaves_internas to authenticated;
+grant select, insert, update, delete on convites to authenticated;
+grant insert on avisos_cidade to anon, authenticated;
+grant select, delete on avisos_cidade to authenticated;
+grant execute on function int_seguro(text) to anon, authenticated;
+
+-- Registro da noite: um por casa e por noite; registrar de novo corrige o anterior.
+create unique index if not exists registro_unico on registros_noite (user_id, evento_id);
+drop policy if exists reg_corrigir on registros_noite;
+create policy reg_corrigir on registros_noite for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+alter table registros_noite drop constraint if exists publico_teto;
+alter table registros_noite add constraint publico_teto check (publico is null or publico <= 20000) not valid;
+grant update on registros_noite to authenticated;
+-- ---------- v4: diário de uso e cópia dos registros do Supabase ----------
 -- Diário: o que cada pessoa fez no site (telas, cliques, erros vistos, falhas de chamada), para corrigir e ajustar.
 -- Nunca recebe senha nem o que a pessoa digita nos campos. Qualquer visitante grava; só a equipe lê; só a adm apaga.
 create table if not exists diario_uso (
@@ -518,3 +792,120 @@ select coalesce(d.user_id, d.conta_id) as conta, p.email, p.tipo, min(d.criado_e
 from diario_uso d left join perfis p on p.id = coalesce(d.user_id, d.conta_id)
 group by 1, 2, 3;
 grant select on diario_por_conta to authenticated;
+
+-- ---------- v4: correções da auditoria de segurança (21/10) ----------
+-- Convite feito pela equipe não muda o tipo nem troca o vínculo de quem já tinha conta de verdade
+-- (vínculo, inscrição ou cadastro de casa). Isso continua sendo papel só da administração, em Pessoas.
+create or replace function aplicar_convite(uid uuid, mail text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites; atual perfis; do_adm boolean;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  select * into atual from perfis where id = uid;
+  do_adm := exists (select 1 from perfis where id = c.criado_por and tipo = 'adm');
+  if not do_adm and (atual.tipo in ('equipe', 'adm') or atual.codigo_acesso is not null
+      or (atual.tipo is distinct from c.tipo and (exists (select 1 from inscricoes_artistas where user_id = uid)
+                                                  or exists (select 1 from cadastros_casas where user_id = uid)))) then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
+  perform set_config('tq.sistema', '1', true);
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.codigo_acesso, p.codigo_acesso) end,
+    vinculo_nome = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.vinculo_nome, p.vinculo_nome) end
+  where p.id = uid;
+  perform set_config('tq.sistema', '', true);
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+revoke all on function aplicar_convite(uuid, text) from public, anon, authenticated;
+
+-- A equipe só apaga convites de artista ou casa ainda não aceitos (não os de equipe feitos pela adm).
+drop policy if exists conv_apagar on convites;
+create policy conv_apagar on convites for delete using (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa') and aceito_em is null));
+
+-- Pontuação, faixa e detalhe da pré-curadoria sempre calculados pelo banco a partir das respostas,
+-- inclusive quando a equipe salva a decisão (ninguém grava texto livre nesses campos).
+create or replace function calcular_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  return new;
+end $$;
+drop trigger if exists trg_inscricao_zcalculo on inscricoes_artistas;   -- "z": roda depois de trg_inscricao
+create trigger trg_inscricao_zcalculo before insert or update on inscricoes_artistas for each row execute function calcular_inscricao();
+
+-- Casa habilitada que apaga um dado mínimo volta para "faltam dados mínimos" até completar de novo.
+create or replace function casa_rehabilitar() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.user_id = auth.uid() and new.status = 'habilitada' and jsonb_array_length(coalesce(new.pendencias -> 'habilitacao', '[]')) > 0 then
+    new.status := 'incompleto';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_casa_zhabilitacao on cadastros_casas;
+create trigger trg_casa_zhabilitacao before update on cadastros_casas for each row execute function casa_rehabilitar();
+
+-- Diário: um evento só pode ser atribuído à própria conta; data do banco; freio de 1.500 eventos por sessão e hora.
+drop policy if exists diario_criar on diario_uso;
+create policy diario_criar on diario_uso for insert with check (
+  (user_id is null and conta_id is null) or (user_id = auth.uid() and (conta_id is null or conta_id = auth.uid())));
+create or replace function antes_diario() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.criado_em := now();
+  if (select count(*) from diario_uso where sessao = new.sessao and criado_em > now() - interval '1 hour') >= 1500 then
+    return null;   -- descarta em silêncio: o navegador não fica reenviando
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_diario on diario_uso;
+create trigger trg_diario before insert on diario_uso for each row execute function antes_diario();
+create or replace view diario_por_conta with (security_invoker = true) as
+select d.user_id as conta, p.email, p.tipo, min(d.criado_em) as primeiro, max(d.criado_em) as ultimo,
+       count(*) as eventos, count(distinct d.sessao) as sessoes,
+       count(*) filter (where d.tipo = 'tela') as telas, count(*) filter (where d.tipo = 'acao') as acoes,
+       count(*) filter (where d.tipo = 'erro') as erros, count(*) filter (where d.tipo = 'falha_rede') as falhas_rede
+from diario_uso d left join perfis p on p.id = d.user_id
+group by 1, 2, 3;
+grant select on diario_por_conta to authenticated;
+
+-- Nota interna da curadoria e da habilitação: só a equipe lê. Antes ficava na mesma linha da inscrição ou do
+-- cadastro, que a própria artista ou casa consegue ler inteira; agora fica numa tabela à parte.
+create table if not exists notas_internas (
+  alvo text not null check (alvo in ('insc', 'casa')),
+  alvo_id uuid not null,
+  nota text check (length(nota) <= 4000),
+  autor uuid default auth.uid(),
+  atualizado_em timestamptz not null default now(),
+  primary key (alvo, alvo_id)
+);
+alter table notas_internas enable row level security;
+drop policy if exists nota_equipe on notas_internas;
+create policy nota_equipe on notas_internas for all using (eh_equipe()) with check (eh_equipe());
+grant select, insert, update, delete on notas_internas to authenticated;
+insert into notas_internas (alvo, alvo_id, nota)
+  select 'insc', id, nota_interna from inscricoes_artistas where coalesce(nota_interna, '') <> '' on conflict do nothing;
+insert into notas_internas (alvo, alvo_id, nota)
+  select 'casa', id, nota_interna from cadastros_casas where coalesce(nota_interna, '') <> '' on conflict do nothing;
+-- A coluna antiga fica sempre vazia daqui para a frente.
+create or replace function sem_nota_na_linha() returns trigger
+language plpgsql as $$ begin new.nota_interna := null; return new; end $$;
+alter table inscricoes_artistas disable trigger user;
+alter table cadastros_casas disable trigger user;
+update inscricoes_artistas set nota_interna = null where nota_interna is not null;
+update cadastros_casas set nota_interna = null where nota_interna is not null;
+alter table inscricoes_artistas enable trigger user;
+alter table cadastros_casas enable trigger user;
+drop trigger if exists trg_inscricao_znota on inscricoes_artistas;
+create trigger trg_inscricao_znota before insert or update on inscricoes_artistas for each row execute function sem_nota_na_linha();
+drop trigger if exists trg_casa_znota on cadastros_casas;
+create trigger trg_casa_znota before insert or update on cadastros_casas for each row execute function sem_nota_na_linha();
