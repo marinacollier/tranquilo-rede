@@ -7,7 +7,12 @@ const TQDiario = (() => {
   const ativo = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
   const ref = (cfg.supabaseUrl || "").match(/https:\/\/([^.]+)\./)?.[1] || "";
   const destino = `${cfg.supabaseUrl}/rest/v1/diario`;
+  // A fila fica guardada no navegador: se o banco estiver fora do ar (ou a tabela ainda não existir),
+  // os eventos esperam e vão na próxima tentativa, inclusive depois de fechar e abrir o site.
+  const CH = "tq-diario-pendente", MAX = 1500;
   const fila = [];
+  try { fila.push(...(JSON.parse(localStorage.getItem(CH) || "[]") || []).slice(-MAX)); } catch { /* sem armazenamento: só memória */ }
+  const salvar = () => { try { localStorage.setItem(CH, JSON.stringify(fila.slice(-MAX))); } catch { /* cheio ou bloqueado */ } };
   let sessao = null, perfil = null, tela = null, ultimaTela = null;
   try { sessao = sessionStorage.getItem("tq-sessao"); } catch { /* aba anônima: segue sem guardar */ }
   if (!sessao) {
@@ -33,6 +38,8 @@ const TQDiario = (() => {
     if (PROBLEMA.test(acao) || acao === "tela") { recentes.push({ acao, tela, ...detalhe, h: new Date().toTimeString().slice(0, 8) }); if (recentes.length > 8) recentes.shift(); }
     if (!ativo) return;
     fila.push({ sessao, perfil, acao: curto(acao, 40), tela, detalhe, pagina: pagina(), navegador: curto(navigator.userAgent, 300), quando_cliente: new Date().toISOString() });
+    if (fila.length > MAX) fila.splice(0, fila.length - MAX);
+    salvar();
     if (fila.length >= 20) enviar();
   }
 
@@ -46,12 +53,18 @@ const TQDiario = (() => {
       const t = comToken && token(); if (t) h.Authorization = `Bearer ${t}`;
       return origFetch(destino, { method: "POST", keepalive: saindo, headers: h, body: JSON.stringify(lote) });
     };
+    let ok = false, volta = true;
     try {
       let r = await manda(true);
       if (r.status === 401) r = await manda(false);   // sessão vencida: grava sem ligar à conta
-      return r.ok;
-    } catch { return false; /* sem rede: o lote se perde, o site segue normal */ }
-    finally { enviando = false; }
+      ok = r.ok;
+      volta = !ok && r.status !== 400;               // 400 = linha recusada pelo banco: não adianta reenviar
+    } catch { /* sem rede: o lote volta para a fila */ }
+    finally {
+      if (!ok && volta) fila.unshift(...lote);
+      salvar(); enviando = false;
+    }
+    return ok;
   }
   setInterval(() => enviar(), 5000);
   addEventListener("pagehide", () => { registrar("saiu"); enviar(true); });
@@ -81,8 +94,8 @@ const TQDiario = (() => {
   document.addEventListener("click", (ev) => {
     const el = ev.target.closest("button, a, [data-click], [data-ev], [data-aba], tr.click, .cidade");
     if (!el) return;
-    const ds = Object.fromEntries(Object.entries(el.dataset || {}).filter(([k]) => !/senha|email|contato|vinculo|tutorial/i.test(k)).map(([k, v]) => [k, limpo(v, 60)]));
-    registrar("clique", { el: el.tagName.toLowerCase(), id: el.id || undefined, texto: limpo(el.getAttribute("aria-label") || el.innerText, 60), ...ds, externo: el.tagName === "A" && el.target === "_blank" ? limpo(el.href, 120) : undefined });
+    const ds = Object.fromEntries(Object.entries(el.dataset || {}).filter(([k]) => !/senha|email|contato|vinculo|tutorial|copy|reconvidar|cancelar/i.test(k)).map(([k, v]) => [k, limpo(v, 60)]));
+    registrar("clique", { el: el.tagName.toLowerCase(), id: el.id || undefined, texto: limpo(el.getAttribute("aria-label") || el.innerText, 60), ...ds, externo: el.tagName === "A" && el.target === "_blank" ? (/wa\.me|whatsapp/i.test(el.href) ? "whatsapp" : /^mailto:/i.test(el.href) ? "e-mail" : limpo(el.href.split("?")[0], 120)) : undefined });
   }, true);
 
   // Mensagens mostradas na tela (erros, avisos e sucessos), lidas das áreas de aviso.
@@ -110,7 +123,7 @@ const TQDiario = (() => {
   function relatar(texto, contato) {
     registrar("relato", { texto: curto(texto, 1000), contato: curto(contato, 120) || undefined, recentes: JSON.parse(JSON.stringify(recentes)).map((r) => { for (const k in r) if (typeof r[k] === "string") r[k] = curto(r[k], 120); return r; }) });
     // Esvazia a fila inteira (o relato é o último item) e diz se o lote do relato chegou.
-    return (async () => { let ok = false; while (ativo && fila.length) ok = await enviar(true); return ativo && ok; })();
+    return (async () => { let ok = false; for (let i = 0; ativo && fila.length && i < 40; i++) { ok = await enviar(true); if (!ok) break; } return ativo && ok; })();
   }
   return { registrar, tela: tela_, enviar, relatar };
 })();

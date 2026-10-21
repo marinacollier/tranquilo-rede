@@ -199,3 +199,16 @@ await como(art, async () => {
 await como(art2, async () => { ok((await q(`select titulo from documentos`)).rows.map((r) => r.titulo).join('|') === 'Modelo de contrato', 'outra artista não vê o contrato alheio'); });
 await q(`insert into config_interna values ('teste', 'segredo') on conflict do nothing`);
 await como(adm, async () => { ok((await q(`select * from config_interna`).catch(() => ({ rows: [] }))).rows.length === 0, 'nem a adm lê a configuração interna pelo site'); });
+// ---------- v6: correções da auditoria de segurança ----------
+// Nota interna em tabela à parte: só a equipe lê e grava.
+const inscId = (await q(`select id from inscricoes_artistas limit 1`)).rows[0]?.id;
+await como(eq, async () => {
+  await q(`insert into notas_internas (alvo, alvo_id, nota) values ('insc', $1, 'ouvir o EP antes') on conflict (alvo, alvo_id) do update set nota = excluded.nota`, [inscId]);
+  ok((await q(`select nota from notas_internas where alvo_id = $1`, [inscId])).rows[0]?.nota === 'ouvir o EP antes', 'equipe grava e lê a nota interna');
+  await q(`update inscricoes_artistas set nota_interna = 'vazaria' where id = $1`, [inscId]);
+});
+ok((await q(`select nota_interna from inscricoes_artistas where id = $1`, [inscId])).rows[0].nota_interna === null, 'nota interna nunca fica na linha que a artista lê');
+await como(art, async () => { ok((await q(`select * from notas_internas`)).rows.length === 0, 'artista não lê notas internas'); });
+await como(casa, async () => { ok(!!(await tenta(() => q(`insert into notas_internas (alvo, alvo_id, nota) values ('casa', gen_random_uuid(), 'x')`))), 'casa não grava nota interna'); });
+await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
+ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

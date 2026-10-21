@@ -842,3 +842,98 @@ grant select on lembretes to authenticated;
 create table if not exists config_interna (nome text primary key, valor text not null, atualizado_em timestamptz not null default now());
 alter table config_interna enable row level security;
 revoke all on config_interna from anon, authenticated;
+
+-- =====================================================================
+-- v6: correções da auditoria de segurança de 21/10/2026 (tests/seguranca.test.mjs). Idempotente.
+-- =====================================================================
+-- Convite feito pela equipe não muda o tipo nem troca o vínculo de quem já tinha conta de verdade
+-- (vínculo, inscrição ou cadastro de casa). Isso continua sendo papel só da administração, em Pessoas.
+create or replace function aplicar_convite(uid uuid, mail text) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites; atual perfis; do_adm boolean;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  select * into atual from perfis where id = uid;
+  do_adm := exists (select 1 from perfis where id = c.criado_por and tipo = 'adm');
+  if not do_adm and (atual.tipo in ('equipe', 'adm') or atual.codigo_acesso is not null
+      or (atual.tipo is distinct from c.tipo and (exists (select 1 from inscricoes_artistas where user_id = uid)
+                                                  or exists (select 1 from cadastros_casas where user_id = uid)))) then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
+  perform set_config('tq.sistema', '1', true);
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.codigo_acesso, p.codigo_acesso) end,
+    vinculo_nome = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.vinculo_nome, p.vinculo_nome) end
+  where p.id = uid;
+  perform set_config('tq.sistema', '', true);
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+revoke all on function aplicar_convite(uuid, text) from public, anon, authenticated;
+
+-- A equipe só apaga convites de artista ou casa ainda não aceitos (não os de equipe feitos pela adm).
+drop policy if exists conv_apagar on convites;
+create policy conv_apagar on convites for delete using (eh_adm() or (eh_equipe() and tipo in ('artista', 'casa') and aceito_em is null));
+
+-- Pontuação, faixa e detalhe da pré-curadoria sempre calculados pelo banco a partir das respostas,
+-- inclusive quando a equipe salva a decisão (ninguém grava texto livre nesses campos).
+create or replace function calcular_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  return new;
+end $$;
+drop trigger if exists trg_inscricao_zcalculo on inscricoes_artistas;   -- "z": roda depois de trg_inscricao
+create trigger trg_inscricao_zcalculo before insert or update on inscricoes_artistas for each row execute function calcular_inscricao();
+
+-- Casa habilitada que apaga um dado mínimo volta para "faltam dados mínimos" até completar de novo.
+create or replace function casa_rehabilitar() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.user_id = auth.uid() and new.status = 'habilitada' and jsonb_array_length(coalesce(new.pendencias -> 'habilitacao', '[]')) > 0 then
+    new.status := 'incompleto';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_casa_zhabilitacao on cadastros_casas;
+create trigger trg_casa_zhabilitacao before update on cadastros_casas for each row execute function casa_rehabilitar();
+
+-- Nota interna da curadoria e da habilitação: só a equipe lê. Antes ficava na mesma linha da inscrição ou do
+-- cadastro, que a própria artista ou casa consegue ler inteira; agora fica numa tabela à parte.
+create table if not exists notas_internas (
+  alvo text not null check (alvo in ('insc', 'casa')),
+  alvo_id uuid not null,
+  nota text check (length(nota) <= 4000),
+  autor uuid default auth.uid(),
+  atualizado_em timestamptz not null default now(),
+  primary key (alvo, alvo_id)
+);
+alter table notas_internas enable row level security;
+drop policy if exists nota_equipe on notas_internas;
+create policy nota_equipe on notas_internas for all using (eh_equipe()) with check (eh_equipe());
+grant select, insert, update, delete on notas_internas to authenticated;
+insert into notas_internas (alvo, alvo_id, nota)
+  select 'insc', id, nota_interna from inscricoes_artistas where coalesce(nota_interna, '') <> '' on conflict do nothing;
+insert into notas_internas (alvo, alvo_id, nota)
+  select 'casa', id, nota_interna from cadastros_casas where coalesce(nota_interna, '') <> '' on conflict do nothing;
+-- A coluna antiga fica sempre vazia daqui para a frente.
+create or replace function sem_nota_na_linha() returns trigger
+language plpgsql as $$ begin new.nota_interna := null; return new; end $$;
+alter table inscricoes_artistas disable trigger user;
+alter table cadastros_casas disable trigger user;
+update inscricoes_artistas set nota_interna = null where nota_interna is not null;
+update cadastros_casas set nota_interna = null where nota_interna is not null;
+alter table inscricoes_artistas enable trigger user;
+alter table cadastros_casas enable trigger user;
+drop trigger if exists trg_inscricao_znota on inscricoes_artistas;
+create trigger trg_inscricao_znota before insert or update on inscricoes_artistas for each row execute function sem_nota_na_linha();
+drop trigger if exists trg_casa_znota on cadastros_casas;
+create trigger trg_casa_znota before insert or update on cadastros_casas for each row execute function sem_nota_na_linha();

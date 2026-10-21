@@ -151,6 +151,23 @@ const TQConta = (() => {
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     const perfil = async () => { const u = await uid(); if (!u) return null; return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle()); };
+    // Nota interna fica em notas_internas (só a equipe lê). Banco ainda sem essa tabela: usa a coluna antiga.
+    const semTabela = (e) => /PGRST205|42P01|Could not find the table/i.test(`${e?.code} ${e?.message}`);
+    const comNotas = async (alvo, linhas) => {
+      if (!linhas.length) return linhas;
+      const { data, error } = await sb.from("notas_internas").select("alvo_id, nota").eq("alvo", alvo).in("alvo_id", linhas.map((l) => l.id));
+      if (error) return linhas;
+      const nota = Object.fromEntries(data.map((n) => [n.alvo_id, n.nota]));
+      return linhas.map((l) => ({ ...l, nota_interna: nota[l.id] ?? l.nota_interna ?? null }));
+    };
+    const guardarNota = async (alvo, id, campos) => {
+      if (!("nota_interna" in campos)) return campos;
+      const { nota_interna, ...resto } = campos;
+      const { error } = await sb.from("notas_internas").upsert({ alvo, alvo_id: id, nota: nota_interna, atualizado_em: new Date().toISOString() });
+      if (error && semTabela(error)) return campos;
+      if (error) throw new Error(traduz(error.message));
+      return resto;
+    };
     const comPerfis = async (linhas) => {
       if (!linhas.length) return linhas;
       const ps = ok(await sb.from("perfis").select("*").in("id", linhas.map((l) => l.user_id)));
@@ -200,10 +217,10 @@ const TQConta = (() => {
         return ok(await sb.from("perfis").update({ codigo_acesso: codigo, vinculo_nome: nome }).eq("id", p.id).select().single());
       },
       async chaveInterna(tipo) { return ok(await sb.from("chaves_internas").select("codigo").eq("tipo", tipo).maybeSingle())?.codigo || null; },
-      async inscricoes() { return comPerfis(ok(await sb.from("inscricoes_artistas").select("*").order("enviado_em", { ascending: false, nullsFirst: false }))); },
-      async avaliarInscricao(iid, campos) { ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
-      async casas() { return comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false }))); },
-      async avaliarCasa(cid, campos) { ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
+      async inscricoes() { return comNotas("insc", await comPerfis(ok(await sb.from("inscricoes_artistas").select("*").order("enviado_em", { ascending: false, nullsFirst: false })))); },
+      async avaliarInscricao(iid, campos) { campos = await guardarNota("insc", iid, campos); ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
+      async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
+      async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
       async perfis() { return ok(await sb.from("perfis").select("*").order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
@@ -456,9 +473,9 @@ const TQConta = (() => {
   const STATUS_CASA = { rascunho: ["", "Rascunho"], incompleto: ["b-serious", "Faltam dados mínimos"], em_analise: ["b-warn", "Em análise pela equipe"], ajustes: ["b-serious", "Ajustes pedidos"], habilitada: ["b-good", "Habilitada"], suspensa: ["b-crit", "Suspensa"] };
   const badge = (m, s) => `<span class="badge ${m[s]?.[0] || ""}">${esc(m[s]?.[1] || s)}</span>`;
   const linhaTempo = (etapas, atual) => `<ol class="tempo">${etapas.map((e, i) => `<li class="${i < atual ? "ok" : i === atual ? "agora" : ""}"><i>${i < atual ? "✓" : i + 1}</i><span>${esc(e)}</span></li>`).join("")}</ol>`;
-  const medidor = (pc) => `<div class="card"><div class="row"><b>Força da inscrição</b><span><b style="font-size:22px">${pc.score}</b><span class="muted">/100</span> <span class="badge ${pc.faixa === "Prioridade" ? "b-good" : pc.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${pc.faixa}</span></span></div>
-    <div class="progress" style="margin:10px 0"><i style="width:${pc.score}%"></i></div>
-    <div class="grid g4" style="gap:6px;font-size:13px">${[["completude", "Perfil completo", 20], ["tracao", "Público", 35], ["tecnica", "Rider", 20], ["circulacao", "Cidades da rede", 15], ["condicoes", "Condições", 10]].map(([k, t, max]) => `<div><span class="muted">${t}</span><br><b>${pc.detalhe[k]}</b>/${max}</div>`).join("")}</div>
+  const medidor = (pc) => `<div class="card"><div class="row"><b>Força da inscrição</b><span><b style="font-size:22px">${+pc.score || 0}</b><span class="muted">/100</span> <span class="badge ${pc.faixa === "Prioridade" ? "b-good" : pc.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(pc.faixa)}</span></span></div>
+    <div class="progress" style="margin:10px 0"><i style="width:${Math.max(0, Math.min(100, +pc.score || 0))}%"></i></div>
+    <div class="grid g4" style="gap:6px;font-size:13px">${[["completude", "Perfil completo", 20], ["tracao", "Público", 35], ["tecnica", "Rider", 20], ["circulacao", "Cidades da rede", 15], ["condicoes", "Condições", 10]].map(([k, t, max]) => `<div><span class="muted">${t}</span><br><b>${+pc.detalhe?.[k] || 0}</b>/${max}</div>`).join("")}</div>
     ${pc.alertas.length ? `<div style="margin-top:8px">${pc.alertas.map((a) => `<span class="pill">${esc(a)}</span>`).join("")}</div>` : ""}</div>`;
 
   function eventosDaConta() {
@@ -539,7 +556,7 @@ const TQConta = (() => {
       ${tabela("curad", [
         { t: "Artista", v: (i) => i.dados.nome_artistico, h: (i) => `<b>${esc(i.dados.nome_artistico || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(i.dados.cidade_base || "")} ${esc(i.dados.estado || "")} · ${esc(i.dados.generos || "")}</div>` },
         { t: "Pontuação", n: 1, v: (i) => i.score, h: (i) => `<b>${i.score ?? "–"}</b>` },
-        { t: "Faixa", v: (i) => i.faixa, h: (i) => i.faixa ? `<span class="badge ${i.faixa === "Prioridade" ? "b-good" : i.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${i.faixa}</span>` : "–" },
+        { t: "Faixa", v: (i) => i.faixa, h: (i) => i.faixa ? `<span class="badge ${i.faixa === "Prioridade" ? "b-good" : i.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(i.faixa)}</span>` : "–" },
         { t: "Formato", v: (i) => i.dados.formato_interesse },
         { t: "Alertas", v: (i) => (i.alertas || []).length, h: (i) => (i.alertas || []).map((a) => `<span class="pill">${esc(a)}</span>`).join("") || "–" },
         { t: "Status", v: (i) => i.status, h: (i) => badge(STATUS_INSC, i.status) },
