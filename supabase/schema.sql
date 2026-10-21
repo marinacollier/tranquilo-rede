@@ -937,3 +937,267 @@ drop trigger if exists trg_inscricao_znota on inscricoes_artistas;
 create trigger trg_inscricao_znota before insert or update on inscricoes_artistas for each row execute function sem_nota_na_linha();
 drop trigger if exists trg_casa_znota on cadastros_casas;
 create trigger trg_casa_znota before insert or update on cadastros_casas for each row execute function sem_nota_na_linha();
+-- ============================================================================================
+-- v3 — Materiais, versões e ciência de leitura (Partner Hub, item A6)
+-- Nome "materiais" para não colidir com "documentos" (anexos por data: contrato, rider etc.).
+-- O conteúdo continua na fonte oficial (site do Bruno, Notion, Canva): aqui fica só o cadastro,
+-- a versão vigente e quem declarou ciência de cada versão.
+-- "Ciência" é declaração de leitura, NÃO é assinatura contratual: contratos seguem no fluxo jurídico.
+-- Versões e ciências não são editáveis nem apagáveis por usuários: o histórico fica preservado.
+-- ============================================================================================
+create or replace function meu_tipo() returns tipo_perfil
+language sql stable security definer set search_path = public as $$
+  select tipo from perfis where id = auth.uid();
+$$;
+
+create table if not exists materiais (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique check (slug ~ '^[a-z0-9-]{3,80}$'),
+  titulo text not null check (length(titulo) between 3 and 160),
+  area text not null default 'operacoes'
+    check (area in ('marketing', 'operacoes', 'comercial', 'producao', 'gestao_praca', 'marca', 'bilheteria', 'geral')),
+  funcao text,                 -- ex.: anfitriao, social_media, lideranca_local; vazio = todas
+  etapa text check (etapa is null or etapa in ('pre', 'dia', 'pos', 'continuo')),
+  tipo_material text not null default 'guia'
+    check (tipo_material in ('guia', 'playbook', 'politica', 'termo', 'template', 'briefing', 'checklist', 'outro')),
+  publico tipo_perfil[] not null default '{casa}',          -- quem pode ler (equipe e adm sempre leem)
+  fonte_url text not null check (fonte_url ~ '^https://'),  -- onde o conteúdo é mantido
+  fonte_tipo text not null default 'link' check (fonte_tipo in ('link', 'notion', 'site_bruno', 'canva', 'arquivo')),
+  responsavel text,
+  ativo boolean not null default true,
+  criado_em timestamptz not null default now()
+);
+
+create table if not exists material_versoes (
+  id uuid primary key default gen_random_uuid(),
+  material_id uuid not null references materiais (id) on delete restrict,
+  versao text not null check (length(versao) between 1 and 20),
+  resumo text,                                   -- o que mudou nesta versão
+  url text check (url is null or url ~ '^https://'),  -- link específico da versão, se a fonte tiver
+  exige_ciencia boolean not null default false,
+  publicada_em timestamptz not null default now(),
+  publicada_por uuid references perfis (id),
+  unique (material_id, versao)
+);
+create index if not exists versoes_material on material_versoes (material_id, publicada_em desc);
+
+create table if not exists ciencias (
+  versao_id uuid not null references material_versoes (id) on delete restrict,
+  user_id uuid not null default auth.uid() references perfis (id) on delete cascade,
+  evento_id text,                                -- opcional: ciência dada no contexto de uma data
+  registrada_em timestamptz not null default now(),
+  primary key (versao_id, user_id)
+);
+
+-- Versão vigente = a mais recente publicada de cada documento.
+create or replace function versao_vigente(doc uuid) returns uuid
+language sql stable security definer set search_path = public as $$
+  select id from material_versoes where material_id = doc order by publicada_em desc, id desc limit 1;
+$$;
+
+-- Quem publica e quando registra não vêm do navegador.
+create or replace function carimbar_material_versao() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin new.publicada_por := auth.uid(); new.publicada_em := clock_timestamp(); return new; end $$;
+drop trigger if exists carimbo_material_versao on material_versoes;
+create trigger carimbo_material_versao before insert on material_versoes for each row execute function carimbar_material_versao();
+
+create or replace function carimbar_ciencia() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin new.registrada_em := now(); return new; end $$;
+drop trigger if exists carimbo_ciencia on ciencias;
+create trigger carimbo_ciencia before insert on ciencias for each row execute function carimbar_ciencia();
+
+alter table materiais enable row level security;
+alter table material_versoes enable row level security;
+alter table ciencias enable row level security;
+
+drop policy if exists mat_ler on materiais;
+create policy mat_ler on materiais for select using (eh_equipe() or (ativo and meu_tipo() = any (publico)));
+drop policy if exists mat_criar on materiais;
+create policy mat_criar on materiais for insert with check (eh_equipe());
+drop policy if exists mat_editar on materiais;
+create policy mat_editar on materiais for update using (eh_equipe()) with check (eh_equipe());
+
+drop policy if exists ver_ler on material_versoes;
+create policy ver_ler on material_versoes for select using (exists (select 1 from materiais d where d.id = material_id));
+drop policy if exists ver_criar on material_versoes;
+create policy ver_criar on material_versoes for insert with check (eh_equipe());
+
+-- Ciência: só em nome próprio, só na versão vigente de um documento que a pessoa pode ler e que pede ciência.
+drop policy if exists cie_ler on ciencias;
+create policy cie_ler on ciencias for select using (user_id = auth.uid() or eh_equipe());
+drop policy if exists cie_criar on ciencias;
+create policy cie_criar on ciencias for insert with check (
+  user_id = auth.uid()
+  and exists (
+    select 1 from material_versoes v join materiais d on d.id = v.material_id
+    where v.id = versao_id and v.exige_ciencia and d.ativo and v.id = versao_vigente(d.id)
+      and (eh_equipe() or meu_tipo() = any (d.publico))
+  )
+);
+
+-- Pendências de ciência de quem está logado (respeita as políticas acima).
+create or replace function minhas_ciencias_pendentes()
+returns table (material_id uuid, slug text, titulo text, versao_id uuid, versao text, publicada_em timestamptz)
+language sql stable security invoker set search_path = public as $$
+  select d.id, d.slug, d.titulo, v.id, v.versao, v.publicada_em
+  from materiais d join material_versoes v on v.id = versao_vigente(d.id)
+  where d.ativo and v.exige_ciencia
+    and not exists (select 1 from ciencias c where c.versao_id = v.id and c.user_id = auth.uid())
+  order by v.publicada_em;
+$$;
+
+grant select, insert, update on materiais to authenticated;
+grant select, insert on material_versoes, ciencias to authenticated;
+revoke all on function minhas_ciencias_pendentes(), versao_vigente(uuid), meu_tipo() from public, anon;
+grant execute on function minhas_ciencias_pendentes(), versao_vigente(uuid), meu_tipo() to authenticated;
+
+-- ============================================================================================
+-- v4 — Campanhas da casa com "feito" compartilhado (Partner Hub A7/C2)
+-- O conteúdo da campanha é do Bruno (importado da página dele, sem alterá-la).
+-- O Hub guarda só o andamento: quem marcou cada dia como feito e quando. Uma marcação vale
+-- para toda a equipe da casa (não por aparelho) e a matriz acompanha.
+-- ============================================================================================
+-- A casa de quem está logado. Vale só o vínculo dado pela equipe num convite já aceito
+-- (e-mail confirmado). O campo perfis.vinculo_nome NÃO é usado aqui: hoje ele pode ser
+-- gravado pela própria conta (achado P02 em tests/seguranca.test.mjs).
+-- Quando houver várias pessoas e casas por praça, só esta função muda.
+create or replace function posso_casa(ref text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select eh_equipe() or exists (
+    select 1 from perfis p
+      join auth.users u on u.id = p.id
+      join convites c on c.email = lower(u.email)
+    where p.id = auth.uid() and p.tipo = 'casa' and c.tipo = 'casa'
+      and c.aceito_em is not null and u.email_confirmed_at is not null
+      and c.vinculo_nome is not null and lower(c.vinculo_nome) = lower(ref)
+  );
+$$;
+
+create table if not exists campanhas (
+  id uuid primary key default gen_random_uuid(),
+  slug text not null unique check (slug ~ '^[a-z0-9-]{3,80}$'),
+  titulo text not null,
+  casa_ref text not null,                 -- nome da casa (o mesmo do vínculo da conta)
+  fonte_url text check (fonte_url is null or fonte_url ~ '^https://'),
+  importada_em timestamptz not null default now(),
+  importada_por uuid references perfis (id)
+);
+
+create table if not exists campanha_itens (
+  id uuid primary key default gen_random_uuid(),
+  campanha_id uuid not null references campanhas (id) on delete cascade,
+  chave text not null,                    -- a mesma chave da página do Bruno (ex.: d1020)
+  dia date not null,
+  rotulo text,
+  acoes jsonb not null default '[]',      -- canal, show, texto e links, como na página
+  ativo boolean not null default true,    -- some da campanha quando o Bruno tira o dia
+  unique (campanha_id, chave)
+);
+
+create table if not exists campanha_feitos (
+  item_id uuid primary key references campanha_itens (id) on delete cascade,
+  feito_por uuid not null default auth.uid() references perfis (id),
+  feito_em timestamptz not null default now(),
+  nota text check (nota is null or length(nota) <= 500)
+);
+
+-- Histórico de marcar e desmarcar (não editável por ninguém pelo navegador).
+create table if not exists campanha_historico (
+  id bigserial primary key,
+  item_id uuid not null,
+  acao text not null check (acao in ('feito', 'desfeito')),
+  por uuid,
+  em timestamptz not null default now()
+);
+
+create or replace function registrar_feito() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    new.feito_por := auth.uid(); new.feito_em := now();
+    insert into campanha_historico (item_id, acao, por) values (new.item_id, 'feito', auth.uid());
+    return new;
+  end if;
+  insert into campanha_historico (item_id, acao, por) values (old.item_id, 'desfeito', auth.uid());
+  return old;
+end $$;
+drop trigger if exists feito_carimbo on campanha_feitos;
+create trigger feito_carimbo before insert or delete on campanha_feitos for each row execute function registrar_feito();
+
+-- Importa (ou reimporta) a campanha a partir do JSON gerado por scripts/importar-campanha.mjs.
+-- Reimportar atualiza textos e links sem apagar o que já foi marcado como feito.
+create or replace function importar_campanha(dados jsonb) returns uuid
+language plpgsql security invoker set search_path = public as $$
+declare cid uuid; it jsonb;
+begin
+  -- Pelo site: só equipe. Pelo SQL Editor do Supabase (sem usuário logado): permitido à administração do banco.
+  if auth.uid() is not null and not eh_equipe() then raise exception 'Só a equipe importa campanhas.'; end if;
+  if jsonb_array_length(coalesce(dados -> 'itens', '[]')) = 0 then raise exception 'Campanha sem dias: nada importado.'; end if;
+  insert into campanhas (slug, titulo, casa_ref, fonte_url, importada_por)
+  values (dados ->> 'slug', coalesce(dados ->> 'titulo', 'Campanha'), dados ->> 'casa', dados ->> 'fonte_url', auth.uid())
+  on conflict (slug) do update set titulo = excluded.titulo, casa_ref = excluded.casa_ref, fonte_url = excluded.fonte_url,
+    importada_em = now(), importada_por = auth.uid()
+  returning id into cid;
+  update campanha_itens set ativo = false where campanha_id = cid
+    and chave not in (select x ->> 'chave' from jsonb_array_elements(dados -> 'itens') x);
+  for it in select * from jsonb_array_elements(dados -> 'itens') loop
+    insert into campanha_itens (campanha_id, chave, dia, rotulo, acoes, ativo)
+    values (cid, it ->> 'chave', (it ->> 'dia')::date, it ->> 'rotulo', coalesce(it -> 'acoes', '[]'), true)
+    on conflict (campanha_id, chave) do update set dia = excluded.dia, rotulo = excluded.rotulo, acoes = excluded.acoes, ativo = true;
+  end loop;
+  return cid;
+end $$;
+
+alter table campanhas enable row level security;
+alter table campanha_itens enable row level security;
+alter table campanha_feitos enable row level security;
+alter table campanha_historico enable row level security;
+
+drop policy if exists camp_ler on campanhas;
+create policy camp_ler on campanhas for select using (posso_casa(casa_ref));
+drop policy if exists camp_equipe on campanhas;
+create policy camp_equipe on campanhas for all using (eh_equipe()) with check (eh_equipe());
+drop policy if exists citem_ler on campanha_itens;
+create policy citem_ler on campanha_itens for select using (exists (select 1 from campanhas c where c.id = campanha_id));
+drop policy if exists citem_equipe on campanha_itens;
+create policy citem_equipe on campanha_itens for all using (eh_equipe()) with check (eh_equipe());
+
+drop policy if exists feito_ler on campanha_feitos;
+create policy feito_ler on campanha_feitos for select using (exists (select 1 from campanha_itens i where i.id = item_id));
+drop policy if exists feito_marcar on campanha_feitos;
+create policy feito_marcar on campanha_feitos for insert with check (
+  exists (select 1 from campanha_itens i join campanhas c on c.id = i.campanha_id where i.id = item_id and i.ativo and posso_casa(c.casa_ref)));
+drop policy if exists feito_desmarcar on campanha_feitos;
+create policy feito_desmarcar on campanha_feitos for delete using (
+  exists (select 1 from campanha_itens i join campanhas c on c.id = i.campanha_id where i.id = item_id and posso_casa(c.casa_ref)));
+drop policy if exists hist_ler on campanha_historico;
+create policy hist_ler on campanha_historico for select using (eh_equipe());
+
+-- Andamento por campanha, para a matriz e para a casa (respeita as políticas).
+create or replace function andamento_campanhas()
+returns table (campanha_id uuid, slug text, titulo text, casa_ref text, dias int, feitos int, atrasados int, proximo date)
+language sql stable security invoker set search_path = public as $$
+  select c.id, c.slug, c.titulo, c.casa_ref,
+    count(i.id)::int,
+    count(f.item_id)::int,
+    count(i.id) filter (where f.item_id is null and i.dia < (now() at time zone 'America/Sao_Paulo')::date)::int,
+    min(i.dia) filter (where f.item_id is null and i.dia >= (now() at time zone 'America/Sao_Paulo')::date)
+  from campanhas c join campanha_itens i on i.campanha_id = c.id and i.ativo
+  left join campanha_feitos f on f.item_id = i.id
+  group by c.id order by c.casa_ref, c.slug;
+$$;
+
+grant select, insert, update, delete on campanhas, campanha_itens to authenticated;
+grant select, insert, delete on campanha_feitos to authenticated;
+grant select on campanha_historico to authenticated;
+revoke all on function importar_campanha(jsonb), andamento_campanhas(), posso_casa(text) from public, anon;
+grant execute on function importar_campanha(jsonb), andamento_campanhas(), posso_casa(text) to authenticated;
+
+-- v4.1 — material pode ser de uma casa só (ex.: "Plano de Ação do Rooftap"). Vazio = todas as casas.
+alter table materiais add column if not exists casa_ref text;
+drop policy if exists mat_ler on materiais;
+create policy mat_ler on materiais for select using (
+  eh_equipe() or (ativo and meu_tipo() = any (publico) and (casa_ref is null or posso_casa(casa_ref)))
+);
