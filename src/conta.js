@@ -179,7 +179,9 @@ const TQConta = (() => {
         const { error } = await sb.from("perfis").select("id").limit(1);
         if (!error) return true;
         if (/PGRST205|42P01|does not exist|Could not find the table/i.test(`${error.code} ${error.message}`)) return false;
-        if (!error.code || /fetch|network|timeout|5\d\d/i.test(`${error.code} ${error.message}`)) throw new Error("banco fora do ar");
+        // Só falha de rede conta como "fora do ar". Erro de permissão ou de consulta = banco respondendo
+        // (um código como 42501 não é erro 5xx).
+        if (/Failed to fetch|NetworkError|Load failed|network|timed? ?out|upstream|Bad Gateway|Service Unavailable/i.test(error.message || "")) throw new Error("banco fora do ar");
         return true;
       },
       async sessao() { return perfil(); },
