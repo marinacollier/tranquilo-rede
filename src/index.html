@@ -532,6 +532,7 @@ body.logado .foot{padding:22px 16px 30px}
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
 <script src="config.js"></script>
+<script src="diario.js"></script>
 <script src="regras.js"></script>
 <script src="tour.js"></script>
 <script src="conta.js"></script>
@@ -628,7 +629,7 @@ function localizar(aoAchar) {
 function consentimento() {
   if (store.get("tq-consentimento") || TQTour.aberto() || S.pac || S.conta) return;
   $("#consent").innerHTML = `<div class="consent" role="dialog" aria-label="Privacidade e consentimento de comunicação"><b>🍪 Privacidade e Consentimento de Comunicação</b>
-  <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
+  <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Para melhorar o site, registramos as telas usadas e os erros que acontecem, sem cookies e sem nada do que você digita; se você entrar com sua conta, o registro fica ligado a ela. Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
   <div class="acoes"><button class="btn claro" data-consent="ok">Entendi ✨</button><a class="btn ghost" href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Ler a política</a></div></div>`;
 }
 function rodape() {
@@ -812,6 +813,7 @@ function ligarLogin() {
 }
 async function entrar(cod, lembrar) {
   S.pac = await abrirPacote(cod);
+  TQDiario.registrar("entrou_codigo", { perfil: S.pac.perfil, nome: S.pac.nome });
   if (lembrar) store.set("tq-codigo", normCod(cod));
   S.aba = ordenarAbas(PERFIS[S.pac.perfil].abas)[0][0];
   render();
@@ -1103,6 +1105,7 @@ function render() {
   $("#entrar").hidden = logado; $("#side").hidden = !logado; $("#menu").hidden = !logado; $("#atualizado").hidden = true;
   menu(false);
   $("#cidSel").hidden = logado; $("#cidSel").innerHTML = logado ? "" : seletorCidade();
+  TQDiario.tela(logado ? S.aba || "inicio" : (S.entrada ? "entrada:" + S.entrada : "publico"), S.conta ? "conta:" + S.conta.perfil.tipo : P ? "codigo:" + P.perfil : "visitante");
   if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
   if (!logado) { $("#topTit").textContent = ""; return telaPublica(); }
   $("#quem").innerHTML = quemHtml();

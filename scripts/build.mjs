@@ -183,7 +183,7 @@ const publico = {
   totais: { noites: eventos.filter((e) => e.realizado).length, cidades: cidades.length, futuras: futuros.length },
 };
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
-for (const arq of ['index.html', 'config.js', 'regras.js', 'tour.js', 'conta.js', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
+for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'conta.js', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
 await writeFile(path.join(DIST, '.nojekyll'), '');
 await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 

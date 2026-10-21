@@ -732,7 +732,7 @@ const TQConta = (() => {
       <p class="links"><a href="#" data-entrada="criar">Criar conta de artista ou casa</a> · <a href="#" id="esqueci">Esqueci a senha</a></p>`;
     return `${demo}<div class="entrada"><div class="card login" style="max-width:none">${email}</div><div class="card login" style="max-width:none"><h3>Recebeu um código?</h3><p class="dica">A equipe manda um código XXXX-XXXX-XXXX para quem já está na rede. Ele abre o seu painel sem senha.</p>${formLogin()}</div></div>`;
   }
-  async function aposEntrar(perfil) { await carregar(perfil); render(); scrollTo(0, 0); primeiroAcesso(); }
+  async function aposEntrar(perfil) { await carregar(perfil); TQDiario.registrar("entrou_conta", { tipo: S.conta.perfil.tipo, vinculada: !!S.conta.perfil.codigo_acesso }); render(); scrollTo(0, 0); primeiroAcesso(); }
 
   // ---------- primeiro acesso: senha e tutorial ----------
   function primeiroAcesso() {

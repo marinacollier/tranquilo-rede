@@ -735,3 +735,64 @@ create policy reg_corrigir on registros_noite for update using (user_id = auth.u
 alter table registros_noite drop constraint if exists publico_teto;
 alter table registros_noite add constraint publico_teto check (publico is null or publico <= 20000) not valid;
 grant update on registros_noite to authenticated;
+
+-- =====================================================================
+-- v4: diário de uso (testes de 21/10/2026 em diante). Idempotente.
+-- =====================================================================
+-- Telas, cliques, mensagens e erros enviados pelo site (src/diario.js). Nunca o que a pessoa digita.
+create table if not exists diario (
+  id bigserial primary key,
+  criado_em timestamptz not null default now(),
+  sessao text not null check (length(sessao) between 6 and 40),
+  user_id uuid,
+  perfil text check (length(perfil) <= 40),
+  acao text not null check (length(acao) <= 40),
+  tela text check (length(tela) <= 80),
+  detalhe jsonb check (pg_column_size(detalhe) < 4096),
+  pagina text check (length(pagina) <= 200),
+  navegador text check (length(navegador) <= 300),
+  quando_cliente timestamptz
+);
+create index if not exists diario_quando on diario (criado_em);
+create index if not exists diario_user on diario (user_id, criado_em);
+create index if not exists diario_sessao on diario (sessao, criado_em);
+alter table diario enable row level security;
+create or replace function antes_diario() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.criado_em := now();
+  new.user_id := auth.uid();   -- quem está logado vem do token, não do navegador
+  if (select count(*) from diario where sessao = new.sessao and criado_em > now() - interval '1 minute') >= 300 then
+    return null;               -- excesso de uma mesma aba: descarta em silêncio
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_diario on diario;
+create trigger trg_diario before insert on diario for each row execute function antes_diario();
+revoke all on function antes_diario() from public, anon, authenticated;
+drop policy if exists diario_gravar on diario;
+create policy diario_gravar on diario for insert with check (true);
+drop policy if exists diario_ler on diario;
+create policy diario_ler on diario for select using (eh_equipe());
+
+-- Cópia dos registros do Supabase (erros de chamada, eventos de conta), que o serviço apaga em cerca de 1 dia.
+create table if not exists diario_servidor (
+  id text primary key,
+  quando timestamptz not null,
+  fonte text not null,
+  status int,
+  metodo text,
+  caminho text,
+  mensagem text,
+  dados jsonb,
+  copiado_em timestamptz not null default now()
+);
+create index if not exists diario_servidor_quando on diario_servidor (quando);
+alter table diario_servidor enable row level security;
+drop policy if exists diario_servidor_ler on diario_servidor;
+create policy diario_servidor_ler on diario_servidor for select using (eh_equipe());
+
+revoke all on diario, diario_servidor from anon, authenticated;
+grant insert on diario to anon, authenticated;
+grant select on diario, diario_servidor to authenticated;
+grant usage on sequence diario_id_seq to anon, authenticated;

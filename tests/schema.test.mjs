@@ -172,3 +172,16 @@ let barrado = null;
 for (let i = 0; i < 40 && !barrado; i++) barrado = await tenta(() => q(`insert into avisos_cidade (cidade, contato, canal, consentimento) values ('Natal', $1, 'email', true)`, [`spam${i}@x.com`]));
 await db.exec(`reset role;`);
 ok(!!barrado && /Muitos pedidos/.test(barrado), 'enxurrada de avisos é barrada');
+
+// ---------- v4: diário de uso ----------
+await db.exec(`set role anon;`);
+await q(`insert into diario (sessao, perfil, acao, tela) values ('sessao-qa-1', 'visitante', 'abriu', 'publico')`);
+const leAnon = await tenta(() => q(`select * from diario`));
+await db.exec(`reset role;`);
+ok(!!leAnon, 'visitante grava no diário mas não lê');
+await como(art, async () => {
+  await q(`insert into diario (sessao, perfil, acao, user_id) values ('sessao-qa-2', 'conta:artista', 'clique', $1)`, [eq]);
+  ok((await q(`select * from diario`)).rows.length === 0, 'artista não lê o diário');
+});
+ok((await q(`select user_id from diario where sessao = 'sessao-qa-2'`)).rows[0].user_id === art, 'o diário liga ao usuário do token, não ao enviado');
+await como(eq, async () => { ok((await q(`select * from diario`)).rows.length === 2, 'equipe lê o diário'); });
