@@ -235,7 +235,7 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date(
         id: e.id, nome: e.nome, data: e.data, status, cidade,
         modelo: modeloDe(e), casaId: e.casa, casa: nomeCasa(e.casa, cidade), artistas,
         publico: publico != null && publico > 0 ? publico : null, vendidos: soma, cap,
-        link: e.link && !/linkdesativado|linkinutilizado/.test(e.link) ? e.link : null, clima: e.clima,
+        link: e.link && /^https?:\/\//i.test(e.link) && !/linkdesativado|linkinutilizado/.test(e.link) ? e.link : null, clima: e.clima,
         realizado: passado && !ENCERRADO.has(status),
         cancelado: ENCERRADO.has(status) && status !== 'Duplicado',
         futuro: !passado && !ENCERRADO.has(status),

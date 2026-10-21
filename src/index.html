@@ -14,7 +14,7 @@
 :root{
   color-scheme:dark;
   --bg:#000201;--surface:#0b0c0f;--raised:#121318;--hover:#181a20;--line:#1d1f25;--line-2:#2c2f37;
-  --ink:#e2edff;--ink-2:#c3cddd;--ink-3:#8d96a6;--ink-4:#5f6775;
+  --ink:#e2edff;--ink-2:#c3cddd;--ink-3:#8d96a6;--ink-4:#858e9e;
   --city:#7c8ff3;--city-ink:#000201;
   --violet:var(--city);--violet-soft:color-mix(in srgb,var(--city) 16%,transparent);--sun:#f9b436;--sun-soft:rgba(249,180,54,.13);
   --pink:#fcdbe5;--pink-soft:rgba(252,219,229,.11);--green:#c4d9ba;--green-soft:rgba(196,217,186,.12);
@@ -318,6 +318,7 @@ details summary:hover{color:var(--ink)}
 .seg label{padding:7px 14px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
 .seg label:has(input:checked){background:var(--violet);color:#0b0b0b}
 .seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:focus-visible){outline:2px solid var(--violet);outline-offset:2px}
 .links{font-size:13.5px;color:var(--ink-3);margin:14px 0 0}
 .links a{color:var(--ink-2)}
 @media (max-width:860px){.hero{grid-template-columns:1fr;gap:28px;padding-top:24px}.faixa-aviso{grid-template-columns:1fr;padding:22px}.entrada{grid-template-columns:1fr}}
@@ -338,12 +339,21 @@ details summary:hover{color:var(--ink)}
 .tour-caixa li::before{content:"";position:absolute;left:3px;top:8px;width:7px;height:7px;border-radius:50%;background:var(--sun)}
 .tour-caixa .btn.sm{align-self:flex-start}
 .tour-pontos{display:flex;gap:7px;justify-content:center;margin-top:8px}
-.tour-pontos button{width:9px;height:9px;border-radius:50%;border:0;padding:0;background:var(--line-2);cursor:pointer;transition:width .2s}
-.tour-pontos button.feito{background:var(--ink-4)}
-.tour-pontos button.on{background:var(--violet);width:26px;border-radius:99px}
+.tour-pontos{gap:0}
+.tour-pontos button{width:24px;height:24px;border:0;padding:0;background:none;cursor:pointer;display:grid;place-items:center}
+.tour-pontos button::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--line-2);transition:width .2s}
+.tour-pontos button.feito::before{background:var(--ink-4)}
+.tour-pontos button.on{width:34px}
+.tour-pontos button.on::before{background:var(--violet);width:26px;border-radius:99px}
 .tour-acoes{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
 .tour-acoes .btn{min-width:120px}
-.tour-foco{position:relative;z-index:61;outline:2px solid var(--violet);outline-offset:6px;border-radius:var(--radius)}
+h1,h2,.quem b,.oque b,td b{overflow-wrap:anywhere}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+tr.click:focus-visible,.ev:focus-visible,th[data-i]:focus-visible,[data-ev]:focus-visible,.tbl:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
+.tour-foco{position:relative;z-index:61;outline:2px solid var(--violet);outline-offset:6px;border-radius:var(--radius);box-shadow:0 0 0 100vmax rgba(0,0,0,.62)}
+/* Com alvo destacado: o escurecimento vem da sombra do alvo e a caixa fica por cima de tudo, embaixo da tela. */
+.tour.com-alvo{background:transparent;backdrop-filter:none;z-index:62;place-items:end center}
+.tour.com-alvo .tour-caixa{max-height:55vh}
 @keyframes tourIn{from{opacity:0}to{opacity:1}}
 @keyframes sobe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.tour,.tour-caixa,dialog[open]{animation:none}.side{transition:none}}
@@ -485,10 +495,12 @@ body.logado .foot{padding:22px 16px 30px}
   header.top .wrap{min-height:60px;gap:8px}
   .logo>span:not(.tl){display:none}
   .tl{font-size:26px}
-  .cid-btn{min-width:0;padding:7px 12px;font-size:14px;gap:6px}
-  .cid-btn span{max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .btn-entrar{padding:4px;font-size:0;gap:0}
+  .cid-btn{min-width:0;padding:7px 12px;font-size:14px;gap:6px;min-height:44px}
+  .cid-btn span{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* No celular o botão continua dizendo "Entrar": só o ícone não diz o que faz. */
+  .btn-entrar{padding:4px 12px 4px 4px;font-size:13px;gap:6px;min-height:44px}
   .btn-entrar .av{width:30px;height:30px}
+  .btn,.btn.sm,nav.tabs button{min-height:44px}
   .cid-menu{width:min(290px,calc(100vw - 24px))}
   .hero-ofc{padding-top:22px}
   .cidade{min-height:128px}
@@ -498,7 +510,7 @@ body.logado .foot{padding:22px 16px 30px}
 <body>
 <div id="stale"></div>
 <header class="top"><div class="wrap">
-  <button class="menu-btn" id="menu" aria-label="Abrir menu" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+  <button class="menu-btn" id="menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="side" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
   <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
   <span class="top-tit" id="topTit"></span>
   <span class="sp"></span>
@@ -527,6 +539,8 @@ body.logado .foot{padding:22px 16px 30px}
 "use strict";
 // ---------- utilidades ----------
 const $ = (s, el = document) => el.querySelector(s);
+// Só links http(s) viram botão (um "javascript:" vindo de dado errado nunca chega ao href).
+const urlSegura = (u) => (/^https?:\/\//i.test(String(u || "").trim()) ? String(u).trim() : null);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmt = (n) => n == null || Number.isNaN(n) ? "–" : Math.round(n).toLocaleString("pt-BR");
 const pct = (n) => n == null || !isFinite(n) ? "–" : `${n > 0 ? "+" : ""}${Math.round(n * 100)}%`;
@@ -549,14 +563,16 @@ async function abrirPacote(cod) {
   const n = normCod(cod);
   if (n.length < 12) throw new Error("Código incompleto. Ele tem 12 letras e números.");
   const enc = new TextEncoder();
-  const arq = hex(await crypto.subtle.digest("SHA-256", enc.encode("tranquilo-rede:" + n))).slice(0, 32);
+  const base = await crypto.subtle.importKey("raw", enc.encode(n), "PBKDF2", false, ["deriveKey", "deriveBits"]);
+  const arq = hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode("tranquilo-rede:arquivo"), iterations: 210000, hash: "SHA-256" }, base, 128));
   const r = await fetch(`b/${arq}.bin`, { cache: "no-store" });
   if (!r.ok) throw new Error("Código não encontrado. Confira as letras ou peça um novo código à equipe.");
   const p = await r.json();
-  const base = await crypto.subtle.importKey("raw", enc.encode(n), "PBKDF2", false, ["deriveKey"]);
   const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(p.s), iterations: 210000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
   const claro = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.i) }, k, b64(p.c));
-  return JSON.parse(new TextDecoder().decode(claro));
+  const pac = JSON.parse(new TextDecoder().decode(claro));
+  for (const e of pac.eventos || []) e.l = urlSegura(e.l);
+  return pac;
 }
 
 // ---------- cidades do site oficial: cor, link e coordenadas (para "usar minha localização") ----------
@@ -591,8 +607,8 @@ window.TQCidadeOfc = cidadeOfc;
 function seletorCidade() {
   const c = S.cidade ? cidadeOfc(S.cidade) : null, contagem = Object.fromEntries([...agrupar(S.pub?.agenda || [], (e) => cidadeOfc(e.c)?.nome || e.c)].map(([k, v]) => [k, v.length]));
   return `<button class="cid-btn" id="cidBtn" aria-haspopup="true" aria-expanded="${!!S.cidMenu}">${c ? `<span>${c.emoji} <b>${esc(c.nome)}</b></span>` : "<span>Escolher cidade</span>"}<svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
-  ${S.cidMenu ? `<div class="cid-menu" role="menu"><button class="loc" data-localizar>📍 Usar minha localização</button><div class="nota" id="locNota">A localização fica só no seu aparelho: serve para achar a cidade da rede mais perto.</div>
-  ${c ? `<button data-cidade-ofc="">Todas as cidades</button>` : ""}${CIDADES_OFC.map((x) => `<button data-cidade-ofc="${esc(x.nome)}" class="${c?.slug === x.slug ? "on" : ""}" role="menuitem"><span class="bola" style="background:${x.cor}"></span>${esc(x.nome)}<span class="n">${contagem[x.nome] ? contagem[x.nome] + (contagem[x.nome] > 1 ? " datas" : " data") : x.novo ? "novo" : ""}</span></button>`).join("")}</div>` : ""}`;
+  ${S.cidMenu ? `<div class="cid-menu"><button class="loc" data-localizar>📍 Usar minha localização</button><div class="nota" id="locNota">A localização fica só no seu aparelho: serve para achar a cidade da rede mais perto.</div>
+  ${c ? `<button data-cidade-ofc="">Todas as cidades</button>` : ""}${CIDADES_OFC.map((x) => `<button data-cidade-ofc="${esc(x.nome)}" class="${c?.slug === x.slug ? "on" : ""}"><span class="bola" style="background:${x.cor}"></span>${esc(x.nome)}<span class="n">${contagem[x.nome] ? contagem[x.nome] + (contagem[x.nome] > 1 ? " datas" : " data") : x.novo ? "novo" : ""}</span></button>`).join("")}</div>` : ""}`;
 }
 function maisPerto(lat, lon) {
   const rad = (g) => g * Math.PI / 180, dist = (c) => { const a = Math.sin(rad(c.lat - lat) / 2) ** 2 + Math.cos(rad(lat)) * Math.cos(rad(c.lat)) * Math.sin(rad(c.lon - lon) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(a)); };
@@ -698,12 +714,12 @@ function tabela(id, colunas, linhas, ordem, semLinhas) {
   S.ord[id] = st;
   const col = colunas[st.i];
   const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
-  return `<div class="tbl"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" title="Ordenar">${esc(c.t)}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
+  return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
 }
 const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;
 function evLinha(e, extra = "") {
   const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
-  return `<div class="ev" data-ev="${e.id}">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(e.h || "casa a definir")}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
+  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(e.h || "casa a definir")}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
 }
 function abrirEvento(id) {
   const e = S.pac.eventos.find((x) => x.id === id); if (!e) return;
@@ -786,7 +802,7 @@ function telaPublica() {
   ${TQConta.formEntrada()}</section>`;
   ligarLogin();
 }
-const formLogin = () => `<label class="fcampo"><b>Código de acesso</b><input id="cod" autocomplete="off" placeholder="XXXX-XXXX-XXXX" spellcheck="false"></label><div class="err" id="err"></div><label class="fcheck" style="margin-bottom:14px"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label><button class="btn" id="ok">Abrir com código</button>`;
+const formLogin = () => `<label class="fcampo"><b>Código de acesso</b><input id="cod" autocomplete="off" placeholder="XXXX-XXXX-XXXX" spellcheck="false"></label><div class="err" role="status" aria-live="polite" id="err"></div><label class="fcheck" style="margin-bottom:14px"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label><button class="btn" id="ok">Abrir com código</button>`;
 function ligarLogin() {
   const ir = async () => {
     const c = $("#cod").value; $("#err").textContent = "Abrindo…";
@@ -846,8 +862,8 @@ const TELAS = {
     const ativos = P.referencia.filter((r) => r.futuras > 0 || r.noites > 0).map((r) => r.cidade);
     return `<div class="tag">Painel estratégico</div><h1>O que está dando certo</h1>
     <p class="sub">Cidade, casa e artista comparados com noites do mesmo formato no recorte; modelo comparado com a rede. Base: público lançado no Notion em cada noite realizada.</p>
-    <div class="filters"><select id="fPer">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
-    <select id="fMod">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
+    <div class="filters"><select id="fPer" aria-label="Período">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
+    <select id="fMod" aria-label="Modelo">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
     <div class="stats">${kpi(fmt(rede.noites), "noites realizadas", `${rede.cidades} cidades`)}${kpi(fmt(rede.media), "público médio por noite", `mediana ${fmt(rede.mediana)}`)}${kpi(fmt(rede.total), "pessoas nas noites com público lançado")}${kpi(rede.registro == null ? "–" : Math.round(rede.registro * 100) + "%", "noites com público lançado", `${rede.noites - rede.comPublico} sem número no Notion`)}${kpi(rede.cancel == null ? "–" : Math.round(rede.cancel * 100) + "%", "canceladas ou adiadas", `${rede.cancelados} datas`)}${kpi(fmt(rede.futuras), "datas futuras neste recorte")}</div>
     <div class="grid g2" style="margin-top:12px">
       <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média de noites do mesmo formato, em 3 ou mais noites, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && d.esperado ? "+" + Math.round((d.media / d.esperado - 1) * 100) + "% vs. " + (d.k === "modelo" ? "rede" : "mesmo formato") : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
@@ -880,7 +896,7 @@ const TELAS = {
     return `<div class="tag">Operação</div><h1>Rodada dos 50</h1><p class="sub">Quantas datas já estão de pé neste mês e no próximo, o que precisa de atenção e o que acontece nos próximos 14 dias.</p>
     <div class="grid g2">${bloco(mesAtual)}${bloco(prox)}</div>
     <h2>Precisa de atenção <span class="muted">· ${alertas.length}</span></h2><p class="sub">Gerado a partir do Notion a cada atualização. Clique para ver a ficha.</p>
-    <div class="list">${alertas.map((a) => `<div class="alert ${a.k === "crit" ? "crit" : a.k === "warn" ? "warn" : ""}" data-ev="${a.e.id}" style="cursor:pointer"><b>${esc(a.t)}</b>${dt(a.e.d)} · ${esc(a.e.c)} · ${esc(a.e.a[0] || a.e.m)} · ${esc(a.e.h || "sem casa")}</div>`).join("") || `<p class="muted">Nada pendente.</p>`}</div>
+    <div class="list">${alertas.map((a) => `<div class="alert ${a.k === "crit" ? "crit" : a.k === "warn" ? "warn" : ""}" data-ev="${a.e.id}" tabindex="0" style="cursor:pointer"><b>${esc(a.t)}</b>${dt(a.e.d)} · ${esc(a.e.c)} · ${esc(a.e.a[0] || a.e.m)} · ${esc(a.e.h || "sem casa")}</div>`).join("") || `<p class="muted">Nada pendente.</p>`}</div>
     <h2>Próximos 14 dias</h2><div class="list">${P.eventos.filter((e) => e.f && e.d <= em14).map((e) => evLinha(e)).join("") || `<p class="muted">Sem datas nos próximos 14 dias.</p>`}</div>`;
   },
   datas() {
@@ -893,7 +909,7 @@ const TELAS = {
     if (f.q) { const q = f.q.toLowerCase(); evs = evs.filter((e) => (e.n + " " + (e.h || "")).toLowerCase().includes(q)); }
     const sel = (id, k, rot) => `<select id="${id}"><option value="">${rot}</option>${opts(k).map((o) => `<option${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
     return `<div class="tag">Datas</div><h1>${evs.length} datas</h1>
-    <div class="filters"><select id="dQuando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
+    <div class="filters"><select id="dQuando" aria-label="Quando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
     ${tabela("datas", [
       { t: "Data", v: (e) => e.d, h: (e) => `<b>${dt(e.d)}</b> <span class="muted">${dia(e.d)}</span>` },
       { t: "Cidade", v: (e) => e.c }, { t: "Modelo", v: (e) => e.m },
@@ -944,7 +960,7 @@ const TELAS = {
     const P = S.pac, url = location.origin + location.pathname, f = S.acf || "";
     const lista = P.acessos.filter((a) => !f || a.tipo === f);
     return `<div class="tag">Acessos</div><h1>Códigos de acesso</h1><p class="sub">Cada código abre só o painel daquele perfil. O link já entra direto. Os códigos continuam os mesmos a cada atualização noturna; mudam apenas se o segredo do site for trocado.</p>
-    <div class="filters"><select id="acf"><option value="">Todos (${P.acessos.length})</option>${["adm","equipe","artista","casa"].map((t) => `<option value="${t}"${f === t ? " selected" : ""}>${PERFIS[t].rotulo}</option>`).join("")}</select></div>
+    <div class="filters"><select id="acf" aria-label="Filtrar acessos por perfil"><option value="">Todos (${P.acessos.length})</option>${["adm","equipe","artista","casa"].map((t) => `<option value="${t}"${f === t ? " selected" : ""}>${PERFIS[t].rotulo}</option>`).join("")}</select></div>
     ${tabela("acs", [
       { t: "Perfil", v: (a) => PERFIS[a.tipo].rotulo }, { t: "Nome", v: (a) => a.nome, h: (a) => `<b>${esc(a.nome)}</b>${a.cidades ? `<div class="muted" style="font-size:12px">${esc(a.cidades)}</div>` : ""}` },
       { t: "Código", v: (a) => a.codigo, h: (a) => `<code class="cod">${a.codigo}</code>` },
@@ -1076,7 +1092,11 @@ function quemHtml() {
   const detalhe = nome !== rot ? rot : S.conta ? S.conta.perfil.email : "acesso por código";
   return `<span class="av ${tipo}">${esc((nome.trim()[0] || "T").toUpperCase())}</span><div><b>${esc(nome)}</b><small>${esc(detalhe)}</small></div>`;
 }
-function menu(abrir) { document.body.classList.toggle("menu-aberto", abrir); $("#veu").hidden = !abrir; }
+function menu(abrir) {
+  document.body.classList.toggle("menu-aberto", abrir); $("#veu").hidden = !abrir;
+  $("#menu")?.setAttribute("aria-expanded", String(!!abrir));
+  if (abrir) document.querySelector(".side button, .side a")?.focus(); else if (document.activeElement?.closest(".side")) $("#menu")?.focus();
+}
 function render() {
   const P = S.pac, logado = !!(P || S.conta);
   document.body.classList.toggle("logado", logado);
@@ -1102,6 +1122,16 @@ function ligar() {
   on("#bq", "oninput", (e) => { S.bq = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#bq"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
   on("#acf", "onchange", (e) => { S.acf = e.target.value; render(); });
 }
+// Teclado: Enter/Espaço abre linhas, cartões e cabeçalhos clicáveis; Esc fecha o menu de cidade e o menu lateral.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") {
+    if (S.cidMenu) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); $("#cidBtn")?.focus(); return; }
+    if (document.body.classList.contains("menu-aberto")) { menu(false); return; }
+  }
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
+  // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
+  if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
+});
 document.addEventListener("click", (ev) => {
   const t = ev.target;
   if (t.closest("#cidBtn")) { S.cidMenu = !S.cidMenu; $("#cidSel").innerHTML = seletorCidade(); return; }
@@ -1111,7 +1141,7 @@ document.addEventListener("click", (ev) => {
     const nota = $("#avLocNota"); if (nome && op) { sel.value = op.value; $("#avOutra").hidden = true; if (nota) nota.textContent = `Achamos: ${c.nome}.`; } else if (nota && c) { sel.value = "__outra"; $("#avOutra").hidden = false; $("#avOutra").focus(); } }); return; }
   const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", new Date().toISOString()); $("#consent").innerHTML = ""; return; }
   if (S.cidMenu && !t.closest("#cidSel")) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); }
-  const aba = t.closest("[data-aba]"); if (aba) { S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
+  const aba = t.closest("[data-aba]"); if (aba) { TQConta.salvarPendente(); S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
   const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
   const cp = t.closest("[data-copy]"); if (cp) { const antes = cp.textContent; navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado ✓"; setTimeout(() => (cp.textContent = antes), 1500); }); return; }
   if (t.closest("[data-como-funciona]")) return TQConta.tutorialPublico(true);
@@ -1130,7 +1160,14 @@ $("#veu").onclick = () => menu(false);
 document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = abasAtuais()[0][0]; render(); scrollTo(0, 0); }));
 
 (async function iniciar() {
-  try { S.pub = await (await fetch("public.json", { cache: "no-store" })).json(); }
+  try {
+    S.pub = await (await fetch("public.json", { cache: "no-store" })).json();
+    // Confere o formato antes de desenhar: item sem data ou cidade é descartado em vez de travar a página.
+    if (!S.pub || !Array.isArray(S.pub.agenda)) throw new Error("formato");
+    S.pub.agenda = S.pub.agenda.filter((e) => e && /^\d{4}-\d{2}-\d{2}$/.test(e.d || "") && e.c).map((e) => ({ ...e, a: Array.isArray(e.a) ? e.a : [], l: urlSegura(e.l) }));
+    for (const k of ["casas", "cidades", "circulacao"]) if (!Array.isArray(S.pub[k])) S.pub[k] = [];
+    if (isNaN(new Date(S.pub.geradoEm))) S.pub.geradoEm = new Date(0).toISOString();
+  }
   catch { $("#app").innerHTML = `<p>Não foi possível carregar os dados agora. Tente de novo em instantes.</p>`; return; }
   const ger = new Date(S.pub.geradoEm), horas = (Date.now() - ger) / 36e5;
   $("#atualizado").textContent = $("#atualizado2").textContent = `Notion · ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
@@ -1143,10 +1180,23 @@ document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.
   const convite = params.has("criar") ? { email: params.get("email") || "", tipo: params.get("tipo") === "casa" ? "casa" : "artista" } : null;
   if (hash || tutorialLink || convite) history.replaceState(null, "", location.pathname);
   const cod = hash || store.get("tq-codigo");
-  try { if (await TQConta.iniciar()) { render(); if (tutorialLink && tutorialLink !== "publico") TQConta.abrirTutorial(tutorialLink, false); return; } } catch (e) { console.error(e); }
-  if (cod) { try { await entrar(cod, true); return; } catch { store.del("tq-codigo"); } }
+  // A agenda pública não espera o banco de contas: se ele demorar mais de 4 s, a página segue e
+  // a área logada aparece quando a conexão terminar.
+  const contaP = TQConta.iniciar().catch((e) => { console.error(e); return false; });
+  const logado = await Promise.race([contaP, new Promise((ok) => setTimeout(() => ok(null), 4000))]);
+  if (logado) { render(); if (tutorialLink && tutorialLink !== "publico") TQConta.abrirTutorial(tutorialLink, false); return; }
+  if (logado === null) contaP.then((ok) => { if (ok && !S.pac) render(); else { const av = $("#contaAviso"); if (av) av.outerHTML = TQConta.avisoConta(); } });
+  if (cod) {
+    try { await entrar(cod, !hash || !!store.get("tq-codigo")); return; }
+    catch (e) {
+      // Só esquece o código lembrado quando ele não existe mais; erro de rede mantém o código.
+      if (/não encontrado/.test(e.message)) store.del("tq-codigo");
+      if (hash) S.erroCodigo = e.message;
+    }
+  }
   if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; }
   render();
+  if (S.erroCodigo) { const er = $("#err"); if (er) { er.textContent = `O link de acesso não abriu: ${S.erroCodigo}`; er.closest(".card")?.scrollIntoView({ block: "center" }); } S.erroCodigo = null; return; }
   if (convite) { const em = $("#email"); if (em) { em.value = convite.email; $("#acesso")?.scrollIntoView({ block: "start" }); $("#enome")?.focus(); } return; }
   if (tutorialLink) return tutorialLink === "publico" ? TQConta.tutorialPublico(true) : TQConta.abrirTutorial(tutorialLink, false);
   // Link direto para o "me avise" (divulgado pela equipe): vai para o formulário sem abrir o tutorial.
