@@ -109,6 +109,7 @@ const TQConta = (() => {
       },
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
+      async relatos() { exigeEquipe(); return []; },
     };
   }
 
@@ -232,6 +233,7 @@ const TQConta = (() => {
         if (error && error.code !== "23505") throw new Error(traduz(error.message));   // 23505: já pediu esta cidade
       },
       async avisos() { return ok(await sb.from("avisos_cidade").select("*").order("criado_em", { ascending: false })); },
+      async relatos() { return ok(await sb.from("diario").select("criado_em,user_id,perfil,tela,detalhe,navegador").eq("acao", "relato").order("criado_em", { ascending: false }).limit(300)); },
     };
   }
   function traduz(m) {
@@ -292,7 +294,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["conta", "Conta"]];
     if (t === "casa") return [["passos", "Próximos passos"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["conta", "Conta"]];
-    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"]];
+    const base = [["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -452,7 +454,8 @@ const TQConta = (() => {
     },
     cadastro_casa() {
       const c = S.conta.casa, d = c?.dados || {}, parceira = S.casaParceira ?? !!c?.ja_parceira;
-      const casasConhecidas = (S.pub.casas || []);
+      // Só casas com nome real; quem não se acha usa "Minha casa não aparece".
+      const casasConhecidas = (S.pub.casas || []).filter((x) => !/^Casa (em|da rede)\b/.test(x.nome)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
       return `<div class="tag">Cadastro da casa</div><h1>${c ? "Ficha da casa" : "Cadastre sua casa"}</h1>
       <p class="sub">A ficha tem três partes: primeiro o que falta para a casa ser habilitada, depois o que falta para receber alguns tipos de show, por fim o que só deixa a ficha mais completa. Você pode atualizar a ficha a qualquer momento.</p>
       ${c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
@@ -569,6 +572,19 @@ const TQConta = (() => {
         { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
       ], E.conv, { i: 3, dir: 1 }, vazio("Nenhum convite ainda", "Escolha a artista ou a casa acima, coloque o e-mail e envie. O convite aparece aqui com a situação de cada pessoa.", "", "convites"))}`;
     },
+    relatos() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("relatos"); }
+      if (E.relatos === null) return faltaSchema("Relatos");
+      const quem = Object.fromEntries((E.perfis || []).map((p) => [p.id, p.email]));
+      const aparelho = (ua) => /Mobile|Android|iPhone/i.test(ua || "") ? "celular" : "computador";
+      return `<div class="tag">Relatos</div><h1>O que as pessoas contaram</h1><p class="sub">Tudo o que chega pelo botão "Algo deu errado?", com a tela, a conta e os últimos erros daquela aba. A lista completa de uso e erros fica na tabela diario do Supabase.</p>
+      <div class="list">${(E.relatos || []).map((r) => {
+        const d = r.detalhe || {}, rec = (d.recentes || []).filter((x) => x.acao !== "tela");
+        return `<div class="card"><div class="row"><b>${esc(quem[r.user_id] || d.contato || "visitante")}</b><span class="muted" style="font-size:13px">${new Date(r.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · ${esc(r.perfil || "")} · ${esc(r.tela || "")} · ${aparelho(r.navegador)}</span></div>
+        <p style="margin:8px 0">${esc(d.texto || "")}</p>
+        ${rec.length ? `<details><summary>${rec.length} erro${rec.length > 1 ? "s" : ""} ou aviso${rec.length > 1 ? "s" : ""} antes do relato</summary><ul class="passos">${rec.map((x) => `<li><b>${esc(x.h || "")} · ${esc(x.acao)}</b> <span class="muted">${esc(x.tela || "")}</span><br><span class="muted" style="font-size:13px">${esc(x.texto || x.msg || [x.alvo, x.status].filter(Boolean).join(" · "))}</span></li>`).join("")}</ul></details>` : `<span class="muted" style="font-size:13px">Nenhum erro registrado antes do relato.</span>`}</div>`;
+      }).join("") || vazio("Nenhum relato ainda", "Quando alguém usar o botão \"Algo deu errado?\", aparece aqui com a tela e os erros.")}</div>`;
+    },
     demanda() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("demanda por cidade"); }
       if (E.avisos === null) return faltaSchema("Demanda");
@@ -658,9 +674,9 @@ const TQConta = (() => {
       const quem = S.conta?.perfil.id;
       // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
       const novo = (pr) => pr.catch(() => null);
-      const [insc, casas, perfis, chk, reg, conv, avisos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos())]);
+      const [insc, casas, perfis, chk, reg, conv, avisos, relatos] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);

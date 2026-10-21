@@ -348,6 +348,9 @@ details summary:hover{color:var(--ink)}
 .tour-acoes{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
 .tour-acoes .btn{min-width:120px}
 h1,h2,.quem b,.oque b,td b{overflow-wrap:anywhere}
+.relatar{position:fixed;right:14px;bottom:14px;z-index:35;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:10px 16px;min-height:44px;font:600 14px/1 var(--sans);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.relatar:hover,.relatar:focus-visible{color:var(--ink);border-color:var(--violet);outline:none}
+body:has(.consent) .relatar{display:none}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 tr.click:focus-visible,.ev:focus-visible,th[data-i]:focus-visible,[data-ev]:focus-visible,.tbl:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
 .tour-foco{position:relative;z-index:61;outline:2px solid var(--violet);outline-offset:6px;border-radius:var(--radius);box-shadow:0 0 0 100vmax rgba(0,0,0,.62)}
@@ -522,12 +525,13 @@ body.logado .foot{padding:22px 16px 30px}
   <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
   <div class="quem" id="quem"></div>
   <nav class="tabs" id="tabs" aria-label="Seções"></nav>
-  <div class="side-pe"><span class="chip" id="atualizado2"></span><button class="btn sm" id="sair">Sair da conta</button></div>
+  <div class="side-pe"><span class="chip" id="atualizado2"></span><button class="btn sm" id="comoFunciona">Como funciona</button><button class="btn sm" id="sair">Sair da conta</button></div>
 </aside>
 <div class="veu" id="veu" hidden></div>
 <main class="wrap" id="app"><p class="muted">Carregando…</p></main>
 <footer class="foot" id="foot"></footer>
 <div id="consent"></div>
+<button class="relatar" id="relatar" type="button">Algo deu errado?</button>
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
@@ -718,16 +722,20 @@ function tabela(id, colunas, linhas, ordem, semLinhas) {
   return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
 }
 const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;
+// "Casa em Belo Horizonte · a645" = casa sem nome no Notion. Para público, artista e casa vira "local a confirmar";
+// equipe e adm continuam vendo o identificador para achar a casa no Notion.
+const casaGenerica = (h) => !h || /^Casa (em|da rede)\b/.test(h);
+const nomeCasa = (h) => (casaGenerica(h) && !["adm", "equipe"].includes(S.pac?.perfil) ? "local a confirmar" : h);
 function evLinha(e, extra = "") {
   const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
-  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(e.h || "casa a definir")}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
+  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(nomeCasa(e.h))}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
 }
 function abrirEvento(id) {
   const e = S.pac.eventos.find((x) => x.id === id); if (!e) return;
   const interno = S.pac.perfil === "adm" || S.pac.perfil === "equipe";
   const refC = S.pac.referencia.find((r) => r.cidade === e.c);
   $("#dlgIn").innerHTML = `<div class="tag">${esc(e.m)} · ${esc(e.s)}</div><h2 style="margin-top:4px">${esc(e.c)} · ${dt(e.d)}</h2><p class="sub">${esc(e.n)}</p>
-  <dl class="kv"><dt>Casa</dt><dd>${esc(e.h || "–")}</dd><dt>Line-up</dt><dd>${e.a.length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "–"}</dd>
+  <dl class="kv"><dt>Casa</dt><dd>${esc(nomeCasa(e.h))}</dd><dt>Line-up</dt><dd>${e.a.length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "–"}</dd>
   <dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>
   ${e.v != null ? `<dt>Ingressos + porta + lista</dt><dd>${fmt(e.v)}</dd>` : ""}${e.x ? `<dt>Capacidade trabalhada</dt><dd>${fmt(e.x)}${e.p ? ` · ocupação ${Math.round(e.p / e.x * 100)}%` : ""}</dd>` : ""}
   ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}</dl>
@@ -755,7 +763,7 @@ function cartaoEvento(e, primeiro) {
     <div class="bloco" aria-hidden="true"><span>${SEM_C[d.getDay()]}</span><span class="m">${MESES[d.getMonth()].toUpperCase()}</span><b>${e.d.slice(8, 10)}</b><span class="a">${e.d.slice(0, 4)}</span></div>
     <div class="meio"><div class="longa">${SEM_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}</div>
       <div class="titulo">${esc(tituloOfc(e))}${e.m && !/^sem /i.test(e.m) ? `<span class="badge">${esc(e.m)}</span>` : ""}</div>
-      ${e.h && !/^Casa (em|da rede)/.test(e.h) ? `<div class="longa" style="margin-top:2px">${esc(e.h)}</div>` : ""}</div>
+      <div class="longa" style="margin-top:2px">${esc(casaGenerica(e.h) ? "Local a confirmar" : e.h)}</div></div>
     <div class="lado"><div class="falta">${primeiro ? "Próximo evento · " : ""}${falta}</div>
       ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
 }
@@ -817,6 +825,17 @@ async function entrar(cod, lembrar) {
   if (lembrar) store.set("tq-codigo", normCod(cod));
   S.aba = ordenarAbas(PERFIS[S.pac.perfil].abas)[0][0];
   render();
+  if (!store.get(`tq-tutorial-codigo-${S.pac.perfil}`)) setTimeout(() => tutorialCodigo(true), 300);
+}
+// Tutorial de quem entra por código: na primeira vez neste aparelho e pelo botão "Como funciona".
+function tutorialCodigo(primeira) {
+  if (!S.pac || TQTour.aberto()) return;
+  const perfil = S.pac.perfil, roteiro = perfil === "artista" ? "codigo_artista" : perfil === "casa" ? "codigo_casa" : "codigo_interno";
+  TQTour.abrir(roteiro, {
+    aoIr: (aba) => { if (abasAtuais().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } },
+    temAba: (aba) => abasAtuais().some(([k]) => k === aba),
+    aoFechar: () => { if (primeira) store.set(`tq-tutorial-codigo-${perfil}`, new Date().toISOString()); },
+  });
 }
 
 // Passo a passo por data para quem entra por código (só leitura; marcar como feito exige conta).
@@ -826,7 +845,7 @@ function passosLeitura(evs, modelo, hoje) {
   if (!prox.length) return "";
   return `<h2>O que fazer agora</h2><p class="sub">Passo a passo de cada data, com prazo. Para marcar o que já fez, peça à equipe o convite por e-mail e crie sua conta.</p><div class="list">${prox.map((e) => {
     const ps = R.passosDaData(modelo, e.d, {}, hoje), agora = ps.find((p) => !p.passou && p.prazo >= hoje) || ps.find((p) => !p.passou);
-    return `<div class="card"><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span>
+    return `<div class="card"><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(nomeCasa(e.h))}</span>
       ${agora ? `<div class="alert warn" style="margin:10px 0"><b>Próximo passo: ${esc(agora.titulo)}</b>${esc(agora.texto)} <span class="muted">· até ${dt(agora.prazo)}</span></div>` : ""}
       <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li><b>${esc(p.titulo)}</b> <span class="muted">· até ${dt(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></li>`).join("")}</ul></details></div>`;
   }).join("")}</div>`;
@@ -978,7 +997,7 @@ const TELAS = {
     <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura na agenda.</p>`}</div>
     ${passosLeitura(fut, "artista", P.hoje)}
     <h2>Histórico</h2>${tabela("hist", [
-      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Cidade", v: (e) => e.c }, { t: "Casa", v: (e) => e.h }, { t: "Modelo", v: (e) => e.m },
+      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Cidade", v: (e) => e.c }, { t: "Casa", v: (e) => nomeCasa(e.h) }, { t: "Modelo", v: (e) => e.m },
       { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
       { t: "Faixa da praça", v: (e) => ref[e.c]?.mediana, h: (e) => { const r = ref[e.c]; if (!r?.mediana) return `<span class="muted">sem base</span>`; const pos = e.p == null ? "" : e.p > r.p75 ? `<span class="badge b-good">acima</span>` : e.p < r.p25 ? `<span class="badge b-serious">abaixo</span>` : `<span class="badge b-warn">na faixa</span>`; return `${fmt(r.p25)}–${fmt(r.p75)} ${pos}`; } },
     ], pas.filter((e) => !e.z).map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: -1 })}`;
@@ -1054,13 +1073,14 @@ function fichaPor(tipo, nome) {
 const GRUPOS = [
   ["Agora", ["passos", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "convites", "prontidao", "pessoas"]],
-  ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda"]],
+  ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "relatos"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa"]],
   ["Referência", ["roteiro", "base", "metodo", "acessos"]],
   ["Conta", ["conta"]],
 ];
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONES = {
+  relatos: ic('<path d="M4 5h16v11H8l-4 4z"/><path d="M12 8v3M12 13.5v.5"/>'),
   passos: ic('<path d="M5 12l4 4L19 6"/>'), operacao: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   agenda: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'), minhas: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   curadoria: ic('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'), casas_cad: ic('<path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/>'),
@@ -1107,10 +1127,16 @@ function render() {
   $("#cidSel").hidden = logado; $("#cidSel").innerHTML = logado ? "" : seletorCidade();
   TQDiario.tela(logado ? S.aba || "inicio" : (S.entrada ? "entrada:" + S.entrada : "publico"), S.conta ? "conta:" + S.conta.perfil.tipo : P ? "codigo:" + P.perfil : "visitante");
   if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
-  if (!logado) { $("#topTit").textContent = ""; return telaPublica(); }
+  if (!logado) { if (/^#\//.test(location.hash)) history.replaceState(null, "", location.pathname); $("#topTit").textContent = ""; return telaPublica(); }
   $("#quem").innerHTML = quemHtml();
   const abas = abasAtuais();
+  // Link direto ou recarregar numa aba (#/curadoria) abre essa aba, se o perfil tiver acesso a ela.
+  if (S.abaDesejada && abas.some(([k]) => k === S.abaDesejada)) S.aba = S.abaDesejada;
+  S.abaDesejada = null;
   if (!abas.some(([k]) => k === S.aba)) S.aba = abas[0][0];
+  // Cada aba vira uma entrada no histórico: o botão Voltar do navegador volta de aba em vez de sair do site.
+  const alvo = "#/" + S.aba;
+  if (location.hash !== alvo) history[/^#\//.test(location.hash) ? "pushState" : "replaceState"](null, "", location.pathname + alvo);
   $("#tabs").innerHTML = navHtml(abas);
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
   $("#app").innerHTML = (TQConta.telas[S.aba] || TELAS[S.aba])();
@@ -1158,9 +1184,36 @@ const dlg = $("#dlg");
 dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
 $("#entrar").onclick = () => { S.entrada = "entrar"; render(); setTimeout(() => { $("#acesso")?.scrollIntoView({ block: "start" }); $("#email")?.focus({ preventScroll: true }); }, 30); };
 $("#sair").onclick = () => TQConta.sairDeTudo();
+// "Algo deu errado?": a pessoa conta em uma frase; o site anexa a tela, a conta e os últimos erros.
+$("#relatar").onclick = () => {
+  const logado = !!(S.pac || S.conta);
+  $("#dlgIn").innerHTML = `<div class="tag">Ajude a melhorar</div><h2 id="relTit" style="margin-top:4px">O que aconteceu?</h2>
+  <p class="sub">Conte do seu jeito, em uma ou duas frases: o que você tentou fazer e o que apareceu. A tela em que você está e os últimos erros vão juntos, automaticamente.</p>
+  <label class="fcampo"><b>O que aconteceu</b><textarea id="relTxt" rows="4" maxlength="1000" placeholder="Ex.: cliquei em Enviar inscrição e nada aconteceu"></textarea></label>
+  ${S.conta ? "" : `<label class="fcampo"><b>Seu contato (opcional, se quiser resposta)</b><input id="relCont" maxlength="120" placeholder="e-mail ou WhatsApp"></label>`}
+  <div class="barra-acoes"><button class="btn pri" id="relOk">Enviar</button><button class="btn" onclick="dlg.close()">Cancelar</button></div>
+  <div class="err" role="status" aria-live="polite" id="relErr"></div>`;
+  dlg.setAttribute("aria-labelledby", "relTit"); dlg.showModal(); $("#relTxt").focus();
+  $("#relOk").onclick = async () => {
+    const txt = $("#relTxt").value.trim();
+    if (txt.length < 5) { $("#relErr").textContent = "Escreva um pouquinho mais sobre o que aconteceu."; $("#relTxt").focus(); return; }
+    $("#relOk").disabled = true; $("#relErr").textContent = "Enviando…";
+    const foi = await TQDiario.relatar(txt, $("#relCont")?.value || "");
+    $("#dlgIn").innerHTML = `<h2 style="margin-top:0">${foi ? "Recebido, obrigado!" : "Não deu para enviar daqui"}</h2><p class="sub">${foi ? "A equipe vai olhar com a tela e os erros que vieram junto." : "Mande pelo WhatsApp da equipe, com um print da tela."}</p><div class="barra-acoes"><button class="btn pri" onclick="dlg.close()">Fechar</button></div>`;
+  };
+  void logado;
+};
+$("#comoFunciona").onclick = () => { menu(false); S.conta ? TQConta.abrirTutorial(S.conta.perfil.tipo, false) : tutorialCodigo(false); };
 $("#menu").onclick = () => menu(true);
 $("#veu").onclick = () => menu(false);
 document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = abasAtuais()[0][0]; render(); scrollTo(0, 0); }));
+
+addEventListener("popstate", () => {
+  const m = location.hash.match(/^#\/(\w+)/);
+  if (!(S.pac || S.conta) || !m || m[1] === S.aba) return;
+  if (abasAtuais().some(([k]) => k === m[1])) { S.aba = m[1]; render(); scrollTo(0, 0); }
+});
+S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
 
 (async function iniciar() {
   try {

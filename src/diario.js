@@ -26,7 +26,11 @@ const TQDiario = (() => {
     try { const s = JSON.parse(localStorage.getItem(`sb-${ref}-auth-token`) || "null"); return s?.access_token || null; } catch { return null; }
   }
 
+  // Últimos problemas e telas desta aba: vão junto quando a pessoa usa "Algo deu errado?".
+  const recentes = [];
+  const PROBLEMA = /^(erro_|falha_|chamada_lenta|mensagem)/;
   function registrar(acao, detalhe = {}) {
+    if (PROBLEMA.test(acao) || acao === "tela") { recentes.push({ acao, tela, ...detalhe, h: new Date().toTimeString().slice(0, 8) }); if (recentes.length > 8) recentes.shift(); }
     if (!ativo) return;
     fila.push({ sessao, perfil, acao: curto(acao, 40), tela, detalhe, pagina: pagina(), navegador: curto(navigator.userAgent, 300), quando_cliente: new Date().toISOString() });
     if (fila.length >= 20) enviar();
@@ -43,9 +47,10 @@ const TQDiario = (() => {
       return origFetch(destino, { method: "POST", keepalive: saindo, headers: h, body: JSON.stringify(lote) });
     };
     try {
-      const r = await manda(true);
-      if (r.status === 401) await manda(false);   // sessão vencida: grava sem ligar à conta
-    } catch { /* sem rede: o lote se perde, o site segue normal */ }
+      let r = await manda(true);
+      if (r.status === 401) r = await manda(false);   // sessão vencida: grava sem ligar à conta
+      return r.ok;
+    } catch { return false; /* sem rede: o lote se perde, o site segue normal */ }
     finally { enviando = false; }
   }
   setInterval(() => enviar(), 5000);
@@ -101,5 +106,11 @@ const TQDiario = (() => {
   }
 
   registrar("abriu", { tela_px: `${innerWidth}x${innerHeight}`, idioma: navigator.language, veio_de: limpo(document.referrer.replace(/\?.*/, ""), 120) || undefined });
-  return { registrar, tela: tela_, enviar };
+  /** Relato escrito pela pessoa, com os últimos problemas e telas anexados. Envia na hora. */
+  function relatar(texto, contato) {
+    registrar("relato", { texto: curto(texto, 1000), contato: curto(contato, 120) || undefined, recentes: JSON.parse(JSON.stringify(recentes)).map((r) => { for (const k in r) if (typeof r[k] === "string") r[k] = curto(r[k], 120); return r; }) });
+    // Esvazia a fila inteira (o relato é o último item) e diz se o lote do relato chegou.
+    return (async () => { let ok = false; while (ativo && fila.length) ok = await enviar(true); return ativo && ok; })();
+  }
+  return { registrar, tela: tela_, enviar, relatar };
 })();

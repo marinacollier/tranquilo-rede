@@ -46,6 +46,37 @@ const TQTour = (() => {
         { titulo: "Atualização automática", texto: "O site lê o Notion toda noite. Se os dados ficarem com mais de 36 horas, aparece uma faixa vermelha no topo e o repositório abre um aviso.", itens: ["Você pode rever este tutorial a qualquer momento na aba Conta."] },
       ],
     },
+    // Quem entra pelo código de acesso (sem conta por e-mail): painel só de leitura.
+    codigo_artista: {
+      rotulo: "Artista",
+      passos: [
+        { titulo: "Este é o seu painel", texto: "Você entrou com o código que a equipe do Tranquilo mandou. Aqui ficam as suas datas na Rede Tranquilo.", itens: ["Não precisa de senha: guarde o código.", "Só você vê o que está aqui."] },
+        { titulo: "Suas datas", texto: "Em Minha agenda aparecem as próximas datas, com cidade, casa e link de ingressos, e o público de cada noite que já aconteceu.", itens: [], ir: ["agenda", "Ver minha agenda"] },
+        { titulo: "O que fazer agora", texto: "Para cada data, o painel mostra o próximo passo e até quando fazer: contrato, rider, som, divulgação, passagem e pós-show.", itens: ["Clique em \"Ver todos os passos\" para a lista completa."] },
+        { titulo: "As cidades da rede", texto: "Em Praças da rede você vê quanta gente costuma ir aos shows em cada cidade, inclusive onde você ainda não tocou.", itens: [], ir: ["pracas", "Ver as cidades"] },
+        { titulo: "Quer marcar o que já fez?", texto: "Peça à equipe o convite por e-mail e crie a sua conta: aí você marca cada passo e a equipe acompanha na hora.", itens: ["Este tutorial fica no botão \"Como funciona\", no menu."] },
+      ],
+    },
+    codigo_casa: {
+      rotulo: "Casa",
+      passos: [
+        { titulo: "Este é o painel da sua casa", texto: "Você entrou com o código que a equipe do Tranquilo mandou. Aqui ficam as datas da sua casa na Rede Tranquilo.", itens: ["Não precisa de senha: guarde o código.", "Só a sua casa vê o que está aqui."] },
+        { titulo: "Suas datas", texto: "Em Minhas datas aparecem as próximas noites e o público de cada noite que já aconteceu, comparado com a cidade e com a rede.", itens: [], ir: ["minhas", "Ver minhas datas"] },
+        { titulo: "O que fazer agora", texto: "Para cada data, o painel mostra o próximo passo e até quando fazer: técnica, roteiro, confirmações por escrito, travas finais e o fechamento.", itens: ["Clique em \"Ver todos os passos\" para a lista completa."] },
+        { titulo: "Roteiro da noite", texto: "O passo a passo do dia do show: chegada, passagem de som, portas, início, intervalos e encerramento.", itens: [], ir: ["roteiro", "Ver o roteiro"] },
+        { titulo: "Quer registrar a noite?", texto: "Peça à equipe o convite por e-mail e crie a conta da casa: aí você marca cada passo e registra o público e o que aconteceu.", itens: ["Este tutorial fica no botão \"Como funciona\", no menu."] },
+      ],
+    },
+    codigo_interno: {
+      rotulo: "Equipe",
+      passos: [
+        { titulo: "Painel interno da rede", texto: "Este código abre os números de toda a rede, lidos do Notion toda noite. Não compartilhe fora da equipe.", itens: [] },
+        { titulo: "Operação", texto: "O que precisa de atenção agora: datas passadas com vendas abertas, datas próximas sem link de ingressos e noites sem público lançado.", itens: ["Clique numa data para ver a ficha."], ir: ["operacao", "Abrir operação"] },
+        { titulo: "O que está dando certo", soSe: "estrategia", texto: "Cidades, formatos, casas e artistas comparados com noites do mesmo formato. O sinal só aparece com 3 noites ou mais de público lançado.", itens: [], ir: ["estrategia", "Abrir o painel"] },
+        { titulo: "Datas, artistas e casas", texto: "Listas completas com filtros. Clique em qualquer linha para ver a ficha.", itens: [], ir: ["datas", "Abrir datas"] },
+        { titulo: "Curadoria e convites", texto: "Inscrições, cadastros de casas, convites e pedidos do \"me avise\" ficam na conta por e-mail da equipe. Entre com ela para usar essas partes.", itens: ["Este tutorial fica no botão \"Como funciona\", no menu."] },
+      ],
+    },
     publico: {
       rotulo: "Visitante",
       passos: [
@@ -60,7 +91,7 @@ const TQTour = (() => {
   let el = null, estado = null;
 
   function html() {
-    const r = ROTEIROS[estado.perfil], p0 = r.passos[estado.i], ultimo = estado.i === r.passos.length - 1;
+    const r = ROTEIROS[estado.perfil], passos = estado.passos, p0 = passos[estado.i], ultimo = estado.i === passos.length - 1;
     // Sem a aba (ex.: painel interno sem o código), o passo explica como liberar em vez de prometer um atalho que não existe.
     const tem = (aba) => !estado.temAba || estado.temAba(aba);
     const p = p0.requer && !tem(p0.requer)
@@ -68,12 +99,12 @@ const TQTour = (() => {
       : { ...p0, ir: p0.ir && tem(p0.ir[0]) ? p0.ir : null };
     return `<div class="tour-caixa" role="dialog" aria-modal="true" aria-labelledby="tourTit">
       <div class="tour-topo"><span class="tag">Tutorial · ${esc(r.rotulo)}</span><button class="tour-x" data-tour="pular" aria-label="Pular tutorial">Pular</button></div>
-      <div class="tour-num" aria-hidden="true">${estado.i + 1}<small>/${r.passos.length}</small></div>
+      <div class="tour-num" aria-hidden="true">${estado.i + 1}<small>/${passos.length}</small></div>
       <h2 id="tourTit">${esc(p.titulo)}</h2>
       <p>${esc(p.texto)}</p>
       ${p.itens?.length ? `<ul>${p.itens.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
       ${p.ir && estado.aoIr ? `<button class="btn sm" data-tour="ir" data-aba-tour="${p.ir[0]}">${esc(p.ir[1])} →</button>` : ""}
-      <div class="tour-pontos" aria-label="Passos">${r.passos.map((_, i) => `<button${i === estado.i ? ' aria-current="step"' : ""} aria-label="Passo ${i + 1} de ${r.passos.length}" data-tour="ir-passo" data-i="${i}" class="${i === estado.i ? "on" : i < estado.i ? "feito" : ""}"></button>`).join("")}</div>
+      <div class="tour-pontos" aria-label="Passos">${passos.map((_, i) => `<button${i === estado.i ? ' aria-current="step"' : ""} aria-label="Passo ${i + 1} de ${passos.length}" data-tour="ir-passo" data-i="${i}" class="${i === estado.i ? "on" : i < estado.i ? "feito" : ""}"></button>`).join("")}</div>
       <div class="tour-acoes">
         <button class="btn" data-tour="voltar"${estado.i === 0 ? " disabled" : ""}>Voltar</button>
         <button class="btn pri" data-tour="avancar" autofocus>${ultimo ? "Começar" : "Avançar"}</button>
@@ -82,7 +113,7 @@ const TQTour = (() => {
 
   function desenhar() {
     el.innerHTML = html();
-    const p = ROTEIROS[estado.perfil].passos[estado.i];
+    const p = estado.passos[estado.i];
     document.querySelectorAll(".tour-foco").forEach((x) => x.classList.remove("tour-foco"));
     const a = p.alvo && document.querySelector(p.alvo);
     // Com alvo, a caixa vai para baixo e o alvo rola para o topo: os dois ficam visíveis, sem um cobrir o outro.
@@ -118,7 +149,7 @@ const TQTour = (() => {
   }
 
   function passo(d) {
-    const n = ROTEIROS[estado.perfil].passos.length, i = estado.i + d;
+    const n = estado.passos.length, i = estado.i + d;
     if (i >= n) return fechar(true);
     if (i < 0) return;
     estado.i = i; desenhar();
@@ -132,7 +163,9 @@ const TQTour = (() => {
     // O resto da página fica inerte (fora do Tab e do leitor de tela) enquanto o tutorial está aberto.
     const inertes = [...document.body.children].filter((x) => !x.inert && x.tagName !== "SCRIPT");
     inertes.forEach((x) => { x.inert = true; });
-    estado = { perfil, i: 0, aoFechar, aoIr, temAba, foco, inertes };
+    // Passo com `soSe` só aparece quando a aba existe (ex.: o painel estratégico só no código de adm).
+    const passos = ROTEIROS[perfil].passos.filter((p) => !p.soSe || !temAba || temAba(p.soSe));
+    estado = { perfil, i: 0, passos, aoFechar, aoIr, temAba, foco, inertes };
     el = document.createElement("div");
     el.className = "tour";
     el.addEventListener("click", (ev) => {
