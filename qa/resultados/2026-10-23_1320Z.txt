@@ -226,3 +226,81 @@ OK    eq-m: atalho abre Convites
 OK    sem erros de JavaScript 
 
 ## movel
+OK    aviso de privacidade não fica por cima do tutorial
+OK    casa-tutorial: sem rolagem lateral (390px de 390)
+OK    aviso de privacidade volta quando o tutorial fecha
+OK    casa-campanha: sem rolagem lateral (390px de 390)
+OK    casa-materiais: sem rolagem lateral (390px de 390)
+OK    casa: dúvidas novas aparecem (campanha, agenda, ciência)
+OK    casa-duvidas: sem rolagem lateral (390px de 390)
+OK    equipe-campanhas: sem rolagem lateral (390px de 390)
+OK    nome da casa na tabela não quebra no meio da palavra
+OK    equipe-materiais: sem rolagem lateral (390px de 390)
+OK    sem erro JS 
+
+## tut-cobertura
+OK    conta artista: tutorial cobre as 5 abas
+OK    conta artista: abre sozinho no primeiro acesso com 7 passos
+OK    conta artista: "Concluir" fecha o tutorial
+OK    conta artista: sem erro JS 
+OK    conta casa: tutorial cobre as 6 abas
+OK    conta casa: abre sozinho no primeiro acesso com 9 passos
+OK    conta casa: "Concluir" fecha o tutorial
+OK    conta casa: sem erro JS 
+OK    conta equipe: tutorial cobre as 11 abas
+OK    conta equipe: abre sozinho no primeiro acesso com 11 passos
+OK    conta equipe: "Concluir" fecha o tutorial
+OK    conta equipe: quem já tinha visto recebe só as novidades (4 passos, começa em "Documentos de cada data")
+OK    conta equipe: depois de ver as novidades, não abre de novo
+OK    conta equipe com código interno: tutorial cobre as 15 abas
+OK    conta equipe: sem erro JS 
+OK    conta adm: tutorial cobre as 12 abas
+OK    conta adm: abre sozinho no primeiro acesso com 13 passos
+OK    conta adm: "Concluir" fecha o tutorial
+OK    conta adm com código interno: tutorial cobre as 20 abas
+OK    conta adm: sem erro JS 
+OK    código artista: tutorial cobre as 3 abas
+OK    código artista: abre sozinho no primeiro acesso com 6 passos
+OK    código artista: "Concluir" fecha o tutorial
+OK    código artista: sem erro JS 
+OK    código casa: tutorial cobre as 3 abas
+OK    código casa: abre sozinho no primeiro acesso com 6 passos
+OK    código casa: "Concluir" fecha o tutorial
+OK    código casa: novidades para quem já tinha visto
+OK    código casa: sem erro JS 
+OK    código equipe: tutorial cobre as 4 abas
+OK    código equipe: abre sozinho no primeiro acesso com 5 passos
+OK    código equipe: "Concluir" fecha o tutorial
+OK    código equipe: sem erro JS 
+OK    código adm: tutorial cobre as 8 abas
+OK    código adm: abre sozinho no primeiro acesso com 7 passos
+OK    código adm: "Concluir" fecha o tutorial
+OK    código adm: sem erro JS 
+
+## tut-controles
+OK    código casa: tutorial abre sozinho no primeiro acesso
+OK    código casa: "Voltar" desabilitado no primeiro passo
+OK    código casa: Avançar e setas do teclado mudam de passo
+OK    código casa: clicar fora da caixa não fecha
+OK    código casa: tem "Pular tutorial" e ×
+OK    código casa: × fecha e avisa que continua do passo 2
+OK    código casa: no acesso seguinte continua do mesmo passo
+OK    código casa: fechado de novo, não volta sozinho (conta como visto)
+OK    "Como funciona" abre o tutorial inteiro, do primeiro passo
+OK    código casa: sem erro JS 
+OK    código artista: "Pular tutorial" avisa onde ver de novo
+OK    código artista: depois de pular, não abre sozinho
+OK    código artista: sem erro JS 
+OK    conta artista: tutorial abre no primeiro acesso
+OK    conta artista: último passo tem "Concluir" e diz onde ver de novo
+OK    conta artista: "Concluir" fecha sem aviso
+OK    conta artista: concluído, não abre de novo
+OK    conta artista: "Ver o tutorial de novo" abre do começo
+OK    conta artista: fechar o "ver de novo" não mostra aviso de pausa
+OK    conta artista: fechar o "ver de novo" não faz o tutorial voltar sozinho
+OK    conta artista: atalho do passo leva para a aba
+OK    conta artista: sem erro JS 
+OK    novidades: abre só o que é novo
+OK    novidades: "Ver o tutorial completo" abre os 11 passos
+OK    novidades: sem erro JS 
+OK    celular: botões cabem na tela e têm 44px de toque (×44, pular 44)
