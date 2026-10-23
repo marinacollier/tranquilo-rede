@@ -42,7 +42,8 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   await p.click('#entrar'); await p.waitForTimeout(150); await p.fill('#email', 'nova@teste.com'); await p.fill('#esenha', 'senha123'); await p.click('#eok'); await p.waitForTimeout(800);
   ok(await p.$('.tour') === null, 'artista: tutorial não reabre no segundo login');
   await p.click('[data-aba="conta"]'); await p.click('[data-rever-tutorial]'); ok(await p.$('.tour') !== null, 'artista: "Ver o tutorial de novo" reabre');
-  for (let i = 0; i < 5; i++) await p.click('[data-tour="avancar"]');
+  const nPassos = await p.$$eval('.tour-pontos button', (x) => x.length);   // o roteiro cresce quando entram abas novas
+  for (let i = 0; i < nPassos; i++) await p.click('[data-tour="avancar"]');
   ok(await p.$('.tour') === null, 'artista: "Começar" no último passo fecha');
   await p.click('#sairConta'); await p.waitForTimeout(300);
   // 4. Equipe: convite, tutorial, demanda

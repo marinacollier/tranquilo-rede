@@ -1139,10 +1139,13 @@ const TQConta = (() => {
   function primeiroAcesso() {
     const p = S.conta?.perfil; if (!p) return;
     if (p.senha_definida === false || api.precisaSenha?.()) return pedirSenha();
-    if (!p.tutorial_visto_em && !TQTour.aberto()) abrirTutorial(p.tipo, true);
+    if (TQTour.aberto()) return;
+    if (!p.tutorial_visto_em) abrirTutorial(p.tipo, true);
+    // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
+    else if (p.tutorial_visto_em.slice(0, 10) < TQTour.NOVIDADES) abrirTutorial(p.tipo, true, p.tutorial_visto_em);
   }
-  function abrirTutorial(tipo, primeira) {
-    TQTour.abrir(tipo, {
+  function abrirTutorial(tipo, primeira, desde) {
+    TQTour.abrir(tipo, { desde,
       // Atalhos para abas só fazem sentido com a conta aberta; pelo link público o tutorial é só leitura.
       aoIr: S.conta ? (aba) => { if (S.conta && abas().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } } : null,
       temAba: S.conta ? (aba) => abas().some(([k]) => k === aba) : null,

@@ -1,6 +1,6 @@
 {
   "_sobre": "Dúvidas frequentes mostradas no site. Artista e casa: escritas a partir do Método V0.1 e dos passos do site. Portaria e ingressos: artigos da Base de conhecimento do Notion reescritos para quem é de fora (sem dados internos). Ajuste aqui ou peça ajuste.",
-  "geradoEm": "2026-10-21",
+  "geradoEm": "2026-10-23",
   "itens": [
     {
       "publico": "artista",
@@ -298,6 +298,62 @@
       ],
       "fonte": "Base de conhecimento (Notion)",
       "notion": "33083bbf4e84802cae70d445f28f8ee2"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que é a campanha de divulgação da casa?",
+      "resposta": "É a lista do que postar e mandar em cada dia antes dos shows: WhatsApp do grupo, feed, stories, reels e convites, com o modelo do Canva e o link de ingressos de cada ação. Fica na aba Campanha. Ela aparece quando a equipe carrega a campanha da sua casa e a sua conta está ligada à casa pelo convite.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Como marco que fiz o dia da campanha?",
+      "resposta": "Na aba Campanha, marque \"Feito\" no dia. Vale para toda a equipe da casa (quem entrar por outro celular vê marcado) e o Tranquilo acompanha. Marcou sem querer? Desmarque: fica registrado quem marcou e quem desmarcou.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Um dia da campanha aparece como atrasado. E agora?",
+      "resposta": "Atrasado é dia que já passou sem \"Feito\". Se der, faça a ação hoje e marque. Se não fizer sentido mais (o show passou, por exemplo), siga para o próximo dia: a equipe vê o andamento e combina com você.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Como coloco a campanha no Google Agenda?",
+      "resposta": "Na aba Campanha, toque em \"Levar para o Google Agenda\". Baixa um arquivo .ics. No computador, abra o Google Agenda › Configurações › Importar e exportar › Importar e escolha o arquivo. Os dias entram como eventos de dia inteiro, com o que fazer e os links. Se a campanha mudar, baixe de novo.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que significa \"Li e estou ciente\"?",
+      "resposta": "Alguns materiais mudam o que a casa faz (a campanha, o playbook do Apresenta, as funções de anfitrião e fotografia). Quando sai uma versão nova deles, aparece o pedido em Materiais: abra, leia e confirme. A confirmação fica registrada com data e hora para aquela versão. Ajustes de texto não pedem confirmação.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Como uso um modelo (Google Docs) dos materiais?",
+      "resposta": "Os modelos abrem só para leitura, para o original ficar protegido. Toque em \"Fazer minha cópia\": o Google cria uma cópia no seu Drive, e essa você edita à vontade. Precisa estar logado numa conta Google.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Não vejo a campanha nem os materiais da minha casa.",
+      "resposta": "A conta precisa estar ligada à casa pelo convite da equipe, com o e-mail confirmado. Se você criou a conta sozinho, peça à equipe o convite com o nome da sua casa. Se já tem convite, confira se clicou no link de confirmação do e-mail.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Onde encontro os guias e modelos do Tranquilo?",
+      "resposta": "Na aba Materiais. Os modelos abrem só para leitura: toque em \"Fazer minha cópia\" para ter a sua versão editável no Google Drive. Se algum material pedir \"Li e estou ciente\", leia e confirme: fica registrado para aquela versão.",
+      "links": [],
+      "fonte": "Telas de campanha e materiais do site (23/10/2026)"
     }
   ]
 }

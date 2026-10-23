@@ -347,7 +347,8 @@ details summary:hover{color:var(--ink)}
 .tour-pontos button.on::before{background:var(--violet);width:26px;border-radius:99px}
 .tour-acoes{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
 .tour-acoes .btn{min-width:120px}
-h1,h2,.quem b,.oque b,td b{overflow-wrap:anywhere}
+h1,h2,.quem b,.oque b{overflow-wrap:anywhere}
+td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/tap"): a tabela rola de lado */
 .camp-dia.feito{opacity:.75}
 .camp-dia.feito b{text-decoration:none}
 .camp-dia.atrasado{border-color:rgba(238,127,108,.45)}
@@ -493,6 +494,8 @@ body.logado .foot{padding:22px 16px 30px}
 .consent .acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;flex-wrap:wrap}
 .consent .btn{border-radius:2px;font-weight:600}
 .consent .btn.claro{border-radius:2px}
+/* Tutorial aberto: o aviso de privacidade espera (volta quando o tutorial fecha), para não haver duas janelas uma sobre a outra. */
+body:has(.tour) .consent{display:none}
 @media (max-width:640px){.consent{bottom:10px;padding:16px}.consent .acoes{flex-direction:column}.consent .btn{width:100%}}
 .aceite-legal{font-size:12.5px;color:var(--ink-4);margin:10px 0 0}
 .aceite-legal a{color:var(--ink-3)}
@@ -851,13 +854,15 @@ async function entrar(cod, lembrar) {
   if (lembrar) store.set("tq-codigo", normCod(cod));
   S.aba = ordenarAbas(PERFIS[S.pac.perfil].abas)[0][0];
   render();
-  if (!store.get(`tq-tutorial-codigo-${S.pac.perfil}`)) setTimeout(() => tutorialCodigo(true), 300);
+  const visto = store.get(`tq-tutorial-codigo-${S.pac.perfil}`);
+  if (!visto) setTimeout(() => tutorialCodigo(true), 300);
+  else if (String(visto).slice(0, 10) < TQTour.NOVIDADES) setTimeout(() => tutorialCodigo(true, visto), 300);   // só as novidades
 }
 // Tutorial de quem entra por código: na primeira vez neste aparelho e pelo botão "Como funciona".
-function tutorialCodigo(primeira) {
+function tutorialCodigo(primeira, desde) {
   if (!S.pac || TQTour.aberto()) return;
   const perfil = S.pac.perfil, roteiro = perfil === "artista" ? "codigo_artista" : perfil === "casa" ? "codigo_casa" : "codigo_interno";
-  TQTour.abrir(roteiro, {
+  TQTour.abrir(roteiro, { desde,
     aoIr: (aba) => { if (abasAtuais().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } },
     temAba: (aba) => abasAtuais().some(([k]) => k === aba),
     aoFechar: () => { if (primeira) store.set(`tq-tutorial-codigo-${perfil}`, new Date().toISOString()); },
