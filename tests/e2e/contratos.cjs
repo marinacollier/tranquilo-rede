@@ -44,7 +44,9 @@ E por estarem de acordo, assinam.`;
     ok(/Aguardando dados/.test(await p.textContent('#app')), 'contrato enviado aparece como "Aguardando dados"');
     await sair();
     // artista: preencher, ler e assinar
-    await p.click('#entrar'); await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
+    // O formulário redesenha logo depois de sair: espera ele assentar antes de digitar.
+    await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
+    await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     ok(/Contrato para assinar/.test(await p.textContent('#app')), 'artista vê o aviso do contrato no passo a passo');
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
     ok(/R\$ 3\.000,00/.test(await p.textContent('#ctTexto')) && /\[CPF: preencha acima\]/.test(await p.textContent('#ctTexto')), 'texto mostra o cachê da equipe e marca o que falta');

@@ -16,7 +16,7 @@ export BASE="http://localhost:$PORTA/" ACESSOS NODE_PATH="$PWD/node_modules:$(np
 {
   echo "# Testes da Rede Tranquilo — $(date -u '+%Y-%m-%d %H:%M UTC') — commit $(git rev-parse --short HEAD)"
   echo; echo "## Banco (PGlite com o supabase/schema.sql)"; node tests/schema.test.mjs 2>&1 | grep -E "^(OK|FALHA)" ; node tests/schema.test.mjs 2>&1 | tail -1
-  echo; echo "## Contrato automático (PGlite)"; node tests/contratos.test.mjs 2>&1 | grep -E "^(OK|FALHA)"
+  echo; echo "## Contrato automático (PGlite)"; node tests/contratos.test.mjs 2>&1 | grep -E "^(OK|FALHA)"; node tests/contrato-modelos.test.mjs 2>&1 | grep -E "^(OK|FALHA)"
   echo; echo "## Segurança (ataques da auditoria; ABERTO = problema conhecido ainda não corrigido)"; node tests/seguranca.test.mjs supabase/schema.sql 2>&1 | grep -E "^(OK|FALHA)|verificações" | sed "s/^FALHA/ABERTO/"
   for t in tests/e2e/*.cjs; do echo; echo "## $(basename "$t" .cjs)"; node "$t" "$SAIDA_IMG" 2>&1 | grep -vE "agent-proxy|^\s*$"; done
 } | tee "$RES"
