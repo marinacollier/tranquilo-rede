@@ -1,0 +1,1344 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Tranquilo · Rede</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
+<style>
+/* Identidade do site oficial (tranquilomusica.com.br): preto #000201, texto #e2edff, Playfair Display 900
+   nos títulos, Lexend Deca na interface, botões em pílula e uma cor por cidade (--city). */
+:root{
+  color-scheme:dark;
+  --bg:#000201;--surface:#0b0c0f;--raised:#121318;--hover:#181a20;--line:#1d1f25;--line-2:#2c2f37;
+  --ink:#e2edff;--ink-2:#c3cddd;--ink-3:#8d96a6;--ink-4:#858e9e;
+  --city:#7c8ff3;--city-ink:#000201;
+  --violet:var(--city);--violet-soft:color-mix(in srgb,var(--city) 16%,transparent);--sun:#f9b436;--sun-soft:rgba(249,180,54,.13);
+  --pink:#fcdbe5;--pink-soft:rgba(252,219,229,.11);--green:#c4d9ba;--green-soft:rgba(196,217,186,.12);
+  --red:#f56c52;--red-soft:rgba(245,108,82,.14);--cream:#f8f4cf;--sky:#8fcaff;--lilac:#ccbfda;--yellow:#ffde59;
+  --accent:var(--city);--accent-ink:var(--city-ink);--bar:var(--city);--bar-soft:color-mix(in srgb,var(--city) 18%,transparent);
+  --good:var(--green);--warn:var(--sun);--serious:var(--pink);--crit:var(--red);--good-ink:var(--green);
+  --serif:"Playfair Display",Georgia,serif;--sans:"Lexend Deca","Segoe UI",system-ui,sans-serif;
+  --radius:16px;--side:264px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html{-webkit-text-size-adjust:100%;background:var(--bg)}
+body{margin:0;background:radial-gradient(1200px 500px at 85% -120px,rgba(137,146,255,.09),transparent 60%),var(--bg);background-attachment:fixed;color:var(--ink);font:15px/1.55 var(--sans);-webkit-font-smoothing:antialiased;min-height:100vh}
+a{color:inherit;text-underline-offset:3px;text-decoration-color:var(--ink-4)}
+a:hover{text-decoration-color:var(--violet)}
+button,input,select,textarea{font:inherit;color:inherit}
+::selection{background:var(--violet);color:#0b0b0b}
+.wrap{max-width:1180px;margin:0 auto;padding:0 16px}
+@media (min-width:700px){.wrap{padding:0 28px}}
+
+/* ---------- topo (público e celular) ---------- */
+header.top{position:sticky;top:0;z-index:20;background:rgba(9,9,9,.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-bottom:1px solid var(--line)}
+header.top .wrap{display:flex;align-items:center;gap:12px;min-height:64px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;font-family:var(--serif);font-size:21px;letter-spacing:.02em;white-space:nowrap}
+.logo img{width:34px;height:34px;border-radius:10px;border:1px solid var(--line-2);display:block}
+.logo b{font-weight:400;color:var(--violet)}
+.top-tit{font-weight:600;color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.menu-btn{border:1px solid var(--line-2);background:var(--surface);border-radius:12px;width:42px;height:42px;display:grid;place-items:center;cursor:pointer;flex:none}
+.sp{flex:1}
+.chip{font-size:12px;color:var(--ink-3);border:1px solid var(--line);border-radius:99px;padding:4px 11px;white-space:nowrap;display:inline-flex;align-items:center;gap:7px}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(166,216,165,.15)}
+
+/* ---------- barra lateral (logado) ---------- */
+.side{position:fixed;inset:0 auto 0 0;width:var(--side);z-index:40;background:#0c0c0b;border-right:1px solid var(--line);display:flex;flex-direction:column;padding:20px 14px 16px;overflow-y:auto;scrollbar-width:thin}
+.side .logo{padding:0 8px 18px}
+.quem{display:flex;align-items:center;gap:11px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);margin-bottom:18px}
+.quem .av{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-family:var(--serif);font-size:17px;color:#0b0b0b;background:var(--violet);flex:none}
+.quem .av.casa{background:var(--sun)}.quem .av.artista{background:var(--pink)}.quem .av.equipe{background:var(--green)}
+.quem b{display:block;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.quem small{display:block;font-size:12px;color:var(--ink-3)}
+.quem>div{min-width:0}
+nav.tabs{display:flex;flex-direction:column;gap:16px;flex:1}
+.nav-g{display:flex;flex-direction:column;gap:2px}
+.nav-t{font-size:10.5px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-4);padding:0 10px 6px}
+nav.tabs button{display:flex;align-items:center;gap:11px;border:0;background:none;padding:9px 10px;border-radius:11px;cursor:pointer;color:var(--ink-3);font-weight:500;font-size:14.5px;text-align:left;width:100%;transition:background .15s,color .15s}
+nav.tabs button svg{width:18px;height:18px;flex:none;opacity:.8}
+nav.tabs button:hover{background:var(--raised);color:var(--ink)}
+nav.tabs button.on{background:var(--violet-soft);color:var(--ink)}
+nav.tabs button.on svg{color:var(--violet);opacity:1}
+nav.tabs button .n{margin-left:auto;font-size:11.5px;font-weight:700;background:var(--sun);color:#0b0b0b;border-radius:99px;padding:0 7px;line-height:18px}
+.side-pe{display:flex;flex-direction:column;gap:10px;padding:16px 8px 0;border-top:1px solid var(--line);margin-top:16px}
+.side-pe .chip{align-self:flex-start}
+.veu{position:fixed;inset:0;z-index:35;background:rgba(0,0,0,.55)}
+body.logado{padding-left:var(--side)}
+body.logado header.top{display:none}
+body.logado main{padding-top:36px}
+@media (max-width:959px){
+  body.logado{padding-left:0}
+  body.logado header.top{display:block}
+  body.logado main{padding-top:20px}
+  .side{transform:translateX(-102%);transition:transform .22s ease;box-shadow:24px 0 60px rgba(0,0,0,.5)}
+  body.menu-aberto .side{transform:none}
+}
+@media (min-width:960px){.menu-btn,.veu{display:none!important}}
+@media (max-width:959px){body.logado header.top .logo span{display:none}}
+.cidades-f{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 6px}
+.cidades-f button{border:1px solid var(--line-2);background:none;color:var(--ink-3);border-radius:99px;padding:6px 13px;font-size:13.5px;font-weight:600;cursor:pointer}
+.cidades-f button:hover{color:var(--ink);border-color:var(--ink-4)}
+.cidades-f button.on{background:var(--cream);border-color:var(--cream);color:#0b0b0b}
+.mais{display:flex;justify-content:center;margin-top:18px}
+
+/* ---------- tipografia ---------- */
+main{padding:24px 0 72px;min-height:60vh}
+h1,h2,h3{text-wrap:balance}
+h1{font-family:var(--serif);font-weight:400;font-size:clamp(32px,4.6vw,50px);letter-spacing:-.02em;line-height:1.04;margin:10px 0 10px}
+h1 em,h2 em{font-style:italic;color:var(--violet)}
+h2{font-family:var(--serif);font-weight:400;font-size:clamp(24px,2.8vw,30px);letter-spacing:-.01em;line-height:1.15;margin:44px 0 6px}
+h2 .muted{font-family:var(--sans);font-size:15px;letter-spacing:0}
+h3{font-size:16px;font-weight:700;margin:20px 0 8px;letter-spacing:-.005em}
+.sub{color:var(--ink-3);margin:0 0 20px;max-width:68ch;font-size:15.5px}
+h1+.sub{font-size:17px;color:var(--ink-3)}
+.muted{color:var(--ink-3)}
+.tag{display:inline-flex;align-items:center;gap:9px;font-size:11.5px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-3)}
+.tag::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--violet)}
+.tag .badge{letter-spacing:0;text-transform:none}
+hr{border:0;border-top:1px solid var(--line);margin:20px 0}
+
+/* ---------- botões ---------- */
+.btn{border:1px solid var(--line-2);background:var(--raised);border-radius:12px;padding:9px 16px;cursor:pointer;font-weight:600;font-size:14px;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:8px;color:var(--ink);transition:border-color .15s,background .15s,transform .05s;white-space:nowrap}
+.btn:hover{border-color:var(--ink-4);background:var(--hover)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:var(--violet);border-color:var(--violet);color:#0b0b0b}
+.btn.pri:hover{background:#9ea5ff;border-color:#9ea5ff}
+.btn.sun{background:var(--sun);border-color:var(--sun);color:#0b0b0b}
+.btn.sun:hover{background:#ffcd70}
+.btn.ghost{background:none;border-color:transparent;color:var(--ink-3)}
+.btn.ghost:hover{color:var(--ink);background:var(--raised)}
+.btn.sm{padding:6px 12px;font-size:13px;border-radius:10px;font-weight:600}
+.btn.lg{padding:13px 22px;font-size:15.5px;border-radius:14px}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn:focus-visible,nav.tabs button:focus-visible,.tour-pontos button:focus-visible,.tour-x:focus-visible,.menu-btn:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+
+/* ---------- superfícies ---------- */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);padding:20px}
+.card.click:hover,a.card:hover{border-color:var(--line-2);background:var(--raised)}
+.grid{display:grid;gap:14px}
+.g4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(270px,1fr))}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr))}
+.list{display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.card>h3:first-child,.fsec h3{margin-top:0}
+
+/* números: uma faixa só, com divisórias finas, em vez de quadrados colados */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:6px 0 20px}
+.stats .kpi{background:var(--surface);padding:20px 22px 18px;border:0;border-radius:0}
+.kpi .v{font-family:var(--serif);font-size:42px;line-height:1;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--ink-2);font-size:13.5px;margin-top:8px;display:flex;align-items:center;gap:8px}
+.kpi .l::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--violet);flex:none}
+.stats .kpi:nth-child(4n+2) .l::before{background:var(--sun)}
+.stats .kpi:nth-child(4n+3) .l::before{background:var(--pink)}
+.stats .kpi:nth-child(4n+4) .l::before{background:var(--green)}
+.kpi .d{font-size:12.5px;color:var(--ink-4);margin-top:3px;padding-left:15px}
+.kpi.zero .v{color:var(--ink-4)}
+
+/* estado vazio */
+.vazio{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:44px 24px;border:1px dashed var(--line-2);border-radius:var(--radius);background:linear-gradient(180deg,rgba(137,146,255,.04),transparent)}
+.vazio .ic{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--violet-soft);color:var(--violet)}
+.vazio .ic svg{width:26px;height:26px}
+.vazio b{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.15}
+.vazio p{margin:0;color:var(--ink-3);max-width:52ch}
+.vazio .barra-acoes{justify-content:center;margin-top:6px}
+
+/* filtros e campos */
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:14px 0 16px}
+.filters select,.filters input,select,.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]),textarea{border:1px solid var(--line-2);background:var(--surface);border-radius:12px;padding:10px 13px;font-size:15px;max-width:100%;transition:border-color .15s,box-shadow .15s}
+select{appearance:none;-webkit-appearance:none;padding-right:36px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%239A978F' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;cursor:pointer}
+td select{padding:6px 32px 6px 10px;font-size:13.5px;border-radius:10px}
+input:focus,select:focus,textarea:focus{outline:0;border-color:var(--violet);box-shadow:0 0 0 3px var(--violet-soft)}
+input::placeholder,textarea::placeholder{color:var(--ink-4)}
+.filters input{min-width:220px;flex:1}
+input[type=checkbox],input[type=radio]{accent-color:var(--violet);width:17px;height:17px}
+
+/* tabelas */
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
+th{font-size:10.5px;color:var(--ink-4);font-weight:700;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap;background:var(--raised);position:sticky;top:0;cursor:pointer;user-select:none}
+th:hover{color:var(--ink-2)}
+th.n,td.n{text-align:right;font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:0}
+tbody tr.click{cursor:pointer;transition:background .12s}
+tbody tr.click:hover{background:var(--raised)}
+td b{font-weight:600}
+td .vazio{border:0;background:none;padding:34px 16px}
+.barcell{display:flex;align-items:center;gap:10px;min-width:160px}
+.barcell .track{flex:1;height:8px;background:var(--bar-soft);border-radius:99px;position:relative}
+.barcell .fill{position:absolute;inset:0 auto 0 0;background:var(--bar);border-radius:99px}
+.barcell .ref{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--sun);border-radius:2px}
+.barcell span{font-variant-numeric:tabular-nums;min-width:34px;text-align:right;font-weight:600}
+
+/* selos */
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;border-radius:99px;padding:3px 10px;background:var(--raised);color:var(--ink-2);white-space:nowrap;border:1px solid var(--line-2)}
+.badge::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.b-good{background:var(--green-soft);border-color:transparent;color:var(--green)}.b-good::before{background:var(--green)}
+.b-warn{background:var(--sun-soft);border-color:transparent;color:var(--sun)}.b-warn::before{background:var(--sun)}
+.b-serious{background:var(--pink-soft);border-color:transparent;color:var(--pink)}.b-serious::before{background:var(--pink)}
+.b-crit{background:var(--red-soft);border-color:transparent;color:var(--red)}.b-crit::before{background:var(--red)}
+.pill{display:inline-block;font-size:12.5px;border:1px solid var(--line-2);border-radius:99px;padding:2px 10px;margin:3px 5px 3px 0;color:var(--ink-2)}
+
+/* avisos */
+.alert{border:1px solid var(--line);background:var(--surface);padding:14px 16px 14px 46px;border-radius:14px;position:relative;color:var(--ink-2)}
+.alert::before{content:"";position:absolute;left:18px;top:19px;width:10px;height:10px;border-radius:50%;background:var(--violet);box-shadow:0 0 0 5px var(--violet-soft)}
+.alert b{display:block;color:var(--ink);margin-bottom:2px}
+.alert a{color:var(--ink)}
+.alert.crit{background:linear-gradient(90deg,var(--red-soft),transparent 70%),var(--surface)}.alert.crit::before{background:var(--red);box-shadow:0 0 0 5px var(--red-soft)}
+.alert.warn{background:linear-gradient(90deg,var(--sun-soft),transparent 70%),var(--surface)}.alert.warn::before{background:var(--sun);box-shadow:0 0 0 5px var(--sun-soft)}
+.alert.good{background:linear-gradient(90deg,var(--green-soft),transparent 70%),var(--surface)}.alert.good::before{background:var(--green);box-shadow:0 0 0 5px var(--green-soft)}
+[data-ev].alert{cursor:pointer}[data-ev].alert:hover{border-color:var(--line-2)}
+.stale{background:var(--red);color:#0b0b0b;padding:9px 16px;text-align:center;font-weight:700;font-size:14px;position:relative;z-index:50}
+
+/* linhas de data */
+.ev{display:flex;align-items:center;gap:16px;padding:14px 16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);cursor:pointer;transition:border-color .15s,background .15s}
+.ev:hover{border-color:var(--line-2);background:var(--raised)}
+.ev .quando{width:58px;flex:none;text-align:center;border-right:1px solid var(--line);padding-right:14px}
+.ev .quando b{display:block;font-family:var(--serif);font-weight:400;font-size:30px;line-height:1}
+.ev .quando small{display:block;font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);margin-top:5px}
+.ev .quando small.dia{margin-top:1px;color:var(--ink-4);font-weight:600}
+.ev .oque{flex:1;min-width:0}
+.ev .oque b{font-size:15.5px}
+.ev .oque .muted{font-size:13px;margin-top:2px}
+.ev .oque .art{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis}
+.ev.pub{cursor:default}
+.date{font-variant-numeric:tabular-nums;font-weight:700;min-width:84px}
+
+/* calendário e progresso */
+.month{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.month div{aspect-ratio:1;border-radius:9px;background:var(--raised);font-size:11px;padding:5px;display:flex;flex-direction:column;justify-content:space-between;min-width:0;color:var(--ink-4)}
+.month div.has{background:var(--violet-soft);color:var(--ink-2)}
+.month div b{font-family:var(--serif);font-weight:400;font-size:17px;color:var(--violet);line-height:1}
+.month .hd{aspect-ratio:auto;background:none;text-align:center;color:var(--ink-4);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.progress{height:8px;background:var(--raised);border-radius:99px;overflow:hidden}
+.progress>i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--pink));border-radius:99px}
+
+.md{color:var(--ink-2)}
+.md h1{font-size:28px}.md h2{font-size:22px;margin-top:26px}.md h3{color:var(--ink)}
+.md blockquote{margin:12px 0;padding:8px 16px;border-left:3px solid var(--violet);color:var(--ink-2);font-family:var(--serif);font-size:18px}
+.md li{margin:4px 0}.md b{color:var(--ink)}
+
+/* diálogo */
+dialog{border:1px solid var(--line-2);border-radius:22px;padding:0;max-width:680px;width:calc(100% - 32px);max-height:calc(100vh - 40px);background:var(--surface);color:var(--ink);box-shadow:0 30px 90px rgba(0,0,0,.6)}
+dialog[open]{animation:sobe .2s ease-out}
+dialog::backdrop{background:rgba(0,0,0,.65);backdrop-filter:blur(4px)}
+dialog .in{padding:26px}
+dialog h2{margin-top:6px}
+dialog .fcampo{margin-top:12px}
+.kv{display:grid;grid-template-columns:170px 1fr;gap:8px 16px;font-size:14px}
+.kv dt{color:var(--ink-4)}.kv dd{margin:0;color:var(--ink-2);word-break:break-word}
+code.cod{font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.06em;background:var(--raised);border:1px solid var(--line-2);padding:3px 9px;border-radius:8px;white-space:nowrap;color:var(--sun)}
+.foot{color:var(--ink-4);font-size:13px;border-top:1px solid var(--line);padding:22px 16px 34px}
+.legend{display:flex;gap:16px;flex-wrap:wrap;font-size:12.5px;color:var(--ink-3);margin:8px 0}
+.legend span{display:inline-flex;align-items:center;gap:7px}
+.sw{width:16px;height:8px;border-radius:99px;background:var(--bar)}
+.sw.ref{width:2px;height:14px;background:var(--sun);border-radius:2px}
+
+/* formulários */
+.fsec{padding:24px}
+.fsec h3{font-family:var(--serif);font-weight:400;font-size:22px;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px 18px}
+.fcampo{display:flex;flex-direction:column;gap:6px;font-size:14px}
+.fcampo b{font-weight:600;color:var(--ink-2);font-size:13.5px}
+.fcampo input,.fcampo select,.fcampo textarea{width:100%}
+.fcampo textarea{resize:vertical}
+.fcheck{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer;color:var(--ink-2)}
+.fcheck input{margin-top:2px;flex:none}
+.fcidades{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;margin-top:6px;font-size:14px}
+.fcidades label{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer}
+.fcidades label:has(input:checked){border-color:var(--violet);background:var(--violet-soft)}
+.fgrid .fcheck,.fgrid .fcampo:has(.fcidades){grid-column:1/-1}
+.barra-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+.err{color:var(--red);font-size:14px;min-height:20px;margin:8px 0}
+.login{max-width:440px}
+.login input:not([type=checkbox]):not([type=radio]){width:100%;font-size:16px;padding:12px 14px}
+.login input#cod,.login input#vcod{letter-spacing:.1em;text-transform:uppercase;font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+.login .fcampo{margin-bottom:12px}
+
+/* linha do tempo e passos */
+.tempo{list-style:none;padding:20px 18px;margin:18px 0;display:flex;gap:0;overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);scrollbar-width:thin}
+.tempo li{flex:1;min-width:96px;display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;font-size:12.5px;color:var(--ink-4);position:relative}
+.tempo li::after{content:"";position:absolute;top:15px;left:calc(50% + 20px);right:calc(-50% + 20px);height:2px;background:var(--line-2);border-radius:2px}
+.tempo li:last-child::after{display:none}
+.tempo li.ok::after{background:var(--green)}
+.tempo li i{font-style:normal;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--raised);border:1px solid var(--line-2);font-weight:700;color:var(--ink-3);font-size:13px}
+.tempo li.ok i{background:var(--green);border-color:var(--green);color:#0b0b0b}.tempo li.ok{color:var(--ink-3)}
+.tempo li.agora i{background:var(--violet);border-color:var(--violet);color:#0b0b0b;box-shadow:0 0 0 6px var(--violet-soft)}.tempo li.agora{color:var(--ink);font-weight:700}
+.passos{list-style:none;padding:0;margin:12px 0 0;display:flex;flex-direction:column;gap:10px}
+.passos li label{display:flex;gap:12px;align-items:flex-start;cursor:pointer;padding:10px 12px;border-radius:12px;border:1px solid var(--line)}
+.passos li label:hover{background:var(--raised)}
+.passos li input{margin-top:3px;width:18px;height:18px}
+.passos li.feito b{text-decoration:line-through;color:var(--ink-4)}
+.passos li.atrasado label{border-color:rgba(238,127,108,.45)}
+.passos li.atrasado b{color:var(--red)}
+.passos li.passou b{color:var(--ink-4)}
+ul.passos li:not(:has(label)){padding-left:18px;position:relative;color:var(--ink-2)}
+ul.passos li:not(:has(label))::before{content:"";position:absolute;left:3px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--violet)}
+details summary{cursor:pointer;color:var(--ink-3);font-size:14px;font-weight:600;margin-top:4px}
+details summary:hover{color:var(--ink)}
+
+/* ---------- página pública ---------- */
+.hero{display:grid;grid-template-columns:1.25fr .9fr;gap:44px;align-items:center;padding:40px 0 18px}
+.hero h1{font-size:clamp(40px,6.4vw,78px);line-height:.98;letter-spacing:-.03em;margin:18px 0 18px;max-width:13ch}
+.hero h1 em{color:var(--sun)}
+.hero .sub{font-size:18px;max-width:52ch}
+.hero .barra-acoes{margin-top:26px;align-items:center}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tile{border-radius:20px;padding:20px 20px 18px;color:#0b0b0b;display:flex;flex-direction:column;justify-content:space-between;min-height:132px;position:relative;overflow:hidden}
+.tile b{font-family:var(--serif);font-weight:400;font-size:52px;line-height:.9;letter-spacing:-.02em}
+.tile small{font-size:11px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;line-height:1.35}
+.tile.t1{background:var(--sun)}.tile.t2{background:var(--pink)}.tile.t3{background:var(--green)}.tile.t4{background:var(--violet)}
+.tile::after{content:"";position:absolute;right:-30px;top:-30px;width:110px;height:110px;border-radius:50%;background:rgba(255,255,255,.18)}
+.secao{margin-top:72px;scroll-margin-top:84px}
+.secao-topo{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.secao-topo h2{margin:8px 0 0}
+.secao-topo .sub{margin:6px 0 0}
+.mes{margin:28px 0 12px;display:flex;align-items:baseline;gap:12px}
+.mes b{font-family:var(--serif);font-weight:400;font-size:26px;text-transform:capitalize}
+.mes span{color:var(--ink-4);font-size:13px}
+.agenda{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr));gap:10px}
+.artistas{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:12px}
+.artista{display:flex;gap:14px;align-items:flex-start}
+.artista .av{width:46px;height:46px;border-radius:50%;flex:none;display:grid;place-items:center;font-family:var(--serif);font-size:21px;color:#0b0b0b}
+.artista b{font-size:16.5px;display:block;line-height:1.25}
+.faixa-aviso{border:1px solid rgba(255,193,78,.45);background:radial-gradient(600px 220px at 0% 0%,rgba(255,193,78,.12),transparent 70%),var(--surface);border-radius:24px;padding:30px;display:grid;grid-template-columns:.9fr 1.3fr;gap:30px;align-items:center}
+.faixa-aviso h2{margin:10px 0 8px}
+.faixa-aviso .tag::before{background:var(--sun)}
+.entrada{display:grid;grid-template-columns:1.2fr 1fr;gap:14px}
+.entrada .card{padding:26px}
+.entrada h3{font-family:var(--serif);font-weight:400;font-size:24px;margin:0 0 4px}
+.entrada .dica{color:var(--ink-3);font-size:14px;margin:0 0 18px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:12px;padding:3px;margin-bottom:18px;background:var(--bg)}
+.seg label{padding:7px 14px;border-radius:9px;cursor:pointer;font-size:14px;font-weight:600;color:var(--ink-3);display:flex;align-items:center;gap:6px}
+.seg label:has(input:checked){background:var(--violet);color:#0b0b0b}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label:has(input:focus-visible){outline:2px solid var(--violet);outline-offset:2px}
+.links{font-size:13.5px;color:var(--ink-3);margin:14px 0 0}
+.links a{color:var(--ink-2)}
+@media (max-width:860px){.hero{grid-template-columns:1fr;gap:28px;padding-top:24px}.faixa-aviso{grid-template-columns:1fr;padding:22px}.entrada{grid-template-columns:1fr}}
+
+/* ---------- tutorial ---------- */
+.tour{position:fixed;inset:0;z-index:60;background:rgba(0,0,0,.62);backdrop-filter:blur(3px);display:grid;place-items:center;padding:16px;animation:tourIn .2s ease-out}
+.tour-caixa{background:var(--surface);color:var(--ink);border:1px solid var(--line-2);border-radius:24px;max-width:540px;width:100%;padding:0 26px 22px;box-shadow:0 30px 90px rgba(0,0,0,.6);display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 32px);overflow:auto;animation:sobe .25s ease-out}
+.tour-caixa::before{content:"";display:block;height:6px;margin:0 -26px 10px;background:linear-gradient(90deg,var(--violet),var(--pink) 40%,var(--sun) 70%,var(--green))}
+.tour-topo{display:flex;justify-content:space-between;align-items:center}
+.tour-x{border:0;background:none;color:var(--ink-3);font-weight:600;cursor:pointer;padding:6px 10px;border-radius:9px}
+.tour-x:hover{color:var(--ink);background:var(--raised)}
+.tour-num{font-family:var(--serif);font-size:64px;line-height:.9;color:var(--violet);font-variant-numeric:tabular-nums;margin-top:4px}
+.tour-num small{font-family:var(--sans);font-size:15px;color:var(--ink-4);font-weight:600;margin-left:4px}
+.tour-caixa h2{margin:0;font-size:30px}
+.tour-caixa p{margin:0;color:var(--ink-2);font-size:16px}
+.tour-caixa ul{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.tour-caixa li{color:var(--ink-2);font-size:14.5px;padding-left:20px;position:relative}
+.tour-caixa li::before{content:"";position:absolute;left:3px;top:8px;width:7px;height:7px;border-radius:50%;background:var(--sun)}
+.tour-caixa .btn.sm{align-self:flex-start}
+.tour-pontos{display:flex;gap:7px;justify-content:center;margin-top:8px}
+.tour-pontos{gap:0}
+.tour-pontos button{width:24px;height:24px;border:0;padding:0;background:none;cursor:pointer;display:grid;place-items:center}
+.tour-pontos button::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--line-2);transition:width .2s}
+.tour-pontos button.feito::before{background:var(--ink-4)}
+.tour-pontos button.on{width:34px}
+.tour-pontos button.on::before{background:var(--violet);width:26px;border-radius:99px}
+.tour-acoes{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+.contr-texto{white-space:pre-wrap;max-height:60vh;overflow:auto;border:1px solid var(--line-2);border-radius:12px;padding:16px;background:var(--raised);font:15px/1.65 var(--sans);color:var(--ink)}
+.contr-texto:focus-visible{outline:2px solid var(--violet)}
+.tour-acoes{align-items:center}
+.tour-acoes .btn{min-width:120px}
+.tour-x{font-size:26px;line-height:1;min-width:44px;min-height:44px;padding:0}
+.tour-link{border:0;background:none;color:var(--ink-3);font:600 14px/1.2 var(--sans);text-decoration:underline;text-underline-offset:3px;cursor:pointer;padding:10px 6px;min-height:44px}
+.tour-link:hover,.tour-link:focus-visible{color:var(--ink)}
+.tour-caixa .tour-link{align-self:flex-start}
+.tour-dica{font-size:14px!important;color:var(--ink-3)!important}
+.tour-aviso{position:fixed;left:50%;bottom:76px;transform:translateX(-50%);z-index:70;width:max-content;max-width:min(520px,calc(100vw - 32px));background:var(--surface);color:var(--ink);border:1px solid var(--violet);border-radius:14px;padding:12px 16px;font-size:14.5px;box-shadow:0 12px 40px rgba(0,0,0,.5);animation:sobe .25s ease-out}
+@media (max-width:480px){.tour-acoes .btn{min-width:0;flex:1}.tour-acoes .tour-link{order:3;flex-basis:100%;text-align:center}.tour-acoes{flex-wrap:wrap}}
+h1,h2,.quem b,.oque b{overflow-wrap:anywhere}
+td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/tap"): a tabela rola de lado */
+.camp-dia.feito{opacity:.75}
+.camp-dia.feito b{text-decoration:none}
+.camp-dia.atrasado{border-color:rgba(238,127,108,.45)}
+.camp-dia.hoje{border-color:var(--violet)}
+.faq details{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;background:var(--surface)}
+.faq summary{cursor:pointer;font-weight:700;color:var(--ink);font-size:15px;list-style-position:outside}
+.faq-r{color:var(--ink-2);font-size:15px;line-height:1.55;margin-top:10px}
+.relatar{position:fixed;right:14px;bottom:14px;z-index:35;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:10px 16px;min-height:44px;font:600 14px/1 var(--sans);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.relatar:hover,.relatar:focus-visible{color:var(--ink);border-color:var(--violet);outline:none}
+body:has(.consent) .relatar{display:none}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+tr.click:focus-visible,.ev:focus-visible,th[data-i]:focus-visible,[data-ev]:focus-visible,.tbl:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
+.tour-foco{position:relative;z-index:61;outline:2px solid var(--violet);outline-offset:6px;border-radius:var(--radius);box-shadow:0 0 0 100vmax rgba(0,0,0,.62)}
+/* Com alvo destacado: o escurecimento vem da sombra do alvo e a caixa fica por cima de tudo, embaixo da tela. */
+.tour.com-alvo{background:transparent;backdrop-filter:none;z-index:62;place-items:end center}
+.tour.com-alvo .tour-caixa{max-height:55vh}
+@keyframes tourIn{from{opacity:0}to{opacity:1}}
+@keyframes sobe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.tour,.tour-caixa,dialog[open]{animation:none}.side{transition:none}}
+
+@media (max-width:640px){
+  .kv{grid-template-columns:1fr;gap:2px}.kv dt{margin-top:8px}
+  .kpi .v{font-size:34px}.stats .kpi{padding:16px}
+  .stats{grid-template-columns:1fr 1fr}
+  .tile{min-height:112px}.tile b{font-size:42px}
+  .tour{place-items:end center;padding:0}.tour-caixa{border-radius:24px 24px 0 0;max-height:90vh}
+  dialog .in{padding:20px}
+  .card{padding:16px}
+  .ev{gap:12px;padding:12px}.ev .quando{width:48px;padding-right:12px}.ev .quando b{font-size:26px}
+  header.top .chip{display:none}
+}
+/* ---------- ajustes para o visual do site oficial ---------- */
+body{background:var(--bg);font-size:15px;font-weight:400;letter-spacing:.005em}
+h1,h2,.fsec h3,.vazio b,.mes b,.tour-num,.tile b,.kpi .v,.entrada h3,.quem .av,.md blockquote,.tour-caixa h2{font-weight:900}
+h1{letter-spacing:-.015em}
+h1 em,h2 em{color:var(--city)}
+.btn{border-radius:999px;padding:9px 18px;font-weight:500}
+.btn.sm{border-radius:999px;padding:6px 14px}
+.btn.lg{border-radius:999px;padding:13px 24px}
+.btn.pri{background:var(--city);border-color:var(--city);color:var(--city-ink)}
+.btn.pri:hover{background:color-mix(in srgb,var(--city) 85%,#fff);border-color:color-mix(in srgb,var(--city) 85%,#fff)}
+.btn.claro{background:#f4f6fb;border-color:#f4f6fb;color:#000201}
+.btn.claro:hover{background:#fff}
+.btn.sun{background:var(--yellow);border-color:var(--yellow)}
+.tag::before{background:var(--city)}
+.badge{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;border-radius:999px}
+td .badge{letter-spacing:.06em}
+.pill{border-radius:999px}
+.chip::before{background:var(--city);box-shadow:0 0 0 3px var(--violet-soft)}
+select,.filters select,.filters input,.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]),textarea{background:#101116;border-color:var(--line-2);border-radius:10px}
+.card,.tbl,.stats,.vazio,.ev,.tempo{border-color:var(--line)}
+/* logo em texto, como no site: T. (o ponto ganha a cor da cidade) */
+.tl{font-family:var(--serif);font-weight:900;font-size:34px;line-height:1;letter-spacing:-.02em;color:#fff}
+.tl i{font-style:normal;color:var(--city)}
+.logo{gap:12px;font-family:var(--sans);font-size:12px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:var(--ink-3)}
+.logo b{color:var(--ink-3);font-weight:600}
+header.top .wrap{min-height:84px}
+header.top{background:rgba(0,2,1,.86);border-bottom-color:#16181d}
+.btn-entrar{border:1px dashed var(--line-2);background:none;border-radius:999px;padding:5px 14px 5px 5px;display:inline-flex;align-items:center;gap:10px;font-weight:600;font-size:14px;cursor:pointer;color:var(--ink)}
+.btn-entrar:hover{border-color:var(--ink-4)}
+.btn-entrar .av{width:30px;height:30px;border-radius:50%;background:#1a1c22;display:grid;place-items:center}
+.btn-entrar svg{width:15px;height:15px}
+/* seletor de cidade */
+.cid-sel{position:relative}
+.cid-btn{display:inline-flex;align-items:center;gap:10px;min-width:210px;justify-content:space-between;border:1px solid var(--line-2);background:#0b0c0f;border-radius:999px;padding:9px 18px;font-size:15px;font-weight:500;color:var(--ink-2);cursor:pointer}
+.cid-btn:hover{border-color:var(--ink-4)}
+.cid-btn b{font-weight:500;color:var(--ink)}
+.cid-menu{position:absolute;right:0;top:calc(100% + 8px);width:290px;max-height:min(70vh,520px);overflow:auto;background:#0b0c0f;border:1px solid var(--line-2);border-radius:18px;padding:8px;z-index:30;box-shadow:0 24px 60px rgba(0,0,0,.6)}
+.cid-menu button{display:flex;align-items:center;gap:10px;width:100%;border:0;background:none;color:var(--ink-2);padding:9px 12px;border-radius:12px;cursor:pointer;font-size:14.5px;text-align:left}
+.cid-menu button:hover,.cid-menu button.on{background:var(--raised);color:var(--ink)}
+.cid-menu .bola{width:12px;height:12px;border-radius:50%;flex:none}
+.cid-menu .n{margin-left:auto;font-size:12px;color:var(--ink-4)}
+.cid-menu .loc{border:1px dashed var(--line-2);margin-bottom:6px;color:var(--ink)}
+.cid-menu .nota{font-size:12px;color:var(--ink-4);padding:6px 12px 8px}
+/* home: marca e cartões de cidade */
+.hero-ofc{text-align:center;padding:38px 0 8px}
+.hero-ofc .marca{font-family:var(--serif);font-weight:900;font-size:clamp(34px,5vw,54px);letter-spacing:.01em;line-height:1;margin:0;color:#fff}
+.hero-ofc .lema{color:var(--ink-2);font-size:17px;margin:12px 0 0}
+.hero-ofc .rede{color:var(--ink-3);max-width:60ch;margin:16px auto 0;font-size:15px}
+.hero-ofc .barra-acoes{justify-content:center;margin-top:24px}
+.tit-sec{font-family:var(--sans);font-weight:600;font-size:16px;letter-spacing:0;margin:0 0 14px;color:var(--ink)}
+.tit-sec.centro{text-align:center}
+.cidades{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,260px),1fr));gap:16px;max-width:860px;margin:0 auto}
+.cidade{position:relative;overflow:hidden;border:0;border-radius:20px;padding:22px 24px;min-height:164px;display:flex;flex-direction:column;justify-content:space-between;text-align:left;cursor:pointer;color:#000201;transition:transform .15s,filter .15s;font:inherit}
+.cidade:hover{transform:translateY(-2px);filter:brightness(1.04)}
+.cidade.on{outline:3px solid #fff;outline-offset:3px}
+.cidade .tq{font-family:var(--serif);font-weight:900;font-size:26px;letter-spacing:.01em}
+.cidade .nm{font-size:13px;font-weight:500;letter-spacing:.24em;text-transform:uppercase}
+.cidade .ct{font-size:12.5px;opacity:.75;margin-top:4px;letter-spacing:.02em;text-transform:none}
+.cidade .novo{position:absolute;right:-34px;top:16px;transform:rotate(45deg);background:#fff;color:#000;font-size:10px;font-weight:700;letter-spacing:.18em;padding:4px 40px}
+/* cartões de evento como no site */
+.evo{display:flex;align-items:center;gap:16px;padding:20px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(90deg,transparent 55%,color-mix(in srgb,var(--cor,var(--city)) 7%,transparent)),#08090b}
+.evo+.evo{margin-top:16px}
+.evo .bloco{width:64px;flex:none;border:1px solid var(--line-2);border-radius:8px;overflow:hidden;text-align:center;font-variant-numeric:tabular-nums}
+.evo .bloco span{display:block;font-size:10px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;padding:4px 0;color:var(--ink-3)}
+.evo .bloco .m{background:#15171c;color:var(--ink)}
+.evo .bloco b{display:block;font-size:20px;font-weight:700;padding:5px 0 0;color:#fff}
+.evo .bloco .a{padding:0 0 5px;font-size:10px;letter-spacing:.06em}
+.evo .meio{flex:1;min-width:0}
+.evo .longa{color:var(--ink-3);font-size:14px}
+.evo .titulo{font-size:16.5px;font-weight:600;color:#fff;margin-top:4px;line-height:1.35}
+.evo .titulo .badge{margin-left:8px;vertical-align:2px;background:none;border-color:var(--line-2);color:var(--ink-2)}
+.evo .titulo .badge::before{display:none}
+.evo .lado{display:flex;flex-direction:column;align-items:flex-end;gap:10px;flex:none;text-align:right}
+.evo .falta{font-size:10.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-3);display:flex;align-items:center;gap:7px}
+.evo .falta::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--ink-4)}
+.evo.prox .falta{color:var(--ink)}.evo.prox .falta::before{background:var(--cor,var(--city))}
+.evo .falta b{font-size:15px;letter-spacing:.02em;color:#fff;text-transform:none;font-weight:600}
+.evo .btn{background:var(--cor,var(--city));border-color:var(--cor,var(--city));color:#000201}
+.evo .btn:hover{filter:brightness(1.08)}
+.agenda-ofc{max-width:860px}
+@media (max-width:640px){.evo{flex-wrap:wrap;padding:16px}.evo .lado{flex-direction:row;align-items:center;justify-content:space-between;width:100%}.evo .bloco{width:56px}}
+/* sobre e rodapé institucional */
+.sobre{max-width:860px;margin:72px auto 0;background:#08090b;border:1px solid var(--line);border-radius:18px;padding:22px 22px}
+.sobre h3{margin:0 0 12px;font-size:16px}
+.sobre p{margin:0 0 12px;color:var(--ink-2)}
+.sobre p b{color:#fff;font-weight:600}
+.sobre p:last-child{margin:0;color:var(--ink-3)}
+.foot{border-top:1px solid #16181d;padding:48px 16px 40px;color:var(--ink-3);font-size:14px}
+.rod{max-width:900px;margin:0 auto}
+.rod h4{font-family:var(--serif);font-weight:700;font-size:25px;letter-spacing:.005em;text-transform:uppercase;color:#fff;margin:0 0 18px}
+.rod .lc{display:flex;flex-wrap:wrap;gap:12px 20px;margin-bottom:44px}
+.rod .lc a:nth-child(-n+2){font-weight:600;color:var(--ink-2)}
+.rod a{text-decoration:none;color:var(--ink-3)}
+.rod a:hover{color:#fff}
+.rod .cols{display:grid;grid-template-columns:1fr 1fr;gap:28px}
+.rod .cols nav{display:flex;flex-direction:column;gap:14px}
+.rod .redes{display:flex;gap:10px;margin-top:4px}
+.rod .redes a{width:44px;height:44px;border:1px solid var(--line-2);border-radius:50%;display:grid;place-items:center;color:#fff}
+.rod .legal{border-top:1px solid #16181d;margin-top:36px;padding-top:28px;text-align:center;display:flex;flex-direction:column;gap:10px;font-size:14px}
+.rod .legal a{text-decoration:underline;text-underline-offset:3px}
+.rod .legal b{color:#fff;font-weight:600}
+.rod .nota-dados{color:var(--ink-4);font-size:12.5px;max-width:70ch;margin:6px auto 0}
+body.logado .rod{display:none}
+body.logado .foot::after{content:attr(data-curto);display:block;color:var(--ink-4);font-size:13px}
+body.logado .foot{padding:22px 16px 30px}
+@media (max-width:700px){.rod .cols{grid-template-columns:1fr}}
+/* banner de privacidade e consentimento */
+.consent{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);width:min(900px,calc(100% - 24px));z-index:70;background:#000201;border:1.5px solid #e2edff;border-radius:12px;padding:18px 18px 14px;box-shadow:0 0 0 1px #000,0 20px 60px rgba(0,0,0,.7);animation:sobe .25s ease-out}
+.consent b{display:block;font-size:15px;font-weight:600;color:#fff;margin-bottom:8px}
+.consent p{margin:0;font-size:13px;line-height:1.6;color:var(--ink-3)}
+.consent p a{color:#fff}
+.consent .acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:14px;flex-wrap:wrap}
+.consent .btn{border-radius:2px;font-weight:600}
+.consent .btn.claro{border-radius:2px}
+/* Tutorial aberto: o aviso de privacidade espera (volta quando o tutorial fecha), para não haver duas janelas uma sobre a outra. */
+body:has(.tour) .consent{display:none}
+@media (max-width:640px){.consent{bottom:10px;padding:16px}.consent .acoes{flex-direction:column}.consent .btn{width:100%}}
+.aceite-legal{font-size:12.5px;color:var(--ink-4);margin:10px 0 0}
+.aceite-legal a{color:var(--ink-3)}
+.loc-btn{border:0;background:none;color:var(--ink-3);font-size:13px;cursor:pointer;padding:4px 0;text-align:left;text-decoration:underline;text-underline-offset:3px}
+.loc-btn:hover{color:#fff}
+.sec-cidades{margin-top:36px}
+.faixa-aviso,#acesso{max-width:860px;margin-left:auto;margin-right:auto}
+#agenda{scroll-margin-top:100px}
+@media (max-width:640px){
+  header.top .wrap{min-height:60px;gap:8px}
+  .logo>span:not(.tl){display:none}
+  .tl{font-size:26px}
+  .cid-btn{min-width:0;padding:7px 12px;font-size:14px;gap:6px;min-height:44px}
+  .cid-btn span{max-width:96px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  /* No celular o botão continua dizendo "Entrar": só o ícone não diz o que faz. */
+  .btn-entrar{padding:4px 12px 4px 4px;font-size:13px;gap:6px;min-height:44px}
+  .btn-entrar .av{width:30px;height:30px}
+  .btn,.btn.sm,nav.tabs button{min-height:44px}
+  .cid-menu{width:min(290px,calc(100vw - 24px))}
+  .hero-ofc{padding-top:22px}
+  .cidade{min-height:128px}
+}
+/* Comece por aqui: três atalhos grandes e a fila do dia */
+.inicio-oi{font-size:15px;color:var(--ink-3);margin:0 0 22px;max-width:62ch}
+.atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px}
+.atalho{display:flex;flex-direction:column;gap:14px;text-align:left;border:1px solid var(--line);background:#08090b;border-radius:20px;padding:22px;cursor:pointer;color:var(--ink);font:inherit;transition:border-color .15s,transform .15s;min-height:210px;position:relative;overflow:hidden}
+.atalho:hover{border-color:var(--line-2);transform:translateY(-2px)}
+.atalho::before{content:"";position:absolute;inset:0 0 auto 0;height:5px;background:var(--cor)}
+.atalho .num{font-family:var(--serif);font-weight:900;font-size:52px;line-height:.9;color:#fff}
+.atalho .num small{font-family:var(--sans);font-weight:500;font-size:15px;color:var(--ink-3);margin-left:6px}
+.atalho b{font-size:18px;font-weight:600}
+.atalho p{margin:0;color:var(--ink-3);font-size:14px;flex:1}
+.atalho .ir{font-size:14px;font-weight:600;color:var(--cor)}
+.fila{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:16px;overflow:hidden;margin-top:12px}
+.fila button{display:flex;align-items:center;gap:14px;border:0;background:var(--surface);padding:16px 18px;cursor:pointer;color:var(--ink-2);font:inherit;text-align:left}
+.fila button:hover{background:var(--raised);color:#fff}
+.fila .q{font-family:var(--serif);font-weight:900;font-size:28px;color:#fff;min-width:34px}
+.fila .q.zero{color:var(--ink-4)}
+.inicio-pe{color:var(--ink-4);font-size:13px;margin-top:26px}
+</style>
+</head>
+<body>
+<div id="stale"></div>
+<header class="top"><div class="wrap">
+  <button class="menu-btn" id="menu" aria-label="Abrir menu" aria-expanded="false" aria-controls="side" hidden><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg></button>
+  <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
+  <span class="top-tit" id="topTit"></span>
+  <span class="sp"></span>
+  <span class="chip" id="atualizado" hidden>carregando…</span>
+  <button class="btn-entrar" id="entrar"><span class="av"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.4 4.2-6.5 8-6.5s7 2.1 8 6.5"/></svg></span>Entrar</button>
+  <div class="cid-sel" id="cidSel"></div>
+</div></header>
+<aside class="side" id="side" hidden>
+  <a class="logo" href="#" data-home aria-label="Tranquilo · Rede"><span class="tl">T<i>.</i></span><span>Rede</span></a>
+  <div class="quem" id="quem"></div>
+  <nav class="tabs" id="tabs" aria-label="Seções"></nav>
+  <div class="side-pe"><span class="chip" id="atualizado2"></span><button class="btn sm" id="comoFunciona">Como funciona</button><button class="btn sm" id="sair">Sair da conta</button></div>
+</aside>
+<div class="veu" id="veu" hidden></div>
+<main class="wrap" id="app"><p class="muted">Carregando…</p></main>
+<footer class="foot" id="foot"></footer>
+<div id="consent"></div>
+<button class="relatar" id="relatar" type="button">Algo deu errado?</button>
+
+<dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
+
+<script src="config.js"></script>
+<script src="diario.js"></script>
+<script src="regras.js"></script>
+<script src="tour.js"></script>
+<script src="campanha.js"></script>
+<script src="contrato.js"></script>
+<script src="conta.js"></script>
+<script>
+"use strict";
+// ---------- utilidades ----------
+const $ = (s, el = document) => el.querySelector(s);
+// Só links http(s) viram botão (um "javascript:" vindo de dado errado nunca chega ao href).
+const urlSegura = (u) => (/^https?:\/\//i.test(String(u || "").trim()) ? String(u).trim() : null);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = (n) => n == null || Number.isNaN(n) ? "–" : Math.round(n).toLocaleString("pt-BR");
+const pct = (n) => n == null || !isFinite(n) ? "–" : `${n > 0 ? "+" : ""}${Math.round(n * 100)}%`;
+const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
+const MESES_L = ["janeiro","fevereiro","março","abril","maio","junho","julho","agosto","setembro","outubro","novembro","dezembro"];
+const SEMANA = ["dom","seg","ter","qua","qui","sex","sáb"];
+const dt = (iso) => { const [y,m,d] = iso.split("-"); return `${d}/${m}/${y}`; };
+const dtc = (iso) => { const [y,m,d] = iso.split("-"); return `${d} ${MESES[+m-1]}`; };
+const dia = (iso) => SEMANA[new Date(iso + "T12:00:00").getDay()];
+const notion = (id) => `https://www.notion.so/${id}`;
+const media = (a) => a.length ? a.reduce((s, x) => s + x, 0) / a.length : null;
+const mediana = (a) => { if (!a.length) return null; const s = [...a].sort((x,y)=>x-y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1]+s[m]) / 2; };
+const soma = (a) => a.reduce((s, x) => s + x, 0);
+const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch {} }, del(k){ try { localStorage.removeItem(k); } catch {} } };
+const normCod = (c) => c.toUpperCase().replace(/[^A-Z0-9]/g, "");
+const b64 = (s) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+const hex = (buf) => [...new Uint8Array(buf)].map((x) => x.toString(16).padStart(2, "0")).join("");
+
+async function abrirPacote(cod) {
+  const n = normCod(cod);
+  if (n.length < 12) throw new Error("Código incompleto. Ele tem 12 letras e números.");
+  const enc = new TextEncoder();
+  const base = await crypto.subtle.importKey("raw", enc.encode(n), "PBKDF2", false, ["deriveKey", "deriveBits"]);
+  const arq = hex(await crypto.subtle.deriveBits({ name: "PBKDF2", salt: enc.encode("tranquilo-rede:arquivo"), iterations: 210000, hash: "SHA-256" }, base, 128));
+  const r = await fetch(`b/${arq}.bin`, { cache: "no-store" });
+  if (!r.ok) throw new Error("Código não encontrado. Confira as letras ou peça um novo código à equipe.");
+  const p = await r.json();
+  const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(p.s), iterations: 210000, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const claro = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(p.i) }, k, b64(p.c));
+  const pac = JSON.parse(new TextDecoder().decode(claro));
+  for (const e of pac.eventos || []) e.l = urlSegura(e.l);
+  return pac;
+}
+
+// ---------- cidades do site oficial: cor, link e coordenadas (para "usar minha localização") ----------
+const OFICIAL = "https://tranquilomusica.com.br";
+const CIDADES_OFC = [
+  ["saopaulo", "São Paulo", "#7c8ff3", -23.55, -46.63, 0, "💙"], ["bh", "Belo Horizonte", "#fcdbe5", -19.92, -43.94, 0, "🩷"],
+  ["floripa", "Floripa", "#f8f4cf", -27.59, -48.55, 0, "🤍"], ["riodejaneiro", "Rio de Janeiro", "#8fcaff", -22.91, -43.17, 0, "🩵"],
+  ["salvador", "Salvador", "#f9b436", -12.97, -38.50, 0, "🧡"], ["brasilia", "Brasília", "#ffde59", -15.79, -47.88, 0, "💛"],
+  ["campinas", "Campinas", "#ccbfda", -22.91, -47.06, 1, "💜"], ["curitiba", "Curitiba", "#c4d9ba", -25.43, -49.27, 0, "💚"],
+  ["recife", "Recife", "#f56c52", -8.05, -34.88, 0, "❤️"], ["itajai", "Itajaí", "#f4f4f5", -26.91, -48.66, 1, "🤍"],
+  ["portoalegre", "Porto Alegre", "#f4f4f5", -30.03, -51.23, 1, "🤍"], ["santoandre", "Santo André", "#f4f4f5", -23.66, -46.53, 1, "🤍"],
+  ["santos", "Santos", "#f4f4f5", -23.96, -46.33, 1, "🤍"], ["sorocaba", "Sorocaba", "#f4f4f5", -23.50, -47.46, 1, "🤍"],
+].map(([slug, nome, cor, lat, lon, novo, emoji]) => ({ slug, nome, cor, lat, lon, novo: !!novo, emoji }));
+const semAcento = (t) => (t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const APELIDO = { florianopolis: "floripa", "belo horizonte": "belo horizonte", bh: "belo horizonte", rio: "rio de janeiro" };
+// Nome da cidade como aparece no Notion -> cidade do site oficial (ou null se a rede ainda não tem página dela).
+function cidadeOfc(nome) { const k = APELIDO[semAcento(nome)] || semAcento(nome); return CIDADES_OFC.find((c) => semAcento(c.nome) === k) || null; }
+const corCidade = (nome) => cidadeOfc(nome)?.cor || "#7c8ff3";
+function aplicarCidade() {
+  const c = S.cidade ? cidadeOfc(S.cidade) : null;
+  document.documentElement.style.setProperty("--city", c?.cor || "#7c8ff3");
+}
+function escolherCidade(nome, rolar = true) {
+  S.cidade = nome || ""; S.agCidade = S.cidade; S.agTudo = false; S.cidMenu = false;
+  if (nome) store.set("tq-cidade", nome); else store.del("tq-cidade");
+  aplicarCidade(); render();
+  if (rolar && nome) setTimeout(() => document.getElementById("agenda")?.scrollIntoView({ behavior: "smooth", block: "start" }), 30);
+}
+window.TQConsent = () => consentimento();
+window.TQLocalizar = localizar;
+window.TQCidadeOfc = cidadeOfc;
+function seletorCidade() {
+  const c = S.cidade ? cidadeOfc(S.cidade) : null, contagem = Object.fromEntries([...agrupar(S.pub?.agenda || [], (e) => cidadeOfc(e.c)?.nome || e.c)].map(([k, v]) => [k, v.length]));
+  return `<button class="cid-btn" id="cidBtn" aria-haspopup="true" aria-expanded="${!!S.cidMenu}">${c ? `<span>${c.emoji} <b>${esc(c.nome)}</b></span>` : "<span>Escolher cidade</span>"}<svg width="12" height="8" viewBox="0 0 12 8"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></button>
+  ${S.cidMenu ? `<div class="cid-menu"><button class="loc" data-localizar>📍 Usar minha localização</button><div class="nota" id="locNota">A localização fica só no seu aparelho: serve para achar a cidade da rede mais perto.</div>
+  ${c ? `<button data-cidade-ofc="">Todas as cidades</button>` : ""}${CIDADES_OFC.map((x) => `<button data-cidade-ofc="${esc(x.nome)}" class="${c?.slug === x.slug ? "on" : ""}"><span class="bola" style="background:${x.cor}"></span>${esc(x.nome)}<span class="n">${contagem[x.nome] ? contagem[x.nome] + (contagem[x.nome] > 1 ? " datas" : " data") : x.novo ? "novo" : ""}</span></button>`).join("")}</div>` : ""}`;
+}
+function maisPerto(lat, lon) {
+  const rad = (g) => g * Math.PI / 180, dist = (c) => { const a = Math.sin(rad(c.lat - lat) / 2) ** 2 + Math.cos(rad(lat)) * Math.cos(rad(c.lat)) * Math.sin(rad(c.lon - lon) / 2) ** 2; return 12742 * Math.asin(Math.sqrt(a)); };
+  return CIDADES_OFC.map((c) => ({ c, km: dist(c) })).sort((a, b) => a.km - b.km)[0];
+}
+function localizar(aoAchar) {
+  const nota = (t) => { const n = $("#locNota") || $("#avLocNota"); if (n) n.textContent = t; };
+  if (!navigator.geolocation) return nota("Este navegador não permite usar a localização. Escolha a cidade na lista.");
+  nota("Procurando a cidade mais perto…");
+  navigator.geolocation.getCurrentPosition((pos) => {
+    const { c, km } = maisPerto(pos.coords.latitude, pos.coords.longitude);
+    if (km > 150) { nota(`Ainda não tem Tranquilo perto de você: a cidade mais perto é ${c.nome}, a ${Math.round(km)} km. Deixe o seu contato no "me avise" com a sua cidade.`); aoAchar?.(null, c, km); return; }
+    aoAchar ? aoAchar(c.nome, c, km) : escolherCidade(c.nome);
+  }, (e) => nota(e.code === 1 ? "Você não autorizou a localização. Tudo bem: escolha a cidade na lista." : "Não foi possível achar a localização agora. Escolha a cidade na lista."), { timeout: 10000, maximumAge: 600000 });
+}
+// Banner de privacidade e consentimento, no formato do site oficial. Este site não usa cookies de análise nem de anúncios.
+function consentimento() {
+  if (store.get("tq-consentimento") || TQTour.aberto() || S.pac || S.conta) return;
+  $("#consent").innerHTML = `<div class="consent" role="dialog" aria-label="Privacidade e consentimento de comunicação"><b>🍪 Privacidade e Consentimento de Comunicação</b>
+  <p>Este espaço da Rede Tranquilo não usa cookies de análise nem de anúncios: guarda no seu navegador só o necessário para funcionar (sessão, cidade escolhida e preferências). Para melhorar o site, registramos as telas usadas e os erros que acontecem, sem cookies e sem nada do que você digita; se você entrar com sua conta, o registro fica ligado a ela. Se você deixar e-mail ou WhatsApp no “me avise”, confirma que pode receber comunicações do Tranquilo sobre shows na sua cidade (incluindo via WhatsApp Business). Detalhes na <a href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Política de Privacidade</a> e na <a href="${OFICIAL}/politica-mensagens-whatsapp" target="_blank" rel="noopener">Política de Mensagens WhatsApp</a>.</p>
+  <div class="acoes"><button class="btn claro" data-consent="ok">Entendi ✨</button><a class="btn ghost" href="${OFICIAL}/politica-de-privacidade" target="_blank" rel="noopener">Ler a política</a></div></div>`;
+}
+function rodape() {
+  const L = (c, t) => `<a href="${OFICIAL}/${c}" target="_blank" rel="noopener">${t}</a>`;
+  $("#foot").dataset.curto = "Rede Tranquilo · agenda e números do Notion do Tranquilo, atualizados toda noite.";
+  $("#foot").innerHTML = `<div class="rod">
+  <h4>Cidades</h4><div class="lc">${CIDADES_OFC.map((c) => L(c.slug, esc(c.nome))).join("")}</div>
+  <div class="cols"><div><h4>Tranquilo pra você</h4><nav>${L("descubra", "Tocar no Tranquilo")}${L("compartilhe-seu-lancamento", "Enviar meu single")}${L("recomende-uma-casa-de-shows", "Recomendar uma casa")}${L("oportunidades", "Trabalhar no Tranquilo")}${L("indicar-artista", "Indicar artista")}${L("artistas", "Artistas")}${L("contato", "Fale com a gente")}</nav></div>
+  <div><h4>Institucional</h4><nav>${L("", "Site do Tranquilo")}${L("politica-de-privacidade", "Política de Privacidade")}${L("politica-mensagens-whatsapp", "Política de mensagens")}${L("termos-de-uso", "Termos de Uso")}${L("kit-de-marca", "Kit de Marca")}
+  <div class="redes"><a href="https://wa.me/5531973434771" target="_blank" rel="noopener" aria-label="WhatsApp do Tranquilo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1.1z"/><path d="M9 8.5c0 3 2.5 6.5 6.5 6.5l1-1.5-2-1-1 1c-1-.4-2.6-2-3-3l1-1-1-2z" stroke-linejoin="round"/></svg></a><a href="https://instagram.com/tranquiloponto" target="_blank" rel="noopener" aria-label="Instagram do Tranquilo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1" fill="currentColor"/></svg></a></div></nav></div></div>
+  <div class="legal"><div>${L("politica-de-privacidade", "Política de Privacidade")} · ${L("termos-de-uso", "Termos de Uso")} · ${L("politica-mensagens-whatsapp", "Política de mensagens")}</div>
+  <div>© ${new Date().getFullYear()} Tranquilo. Eventos Ltda — <b>CNPJ 50.142.229/0001-39</b></div><div>Rua Castelo Évora, 90 — Castelo — Belo Horizonte/MG</div>
+  <div>WhatsApp: <a href="https://wa.me/5531973434771" target="_blank" rel="noopener" style="text-decoration:none">(31) 97343-4771</a> · Email: <a href="mailto:contato@tranquilomusica.com.br" style="text-decoration:none">contato@tranquilomusica.com.br</a></div>
+  <p class="nota-dados">Agenda e números lidos do Notion do Tranquilo e atualizados toda noite. Ingressos e comunicação oficial sempre pelo site e pelos canais do Tranquilo.</p></div></div>`;
+}
+
+// ---------- estado ----------
+const S = { pub: null, pac: null, aba: null, filtros: { periodo: "12m", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
+const PERFIS = {
+  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Artistas"],["casas","Casas"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
+  equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["base","Base de conhecimento"],["metodo","Método"]] },
+  artista: { rotulo: "Artista", abas: [["agenda","Minha agenda"],["pracas","Praças da rede"],["duvidas","Dúvidas frequentes"]] },
+  casa: { rotulo: "Casa", abas: [["minhas","Minhas datas"],["roteiro","Roteiro da noite"],["duvidas","Dúvidas frequentes"]] },
+};
+
+// ---------- métricas ----------
+function filtrarPeriodo(evs, periodo, hoje) {
+  if (periodo === "tudo") return evs;
+  if (periodo === "12m") { const lim = new Date(new Date(hoje).getTime() - 365*864e5).toISOString().slice(0,10); return evs.filter((e) => e.d >= lim); }
+  if (periodo === "90d") { const lim = new Date(new Date(hoje).getTime() - 90*864e5).toISOString().slice(0,10); return evs.filter((e) => e.d >= lim); }
+  return evs.filter((e) => e.d.startsWith(periodo));
+}
+function metricas(evs) {
+  const real = evs.filter((e) => e.r), comP = real.filter((e) => e.p != null);
+  const ps = comP.map((e) => e.p);
+  const ult = comP.slice(-3).map((e) => e.p), ant = comP.slice(-6, -3).map((e) => e.p);
+  const encerr = evs.filter((e) => e.z).length, base = real.length + encerr;
+  const ocup = comP.filter((e) => e.x).map((e) => e.p / e.x);
+  return {
+    noites: real.length, comPublico: comP.length, total: soma(ps), media: media(ps), mediana: mediana(ps),
+    tendencia: ult.length === 3 && ant.length === 3 ? media(ult) / media(ant) - 1 : null,
+    cancel: base ? encerr / base : null, cancelados: encerr, futuras: evs.filter((e) => e.f).length,
+    registro: real.length ? comP.length / real.length : null, ocupacao: ocup.length ? media(ocup) : null,
+    cidades: new Set(real.map((e) => e.c)).size,
+  };
+}
+// Sinal: compara cada item com noites do MESMO modelo no recorte (um Descubra de 60 pessoas não
+// é comparável a um Clássico de 400). Exige pelo menos 3 noites com público lançado.
+const BASE_MIN = 3;
+function referenciaPorModelo(evs) {
+  const g = {};
+  for (const e of evs) if (e.r && e.p != null) (g[e.m] ||= []).push(e.p);
+  return Object.fromEntries(Object.entries(g).map(([m, ps]) => [m, ps.reduce((a, b) => a + b, 0) / ps.length]));
+}
+function esperadoPara(evs, refMod) {
+  const ps = evs.filter((e) => e.r && e.p != null && refMod[e.m]).map((e) => refMod[e.m]);
+  return ps.length ? ps.reduce((a, b) => a + b, 0) / ps.length : null;
+}
+function sinal(m, rede, esperado = rede.media) {
+  if (m.comPublico < BASE_MIN) return { k: "", t: "Sem base de público", o: 0 };
+  const ind = esperado ? m.media / esperado : 1;
+  if (ind < 0.7 || (m.tendencia != null && m.tendencia < -0.25) || (m.cancel ?? 0) >= 0.3) return { k: "b-crit", t: "Atenção", o: 1 };
+  if (ind >= 1.1 && (m.tendencia == null || m.tendencia >= -0.1) && (m.cancel ?? 0) < 0.2) return { k: "b-good", t: "Escalar", o: 3 };
+  return { k: "b-warn", t: "Manter e observar", o: 2 };
+}
+function agrupar(evs, chaveFn) {
+  const g = new Map();
+  for (const e of evs) for (const k of [].concat(chaveFn(e)).filter(Boolean)) { if (!g.has(k)) g.set(k, []); g.get(k).push(e); }
+  return g;
+}
+
+// ---------- componentes ----------
+const kpi = (v, l, d = "") => `<div class="card kpi${v === 0 || v === "0" ? " zero" : ""}"><div class="v">${v}</div><div class="l">${l}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
+// Estado vazio: diz o que vai aparecer aqui e o que fazer para isso acontecer.
+const vazio = (titulo, texto = "", acoes = "", icone = "datas") => `<div class="vazio"><span class="ic">${ICONES[icone] || ICONES.datas}</span><b>${titulo}</b>${texto ? `<p>${texto}</p>` : ""}${acoes ? `<div class="barra-acoes">${acoes}</div>` : ""}</div>`;
+function barra(valor, max, ref, rot) {
+  if (valor == null) return `<span class="muted">sem público lançado</span>`;
+  const w = Math.max(2, Math.min(100, (valor / max) * 100)), r = ref != null ? Math.min(100, (ref / max) * 100) : null;
+  return `<div class="barcell" title="${esc(rot || "")}"><span>${fmt(valor)}</span><div class="track"><div class="fill" style="width:${w}%"></div>${r != null ? `<div class="ref" style="left:${r}%"></div>` : ""}</div></div>`;
+}
+function tabela(id, colunas, linhas, ordem, semLinhas) {
+  const st = (S.ord ||= {})[id] || ordem || { i: 0, dir: -1 };
+  S.ord[id] = st;
+  const col = colunas[st.i];
+  const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
+  return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
+}
+const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;
+// "Casa em Belo Horizonte · a645" = casa sem nome no Notion. Para público, artista e casa vira "local a confirmar";
+// equipe e adm continuam vendo o identificador para achar a casa no Notion.
+const casaGenerica = (h) => !h || /^Casa (em|da rede)\b/.test(h);
+const nomeCasa = (h) => (casaGenerica(h) && !["adm", "equipe"].includes(S.pac?.perfil) ? "local a confirmar" : h);
+function evLinha(e, extra = "") {
+  const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
+  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(nomeCasa(e.h))}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
+}
+function abrirEvento(id) {
+  const e = S.pac.eventos.find((x) => x.id === id); if (!e) return;
+  const interno = S.pac.perfil === "adm" || S.pac.perfil === "equipe";
+  const refC = S.pac.referencia.find((r) => r.cidade === e.c);
+  $("#dlgIn").innerHTML = `<div class="tag">${esc(e.m)} · ${esc(e.s)}</div><h2 style="margin-top:4px">${esc(e.c)} · ${dt(e.d)}</h2><p class="sub">${esc(e.n)}</p>
+  <dl class="kv"><dt>Casa</dt><dd>${esc(nomeCasa(e.h))}</dd><dt>Line-up</dt><dd>${e.a.length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "–"}</dd>
+  <dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>
+  ${e.v != null ? `<dt>Ingressos + porta + lista</dt><dd>${fmt(e.v)}</dd>` : ""}${e.x ? `<dt>Capacidade trabalhada</dt><dd>${fmt(e.x)}${e.p ? ` · ocupação ${Math.round(e.p / e.x * 100)}%` : ""}</dd>` : ""}
+  ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}</dl>
+  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${esc(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  $("#dlg").showModal();
+}
+
+// ---------- página pública ----------
+const CORES = ["var(--sun)", "var(--pink)", "var(--green)", "var(--violet)", "var(--cream)"];
+const corDe = (t) => CORES[[...t].reduce((n, c) => n + c.charCodeAt(0), 0) % CORES.length];
+const SEM_C = ["DOM","SEG","TER","QUA","QUI","SEX","SÁB"], SEM_L = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+// Título no formato do site oficial: "Tranquilo Descubra — São Paulo", "Tranquilo Apresenta — Brasília — YOÙN".
+const juntar = (l) => l.length > 1 ? l.slice(0, -1).join(", ") + " e " + l[l.length - 1] : l.join("");
+function tituloOfc(e) {
+  if (e.t && /^Tranquilo\b/.test(e.t)) return e.t;
+  const art = e.a?.length ? juntar(e.a) : "";
+  if (e.m === "Descubra") return `Tranquilo Descubra — ${e.c}`;
+  if (e.m === "Apresenta") return `Tranquilo Apresenta — ${e.c}${art ? " — " + art : ""}`;
+  return `Tranquilo ${e.c}${art ? " — " + art : ""}`;
+}
+function cartaoEvento(e, primeiro) {
+  const d = new Date(e.d + "T12:00:00"), dias = Math.round((d - new Date(S.pub.hoje + "T12:00:00")) / 864e5);
+  const falta = dias <= 0 ? "<b>hoje</b>" : dias === 1 ? "<b>amanhã</b>" : `em <b>${dias} dias</b>`;
+  return `<div class="evo${primeiro ? " prox" : ""}" style="--cor:${corCidade(e.c)}">
+    <div class="bloco" aria-hidden="true"><span>${SEM_C[d.getDay()]}</span><span class="m">${MESES[d.getMonth()].toUpperCase()}</span><b>${e.d.slice(8, 10)}</b><span class="a">${e.d.slice(0, 4)}</span></div>
+    <div class="meio"><div class="longa">${SEM_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}</div>
+      <div class="titulo">${esc(tituloOfc(e))}${e.m && !/^sem /i.test(e.m) ? `<span class="badge">${esc(e.m)}</span>` : ""}</div>
+      <div class="longa" style="margin-top:2px">${esc(casaGenerica(e.h) ? "Local a confirmar" : e.h)}</div></div>
+    <div class="lado"><div class="falta">${primeiro ? "Próximo evento · " : ""}${falta}</div>
+      ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
+}
+function telaPublica() {
+  const p = S.pub, cid = S.cidade ? cidadeOfc(S.cidade) : null;
+  const daCidade = (e) => !cid || cidadeOfc(e.c)?.slug === cid.slug;
+  const filtrada = p.agenda.filter(daCidade), LIM = 10, mostrar = S.agTudo || cid ? filtrada : filtrada.slice(0, LIM);
+  const contagem = Object.fromEntries([...agrupar(p.agenda, (e) => cidadeOfc(e.c)?.slug || "")].map(([k, v]) => [k, v.length]));
+  const cidades = [...new Set([...p.agenda.map((e) => e.c), ...(window.TQRegras?.CIDADES_REDE || [])])].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const selAviso = cid ? cidades.find((c) => cidadeOfc(c)?.slug === cid.slug) || "" : "";
+  const cartaoCidade = (c) => `<button class="cidade${cid?.slug === c.slug ? " on" : ""}" style="background:${c.cor}" data-cidade-ofc="${esc(c.nome)}" aria-pressed="${cid?.slug === c.slug}">
+    ${c.novo ? `<span class="novo">NOVO</span>` : ""}<span class="tq">TRANQUILO/</span>
+    <span><span class="nm">${esc(c.nome)}</span><span class="ct" style="display:block">${contagem[c.slug] ? contagem[c.slug] + (contagem[c.slug] > 1 ? " próximas datas" : " próxima data") : "datas em breve"}</span></span></button>`;
+  $("#app").innerHTML = `
+  <section class="hero-ofc">
+    <h1 class="marca">TRANQUILO.</h1>
+    <p class="lema">Ouvidos atentos. Corações abertos.</p>
+    <p class="rede">Esta é a Rede Tranquilo: a agenda aberta das ${p.totais.cidades} cidades e o espaço onde artistas, casas e equipe acompanham cada noite.</p>
+    <div class="barra-acoes"><a class="btn lg claro" href="#agenda" data-rolar="agenda">Ver próximos eventos</a><a class="btn lg ghost" href="#avise" data-rolar="avise">Me avise na minha cidade</a><button class="btn lg ghost" data-como-funciona>Como funciona</button></div>
+  </section>
+
+  <section class="secao sec-cidades"><h2 class="tit-sec centro">Cidades</h2>
+    <div class="cidades">${CIDADES_OFC.map(cartaoCidade).join("")}</div></section>
+
+  <section class="secao agenda-ofc" id="agenda" style="margin:0 auto">
+    ${cid ? `<div class="secao-topo"><div><h2 class="marca-cidade" style="font-size:clamp(30px,5vw,46px);margin:0">${esc(cid.nome.toUpperCase())}</h2><p class="sub" style="margin:8px 0 0">Acompanhe os próximos eventos de ${esc(cid.nome)}.</p></div><div class="barra-acoes"><a class="btn sm ghost" href="${OFICIAL}/${cid.slug}" target="_blank" rel="noopener">Página da cidade no site</a><button class="btn sm" data-cidade-ofc="">Ver todas as cidades</button></div></div>` : ""}
+    <h2 class="tit-sec">Próximos eventos</h2>
+    ${mostrar.map((e, i) => cartaoEvento(e, i === 0)).join("") || vazio(cid ? `Ainda não tem data em ${esc(cid.nome)}` : "Agenda sendo montada", cid ? "Deixe seu contato no “me avise” logo abaixo: você fica sabendo assim que abrir data." : "As próximas datas aparecem aqui assim que forem confirmadas.")}
+    ${mostrar.length < filtrada.length ? `<div class="mais"><button class="btn" data-agtudo>Ver todos os ${filtrada.length} eventos</button></div>` : ""}
+  </section>
+
+  ${p.circulacao.length && !cid ? `<section class="secao agenda-ofc" style="margin:0 auto"><h2 class="tit-sec">Artistas em circulação</h2><p class="sub" style="margin:-6px 0 14px">Turnês e datas confirmadas na rede.</p>
+  <div class="artistas">${p.circulacao.map((a) => `<div class="card artista"><span class="av" style="background:${corDe(a.nome)}">${esc(a.nome.trim()[0] || "")}</span><div><b>${esc(a.nome)}</b><div class="muted" style="font-size:13px">${a.datas} ${a.datas > 1 ? "datas" : "data"} · a partir de ${dtc(a.proxima)}</div><div style="margin-top:8px">${a.cidades.map((c) => `<span class="pill">${esc(c)}</span>`).join("")}</div></div></div>`).join("")}</div></section>` : ""}
+
+  ${(p.faq || []).some((i) => i.publico === "compra") ? `<section class="secao" id="duvidas" style="max-width:860px;margin-left:auto;margin-right:auto"><h2 class="tit-sec">Dúvidas sobre ingressos</h2><p class="sub" style="margin:-6px 0 6px">Compra, Pix, cadastro na Ingresse e ingresso que não aparece.</p>${faqLista(["compra"]).replace(/<h3[^>]*>.*?<\/h3>/, "")}</section>` : ""}
+  <section class="secao faixa-aviso" id="avise"><div><div class="tag">Me avise</div><h2>Show na sua cidade? A gente te conta antes.</h2><p class="sub" style="margin:0">Deixe o e-mail ou o WhatsApp. Sem senha, sem cadastro, e dá para sair quando quiser.</p></div>
+  <div>${TQConta.formAviso(cidades, selAviso)}</div></section>
+
+  <section class="sobre"><h3>Sobre o Tranquilo</h3>
+    <p>O Tranquilo é uma série de encontros de música ao vivo.</p>
+    <p>A gente faz shows e experiências em diversas cidades do Brasil.</p>
+    <p>Os ingressos e a comunicação oficial são sempre pelo <a href="${OFICIAL}" target="_blank" rel="noopener">site do Tranquilo</a> e pelos nossos canais no Instagram e WhatsApp.</p>
+    <p>Música ao vivo. Curadoria. Encontros que viram casa.</p></section>
+
+  <section class="secao" id="acesso"><div class="secao-topo"><div><div class="tag">Para artistas e casas</div><h2>Entrar ou se cadastrar</h2><p class="sub">Artistas se inscrevem na curadoria e acompanham cada etapa até o pós-show. Casas se cadastram para receber datas. Cada perfil vê só o que é dele.</p></div></div>
+  ${TQConta.formEntrada()}</section>`;
+  ligarLogin();
+}
+const formLogin = () => `<label class="fcampo"><b>Código de acesso</b><input id="cod" autocomplete="off" placeholder="XXXX-XXXX-XXXX" spellcheck="false"></label><div class="err" role="status" aria-live="polite" id="err"></div><label class="fcheck" style="margin-bottom:14px"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label><button class="btn" id="ok">Abrir com código</button>`;
+function ligarLogin() {
+  const ir = async () => {
+    const c = $("#cod").value; $("#err").textContent = "Abrindo…";
+    try { await entrar(c, $("#lembrar").checked); } catch (e) { $("#err").textContent = e.message || "Não foi possível abrir."; }
+  };
+  $("#ok").onclick = ir; $("#cod").onkeydown = (e) => { if (e.key === "Enter") ir(); };
+}
+async function entrar(cod, lembrar) {
+  S.pac = await abrirPacote(cod);
+  TQDiario.registrar("entrou_codigo", { perfil: S.pac.perfil, nome: S.pac.nome });
+  if (lembrar) store.set("tq-codigo", normCod(cod));
+  S.aba = ordenarAbas(PERFIS[S.pac.perfil].abas)[0][0];
+  render();
+  const visto = store.get(`tq-tutorial-codigo-${S.pac.perfil}`);
+  if (!visto) setTimeout(() => tutorialCodigo(true), 300);
+  else if (TQTour.temNovidades(visto)) setTimeout(() => tutorialCodigo(true, visto), 300);   // só as novidades
+}
+// Tutorial de quem entra por código: na primeira vez neste aparelho e pelo botão "Como funciona".
+function tutorialCodigo(primeira, desde) {
+  if (!S.pac || TQTour.aberto()) return;
+  const perfil = S.pac.perfil, roteiro = perfil === "artista" ? "codigo_artista" : perfil === "casa" ? "codigo_casa" : "codigo_interno";
+  TQTour.abrir(roteiro, { desde, primeira, chave: "codigo-" + perfil, dicaRever: "\"Como funciona\", no menu",
+    aoIr: (aba) => { if (abasAtuais().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } },
+    temAba: (aba) => abasAtuais().some(([k]) => k === aba),
+    aoFechar: (visto) => { if (visto) store.set(`tq-tutorial-codigo-${perfil}`, new Date().toISOString()); },
+  });
+}
+
+// O que a operação precisa olhar: usado na aba Operação e no "Comece por aqui".
+function alertasOperacao(P) {
+  const hoje = P.hoje, dias = (n) => new Date(new Date(hoje).getTime() + n * 864e5).toISOString().slice(0, 10);
+  const em21 = dias(21), ha90 = dias(-90);
+  return [
+    ...P.eventos.filter((e) => e.d < hoje && e.r && !["Realizado"].includes(e.s)).map((e) => ({ k: "crit", t: `Status desatualizado: ${e.s}`, e })),
+    ...P.eventos.filter((e) => e.r && e.p == null && e.d >= ha90).map((e) => ({ k: "serious", t: "Noite realizada sem público lançado", e })),
+    ...P.eventos.filter((e) => e.f && e.d <= em21 && !e.l).map((e) => ({ k: "warn", t: "Data em até 21 dias sem link de ingressos", e })),
+    ...P.eventos.filter((e) => e.f && !e.k).map((e) => ({ k: "warn", t: "Data futura sem casa vinculada", e })),
+  ];
+}
+
+// ---------- dúvidas frequentes (data/faq.json via public.json) ----------
+const SECOES_FAQ = { artista: "Para artistas", casa: "Para casas", casa_portaria: "Portaria e venda na porta (Ingresse)", compra: "Ingressos: dúvidas de quem compra" };
+function respostaHtml(t) {
+  // Texto simples com quebras e links https/mailto clicáveis; nada de HTML vindo do dado.
+  return esc(t).replace(/\n/g, "<br>").replace(/(https:\/\/[^\s<]+|mailto:[^\s<]+)/g, (u) => `<a href="${u}" target="_blank" rel="noopener">${u.replace(/^mailto:/, "").replace(/^https:\/\//, "").slice(0, 60)}</a>`);
+}
+function faqLista(publicos, busca = "") {
+  const q = busca.trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const itens = (S.pub?.faq || []).filter((i) => publicos.includes(i.publico)).filter((i) => !q || (i.pergunta + " " + i.resposta).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").includes(q));
+  if (!itens.length) return `<p class="muted">Nenhuma pergunta com "${esc(busca)}". Tente outra palavra ou use o botão "Algo deu errado?" para perguntar à equipe.</p>`;
+  return publicos.filter((p) => itens.some((i) => i.publico === p)).map((p) => `<h3 style="margin:18px 0 8px">${esc(SECOES_FAQ[p] || p)}</h3><div class="faq">${itens.filter((i) => i.publico === p).map((i) => `<details><summary>${esc(i.pergunta)}</summary><div class="faq-r">${respostaHtml(i.resposta)}</div></details>`).join("")}</div>`).join("");
+}
+
+// Passo a passo por data para quem entra por código (só leitura; marcar como feito exige conta).
+function passosLeitura(evs, modelo, hoje) {
+  const R = window.TQRegras; if (!R) return "";
+  const prox = evs.filter((e) => e.f).slice(0, 3);
+  if (!prox.length) return "";
+  return `<h2>O que fazer agora</h2><p class="sub">Passo a passo de cada data, com prazo. Para marcar o que já fez, peça à equipe o convite por e-mail e crie sua conta.</p><div class="list">${prox.map((e) => {
+    const ps = R.passosDaData(modelo, e.d, {}, hoje), agora = ps.find((p) => !p.passou && p.prazo >= hoje) || ps.find((p) => !p.passou);
+    return `<div class="card"><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(nomeCasa(e.h))}</span>
+      ${agora ? `<div class="alert warn" style="margin:10px 0"><b>Próximo passo: ${esc(agora.titulo)}</b>${esc(agora.texto)} <span class="muted">· até ${dt(agora.prazo)}</span></div>` : ""}
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li><b>${esc(p.titulo)}</b> <span class="muted">· até ${dt(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></li>`).join("")}</ul></details></div>`;
+  }).join("")}</div>`;
+}
+// ---------- abas internas ----------
+const TELAS = {
+  duvidas() {
+    const tipo = S.conta ? S.conta.perfil.tipo : S.pac.perfil;
+    const publicos = tipo === "casa" ? ["casa", "casa_portaria", "compra"] : ["artista", "compra"];
+    return `<div class="tag">Dúvidas frequentes</div><h1>Perguntas e respostas</h1><p class="sub">As dúvidas mais comuns sobre a rede, os prazos e os ingressos. Não achou? Use o botão "Algo deu errado?" no canto da tela.</p>
+    <label class="fcampo" style="max-width:420px"><b>Buscar</b><input id="faqQ" placeholder="ex.: rider, contrato, cachê, portaria" value="${esc(S.faqQ || "")}"></label>
+    <div id="faqLista">${faqLista(publicos, S.faqQ || "")}</div>`;
+  },
+  estrategia() {
+    const P = S.pac, f = S.filtros;
+    const modelos = ["Todos", ...new Set(P.eventos.map((e) => e.m))];
+    let evs = filtrarPeriodo(P.eventos, f.periodo, P.hoje);
+    if (f.modelo !== "Todos") evs = evs.filter((e) => e.m === f.modelo);
+    const rede = metricas(evs), refMod = referenciaPorModelo(evs);
+    const dims = [["cidade","Cidade",(e) => e.c],["modelo","Modelo",(e) => e.m],["casa","Casa",(e) => e.h],["artista","Artista",(e) => e.a]];
+    const blocos = {};
+    for (const [k, , fn] of dims) blocos[k] = [...agrupar(evs, fn)].map(([nome, es]) => { const m = metricas(es); const esp = k === "modelo" ? rede.media : esperadoPara(es, refMod); return { nome, ...m, esperado: esp, sinal: sinal(m, rede, esp), es }; });
+    const maxMed = Math.max(1, ...Object.values(blocos).flat().map((x) => x.media || 0));
+    const col = (nome) => [
+      { t: nome, v: (l) => l.nome },
+      { t: "Noites", n: 1, v: (l) => l.noites },
+      { t: "Público médio (linha = média do mesmo formato)", v: (l) => l.media, h: (l) => barra(l.media, maxMed, l.esperado ?? rede.media, `${l.comPublico} noites com público lançado · referência ${fmt(l.esperado ?? rede.media)}`) },
+      { t: "Mediana", n: 1, v: (l) => l.mediana, h: (l) => fmt(l.mediana) },
+      { t: "Tendência", n: 1, v: (l) => l.tendencia, h: (l) => `<span title="média das 3 últimas noites vs. 3 anteriores">${pct(l.tendencia)}</span>` },
+      { t: "Cancel./adiadas", n: 1, v: (l) => l.cancel, h: (l) => l.cancel == null ? "–" : `${Math.round(l.cancel * 100)}%` },
+      { t: "Público lançado", n: 1, v: (l) => l.registro, h: (l) => l.registro == null ? "–" : `${Math.round(l.registro * 100)}%` },
+      { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Sinal", v: (l) => l.sinal.o, h: (l) => `<span class="badge ${l.sinal.k}">${l.sinal.t}</span>` },
+    ];
+    const destaques = Object.entries(blocos).flatMap(([k, ls]) => ls.filter((l) => l.sinal.o === 3).map((l) => ({ k, ...l }))).sort((a, b) => b.media - a.media).slice(0, 6);
+    const atencao = Object.entries(blocos).flatMap(([k, ls]) => ls.filter((l) => l.sinal.o === 1).map((l) => ({ k, ...l }))).sort((a, b) => a.media - b.media).slice(0, 6);
+    const NOMEK = { cidade: "Cidade", modelo: "Modelo", casa: "Casa", artista: "Artista" };
+    // Oportunidades: cidades fortes com pouca agenda + artistas fortes em praças onde ainda não tocaram.
+    const cidadesFortes = blocos.cidade.filter((c) => c.sinal.o >= 2 && c.comPublico >= BASE_MIN).sort((a, b) => b.media - a.media);
+    const futurasPorCidade = Object.fromEntries([...agrupar(P.eventos.filter((e) => e.f), (e) => e.c)].map(([c, es]) => [c, es.length]));
+    const artistasFortes = blocos.artista.filter((a) => a.comPublico >= 2 && a.esperado && a.media >= a.esperado).sort((a, b) => b.media - a.media).slice(0, 8);
+    const ativos = P.referencia.filter((r) => r.futuras > 0 || r.noites > 0).map((r) => r.cidade);
+    return `<div class="tag">Painel estratégico</div><h1>O que está dando certo</h1>
+    <p class="sub">Cidade, casa e artista comparados com noites do mesmo formato no recorte; modelo comparado com a rede. Base: público lançado no Notion em cada noite realizada.</p>
+    <div class="filters"><select id="fPer" aria-label="Período">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
+    <select id="fMod" aria-label="Modelo">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
+    <div class="stats">${kpi(fmt(rede.noites), "noites realizadas", `${rede.cidades} cidades`)}${kpi(fmt(rede.media), "público médio por noite", `mediana ${fmt(rede.mediana)}`)}${kpi(fmt(rede.total), "pessoas nas noites com público lançado")}${kpi(rede.registro == null ? "–" : Math.round(rede.registro * 100) + "%", "noites com público lançado", `${rede.noites - rede.comPublico} sem número no Notion`)}${kpi(rede.cancel == null ? "–" : Math.round(rede.cancel * 100) + "%", "canceladas ou adiadas", `${rede.cancelados} datas`)}${kpi(fmt(rede.futuras), "datas futuras neste recorte")}</div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média de noites do mesmo formato, em 3 ou mais noites, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && d.esperado ? "+" + Math.round((d.media / d.esperado - 1) * 100) + "% vs. " + (d.k === "modelo" ? "rede" : "mesmo formato") : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
+      <div class="card"><h3 style="margin-top:0">Atenção</h3><p class="muted" style="margin-top:0;font-size:13px">Abaixo de 70% da média do mesmo formato, queda de mais de 25% ou 30%+ de cancelamentos (mínimo de 3 noites).</p><div class="list">${atencao.map((d) => `<div class="alert crit"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}${d.cancel ? ` · ${Math.round(d.cancel * 100)}% canceladas/adiadas` : ""}</div>`).join("") || `<p class="muted">Nada em atenção neste recorte.</p>`}</div></div>
+    </div>
+    <h2>Onde implementar a seguir</h2><p class="sub">Cidades que respondem e quantas datas já estão na agenda; artistas acima da média e as praças ativas onde ainda não tocaram.</p>
+    <div class="grid g2"><div class="card"><h3 style="margin-top:0">Cidades com resposta</h3><div class="list">${cidadesFortes.slice(0, 8).map((c) => `<div class="row"><span><b>${esc(c.nome)}</b> <span class="muted">· ${fmt(c.media)} por noite · ${c.comPublico} noites</span></span><span class="badge ${futurasPorCidade[c.nome] ? "b-good" : "b-warn"}">${futurasPorCidade[c.nome] || 0} na agenda</span></div>`).join("") || `<p class="muted">Sem base suficiente.</p>`}</div></div>
+    <div class="card"><h3 style="margin-top:0">Artistas para novas praças</h3><div class="list">${artistasFortes.map((a) => { const tocou = new Set(a.es.map((e) => e.c)); const novas = ativos.filter((c) => !tocou.has(c)); const agendadas = new Set(P.eventos.filter((e) => e.f && e.a.includes(a.nome)).map((e) => e.c)); return `<div><b>${esc(a.nome)}</b> <span class="muted">· ${fmt(a.media)} por noite em ${a.comPublico} ${a.comPublico > 1 ? "noites" : "noite"}</span><div>${novas.slice(0, 8).map((c) => `<span class="pill">${agendadas.has(c) ? "✓ " : ""}${esc(c)}</span>`).join("")}</div></div>`; }).join("") || `<p class="muted">Sem base suficiente.</p>`}</div></div></div>
+    <h2>Por cidade</h2>${tabela("cid", col("Cidade"), blocos.cidade, { i: 1, dir: -1 })}
+    <h2>Por modelo</h2><p class="sub">Descubra, Apresenta, Turnê, Noite Tranquilo e o formato clássico de 2023–25.</p>${tabela("mod", col("Modelo"), blocos.modelo, { i: 1, dir: -1 })}
+    <h2>Por casa</h2>${tabela("cas", col("Casa"), blocos.casa.filter((l) => l.noites || l.futuras).map((l) => ({ ...l, _click: "casa:" + l.nome })), { i: 1, dir: -1 })}
+    <h2>Por artista</h2><p class="sub">Artistas com público lançado neste recorte. A lista completa está na aba Artistas.</p>${tabela("art", col("Artista"), blocos.artista.filter((l) => l.comPublico).map((l) => ({ ...l, _click: "artista:" + l.nome })), { i: 2, dir: -1 })}
+    <p class="muted" style="font-size:13px;margin-top:14px">Sinal: <span class="badge b-good">Escalar</span> <span class="badge b-warn">Manter e observar</span> <span class="badge b-crit">Atenção</span> <span class="badge">Sem base de público</span> (menos de 3 noites com público lançado). Cidade, casa e artista são comparados com noites do mesmo formato (Descubra com Descubra, Clássico com Clássico); modelo é comparado com a rede.</p>`;
+  },
+  operacao() {
+    const P = S.pac, hoje = P.hoje;
+    const mesAtual = hoje.slice(0, 7), prox = new Date(+hoje.slice(0, 4), +hoje.slice(5, 7), 1).toISOString().slice(0, 7);
+    const doMes = (m) => P.eventos.filter((e) => e.d.startsWith(m) && !e.z);
+    const em14 = new Date(new Date(hoje).getTime() + 14 * 864e5).toISOString().slice(0, 10);
+    const alertas = alertasOperacao(P);
+    const cal = (m) => { const [y, mm] = m.split("-").map(Number), ini = new Date(y, mm - 1, 1).getDay(), dias = new Date(y, mm, 0).getDate(), evs = doMes(m); let h = SEMANA.map((s) => `<div class="hd">${s}</div>`).join("") + "<div></div>".repeat(ini).replace(/<div><\/div>/g, '<div style="background:none"></div>'); for (let d = 1; d <= dias; d++) { const iso = `${m}-${String(d).padStart(2, "0")}`, n = evs.filter((e) => e.d === iso); h += `<div class="${n.length ? "has" : ""}" title="${esc(n.map((e) => e.c + " · " + (e.a[0] || e.m)).join("\n"))}"><span>${d}</span>${n.length ? `<b>${n.length}</b>` : ""}</div>`; } return `<div class="month">${h}</div>`; };
+    const bloco = (m) => { const evs = doMes(m), n = evs.length, porC = [...agrupar(evs, (e) => e.c)].sort((a, b) => b[1].length - a[1].length); return `<div class="card"><div class="row"><b>${MESES_L[+m.slice(5) - 1]} de ${m.slice(0, 4)}</b><span class="muted">${n} de 50</span></div><div class="progress" style="margin:8px 0 12px" title="${n} de 50 datas"><i style="width:${Math.min(100, n / 50 * 100)}%"></i></div>${cal(m)}<div style="margin-top:10px">${porC.map(([c, es]) => `<span class="pill">${esc(c)} · ${es.length}</span>`).join("")}</div></div>`; };
+    return `<div class="tag">Operação</div><h1>Rodada dos 50</h1><p class="sub">Quantas datas já estão de pé neste mês e no próximo, o que precisa de atenção e o que acontece nos próximos 14 dias.</p>
+    <div class="grid g2">${bloco(mesAtual)}${bloco(prox)}</div>
+    <h2>Precisa de atenção <span class="muted">· ${alertas.length}</span></h2><p class="sub">Gerado a partir do Notion a cada atualização. Clique para ver a ficha.</p>
+    <div class="list">${alertas.map((a) => `<div class="alert ${a.k === "crit" ? "crit" : a.k === "warn" ? "warn" : ""}" data-ev="${a.e.id}" tabindex="0" style="cursor:pointer"><b>${esc(a.t)}</b>${dt(a.e.d)} · ${esc(a.e.c)} · ${esc(a.e.a[0] || a.e.m)} · ${esc(a.e.h || "sem casa")}</div>`).join("") || `<p class="muted">Nada pendente.</p>`}</div>
+    <h2>Próximos 14 dias</h2><div class="list">${P.eventos.filter((e) => e.f && e.d <= em14).map((e) => evLinha(e)).join("") || `<p class="muted">Sem datas nos próximos 14 dias.</p>`}</div>`;
+  },
+  datas() {
+    const P = S.pac, f = S.datas, opts = (k) => [...new Set(P.eventos.map((e) => e[k]))].sort();
+    let evs = P.eventos;
+    if (f.quando === "futuras") evs = evs.filter((e) => e.f); else if (f.quando === "passadas") evs = evs.filter((e) => e.d < P.hoje);
+    if (f.cidade) evs = evs.filter((e) => e.c === f.cidade);
+    if (f.modelo) evs = evs.filter((e) => e.m === f.modelo);
+    if (f.status) evs = evs.filter((e) => e.s === f.status);
+    if (f.q) { const q = f.q.toLowerCase(); evs = evs.filter((e) => (e.n + " " + (e.h || "")).toLowerCase().includes(q)); }
+    const sel = (id, k, rot) => `<select id="${id}"><option value="">${rot}</option>${opts(k).map((o) => `<option${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    return `<div class="tag">Datas</div><h1>${evs.length} datas</h1>
+    <div class="filters"><select id="dQuando" aria-label="Quando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
+    ${tabela("datas", [
+      { t: "Data", v: (e) => e.d, h: (e) => `<b>${dt(e.d)}</b> <span class="muted">${dia(e.d)}</span>` },
+      { t: "Cidade", v: (e) => e.c }, { t: "Modelo", v: (e) => e.m },
+      { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || "–") },
+      { t: "Casa", v: (e) => e.h }, { t: "Status", v: (e) => e.s, h: (e) => `<span class="badge ${/cancel|adiad/i.test(e.s) ? "b-crit" : /vend|confirm/i.test(e.s) ? "b-good" : /realiz/i.test(e.s) ? "" : "b-warn"}">${esc(e.s)}</span>` },
+      { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
+      { t: "Ingressos", v: (e) => e.l ? 1 : 0, h: (e) => e.l ? `<a href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir</a>` : `<span class="muted">–</span>` },
+    ], evs.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: f.quando === "futuras" ? 1 : -1 })}`;
+  },
+  artistas() {
+    const P = S.pac, g = agrupar(P.eventos, (e) => e.a);
+    const linhas = [...g].map(([nome, es]) => ({ nome, ...metricas(es), cidadesL: [...new Set(es.map((e) => e.c))], ult: es.filter((e) => e.d < P.hoje).map((e) => e.d).pop(), _click: "artista:" + nome }));
+    const max = Math.max(1, ...linhas.map((l) => l.media || 0)), rede = metricas(P.eventos.filter((e) => e.d >= "2026-01-01"));
+    return `<div class="tag">Artistas</div><h1>${linhas.length} artistas na história da rede</h1><p class="sub">Clique em uma artista para ver a ficha por praça. A linha na barra é a média da rede em 2026.</p>
+    ${tabela("artl", [
+      { t: "Artista", v: (l) => l.nome, h: (l) => `<b>${esc(l.nome)}</b>` },
+      { t: "Noites", n: 1, v: (l) => l.noites }, { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Público médio", v: (l) => l.media, h: (l) => barra(l.media, max, rede.media) },
+      { t: "Cidades", v: (l) => l.cidadesL.length, h: (l) => l.cidadesL.map((c) => `<span class="pill">${esc(c)}</span>`).join("") },
+      { t: "Última noite", v: (l) => l.ult, h: (l) => l.ult ? dt(l.ult) : "–" },
+    ], linhas, { i: 2, dir: -1 })}`;
+  },
+  casas() {
+    const P = S.pac, g = agrupar(P.eventos, (e) => e.h);
+    const linhas = [...g].map(([nome, es]) => ({ nome, cidade: es[0].c, ...metricas(es), _click: "casa:" + nome }));
+    const max = Math.max(1, ...linhas.map((l) => l.media || 0));
+    return `<div class="tag">Casas</div><h1>${linhas.length} casas</h1><p class="sub">Nomes vêm do título do evento no Notion. Casas sem nome no título aparecem como "Casa em cidade" até o banco de Casas ser liberado para a integração.</p>
+    ${tabela("casl", [
+      { t: "Casa", v: (l) => l.nome, h: (l) => `<b>${esc(l.nome)}</b>` }, { t: "Cidade", v: (l) => l.cidade },
+      { t: "Noites", n: 1, v: (l) => l.noites }, { t: "Próximas", n: 1, v: (l) => l.futuras },
+      { t: "Público médio", v: (l) => l.media, h: (l) => barra(l.media, max) },
+      { t: "Ocupação", n: 1, v: (l) => l.ocupacao, h: (l) => l.ocupacao ? Math.round(l.ocupacao * 100) + "%" : "–" },
+      { t: "Cancel./adiadas", n: 1, v: (l) => l.cancelados },
+    ], linhas, { i: 2, dir: -1 })}`;
+  },
+  base() {
+    const P = S.pac, q = (S.bq || "").toLowerCase();
+    const itens = P.base.filter((b) => !q || b.q.toLowerCase().includes(q));
+    const prontos = P.base.filter((b) => b.s === "Pronto para uso").length;
+    return `<div class="tag">Base de conhecimento</div><h1>${P.base.length} artigos</h1><p class="sub">${prontos} prontos para uso. O artigo abre no Notion (precisa de login da equipe).</p>
+    <div class="filters"><input id="bq" placeholder="Buscar: portaria, lote, cortesia, Pix…" value="${esc(S.bq || "")}"></div>
+    <div class="list">${itens.map((b) => `<a class="card row" href="${notion(b.id)}" target="_blank" rel="noopener" style="text-decoration:none"><span>${esc(b.q)}</span><span class="badge ${b.s === "Pronto para uso" ? "b-good" : b.s === "Em revisão" ? "b-warn" : ""}">${esc(b.s)}</span></a>`).join("")}</div>`;
+  },
+  metodo() {
+    return `<div class="row"><div class="tag">Método</div><a class="btn sm" href="${notion("ddd0e9fd76994af0b100dcc6e026f7bc")}" target="_blank" rel="noopener">Documento completo no Notion</a></div><div class="card md" style="margin-top:10px">${markdown(S.pac.metodo)}</div>`;
+  },
+  acessos() {
+    const P = S.pac, url = location.origin + location.pathname, f = S.acf || "";
+    const lista = P.acessos.filter((a) => !f || a.tipo === f);
+    return `<div class="tag">Acessos</div><h1>Códigos de acesso</h1><p class="sub">Cada código abre só o painel daquele perfil. O link já entra direto. Os códigos continuam os mesmos a cada atualização noturna; mudam apenas se o segredo do site for trocado.</p>
+    <div class="filters"><select id="acf" aria-label="Filtrar acessos por perfil"><option value="">Todos (${P.acessos.length})</option>${["adm","equipe","artista","casa"].map((t) => `<option value="${t}"${f === t ? " selected" : ""}>${PERFIS[t].rotulo}</option>`).join("")}</select></div>
+    ${tabela("acs", [
+      { t: "Perfil", v: (a) => PERFIS[a.tipo].rotulo }, { t: "Nome", v: (a) => a.nome, h: (a) => `<b>${esc(a.nome)}</b>${a.cidades ? `<div class="muted" style="font-size:12px">${esc(a.cidades)}</div>` : ""}` },
+      { t: "Código", v: (a) => a.codigo, h: (a) => `<code class="cod">${a.codigo}</code>` },
+      { t: "", v: () => 0, h: (a) => { const link = `${url}#c=${normCod(a.codigo)}`; const msg = `Oi! Este é o seu acesso ao painel da Rede Tranquilo (${PERFIS[a.tipo].rotulo.toLowerCase()}: ${a.nome}).\n\n${link}\n\nSe pedir, o código é ${a.codigo}.`; return `<button class="btn sm" data-copy="${esc(link)}">Copiar link</button> <a class="btn sm" href="https://wa.me/?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener">WhatsApp</a>`; } },
+    ], lista, { i: 0, dir: 1 })}`;
+  },
+  agenda() {
+    const P = S.pac, fut = P.eventos.filter((e) => e.f), pas = P.eventos.filter((e) => e.d < P.hoje).reverse();
+    const ref = Object.fromEntries(P.referencia.map((r) => [r.cidade, r]));
+    const m = metricas(P.eventos);
+    return `<div class="tag">Artista</div><h1>Olá, ${esc(P.nome)}</h1><p class="sub">Suas datas na Rede Tranquilo e o público de cada noite, comparado com a faixa típica de cada praça.</p>
+    <div class="stats">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(fmt(new Set(P.eventos.map((e) => e.c)).size), "cidades")}</div>
+    <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura na agenda.</p>`}</div>
+    ${passosLeitura(fut, "artista", P.hoje)}
+    <h2>Histórico</h2>${tabela("hist", [
+      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Cidade", v: (e) => e.c }, { t: "Casa", v: (e) => nomeCasa(e.h) }, { t: "Modelo", v: (e) => e.m },
+      { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
+      { t: "Faixa da praça", v: (e) => ref[e.c]?.mediana, h: (e) => { const r = ref[e.c]; if (!r?.mediana) return `<span class="muted">sem base</span>`; const pos = e.p == null ? "" : e.p > r.p75 ? `<span class="badge b-good">acima</span>` : e.p < r.p25 ? `<span class="badge b-serious">abaixo</span>` : `<span class="badge b-warn">na faixa</span>`; return `${fmt(r.p25)}–${fmt(r.p75)} ${pos}`; } },
+    ], pas.filter((e) => !e.z).map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: -1 })}`;
+  },
+  pracas() {
+    const P = S.pac, tocou = new Set(P.eventos.filter((e) => e.r).map((e) => e.c)), agend = new Set(P.eventos.filter((e) => e.f).map((e) => e.c));
+    const minha = (c) => metricas(P.eventos.filter((e) => e.c === c));
+    const max = Math.max(1, ...P.referencia.map((r) => r.p75 || 0));
+    return `<div class="tag">Praças da rede</div><h1>Você em cada praça</h1><p class="sub">Onde você já tocou vale o seu histórico. Onde nunca tocou, vale a faixa típica da praça (25% a 75% das noites${" "}dos últimos 12 meses).</p>
+    <div class="legend"><span><i class="sw"></i> mediana da praça</span></div>
+    ${tabela("prc", [
+      { t: "Praça", v: (r) => r.cidade, h: (r) => `<b>${esc(r.cidade)}</b>` },
+      { t: "Você", v: (r) => tocou.has(r.cidade) ? 2 : agend.has(r.cidade) ? 1 : 0, h: (r) => tocou.has(r.cidade) ? `<span class="badge b-good">já tocou · ${fmt(minha(r.cidade).media)} por noite</span>` : agend.has(r.cidade) ? `<span class="badge b-warn">data marcada</span>` : `<span class="badge">ainda não tocou</span>` },
+      { t: "Mediana da praça", v: (r) => r.mediana, h: (r) => r.mediana ? barra(r.mediana, max) : `<span class="muted">sem base de público</span>` },
+      { t: "Faixa típica", v: (r) => r.p25, h: (r) => r.p25 != null ? `${fmt(r.p25)}–${fmt(r.p75)}` : "–" },
+      { t: "Base", v: (r) => r.noites, h: (r) => r.noites ? `${r.noites} noites · ${r.janela}` : "–" },
+      { t: "", v: () => 0, h: (r) => tocou.has(r.cidade) || agend.has(r.cidade) ? "" : `<a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Oi, equipe Tranquilo! Aqui é ${P.nome}. Tenho interesse em circular em ${r.cidade}. Podemos conversar sobre uma data?`)}">Quero tocar aqui</a>` },
+    ], P.referencia, { i: 2, dir: -1 })}`;
+  },
+  minhas() {
+    const P = S.pac, fut = P.eventos.filter((e) => e.f), pas = P.eventos.filter((e) => e.d < P.hoje).reverse();
+    const m = metricas(P.eventos), ref = P.referencia.find((r) => r.cidade === P.cidade);
+    const max = Math.max(1, ...P.eventos.map((e) => e.p || 0), ref?.p75 || 0);
+    return `<div class="tag">Casa · ${esc(P.cidade)}</div><h1>${esc(P.nome)}</h1><p class="sub">Suas datas com o Tranquilo, o público de cada noite e como ele se compara com a praça e com a rede.</p>
+    <div class="stats">${kpi(fmt(fut.length), "próximas datas")}${kpi(fmt(m.noites), "noites realizadas")}${kpi(fmt(m.media), "público médio por noite", m.comPublico ? `${m.comPublico} noites com público lançado` : "público ainda não lançado")}${kpi(ref?.mediana ? fmt(ref.mediana) : "–", `mediana de ${esc(P.cidade)}`, ref?.noites ? `${ref.noites} noites · ${ref.janela}` : "")}${kpi(P.rede ? fmt(P.rede.mediana) : "–", "mediana da rede", "últimos 12 meses")}${m.ocupacao ? kpi(Math.round(m.ocupacao * 100) + "%", "ocupação média") : ""}</div>
+    <h2>Próximas datas</h2><div class="list">${fut.map((e) => evLinha(e)).join("") || `<p class="muted">Nenhuma data futura. Fale com a equipe para receber novas datas.</p>`}</div>
+    ${passosLeitura(fut, "casa", P.hoje)}
+    <h2>Histórico</h2><div class="legend"><span><i class="sw"></i> público da noite</span><span><i class="sw ref"></i> mediana de ${esc(P.cidade)}</span></div>
+    ${tabela("hcasa", [
+      { t: "Data", v: (e) => e.d, h: (e) => dt(e.d) }, { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || e.m) },
+      { t: "Status", v: (e) => e.s }, { t: "Público", v: (e) => e.p, h: (e) => barra(e.p, max, ref?.mediana) },
+    ], pas.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: -1 })}`;
+  },
+  roteiro() {
+    const md = S.pac.metodo || "", pega = (t) => { const i = md.indexOf("## " + t); if (i < 0) return ""; const j = md.indexOf("\n## ", i + 3); return md.slice(i, j < 0 ? undefined : j); };
+    return `<div class="tag">Roteiro da noite</div><h1>O que a casa registra</h1><p class="sub">Do método V0.1 do Tranquilo: depois do handoff, a casa produz a data e registra prontidão, execução e ocorrências. Ninguém da matriz precisa acompanhar em tempo real.</p>
+    <div class="grid g2">${["Checklist pré-evento (a casa registra)", "Registro durante o evento", "Ocorrências", "Resultado Mínimo Tranquilo", "Qualificação pela execução", "O handoff é o centro operacional"].map((t) => `<div class="card md">${markdown(pega(t))}</div>`).join("")}</div>`;
+  },
+};
+
+function markdown(md) {
+  const linhas = (md || "").split("\n"); let h = "", lista = false;
+  const inl = (s) => esc(s).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  for (const l of linhas) {
+    const li = l.match(/^\s*[-*]\s+(.*)/) || l.match(/^\s*\d+\.\s+(.*)/);
+    if (li) { if (!lista) { h += "<ul>"; lista = true; } h += `<li>${inl(li[1])}</li>`; continue; }
+    if (lista) { h += "</ul>"; lista = false; }
+    if (/^### /.test(l)) h += `<h3>${inl(l.slice(4))}</h3>`;
+    else if (/^## /.test(l)) h += `<h2>${inl(l.slice(3))}</h2>`;
+    else if (/^# /.test(l)) h += `<h1>${inl(l.slice(2))}</h1>`;
+    else if (/^> /.test(l)) h += `<blockquote>${inl(l.slice(2))}</blockquote>`;
+    else if (/^---/.test(l)) h += "<hr>";
+    else if (l.trim()) h += `<p>${inl(l)}</p>`;
+  }
+  return h + (lista ? "</ul>" : "");
+}
+
+// ---------- fichas de artista/casa vistas pela administração ----------
+function fichaPor(tipo, nome) {
+  const P = S.pac, evs = P.eventos.filter((e) => tipo === "artista" ? e.a.includes(nome) : e.h === nome);
+  const m = metricas(evs), ref = Object.fromEntries(P.referencia.map((r) => [r.cidade, r]));
+  const porC = [...agrupar(evs.filter((e) => e.r), (e) => e.c)].map(([c, es]) => ({ c, ...metricas(es) }));
+  $("#dlgIn").innerHTML = `<div class="tag">${tipo === "artista" ? "Artista" : "Casa"}</div><h2 style="margin-top:4px">${esc(nome)}</h2>
+  <div class="stats" style="margin:14px 0">${kpi(fmt(m.noites), "noites")}${kpi(fmt(m.media), "público médio")}${kpi(fmt(m.futuras), "próximas")}${kpi(m.cancelados, "canceladas/adiadas")}</div>
+  <h3>Por praça</h3><div class="list">${porC.map((x) => `<div class="row"><span><b>${esc(x.c)}</b> · ${x.noites} noites · ${fmt(x.media)} por noite</span><span class="muted">praça: ${ref[x.c]?.mediana ? fmt(ref[x.c].mediana) : "sem base"}</span></div>`).join("") || `<p class="muted">Sem noites realizadas.</p>`}</div>
+  <h3>Datas</h3><div class="list" style="max-height:300px;overflow:auto">${evs.slice().reverse().map((e) => `<div class="row" style="font-size:14px"><span>${dt(e.d)} · ${esc(e.c)} · ${esc(e.s)}</span><span>${e.p != null ? fmt(e.p) + " pessoas" : ""}</span></div>`).join("")}</div>
+  <div style="margin-top:16px"><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  $("#dlg").showModal();
+}
+
+// ---------- render ----------
+// Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
+const GRUPOS = [
+  ["Agora", ["inicio", "passos", "campanha", "operacao", "agenda", "minhas"]],
+  ["Entrada na rede", ["curadoria", "casas_cad", "convites", "prontidao", "documentos", "pessoas"]],
+  ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
+  ["Seu cadastro", ["inscricao", "cadastro_casa"]],
+  ["Referência", ["materiais", "roteiro", "duvidas", "base", "metodo", "acessos"]],
+  ["Conta", ["conta"]],
+];
+const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const ICONES = {
+  inicio: ic('<path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>'),
+  campanha: ic('<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'),
+  campanhas: ic('<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'),
+  materiais: ic('<path d="M5 4h10l4 4v12H5z"/><path d="M9 12l2 2 4-4"/>'),
+  documentos: ic('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>'),
+  duvidas: ic('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 015 .5c0 1.5-2.5 2-2.5 3.5M12 17v.5"/>'),
+  relatos: ic('<path d="M4 5h16v11H8l-4 4z"/><path d="M12 8v3M12 13.5v.5"/>'),
+  passos: ic('<path d="M5 12l4 4L19 6"/>'), operacao: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  agenda: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'), minhas: ic('<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  curadoria: ic('<path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.4 6.8 19.1l1-5.8L3.5 9.2l5.9-.9z"/>'), casas_cad: ic('<path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/>'),
+  convites: ic('<path d="M4 6h16v12H4z"/><path d="M4 7l8 6 8-6"/>'), prontidao: ic('<path d="M9 5h10M9 12h10M9 19h10"/><path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2"/>'),
+  pessoas: ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.4-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14.6c1.8.8 3 2.6 3.5 5.4"/>'),
+  estrategia: ic('<path d="M4 19V5M4 19h16"/><path d="M8 15l4-4 3 3 5-6"/>'), datas: ic('<path d="M8 6h12M8 12h12M8 18h12"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>'),
+  artistas: ic('<path d="M9 18V6l11-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="17.5" cy="16" r="2.5"/>'), casas: ic('<path d="M4 20V10l8-6 8 6v10"/><path d="M10 20v-6h4v6"/>'),
+  pracas: ic('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'), demanda: ic('<path d="M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>'),
+  inscricao: ic('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>'), cadastro_casa: ic('<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>'),
+  roteiro: ic('<path d="M4 5h6a2 2 0 012 2v13a2 2 0 00-2-2H4zM20 5h-6a2 2 0 00-2 2v13a2 2 0 012-2h6z"/>'), base: ic('<path d="M4 5h6a2 2 0 012 2v13a2 2 0 00-2-2H4zM20 5h-6a2 2 0 00-2 2v13a2 2 0 012-2h6z"/>'),
+  metodo: ic('<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>'), acessos: ic('<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>'),
+  conta: ic('<circle cx="12" cy="8" r="4"/><path d="M4 21c1-4.4 4.2-6.5 8-6.5s7 2.1 8 6.5"/>'),
+};
+function ordenarAbas(abas) {
+  const pos = (k) => { const g = GRUPOS.findIndex(([, ks]) => ks.includes(k)); return g < 0 ? 99 : g * 10 + GRUPOS[g][1].indexOf(k); };
+  return [...abas].sort((a, b) => pos(a[0]) - pos(b[0]));
+}
+function abasAtuais() { return ordenarAbas(S.conta ? TQConta.abas() : PERFIS[S.pac.perfil].abas); }
+function navHtml(abas) {
+  const conta = new Map(abas);
+  return GRUPOS.map(([nome, ks]) => {
+    const itens = ks.filter((k) => conta.has(k));
+    if (!itens.length) return "";
+    return `<div class="nav-g"><div class="nav-t">${nome}</div>${itens.map((k) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}"${S.aba === k ? ' aria-current="page"' : ""}>${ICONES[k] || ""}<span>${esc(conta.get(k))}</span></button>`).join("")}</div>`;
+  }).join("");
+}
+function quemHtml() {
+  const tipo = S.conta ? S.conta.perfil.tipo : S.pac.perfil;
+  const [rot, ...resto] = (S.conta ? TQConta.rotuloQuem() : `${PERFIS[tipo].rotulo}${tipo === "artista" || tipo === "casa" ? " · " + S.pac.nome : ""}`).split(" · ");
+  const nome = resto.join(" · ") || rot;
+  const detalhe = nome !== rot ? rot : S.conta ? S.conta.perfil.email : "acesso por código";
+  return `<span class="av ${tipo}">${esc((nome.trim()[0] || "T").toUpperCase())}</span><div><b>${esc(nome)}</b><small>${esc(detalhe)}</small></div>`;
+}
+function menu(abrir) {
+  document.body.classList.toggle("menu-aberto", abrir); $("#veu").hidden = !abrir;
+  $("#menu")?.setAttribute("aria-expanded", String(!!abrir));
+  if (abrir) document.querySelector(".side button, .side a")?.focus(); else if (document.activeElement?.closest(".side")) $("#menu")?.focus();
+}
+function render() {
+  const P = S.pac, logado = !!(P || S.conta);
+  document.body.classList.toggle("logado", logado);
+  $("#entrar").hidden = logado; $("#side").hidden = !logado; $("#menu").hidden = !logado; $("#atualizado").hidden = true;
+  menu(false);
+  $("#cidSel").hidden = logado; $("#cidSel").innerHTML = logado ? "" : seletorCidade();
+  TQDiario.tela(logado ? S.aba || "inicio" : (S.entrada ? "entrada:" + S.entrada : "publico"), S.conta ? "conta:" + S.conta.perfil.tipo : P ? "codigo:" + P.perfil : "visitante");
+  if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
+  if (!logado) { if (/^#\//.test(location.hash)) history.replaceState(null, "", location.pathname); $("#topTit").textContent = ""; return telaPublica(); }
+  $("#quem").innerHTML = quemHtml();
+  const abas = abasAtuais();
+  // Link direto ou recarregar numa aba (#/curadoria) abre essa aba, se o perfil tiver acesso a ela.
+  if (S.abaDesejada && abas.some(([k]) => k === S.abaDesejada)) S.aba = S.abaDesejada;
+  S.abaDesejada = null;
+  if (!abas.some(([k]) => k === S.aba)) S.aba = abas[0][0];
+  // Cada aba vira uma entrada no histórico: o botão Voltar do navegador volta de aba em vez de sair do site.
+  const alvo = "#/" + S.aba;
+  if (location.hash !== alvo) history[/^#\//.test(location.hash) ? "pushState" : "replaceState"](null, "", location.pathname + alvo);
+  $("#tabs").innerHTML = navHtml(abas);
+  $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
+  $("#app").innerHTML = (TQConta.telas[S.aba] || TELAS[S.aba])();
+  ligar();
+}
+function ligar() {
+  const on = (sel, ev, fn) => { const el = $(sel); if (el) el[ev] = fn; };
+  on("#fPer", "onchange", (e) => { S.filtros.periodo = e.target.value; render(); });
+  on("#fMod", "onchange", (e) => { S.filtros.modelo = e.target.value; render(); });
+  for (const [id, k] of [["#dQuando","quando"],["#dCidade","cidade"],["#dModelo","modelo"],["#dStatus","status"]]) on(id, "onchange", (e) => { S.datas[k] = e.target.value; render(); });
+  on("#dQ", "oninput", (e) => { S.datas.q = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#dQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); });
+  on("#bq", "oninput", (e) => { S.bq = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#bq"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
+  on("#acf", "onchange", (e) => { S.acf = e.target.value; render(); });
+}
+document.addEventListener("input", (ev) => {
+  if (ev.target.id !== "faqQ") return;
+  S.faqQ = ev.target.value;
+  const tipo = S.conta ? S.conta.perfil.tipo : S.pac?.perfil;
+  $("#faqLista").innerHTML = faqLista(tipo === "casa" ? ["casa", "casa_portaria", "compra"] : ["artista", "compra"], S.faqQ);
+});
+// Teclado: Enter/Espaço abre linhas, cartões e cabeçalhos clicáveis; Esc fecha o menu de cidade e o menu lateral.
+document.addEventListener("keydown", (ev) => {
+  if (ev.key === "Escape") {
+    if (S.cidMenu) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); $("#cidBtn")?.focus(); return; }
+    if (document.body.classList.contains("menu-aberto")) { menu(false); return; }
+  }
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
+  // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
+  if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
+});
+document.addEventListener("click", (ev) => {
+  const t = ev.target;
+  if (t.closest("#cidBtn")) { S.cidMenu = !S.cidMenu; $("#cidSel").innerHTML = seletorCidade(); return; }
+  const co = t.closest("[data-cidade-ofc]"); if (co) { escolherCidade(co.dataset.cidadeOfc); return; }
+  if (t.closest("[data-localizar]")) { localizar(); return; }
+  if (t.closest("[data-avloc]")) { localizar((nome, c) => { const sel = $("#avCidade"); if (!sel) return; const op = [...sel.options].find((o) => o.value && cidadeOfc(o.value)?.slug === c?.slug);
+    const nota = $("#avLocNota"); if (nome && op) { sel.value = op.value; $("#avOutra").hidden = true; if (nota) nota.textContent = `Achamos: ${c.nome}.`; } else if (nota && c) { sel.value = "__outra"; $("#avOutra").hidden = false; $("#avOutra").focus(); } }); return; }
+  const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", new Date().toISOString()); $("#consent").innerHTML = ""; return; }
+  if (S.cidMenu && !t.closest("#cidSel")) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); }
+  const aba = t.closest("[data-aba]"); if (aba) { TQConta.salvarPendente(); S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
+  const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
+  const cp = t.closest("[data-copy]"); if (cp) { const antes = cp.textContent; navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado ✓"; setTimeout(() => (cp.textContent = antes), 1500); }); return; }
+  if (t.closest("[data-como-funciona]")) return TQConta.tutorialPublico(true);
+  const agc = t.closest("[data-agcidade]"); if (agc) { S.agCidade = agc.dataset.agcidade; telaPublica(); return; }
+  if (t.closest("[data-agtudo]")) { S.agTudo = true; telaPublica(); return; }
+  const rol = t.closest("[data-rolar]"); if (rol) { ev.preventDefault(); document.getElementById(rol.dataset.rolar)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  const evEl = t.closest("[data-ev]"); if (evEl) return abrirEvento(evEl.dataset.ev);
+  const cl = t.closest("[data-click]"); if (cl) { const [k, ...r] = cl.dataset.click.split(":"), v = r.join(":"); if (k === "ev") abrirEvento(v); else fichaPor(k, v); }
+});
+const dlg = $("#dlg");
+dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+$("#entrar").onclick = () => { S.entrada = "entrar"; render(); setTimeout(() => { $("#acesso")?.scrollIntoView({ block: "start" }); $("#email")?.focus({ preventScroll: true }); }, 30); };
+$("#sair").onclick = () => TQConta.sairDeTudo();
+// "Algo deu errado?": a pessoa conta em uma frase; o site anexa a tela, a conta e os últimos erros.
+$("#relatar").onclick = () => {
+  const logado = !!(S.pac || S.conta);
+  $("#dlgIn").innerHTML = `<div class="tag">Ajude a melhorar</div><h2 id="relTit" style="margin-top:4px">O que aconteceu?</h2>
+  <p class="sub">Conte do seu jeito, em uma ou duas frases: o que você tentou fazer e o que apareceu. A tela em que você está e os últimos erros vão juntos, automaticamente.</p>
+  <label class="fcampo"><b>O que aconteceu</b><textarea id="relTxt" rows="4" maxlength="1000" placeholder="Ex.: cliquei em Enviar inscrição e nada aconteceu"></textarea></label>
+  ${S.conta ? "" : `<label class="fcampo"><b>Seu contato (opcional, se quiser resposta)</b><input id="relCont" maxlength="120" placeholder="e-mail ou WhatsApp"></label>`}
+  <div class="barra-acoes"><button class="btn pri" id="relOk">Enviar</button><button class="btn" onclick="dlg.close()">Cancelar</button></div>
+  <div class="err" role="status" aria-live="polite" id="relErr"></div>`;
+  dlg.setAttribute("aria-labelledby", "relTit"); dlg.showModal(); $("#relTxt").focus();
+  $("#relOk").onclick = async () => {
+    const txt = $("#relTxt").value.trim();
+    if (txt.length < 5) { $("#relErr").textContent = "Escreva um pouquinho mais sobre o que aconteceu."; $("#relTxt").focus(); return; }
+    $("#relOk").disabled = true; $("#relErr").textContent = "Enviando…";
+    const foi = await TQDiario.relatar(txt, $("#relCont")?.value || "");
+    $("#dlgIn").innerHTML = `<h2 style="margin-top:0">${foi ? "Recebido, obrigado!" : "Não deu para enviar daqui"}</h2><p class="sub">${foi ? "A equipe vai olhar com a tela e os erros que vieram junto." : "Mande pelo WhatsApp da equipe, com um print da tela."}</p><div class="barra-acoes"><button class="btn pri" onclick="dlg.close()">Fechar</button></div>`;
+  };
+  void logado;
+};
+$("#comoFunciona").onclick = () => { menu(false); S.conta ? TQConta.abrirTutorial(S.conta.perfil.tipo, false) : tutorialCodigo(false); };
+$("#menu").onclick = () => menu(true);
+$("#veu").onclick = () => menu(false);
+document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = abasAtuais()[0][0]; render(); scrollTo(0, 0); }));
+
+addEventListener("popstate", () => {
+  const m = location.hash.match(/^#\/(\w+)/);
+  if (!(S.pac || S.conta) || !m || m[1] === S.aba) return;
+  if (abasAtuais().some(([k]) => k === m[1])) { S.aba = m[1]; render(); scrollTo(0, 0); }
+});
+S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
+
+(async function iniciar() {
+  try {
+    S.pub = await (await fetch("public.json", { cache: "no-store" })).json();
+    // Confere o formato antes de desenhar: item sem data ou cidade é descartado em vez de travar a página.
+    if (!S.pub || !Array.isArray(S.pub.agenda)) throw new Error("formato");
+    S.pub.agenda = S.pub.agenda.filter((e) => e && /^\d{4}-\d{2}-\d{2}$/.test(e.d || "") && e.c).map((e) => ({ ...e, a: Array.isArray(e.a) ? e.a : [], l: urlSegura(e.l) }));
+    for (const k of ["casas", "cidades", "circulacao"]) if (!Array.isArray(S.pub[k])) S.pub[k] = [];
+    if (isNaN(new Date(S.pub.geradoEm))) S.pub.geradoEm = new Date(0).toISOString();
+  }
+  catch { $("#app").innerHTML = `<p>Não foi possível carregar os dados agora. Tente de novo em instantes.</p>`; return; }
+  const ger = new Date(S.pub.geradoEm), horas = (Date.now() - ger) / 36e5;
+  $("#atualizado").textContent = $("#atualizado2").textContent = `Notion · ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+  if (horas > 36) $("#stale").innerHTML = `<div class="stale">Atenção: dados com mais de ${Math.floor(horas)} horas. A atualização automática pode ter falhado.</div>`;
+  S.cidade = store.get("tq-cidade") || ""; aplicarCidade(); rodape();
+  const params = new URLSearchParams(location.hash.slice(1));
+  const hash = params.get("c");
+  // Links de tutorial (#tutorial-artista) e de convite (#criar&email=…&tipo=…) chegam por WhatsApp ou e-mail.
+  const tutorialLink = (location.hash.match(/^#tutorial-(artista|casa|equipe|adm|publico)\b/) || [])[1];
+  const convite = params.has("criar") ? { email: params.get("email") || "", tipo: params.get("tipo") === "casa" ? "casa" : "artista" } : null;
+  if (hash || tutorialLink || convite) history.replaceState(null, "", location.pathname);
+  const cod = hash || store.get("tq-codigo");
+  // A agenda pública não espera o banco de contas: se ele demorar mais de 4 s, a página segue e
+  // a área logada aparece quando a conexão terminar.
+  const contaP = TQConta.iniciar().catch((e) => { console.error(e); return false; });
+  const logado = await Promise.race([contaP, new Promise((ok) => setTimeout(() => ok(null), 4000))]);
+  if (logado) { render(); if (tutorialLink && tutorialLink !== "publico") TQConta.abrirTutorial(tutorialLink, false); return; }
+  if (logado === null) contaP.then((ok) => { if (ok && !S.pac) render(); else { const av = $("#contaAviso"); if (av) av.outerHTML = TQConta.avisoConta(); } });
+  if (cod) {
+    try { await entrar(cod, !hash || !!store.get("tq-codigo")); return; }
+    catch (e) {
+      // Só esquece o código lembrado quando ele não existe mais; erro de rede mantém o código.
+      if (/não encontrado/.test(e.message)) store.del("tq-codigo");
+      if (hash) S.erroCodigo = e.message;
+    }
+  }
+  if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; }
+  render();
+  if (S.erroCodigo) { const er = $("#err"); if (er) { er.textContent = `O link de acesso não abriu: ${S.erroCodigo}`; er.closest(".card")?.scrollIntoView({ block: "center" }); } S.erroCodigo = null; return; }
+  if (convite) { const em = $("#email"); if (em) { em.value = convite.email; $("#acesso")?.scrollIntoView({ block: "start" }); $("#enome")?.focus(); } return; }
+  if (tutorialLink) return tutorialLink === "publico" ? TQConta.tutorialPublico(true) : TQConta.abrirTutorial(tutorialLink, false);
+  // Link direto para o "me avise" (divulgado pela equipe): vai para o formulário sem abrir o tutorial.
+  if (/^#(avise|agenda)$/.test(location.hash)) { const alvo = document.getElementById(location.hash.slice(1)); setTimeout(() => alvo?.scrollIntoView({ block: "start" }), 50); consentimento(); return; }
+  TQConta.tutorialPublico(false);
+  if (!TQTour.aberto()) consentimento();
+})();
+</script>
+</body>
+</html>
