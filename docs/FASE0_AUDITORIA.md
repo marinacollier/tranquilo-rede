@@ -179,3 +179,15 @@ Nada existente foi alterado. RLS ativo nas 7 tabelas (conferido).
 - Ainda **sem telas**: casa marcando a campanha, matriz vendo o andamento, materiais e ciência.
 - Testes desta parte: `tests/materiais.test.mjs` (25) e `tests/campanhas.test.mjs` (22, inclui o ataque P02).
   `tests/seguranca.test.mjs` continua com os mesmos 6 achados de antes (83 OK / 6 FALHA), nenhum novo.
+
+## 10. Respostas do Bruno (22/10) e o que foi feito (23/10)
+
+| Pedido | Feito |
+|---|---|
+| Calendário da campanha da mesma fonte | Tela da casa (dias, ações, "Feito" compartilhado) e botão "Levar para o Google Agenda" (.ics gerado dos mesmos dias). Aviso por e-mail no dia de cada ação sem "Feito" (função `lembretes`, em ensaio até o SMTP). |
+| Arquivo de dados por casa | `src/campanha.js` lê a página HTML atual **ou** o JSON da casa (lista de ações com dia, canal, texto, modelo do Canva e link). A equipe carrega em Campanhas › "Carregar ou atualizar"; o script `importar-campanha.mjs` usa a mesma leitura. Reimportar não apaga o feito; dia retirado sai. |
+| Confirmar leitura de novo só no que muda o que a casa faz | Equipe publica versão em Materiais escolhendo se pede "Li e estou ciente" de novo. Ao carregar ou atualizar campanha, opção de pedir ciência (material `campanha-<identificador>`). |
+| Docs como leitor + "Fazer uma cópia" | Botão "Fazer minha cópia" (endereço `/copy`) em todo Google Docs, Planilhas e Apresentações. |
+| Formatos completa / leve | Material com "só para uma casa" = completa; sem casa = padrão para todas (leve). Tabela "Casas no hub" mostra formato, pessoas, campanha e leituras pendentes de cada casa. |
+
+Pendente do Bruno: links dos documentos de anfitrião e fotografia; confirmar 10 ou 15 dias na campanha do Rooftap; primeiro arquivo de dados JSON real para conferir os nomes dos campos.

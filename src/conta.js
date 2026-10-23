@@ -137,6 +137,19 @@ const TQConta = (() => {
         if ((h.versoes || []).some((x) => x.material_id === v.material_id && x.versao === v.versao)) throw new Error("duplicate key value violates unique constraint");
         (h.versoes ||= []).push({ ...v, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
       },
+      async importarCampanha(dados) {
+        exigeEquipe(); const h = hubDemo();
+        let c = (h.campanhas ||= []).find((x) => x.slug === dados.slug);
+        if (!c) { c = { id: id() }; h.campanhas.push(c); }
+        Object.assign(c, { slug: dados.slug, titulo: dados.titulo, casa_ref: dados.casa, fonte_url: dados.fonte_url });
+        const chaves = new Set(dados.itens.map((i) => i.chave));
+        h.itens = (h.itens || []).filter((i) => i.campanha_id !== c.id || chaves.has(i.chave));
+        for (const it of dados.itens) {
+          const ex = h.itens.find((i) => i.campanha_id === c.id && i.chave === it.chave);
+          if (ex) Object.assign(ex, it); else h.itens.push({ ...it, id: id(), campanha_id: c.id });
+        }
+        h.itens.sort((a, b) => a.dia.localeCompare(b.dia)); localStorage.setItem("tq-demo-hub", JSON.stringify(h)); return c.id;
+      },
       async novoMaterial(m, v) {
         exigeEquipe(); const h = hubDemo();
         if ((h.materiais || []).some((x) => x.slug === m.slug)) throw new Error("duplicate key value violates unique constraint");
@@ -346,6 +359,8 @@ const TQConta = (() => {
         return { materiais: ok(materiais), versoes: ok(versoes), minhas: ok(minhas), pendentes: ok(pendentes), todas: ok(todas) };
       },
       async darCiencia(versaoId) { ok(await sb.from("ciencias").insert({ versao_id: versaoId })); },
+      // Equipe: carrega ou atualiza a campanha de uma casa. Reimportar não apaga o que a casa já marcou.
+      async importarCampanha(dados) { return ok(await sb.rpc("importar_campanha", { dados })); },
       // Equipe: nova versão de um material (quem publica e quando são carimbados pelo banco).
       async publicarVersao(v) { ok(await sb.from("material_versoes").insert(v)); },
       async novoMaterial(m, v) {
@@ -759,7 +774,9 @@ const TQConta = (() => {
         { t: "Feitos", n: 1, v: (a) => a.feitos / (a.dias || 1), h: (a) => `${a.feitos}/${a.dias}` },
         { t: "Atrasados", n: 1, v: (a) => a.atrasados, h: (a) => a.atrasados ? `<span class="badge b-crit">${a.atrasados}</span>` : "0" },
         { t: "Próximo dia", v: (a) => a.proximo || "", h: (a) => a.proximo ? dt(a.proximo) : "–" },
-      ], (H.andamento || []).map((a) => ({ ...a, _click: "camp:" + a.campanha_id })), { i: 3, dir: -1 }, vazio("Nenhuma campanha carregada", "As campanhas das casas aparecem aqui depois da importação (scripts/importar-campanha.mjs).", "", "campanhas"))}
+      ], (H.andamento || []).map((a) => ({ ...a, _click: "camp:" + a.campanha_id })), { i: 3, dir: -1 }, vazio("Nenhuma campanha carregada", "Carregue a campanha de uma casa logo abaixo, com a página ou o arquivo de dados do Bruno.", "", "campanhas"))}
+      ${formCampanha(H)}
+      ${coberturaCasas(H)}
       ${S.campAberta ? (() => { const c = H.campanhas.find((x) => x.id === S.campAberta); if (!c) return ""; const its = H.itens.filter((i) => i.campanha_id === c.id);
         return `<h2>${esc(c.casa_ref)} · ${esc(c.titulo)}</h2><div class="list">${its.map((i) => diaCampanha(i, feitos, false).replace("por alguém da casa", feitos[i.id] ? "por " + esc(nomes[feitos[i.id].feito_por] || "alguém da casa") : "")).join("")}</div>`; })() : ""}`;
     },
@@ -957,6 +974,58 @@ const TQConta = (() => {
       <label class="fcheck"><input type="checkbox" id="mnCie"> <span>Pedir "Li e estou ciente"</span></label>
       <div class="barra-acoes"><button class="btn pri" data-mat-novo>Cadastrar material</button></div>
       <div class="err" id="materr" role="alert"></div></details>`;
+  }
+  const slugDe = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+  // Equipe: carregar ou atualizar a campanha de uma casa a partir da página ou do arquivo de dados do Bruno.
+  function formCampanha(H) {
+    const P = S.campPrevia;
+    const casas = [...new Set([...(S.eq?.conv || []).filter((c) => c.tipo === "casa" && c.vinculo_nome).map((c) => c.vinculo_nome), ...H.campanhas.map((c) => c.casa_ref)].filter(Boolean))].sort();
+    const existe = P && H.campanhas.find((c) => c.slug === P.slug);
+    const nAcoes = P ? P.itens.reduce((n, i) => n + i.acoes.length, 0) : 0;
+    return `<details class="card" style="margin-top:14px"${P || S.campAberto ? " open" : ""}><summary><b>Carregar ou atualizar a campanha de uma casa</b></summary>
+      <p class="muted" style="font-size:13px">Use a página da campanha salva do Bruno (.html) ou o arquivo de dados da casa (.json). O texto continua sendo dele; aqui fica só o "feito" de cada dia. Atualizar não apaga o que a casa já marcou, e dia retirado sai da campanha.</p>
+      <label>Arquivo da campanha<input type="file" id="cfArq" accept=".html,.htm,.json,text/html,application/json"></label>
+      ${P ? `<div class="alert ${P.avisos.length ? "warn" : "good"}" style="margin:10px 0"><b>${P.itens.length} dias e ${nAcoes} ações lidos de ${esc(P.arquivo)}</b>De ${dt(P.itens[0].dia)} a ${dt(P.itens[P.itens.length - 1].dia)}.${P.avisos.map((a) => " " + esc(a)).join("")}</div>
+      <div class="grid g2"><label>Casa (como no convite)<input id="cfCasa" list="cfCasas" value="${esc(P.casa)}"><datalist id="cfCasas">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
+      <label>Identificador<input id="cfSlug" value="${esc(P.slug)}" pattern="[a-z0-9-]+"></label></div>
+      <div class="grid g2"><label>Título<input id="cfTit" value="${esc(P.titulo)}"></label><label>Link da página da campanha (opcional)<input id="cfFonte" type="url" value="${esc(P.fonte_url || "")}" placeholder="https://"></label></div>
+      <p class="muted" style="font-size:13px">${existe ? `Vai <b>atualizar</b> a campanha que já existe (${esc(existe.casa_ref)} · ${esc(existe.titulo)}).` : "Vai criar uma campanha nova."}</p>
+      <label class="fcheck"><input type="checkbox" id="cfCie"${existe ? "" : " checked"}> <span>Pedir "Li e estou ciente" da campanha para a casa${existe ? " (marque se a mudança altera o que a casa faz)" : ""}</span></label>
+      <div class="barra-acoes"><button class="btn pri" data-camp-importar>${existe ? "Atualizar campanha" : "Carregar campanha"}</button><button class="btn" data-camp-limpar>Cancelar</button></div>` : ""}
+      <div class="err" id="camperr" role="alert"></div></details>`;
+  }
+  // Equipe: cada casa ligada por convite, com formato (completa = tem material só dela), campanha e leituras pendentes.
+  function coberturaCasas(H) {
+    const E = S.eq; if (!E?.conv) return "";
+    const k = (s) => String(s || "").trim().toLowerCase();
+    const grupos = {};
+    for (const c of E.conv.filter((c) => c.tipo === "casa" && c.vinculo_nome)) (grupos[k(c.vinculo_nome)] ||= { nome: c.vinculo_nome, conv: [] }).conv.push(c);
+    if (!Object.keys(grupos).length) return "";
+    const vig = (mid) => H.versoes.find((v) => v.material_id === mid);
+    const linhas = Object.values(grupos).map((g) => {
+      const proprios = H.materiais.filter((m) => k(m.casa_ref) === k(g.nome));
+      const pedem = H.materiais.filter((m) => (m.publico || []).includes("casa") && (!m.casa_ref || k(m.casa_ref) === k(g.nome))).map((m) => vig(m.id)).filter((v) => v?.exige_ciencia);
+      const pessoas = g.conv.filter((c) => c.aceito_em).map((c) => (E.perfis || []).find((p) => k(p.email) === k(c.email))).filter(Boolean);
+      const faltam = pessoas.reduce((n, p) => n + pedem.filter((v) => !(H.todas || []).some((c) => c.versao_id === v.id && c.user_id === p.id)).length, 0);
+      const and = (H.andamento || []).find((a) => k(a.casa_ref) === k(g.nome));
+      return { nome: g.nome, pessoas: pessoas.length, convPend: g.conv.filter((c) => !c.aceito_em).length, formato: proprios.length ? "completa" : "leve", proprios: proprios.length, and, faltam };
+    });
+    return `<h2>Casas no hub</h2><p class="sub">Formato <b>completa</b>: a casa tem materiais feitos para ela (como o Rooftap). <b>Leve</b>: só os materiais padrão. Leituras pendentes = confirmações que ainda faltam das pessoas da casa.</p>
+      ${tabela("cobcasas", [
+        { t: "Casa", v: (r) => r.nome, h: (r) => `<b>${esc(r.nome)}</b>` },
+        { t: "Pessoas", n: 1, v: (r) => r.pessoas, h: (r) => `${r.pessoas}${r.convPend ? ` <span class="muted">+${r.convPend} convite${r.convPend > 1 ? "s" : ""} aberto${r.convPend > 1 ? "s" : ""}</span>` : ""}` },
+        { t: "Formato", v: (r) => r.formato, h: (r) => r.formato === "completa" ? `completa <span class="muted">(${r.proprios} doc${r.proprios > 1 ? "s" : ""})</span>` : "leve" },
+        { t: "Campanha", v: (r) => r.and ? r.and.feitos / (r.and.dias || 1) : -1, h: (r) => r.and ? `${r.and.feitos}/${r.and.dias}${r.and.atrasados ? ` <span class="badge b-crit">${r.and.atrasados} atrasado${r.and.atrasados > 1 ? "s" : ""}</span>` : ""}` : `<span class="muted">sem campanha</span>` },
+        { t: "Leituras pendentes", n: 1, v: (r) => r.faltam, h: (r) => r.faltam ? `<span class="badge b-warn">${r.faltam}</span>` : "0" },
+      ], linhas, { i: 0, dir: 1 }, "")}`;
+  }
+  // Depois de carregar a campanha: pede ciência numa versão nova do material "campanha-<identificador>" (cria se não houver).
+  async function pedirCienciaCampanha(d) {
+    const slug = ("campanha-" + d.slug).slice(0, 80), m = S.hub?.materiais?.find((x) => x.slug === slug);
+    const versao = new Date().toISOString().slice(0, 16).replace("T", " ");
+    const site = /^https:/.test(location.origin) ? location.origin + location.pathname + "#/campanha" : "https://marinacollier.github.io/tranquilo-rede/#/campanha";
+    if (m) await api.publicarVersao({ material_id: m.id, versao, resumo: "Campanha atualizada", exige_ciencia: true });
+    else await api.novoMaterial({ slug, titulo: d.titulo.length >= 3 ? d.titulo.slice(0, 160) : `Campanha ${d.casa}`.slice(0, 160), tipo_material: "checklist", publico: ["casa"], fonte_url: d.fonte_url || site, casa_ref: d.casa, fonte_tipo: "site_bruno" }, { versao, resumo: "Campanha carregada", exige_ciencia: true });
   }
   // Campanha em arquivo de calendário (.ics): os mesmos dias e ações da tela, para importar no Google Agenda.
   function icsCampanha(c, itens) {
@@ -1205,6 +1274,26 @@ const TQConta = (() => {
       alert("Arquivo baixado. No Google Agenda (no computador): Configurações › Importar e exportar › Importar, e escolha o arquivo. Os dias entram como eventos de dia inteiro.");
       return;
     }
+    if (t.closest("[data-camp-limpar]")) { S.campPrevia = null; render(); return; }
+    if (t.closest("[data-camp-importar]") && S.campPrevia) {
+      const err = $("#camperr"); err.textContent = "";
+      const casa = $("#cfCasa").value.trim(), slug = slugDe($("#cfSlug").value), titulo = $("#cfTit").value.trim() || "Campanha", fonte = $("#cfFonte").value.trim();
+      if (!casa) { err.textContent = "Escreva o nome da casa exatamente como no convite (é assim que a casa passa a ver a campanha)."; $("#cfCasa").focus(); return; }
+      if (slug.length < 3) { err.textContent = "Dê um identificador curto, por exemplo rooftap-nov26."; $("#cfSlug").focus(); return; }
+      if (fonte && !/^https:\/\//i.test(fonte)) { err.textContent = "O link da página precisa começar com https://"; $("#cfFonte").focus(); return; }
+      const semConvite = !(S.eq?.conv || []).some((c) => c.tipo === "casa" && (c.vinculo_nome || "").toLowerCase() === casa.toLowerCase());
+      if (semConvite && !confirm(`Nenhum convite de casa está ligado a "${casa}". A campanha fica carregada, mas ninguém da casa vê até receber um convite com esse nome. Continuar?`)) return;
+      const d = { slug, titulo, casa, fonte_url: fonte || null, itens: S.campPrevia.itens.map(({ chave, dia, rotulo, acoes }) => ({ chave, dia, rotulo, acoes })) };
+      const cie = $("#cfCie").checked;
+      try {
+        await api.importarCampanha(d);
+        if (cie) await pedirCienciaCampanha(d);
+        TQDiario.registrar("campanha_importada", { dias: d.itens.length });
+        S.campPrevia = null; S.hub = null; await carregarHub();
+        alert(`Campanha de ${casa} carregada: ${d.itens.length} dias.${cie ? " A casa vai ver o pedido de confirmação de leitura em Materiais." : ""}`);
+      } catch (e) { err.textContent = traduz(e.message || ""); }
+      return;
+    }
     if (t.closest("[data-mat-versao], [data-mat-novo]")) {
       const err = $("#materr"); err.textContent = ""; S.matAberto = true;
       const url = (s) => s.trim();
@@ -1346,6 +1435,18 @@ const TQConta = (() => {
 
   document.addEventListener("change", async (ev) => {
     const t = ev.target;
+    if (t.id === "cfArq" && t.files?.[0]) {
+      const arq = t.files[0]; S.campAberto = true;
+      try {
+        if (arq.size > 3e6) throw new Error("Arquivo grande demais para uma campanha (mais de 3 MB). Confira se é o arquivo certo.");
+        const r = TQCampanha.ler(await arq.text(), { ano: new Date().getFullYear() });
+        const anterior = S.hub?.campanhas?.find((c) => r.casa && c.casa_ref?.toLowerCase() === r.casa.toLowerCase());
+        const slug = r.slug || anterior?.slug || slugDe(`${r.casa || "casa"}-${r.itens[0].dia.slice(0, 7)}`);
+        S.campPrevia = { ...r, arquivo: arq.name, slug, fonte_url: r.fonte_url || anterior?.fonte_url || "" };
+        render();
+      } catch (e) { S.campPrevia = null; render(); $("#camperr").textContent = e.message; }
+      return;
+    }
     if (t.name === "tipoNovo") {
       S.tipoNovo = t.value; const n = $("#enome")?.value, e = $("#email")?.value, sn = $("#esenha")?.value;
       render();

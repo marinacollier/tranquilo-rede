@@ -4,6 +4,7 @@
 // casa pelo nome da casa), calcula os passos do passo a passo e avisa:
 //   · 3 dias antes do prazo ("faltam 3 dias") e · no dia do prazo ("é hoje"),
 // só para passos ainda não marcados como feitos. Cada aviso é gravado em `lembretes` e nunca sai duas vezes.
+// Também avisa a casa no dia de cada ação da campanha dela que ainda não tem "Feito".
 //
 // Tabela config_interna (só o sistema lê; nenhuma conta acessa):
 //   lembretes_chave   o pg_cron manda no cabeçalho x-chave (ninguém de fora dispara).
@@ -91,6 +92,35 @@ Deno.serve(async (req) => {
           resumo.erros.push(String((err as Error).message).slice(0, 160));
           await sb.from("lembretes").update({ situacao: "erro", detalhe: `${reg.detalhe} · ${String((err as Error).message).slice(0, 120)}` }).match({ user_id: p.id, evento_id: e.id, item, momento: reg.momento });
         }
+      }
+    }
+  }
+  // Campanha da casa: no dia de cada ação ainda sem "Feito", avisa as contas da casa (convite de casa aceito com o mesmo nome).
+  const [{ data: camps }, { data: itensHoje }, { data: feitosC }, { data: convs }, { data: contasCasa }] = await Promise.all([
+    sb.from("campanhas").select("id,titulo,casa_ref"),
+    sb.from("campanha_itens").select("id,campanha_id,chave,rotulo,acoes").eq("ativo", true).eq("dia", hoje),
+    sb.from("campanha_feitos").select("item_id"),
+    sb.from("convites").select("email,vinculo_nome").eq("tipo", "casa").not("aceito_em", "is", null).not("vinculo_nome", "is", null),
+    sb.from("perfis").select("id,email,nome").eq("tipo", "casa"),
+  ]);
+  const feitoC = new Set((feitosC || []).map((f) => f.item_id));
+  for (const it of itensHoje || []) {
+    const c = (camps || []).find((x) => x.id === it.campanha_id);
+    if (!c || feitoC.has(it.id)) continue;
+    const emails = new Set((convs || []).filter((v) => chave(v.vinculo_nome) === chave(c.casa_ref)).map((v) => v.email.toLowerCase()));
+    for (const p of (contasCasa || []).filter((x) => emails.has((x.email || "").toLowerCase()))) {
+      resumo.avaliados++;
+      const acoes = (it.acoes || []) as { canal?: string; texto?: string; show?: string }[];
+      const reg = { user_id: p.id, evento_id: `camp:${c.id}`, item: it.chave, momento: ativo ? "hoje" : "hoje:ensaio", situacao: ativo ? "enviado" : "ensaio", detalhe: `Campanha ${c.casa_ref} · ${it.rotulo || hoje} · ${acoes.map((a) => a.canal).filter(Boolean).join(", ")}`.slice(0, 300) };
+      const { data: novo } = await sb.from("lembretes").upsert(reg, { onConflict: "user_id,evento_id,item,momento", ignoreDuplicates: true }).select();
+      if (!novo?.length) { resumo.ja_avisados++; continue; }
+      if (!ativo) { resumo.ensaio++; continue; }
+      const html = `<p>Oi${p.nome ? ", " + esc(p.nome.split(" ")[0]) : ""}!</p><p><b>Hoje na campanha de ${esc(c.casa_ref)}:</b></p><ul>${acoes.map((a) => `<li><b>${esc(a.canal || "")}</b>${a.show ? ` (${esc(a.show)})` : ""}: ${esc(a.texto || "")}</li>`).join("")}</ul>
+        <p>Os modelos do Canva e os links estão no painel. Quando terminar, marque "Feito" para a equipe acompanhar:<br><a href="${site}#/campanha">Abrir a campanha</a></p><p style="color:#777;font-size:13px">Rede Tranquilo · você recebe este aviso porque sua conta está ligada a ${esc(c.casa_ref)}.</p>`;
+      try { await enviarEmail(p.email, `Hoje na campanha: ${acoes.map((a) => a.canal).filter(Boolean).join(", ") || it.rotulo}`, html); resumo.enviados++; }
+      catch (err) {
+        resumo.erros.push(String((err as Error).message).slice(0, 160));
+        await sb.from("lembretes").update({ situacao: "erro", detalhe: `${reg.detalhe} · ${String((err as Error).message).slice(0, 120)}` }).match({ user_id: p.id, evento_id: reg.evento_id, item: it.chave, momento: reg.momento });
       }
     }
   }

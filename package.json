@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/schema.test.mjs && node tests/regras.test.mjs && node tests/materiais.test.mjs && node tests/campanhas.test.mjs"
+    "test": "node tests/campanha-leitura.test.mjs && node tests/schema.test.mjs && node tests/regras.test.mjs && node tests/materiais.test.mjs && node tests/campanhas.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.2.17",
