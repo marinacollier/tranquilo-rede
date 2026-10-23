@@ -346,6 +346,8 @@ details summary:hover{color:var(--ink)}
 .tour-pontos button.on{width:34px}
 .tour-pontos button.on::before{background:var(--violet);width:26px;border-radius:99px}
 .tour-acoes{display:flex;justify-content:space-between;gap:10px;margin-top:4px}
+.contr-texto{white-space:pre-wrap;max-height:60vh;overflow:auto;border:1px solid var(--line-2);border-radius:12px;padding:16px;background:var(--raised);font:15px/1.65 var(--sans);color:var(--ink)}
+.contr-texto:focus-visible{outline:2px solid var(--violet)}
 .tour-acoes{align-items:center}
 .tour-acoes .btn{min-width:120px}
 .tour-x{font-size:26px;line-height:1;min-width:44px;min-height:44px;padding:0}
@@ -575,6 +577,7 @@ body:has(.tour) .consent{display:none}
 <script src="regras.js"></script>
 <script src="tour.js"></script>
 <script src="campanha.js"></script>
+<script src="contrato.js"></script>
 <script src="conta.js"></script>
 <script>
 "use strict";
@@ -864,7 +867,7 @@ async function entrar(cod, lembrar) {
   render();
   const visto = store.get(`tq-tutorial-codigo-${S.pac.perfil}`);
   if (!visto) setTimeout(() => tutorialCodigo(true), 300);
-  else if (String(visto).slice(0, 10) < TQTour.NOVIDADES) setTimeout(() => tutorialCodigo(true, visto), 300);   // só as novidades
+  else if (TQTour.temNovidades(visto)) setTimeout(() => tutorialCodigo(true, visto), 300);   // só as novidades
 }
 // Tutorial de quem entra por código: na primeira vez neste aparelho e pelo botão "Como funciona".
 function tutorialCodigo(primeira, desde) {

@@ -47,7 +47,7 @@ async function confere(p, roteiro, rotulo) {
         await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.tutorial_visto_em = '2026-10-01T10:00:00Z'; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
         await p.reload(); await p.waitForSelector('.tour-caixa', { timeout: 8000 });
         const tag = await p.textContent('.tour-caixa .tag'), n = await p.$$eval('.tour-pontos button', (x) => x.length), tit = await p.textContent('#tourTit');
-        ok(/^Novidades/.test(tag) && n === 4 && /Documentos/.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
+        ok(/^Novidades/.test(tag) && n === 4 && /documentos/i.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
         await p.click('[data-tour="pular"]'); await p.reload(); await p.waitForTimeout(1500);
         ok(!(await p.$('.tour-caixa')), 'conta equipe: depois de ver as novidades, não abre de novo');
       }

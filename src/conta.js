@@ -17,7 +17,7 @@ const TQConta = (() => {
     const CH = "tq-demo-v1";
     const ler = () => { try { return JSON.parse(localStorage.getItem(CH)) || null; } catch { return null; } };
     let db = ler() || { usuarios: {}, insc: {}, casas: {}, chk: [], reg: [], sessao: null };
-    db.conv ||= {}; db.avisos ||= [];
+    db.conv ||= {}; db.avisos ||= []; db.modContr ||= []; db.contr ||= [];
     const gravar = () => { try { localStorage.setItem(CH, JSON.stringify(db)); } catch {} };
     const id = () => crypto.randomUUID();
     const eu = () => db.sessao && db.usuarios[db.sessao]?.perfil;
@@ -155,6 +155,26 @@ const TQConta = (() => {
         if ((h.materiais || []).some((x) => x.slug === m.slug)) throw new Error("duplicate key value violates unique constraint");
         const mid = id(); (h.materiais ||= []).push({ ...m, id: mid, ativo: true });
         (h.versoes ||= []).push({ ...v, material_id: mid, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+      },
+      // Contrato automático (mesmas regras do banco, supabase/schema.sql v7).
+      async modelosContrato() { exigeEquipe(); return db.modContr; },
+      async salvarModeloContrato(m) { exigeEquipe(); if (m.id) Object.assign(db.modContr.find((x) => x.id === m.id), m); else db.modContr.unshift({ ...m, id: id(), ativo: true, criado_em: agora() }); gravar(); },
+      async contratos() { const p = eu(); return db.contr.filter((c) => ["equipe", "adm"].includes(p?.tipo) || c.user_id === db.sessao); },
+      async criarContrato(c) { exigeEquipe(); const n = { ...c, id: id(), status: "enviado", dados: {}, lido_fim_em: null, criado_por: db.sessao, criado_em: agora() }; db.contr.unshift(n); gravar(); return n; },
+      async cancelarContrato(cid) { exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (c?.status === "enviado") { c.status = "cancelado"; gravar(); } },
+      async contratoSalvarDados(cid, d) {
+        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado"); if (!c) throw new Error("Contrato não encontrado ou já assinado.");
+        for (const [k, v] of Object.entries(d)) { if (!c.campos.some((x) => x.chave === k)) throw new Error(`Campo ${k} não existe neste contrato.`); if (typeof v !== "string" || v.length > 300 || /[{}]{2}/.test(v)) throw new Error(`Valor inválido em ${k}.`); }
+        c.dados = d; c.lido_fim_em = null; gravar();
+      },
+      async contratoLido(cid) { const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado"); if (c && !c.lido_fim_em) { c.lido_fim_em = agora(); gravar(); } },
+      async assinarContrato(cid, nome, h) {
+        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado"); if (!c) throw new Error("Contrato não encontrado ou já assinado.");
+        const falta = c.campos.filter((x) => !String(c.dados[x.chave] ?? "").trim()).map((x) => x.rotulo); if (falta.length) throw new Error(`Faltam dados — preencha antes de assinar: ${falta.join(", ")}.`);
+        if (!c.lido_fim_em) throw new Error("Leia o contrato até o fim antes de assinar.");
+        nome = String(nome || "").replace(/\s+/g, " ").trim(); if (nome.length < 5 || !/\s/.test(nome)) throw new Error("Digite o seu nome completo para assinar (é a sua assinatura).");
+        const t = TQContrato.preencher(c.texto, c.campos, c.dados); if (await TQContrato.hash(t) !== h) throw new Error("O contrato mudou enquanto você lia. Recarregue a página e leia de novo.");
+        Object.assign(c, { status: "assinado", texto_final: t, hash: h, assinado_nome: nome, assinado_em: agora(), ip: "demonstração", navegador: navigator.userAgent.slice(0, 300) }); gravar(); return c;
       },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
@@ -308,6 +328,15 @@ const TQConta = (() => {
       // Documentos da data (contrato) e modelo geral: a equipe cadastra; cada conta só lê os seus e os gerais.
       async documentos() { return ok(await sb.from("documentos").select("*").order("criado_em", { ascending: false })); },
       async criarDocumento(d) { return ok(await sb.from("documentos").insert(d).select().single()); },
+      // Contrato automático: a equipe cria; a pessoa preenche, lê e assina pelas funções do banco (schema v7).
+      async modelosContrato() { return ok(await sb.from("modelos_contrato").select("*").eq("ativo", true).order("criado_em", { ascending: false })); },
+      async salvarModeloContrato(m) { ok(m.id ? await sb.from("modelos_contrato").update({ nome: m.nome, texto: m.texto, ativo: m.ativo ?? true }).eq("id", m.id) : await sb.from("modelos_contrato").insert({ nome: m.nome, texto: m.texto })); },
+      async contratos() { return ok(await sb.from("contratos").select("*").order("criado_em", { ascending: false })); },
+      async criarContrato(c) { return ok(await sb.from("contratos").insert(c).select().single()); },
+      async cancelarContrato(cid) { ok(await sb.from("contratos").update({ status: "cancelado" }).eq("id", cid)); },
+      async contratoSalvarDados(cid, d) { ok(await sb.rpc("contrato_salvar_dados", { cid, d })); },
+      async contratoLido(cid) { ok(await sb.rpc("contrato_li_ate_o_fim", { cid })); },
+      async assinarContrato(cid, nome, h) { return ok(await sb.rpc("assinar_contrato", { cid, nome, h })); },
       async apagarDocumento(id) { ok(await sb.from("documentos").delete().eq("id", id)); },
       // Materiais enviados (rider, mapa de palco, fotos): pasta privada <conta>/<data>/ no armazenamento "materiais".
       async meusArquivos() {
@@ -401,7 +430,7 @@ const TQConta = (() => {
     if (perfil.tipo === "artista" || perfil.tipo === "casa") {
       conta.chk = await api.meuChecklist();
       // Documentos e materiais são da versão nova do banco: se falharem, o resto da conta funciona.
-      [conta.docs, conta.arqs] = await Promise.all([api.documentos().catch(() => []), api.meusArquivos().catch(() => ({}))]);
+      [conta.docs, conta.arqs, conta.contr] = await Promise.all([api.documentos().catch(() => []), api.meusArquivos().catch(() => ({})), api.contratos().catch(() => [])]);
     }
     S.conta = conta;
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
@@ -580,20 +609,102 @@ const TQConta = (() => {
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
     const docs = (S.conta.docs || []).filter((d) => d.evento_id === e.id || (!d.evento_id && d.tipo === "modelo"));
+    const digitais = meusContratos().filter((c) => c.evento_id === e.id);
     const meus = (S.conta.arqs || {})[e.id] || [];
     const artista = S.conta.perfil.tipo === "artista";
-    return `<details style="margin-top:6px"><summary>Contrato e materiais${docs.length + meus.length ? ` (${docs.length + meus.length})` : ""}</summary>
-      <div style="margin-top:10px">${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
+    return `<details style="margin-top:6px"><summary>Contrato e materiais${docs.length + meus.length + digitais.length ? ` (${docs.length + meus.length + digitais.length})` : ""}</summary>
+      <div style="margin-top:10px">${digitais.map((c) => `<div class="row" style="margin-bottom:6px"><span>✍️ ${esc(c.titulo)} · <span class="badge ${TQContrato.situacao(c).classe}">${TQContrato.situacao(c).rotulo}</span></span><button class="btn sm" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Ler e assinar"}</button></div>`).join("")}${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
       <b style="font-size:14px">Seus arquivos</b>
       ${meus.length ? `<ul class="passos" style="margin:6px 0">${meus.map((f) => `<li><a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a> <span class="muted" style="font-size:12px">· ${f.em ? dt(f.em.slice(0, 10)) : ""}</span></li>`).join("")}</ul>` : `<p class="muted" style="font-size:13px;margin:4px 0">Nenhum arquivo enviado para esta data.</p>`}
       <label class="fcampo" style="margin-top:8px"><b>Enviar ${artista ? "rider, mapa de palco, fotos ou release" : "rider da casa, fotos do palco ou documentos"}</b><input type="file" data-enviar-arquivo="${esc(e.id)}" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip,.txt,.mp3"></label>
       <div class="err" role="status" aria-live="polite" id="arqErr-${esc(e.id)}"></div></div></details>`;
   }
 
+  // ---------- contrato automático ----------
+  // Equipe: modelos, preparar (campos da equipe preenchidos, o resto fica para a pessoa) e acompanhar.
+  function secaoContratos(E, contas, datas, dataTxt, nomeConta) {
+    if (E.contr === null || E.modContr === null) return `<div class="alert warn" style="margin-bottom:14px"><b>Contrato automático ainda não está ligado no banco</b>Rode o supabase/schema.sql (parte v7) para usar.</div>`;
+    const mods = E.modContr || [], prep = S.cPrep, ed = mods.find((m) => m.id === S.cModEd);
+    const lista = (E.contr || []).filter((c) => c.status !== "cancelado" || S.cVerCancel);
+    return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Contrato para assinar no site</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa preenche antes de assinar (CPF, endereço, Pix…).</p>
+      <div class="grid g3">
+        <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${prep?.conta === p.id ? " selected" : ""}>${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${prep?.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Modelo</b><select id="ctMod"><option value="">${mods.length ? "Escolha o modelo" : "Cadastre um modelo abaixo"}</option>${mods.map((m) => `<option value="${m.id}"${prep?.modelo === m.id ? " selected" : ""}>${esc(m.nome)}</option>`).join("")}</select></label>
+      </div><div class="barra-acoes"><button class="btn" id="ctPrep">Preparar contrato</button></div>
+      ${prep ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
+        <label class="fcampo"><b>Nome do contrato</b><input id="ctTit" maxlength="160" value="${esc(prep.titulo)}"></label>
+        <p style="margin:10px 0 6px"><b>Campos do modelo</b> <span class="muted" style="font-size:13px">· em branco = a pessoa preenche</span></p>
+        <div class="grid g2">${prep.campos.map((c) => `<label class="fcampo"><b>${esc(c.rotulo)}</b><input data-ct-campo="${esc(c.chave)}" maxlength="300" value="${esc(prep.valores[c.chave] || "")}" placeholder="a pessoa preenche"></label>`).join("") || `<p class="muted">Este modelo não tem campos: o texto vai como está.</p>`}</div>
+        <div class="barra-acoes"><button class="btn pri" id="ctEnviar">Enviar para assinatura</button><button class="btn" id="ctDescartar">Descartar</button></div></div>` : ""}
+      <div class="err" role="status" aria-live="polite" id="ctErr"></div>
+      <details style="margin-top:12px"${S.cModAberto ? " open" : ""}><summary>Modelos de contrato (${mods.length})</summary>
+        <p class="muted" style="font-size:13px">Cole o texto do modelo do Notion. Trechos como <code>[PREENCHER NOME COMPLETO]</code> viram campos. Para o site preencher sozinho, use <code>{{artista}}</code>, <code>{{data}}</code>, <code>{{cidade}}</code>, <code>{{casa}}</code>, <code>{{evento}}</code>, <code>{{cache}}</code> e <code>{{horario}}</code>.</p>
+        ${mods.map((m) => `<div class="row" style="margin-bottom:6px"><span>${esc(m.nome)} <span class="muted" style="font-size:12px">· ${TQContrato.campos(m.texto).campos.length} campos</span></span><button class="btn sm" data-ct-mod-editar="${m.id}">Editar</button></div>`).join("")}
+        <label class="fcampo"><b>${ed ? "Editar modelo" : "Novo modelo"}: nome</b><input id="mcNome" maxlength="120" value="${esc(ed?.nome || "")}" placeholder="ex.: Contrato Apresenta — artista principal"></label>
+        <label class="fcampo"><b>Texto do modelo</b><textarea id="mcTexto" rows="10" style="width:100%;font:14px/1.5 var(--sans)">${esc(ed?.texto || "")}</textarea></label>
+        <div class="barra-acoes"><button class="btn" id="mcOk">${ed ? "Salvar alterações" : "Salvar modelo"}</button>${ed ? `<button class="btn" data-ct-mod-editar="">Cancelar edição</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="mcErr"></div>
+        <p class="muted" style="font-size:12px;margin:4px 0 0">Mudar o modelo não muda contratos já enviados.</p>
+      </details></div>
+      <h2>Contratos para assinar</h2>${tabela("contr", [
+        { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
+        { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
+        { t: "Data", v: (c) => c.evento_id || "", h: (c) => c.evento_id ? esc(dataTxt(c.evento_id)) : "–" },
+        { t: "Situação", v: (c) => c.status + (c.assinado_em || ""), h: (c) => { const si = TQContrato.situacao(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-ct-ver="${c.id}">${c.status === "assinado" ? "Ver e baixar" : "Ver"}</button>${c.status === "enviado" ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}</div>` },
+      ], lista, { i: 3, dir: 1 }, vazio("Nenhum contrato gerado ainda", "Prepare o primeiro contrato acima: ele aparece na área da artista ou da casa para assinar.", "", "documentos"))}`;
+  }
+  // Artista e casa: contratos pendentes no topo do passo a passo e a tela de leitura e assinatura.
+  const meusContratos = () => (S.conta.contr || []).filter((c) => c.status !== "cancelado");
+  function avisoContratos() {
+    const pend = meusContratos().filter((c) => c.status === "enviado");
+    return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>Leia, complete os seus dados e assine aqui mesmo, sem imprimir.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Ler e assinar →</button></div></div>`).join("");
+  }
+  function telaContrato(c) {
+    const si = TQContrato.situacao(c), assinado = c.status === "assinado";
+    const mostra = assinado ? c.texto_final : TQContrato.preencher(c.texto, c.campos, Object.fromEntries(c.campos.map((x) => [x.chave, String(c.dados?.[x.chave] ?? "").trim() || `[${x.rotulo}: preencha acima]`])));
+    const completo = !si.falta;
+    if (!assinado) setTimeout(ligarLeitura, 0);
+    return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
+      ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}. Código de verificação: ${esc(c.hash.slice(0, 12))}…<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar ou imprimir</button></div></div>`
+        : `<p class="sub">São três passos: ${c.campos.length ? "complete os seus dados, " : ""}leia o contrato até o fim e assine digitando o seu nome completo.</p>`}
+      ${!assinado && c.campos.length ? `<div class="card"><h3 style="margin-top:0">1. Seus dados</h3><div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)}</b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || "")}"></label>`).join("")}</div>
+        <div class="barra-acoes"><button class="btn${completo ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><p class="muted" style="font-size:13px;margin:4px 0 0">Os dados entram no texto do contrato logo abaixo.</p></div>` : ""}
+      <div class="card"><h3 style="margin-top:0">${assinado ? "Texto assinado" : `${c.campos.length ? "2" : "1"}. Leia o contrato inteiro`}</h3>
+        <div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(mostra)}</div>
+        ${assinado ? "" : `<p class="muted" id="ctLido" style="font-size:13px;margin:8px 0 0">${!completo ? "Complete e salve os seus dados para liberar a leitura." : c.lido_fim_em ? "✓ Você leu até o fim." : "Role o texto até o fim para liberar a assinatura."}</p>`}</div>
+      ${assinado ? "" : `<div class="card"><h3 style="margin-top:0">${c.campos.length ? "3" : "2"}. Assinar</h3>
+        <label class="fcampo"><b>Seu nome completo</b><input id="ctNome" autocomplete="name" maxlength="160" value="${esc(S.conta.perfil.nome || "")}"></label>
+        <label class="fcheck"><input type="checkbox" id="ctConcordo"> <span>Li o contrato inteiro e concordo com os termos. Entendo que digitar o meu nome aqui vale como a minha assinatura.</span></label>
+        <div class="barra-acoes"><button class="btn pri" id="ctAssinar"${completo && c.lido_fim_em ? "" : " disabled"}>Assinar contrato</button></div>
+        <p class="muted" style="font-size:12px;margin:6px 0 0">Ficam registrados o texto exato, a data e a hora, o seu IP e o navegador. Você e a equipe têm acesso à mesma cópia, aqui no site.</p></div>`}
+      <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
+  }
+  // Marca "leu até o fim" quando o texto chega ao fim da rolagem (ou cabe inteiro na tela).
+  function ligarLeitura() {
+    const el = $("#ctTexto"), c = meusContratos().find((x) => x.id === S.contrAberto);
+    if (!el || !c || c.status !== "enviado" || c.lido_fim_em || TQContrato.situacao(c).falta) return;
+    const fim = async () => {
+      if (el.scrollTop + el.clientHeight < el.scrollHeight - 8 || el.dataset.lido) return;
+      el.dataset.lido = "1"; el.removeEventListener("scroll", fim);
+      try { await api.contratoLido(c.id); c.lido_fim_em = new Date().toISOString(); TQDiario.registrar("contrato_lido", { contrato: c.id });
+        const m = $("#ctLido"); if (m) m.textContent = "✓ Você leu até o fim."; const b = $("#ctAssinar"); if (b) b.disabled = false; }
+      catch (e) { delete el.dataset.lido; const m = $("#ctErr"); if (m) m.textContent = traduz(e.message); }
+    };
+    el.addEventListener("scroll", fim, { passive: true }); fim();
+  }
+  function abrirImpressao(c) {
+    const w = window.open(URL.createObjectURL(new Blob([TQContrato.paginaImpressao(c, esc)], { type: "text/html;charset=utf-8" })), "_blank");
+    if (!w) alert("O navegador bloqueou a janela. Permita janelas deste site e tente de novo.");
+  }
+
   const TELAS = {
     passos() {
       const p = S.conta.perfil;
-      return p.tipo === "casa" ? passosCasa() : passosArtista();
+      const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
+      if (aberto) return telaContrato(aberto);
+      return avisoContratos() + (p.tipo === "casa" ? passosCasa() : passosArtista());
     },
     inscricao() {
       const i = S.conta.insc, d = i?.dados || {}, trav = i && !["rascunho", "ajustes"].includes(i.status);
@@ -814,8 +925,9 @@ const TQConta = (() => {
       const nomeConta = Object.fromEntries((E.perfis || []).map((p) => [p.id, p.vinculo_nome || p.nome || p.email]));
       const datas = (S.pub?.agenda || []).filter((e) => e.id);
       const dataTxt = (id) => { const e = (S.pub?.agenda || []).find((x) => x.id === id) || S.pac?.eventos?.find((x) => x.id === id); return e ? `${dt(e.d)} · ${e.c}` : id ? id.slice(0, 8) : "–"; };
-      return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Anexe o contrato de cada data à conta da artista ou da casa: ele aparece no passo a passo dela, em "Contrato e materiais". O modelo de contrato aparece para todos. Abaixo, os arquivos que artistas e casas enviaram.</p>
-      <div class="card"><h3 style="margin-top:0">Anexar documento</h3><div class="grid g2">
+      return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Gere o contrato de cada data para a artista ou a casa assinar aqui mesmo, ou anexe um contrato pronto (link). Os dois aparecem no passo a passo dela, em "Contrato e materiais". Abaixo, os arquivos que artistas e casas enviaram.</p>
+      ${secaoContratos(E, contas, datas, dataTxt, nomeConta)}
+      <div class="card"><h3 style="margin-top:0">Anexar documento pronto (link)</h3><div class="grid g2">
         <label class="fcampo"><b>Tipo</b><select id="docTipo"><option value="contrato">Contrato de uma data</option><option value="modelo">Modelo de contrato (para todos)</option><option value="outro">Outro documento de uma data</option></select></label>
         <label class="fcampo"><b>Nome</b><input id="docTit" maxlength="120" placeholder="ex.: Contrato Joyce Alane · BH 05/11"></label>
         <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
@@ -1059,9 +1171,9 @@ const TQConta = (() => {
       const quem = S.conta?.perfil.id;
       // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
       const novo = (pr) => pr.catch(() => null);
-      const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos())]);
+      const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);
@@ -1142,7 +1254,7 @@ const TQConta = (() => {
     if (TQTour.aberto()) return;
     if (!p.tutorial_visto_em) abrirTutorial(p.tipo, true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
-    else if (p.tutorial_visto_em.slice(0, 10) < TQTour.NOVIDADES) abrirTutorial(p.tipo, true, p.tutorial_visto_em);
+    else if (TQTour.temNovidades(p.tutorial_visto_em)) abrirTutorial(p.tipo, true, p.tutorial_visto_em);
   }
   function abrirTutorial(tipo, primeira, desde) {
     TQTour.abrir(tipo, { desde, primeira, chave: "conta-" + tipo, dicaRever: S.conta ? "aba Conta → \"Ver o tutorial de novo\", ou \"Como funciona\" no menu" : null,
@@ -1192,6 +1304,62 @@ const TQConta = (() => {
   const resultadoEnvio = (r, oque) => r.demo ? `No modo demonstração nenhum e-mail sai. Use o WhatsApp ou o e-mail abaixo.` : r.enviado ? `${oque} enviado por e-mail.` : `O e-mail não saiu: ${r.erro} Use o WhatsApp ou o e-mail abaixo.`;
 
   // ---------- eventos ----------
+  async function cliquesContrato(t) {
+    const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) e.textContent = m; };
+    const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; S.aba = "passos"; render(); scrollTo(0, 0); return true; }
+    if (t.closest("[data-ct-voltar]")) { S.contrAberto = null; render(); scrollTo(0, 0); return true; }
+    const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c); return true; }
+    const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
+    if (t.id === "mcOk") {
+      const nome = $("#mcNome").value.trim(), texto = $("#mcTexto").value.trim(), em = $("#mcErr");
+      if (nome.length < 2) { em.textContent = "Dê um nome ao modelo."; return true; }
+      if (texto.length < 50) { em.textContent = "Cole o texto completo do modelo."; return true; }
+      await api.salvarModeloContrato({ id: S.cModEd || undefined, nome, texto }); S.cModEd = null; S.cModAberto = true; S.eq = null; render(); return true;
+    }
+    if (t.id === "ctPrep") {
+      const conta = $("#ctConta").value, ev = $("#ctEv").value, modelo = $("#ctMod").value;
+      if (!conta) return erro("Escolha a conta da artista ou da casa."), true;
+      if (!modelo) return erro("Escolha um modelo de contrato."), true;
+      const m = S.eq.modContr.find((x) => x.id === modelo), p = S.eq.perfis.find((x) => x.id === conta);
+      const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev);
+      const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
+      S.cPrep = { conta, ev, modelo, texto, campos, valores: Object.fromEntries(campos.map((c) => [c.chave, sug[c.chave] || ""])),
+        titulo: `${m.nome} · ${p.vinculo_nome || p.nome || p.email}${e ? ` · ${e.c} ${dt(e.d).slice(0, 5)}` : ""}`.slice(0, 160) };
+      render(); $("#ctTit")?.scrollIntoView({ block: "center" }); return true;
+    }
+    if (t.id === "ctDescartar") { S.cPrep = null; render(); return true; }
+    if (t.id === "ctEnviar") {
+      const P = S.cPrep; if (!P) return true;
+      document.querySelectorAll("[data-ct-campo]").forEach((i) => { P.valores[i.dataset.ctCampo] = i.value.trim(); });
+      P.titulo = $("#ctTit").value.trim();
+      if (P.titulo.length < 2) return erro("Dê um nome ao contrato."), true;
+      if (Object.values(P.valores).some((v) => /[{}]{2}/.test(v))) return erro("Os valores não podem ter {{ ou }}."), true;
+      const daEquipe = P.campos.filter((c) => P.valores[c.chave]), daPessoa = P.campos.filter((c) => !P.valores[c.chave]);
+      const texto = TQContrato.preencher(P.texto, daEquipe, P.valores);
+      if (texto.length < 50) return erro("O texto do modelo está curto demais."), true;
+      await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa });
+      TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
+      S.cPrep = null; S.eq = null; render(); return true;
+    }
+    const can = t.closest("[data-ct-cancelar]"); if (can) {
+      if (!confirm("Cancelar este contrato? A pessoa deixa de ver o pedido de assinatura.")) return true;
+      await api.cancelarContrato(can.dataset.ctCancelar); S.eq = null; render(); return true;
+    }
+    if (t.id === "ctSalvarDados") {
+      const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
+      const d = {}; document.querySelectorAll("[data-ct-dado]").forEach((i) => { d[i.dataset.ctDado] = i.value.trim(); });
+      await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); return true;
+    }
+    if (t.id === "ctAssinar") {
+      const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
+      if (!$("#ctConcordo").checked) return erro("Marque que leu e concorda com os termos."), true;
+      const h = await TQContrato.hash(TQContrato.preencher(c.texto, c.campos, c.dados));
+      await api.assinarContrato(c.id, $("#ctNome").value, h);
+      TQDiario.registrar("contrato_assinado", { contrato: c.id });
+      S.conta.contr = await api.contratos(); render(); scrollTo(0, 0); return true;
+    }
+    return false;
+  }
   async function cliques(ev) {
     const t = ev.target;
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); S.aba = ir.dataset.ir; render(); scrollTo(0, 0); return; }
@@ -1335,6 +1503,7 @@ const TQConta = (() => {
       if (url) window.open(url, "_blank", "noopener"); else alert("Não foi possível abrir o arquivo agora.");
       return;
     }
+    if (await cliquesContrato(t)) return;
     const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
       if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
       try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(e.message); }
@@ -1432,7 +1601,7 @@ const TQConta = (() => {
     }
     if (b) b.dataset.ocupado = "1";
     try { await cliques(ev); }
-    catch (e) { console.error(e); const m = $("#eerr") || $("#ferr") || $("#derr") || $("#averr"); if (m) m.textContent = traduz(e.message || ""); }
+    catch (e) { console.error(e); const m = $("#ctErr") || $("#mcErr") || $("#eerr") || $("#ferr") || $("#derr") || $("#averr"); if (m) m.textContent = traduz(e.message || ""); }
     finally { if (b) delete b.dataset.ocupado; }
   }, true);
 

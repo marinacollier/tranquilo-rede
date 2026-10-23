@@ -1201,3 +1201,122 @@ drop policy if exists mat_ler on materiais;
 create policy mat_ler on materiais for select using (
   eh_equipe() or (ativo and meu_tipo() = any (publico) and (casa_ref is null or posso_casa(casa_ref)))
 );
+
+-- =====================================================================
+-- v7 — Contrato automático: a equipe gera o contrato a partir de um modelo, a artista (ou a casa) completa os
+-- dados dela, lê até o fim e assina digitando o nome. Fica registrado o texto exato assinado (com hash SHA-256),
+-- quando, o IP e o navegador. Nada vai para o Notion. Idempotente.
+-- =====================================================================
+create table if not exists modelos_contrato (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null check (length(nome) between 2 and 120),
+  texto text not null check (length(texto) between 50 and 60000),
+  ativo boolean not null default true,
+  criado_por uuid default auth.uid(),
+  criado_em timestamptz not null default now()
+);
+alter table modelos_contrato enable row level security;
+drop policy if exists modcontr_equipe on modelos_contrato;
+create policy modcontr_equipe on modelos_contrato for all using (eh_equipe()) with check (eh_equipe());
+revoke all on modelos_contrato from anon, authenticated;
+grant select, insert, update on modelos_contrato to authenticated;
+
+create table if not exists contratos (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references perfis (id) on delete cascade,
+  evento_id text,
+  titulo text not null check (length(titulo) between 2 and 160),
+  modelo_id uuid references modelos_contrato (id) on delete set null,
+  -- Minuta com os dados da equipe já preenchidos; os campos da pessoa ficam como {{chave}}.
+  texto text not null check (length(texto) between 50 and 80000),
+  campos jsonb not null default '[]' check (jsonb_typeof(campos) = 'array'),   -- [{"chave","rotulo"}] que a pessoa preenche
+  dados jsonb not null default '{}' check (jsonb_typeof(dados) = 'object'),
+  status text not null default 'enviado' check (status in ('enviado', 'assinado', 'cancelado')),
+  lido_fim_em timestamptz,
+  texto_final text,
+  hash text,
+  assinado_nome text,
+  assinado_em timestamptz,
+  ip text,
+  navegador text,
+  criado_por uuid default auth.uid(),
+  criado_em timestamptz not null default now()
+);
+create index if not exists contratos_user on contratos (user_id, evento_id);
+alter table contratos enable row level security;
+drop policy if exists contratos_ler on contratos;
+create policy contratos_ler on contratos for select using (user_id = auth.uid() or eh_equipe());
+drop policy if exists contratos_criar on contratos;
+create policy contratos_criar on contratos for insert with check (eh_equipe() and criado_por = auth.uid() and status = 'enviado'
+  and assinado_em is null and texto_final is null and lido_fim_em is null and dados = '{}'::jsonb);
+-- A equipe só cancela; o resto muda pelas funções abaixo.
+drop policy if exists contratos_cancelar on contratos;
+create policy contratos_cancelar on contratos for update using (eh_equipe() and status = 'enviado') with check (eh_equipe() and status = 'cancelado');
+revoke all on contratos from anon, authenticated;
+grant select, insert on contratos to authenticated;
+grant update (status) on contratos to authenticated;
+
+-- Texto com os campos da pessoa substituídos (mesma regra do site, src/contrato.js).
+create or replace function contrato_texto(t text, campos jsonb, dados jsonb) returns text language plpgsql immutable as $$
+declare c jsonb;
+begin
+  for c in select * from jsonb_array_elements(campos) loop
+    t := replace(t, '{{' || (c->>'chave') || '}}', coalesce(dados->>(c->>'chave'), ''));
+  end loop;
+  return t;
+end $$;
+
+-- Depois de assinado, ninguém altera nada (nem a equipe, nem as funções).
+create or replace function contrato_travado() returns trigger language plpgsql as $$
+begin
+  if old.status = 'assinado' then raise exception 'Contrato assinado não pode ser alterado.'; end if;
+  if old.status = 'cancelado' then raise exception 'Contrato cancelado não pode ser alterado.'; end if;
+  if new.user_id <> old.user_id or new.texto <> old.texto or new.campos <> old.campos or new.criado_por is distinct from old.criado_por then
+    raise exception 'O texto e a pessoa do contrato não mudam depois de enviado. Cancele e gere outro.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_contrato_travado on contratos;
+create trigger trg_contrato_travado before update on contratos for each row execute function contrato_travado();
+drop trigger if exists trg_contrato_apagar on contratos;
+create trigger trg_contrato_apagar before delete on contratos for each row when (old.status = 'assinado') execute function contrato_travado();
+
+create or replace function contrato_salvar_dados(cid uuid, d jsonb) returns void language plpgsql security definer set search_path = public as $$
+declare k record; c contratos;
+begin
+  select * into c from contratos where id = cid and user_id = auth.uid() and status = 'enviado';
+  if not found then raise exception 'Contrato não encontrado ou já assinado.'; end if;
+  if jsonb_typeof(d) <> 'object' then raise exception 'Dados inválidos.'; end if;
+  for k in select * from jsonb_each(d) loop
+    if not exists (select 1 from jsonb_array_elements(c.campos) x where x->>'chave' = k.key) then raise exception 'Campo % não existe neste contrato.', k.key; end if;
+    if jsonb_typeof(k.value) <> 'string' or length(k.value #>> '{}') > 300 or (k.value #>> '{}') ~ '[{}]{2}' then raise exception 'Valor inválido em %.', k.key; end if;
+  end loop;
+  update contratos set dados = d, lido_fim_em = null where id = cid;   -- mudou o texto: precisa ler de novo até o fim
+end $$;
+
+create or replace function contrato_li_ate_o_fim(cid uuid) returns void language plpgsql security definer set search_path = public as $$
+begin
+  update contratos set lido_fim_em = coalesce(lido_fim_em, now()) where id = cid and user_id = auth.uid() and status = 'enviado';
+end $$;
+
+-- h = SHA-256 do texto que a pessoa viu na tela: só assina se for o mesmo texto que o banco monta.
+create or replace function assinar_contrato(cid uuid, nome text, h text) returns contratos language plpgsql security definer set search_path = public as $$
+declare c contratos; t text; hd json; falta text;
+begin
+  select * into c from contratos where id = cid and user_id = auth.uid() and status = 'enviado' for update;
+  if not found then raise exception 'Contrato não encontrado ou já assinado.'; end if;
+  select string_agg(x->>'rotulo', ', ') into falta from jsonb_array_elements(c.campos) x where coalesce(btrim(c.dados->>(x->>'chave')), '') = '';
+  if falta is not null then raise exception 'Faltam dados — preencha antes de assinar: %.', falta; end if;
+  if c.lido_fim_em is null then raise exception 'Leia o contrato até o fim antes de assinar.'; end if;
+  nome := btrim(regexp_replace(coalesce(nome, ''), '\s+', ' ', 'g'));
+  if length(nome) < 5 or nome !~ '\s' then raise exception 'Digite o seu nome completo para assinar (é a sua assinatura).'; end if;
+  t := contrato_texto(c.texto, c.campos, c.dados);
+  if encode(sha256(convert_to(t, 'UTF8')), 'hex') <> lower(coalesce(h, '')) then raise exception 'O contrato mudou enquanto você lia. Recarregue a página e leia de novo.'; end if;
+  begin hd := current_setting('request.headers', true)::json; exception when others then hd := null; end;
+  update contratos set status = 'assinado', texto_final = t, hash = lower(h), assinado_nome = left(nome, 160), assinado_em = now(),
+    ip = left(btrim(split_part(coalesce(hd->>'x-forwarded-for', hd->>'x-real-ip', ''), ',', 1)), 64), navegador = left(hd->>'user-agent', 300)
+  where id = cid returning * into c;
+  return c;
+end $$;
+revoke all on function contrato_salvar_dados(uuid, jsonb), contrato_li_ate_o_fim(uuid), assinar_contrato(uuid, text, text) from public, anon;
+grant execute on function contrato_salvar_dados(uuid, jsonb), contrato_li_ate_o_fim(uuid), assinar_contrato(uuid, text, text) to authenticated;

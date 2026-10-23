@@ -10,15 +10,19 @@ const TQTour = (() => {
   // Regra: o tutorial de cada perfil passa por TODAS as abas que aquele acesso tem (campo `cobre`).
   // Passo com `cobre` só aparece se ao menos uma das abas existir para a pessoa; `novo` marca o que entrou depois
   // (quem já tinha visto o tutorial recebe só as novidades). O teste do navegador confere a cobertura de cada perfil.
-  const NOVIDADES = "2026-10-23";
-  const N = { novo: NOVIDADES };
+  // Datas com hora (UTC): quem viu o tutorial antes delas recebe só as novidades. Compara o instante, não só o dia.
+  const NOVIDADES = "2026-10-23T14:00:00Z";
+  const N = { novo: "2026-10-23" }, N2 = { novo: NOVIDADES };
+  const ms = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? 0 : t; };
+  /** A pessoa viu o tutorial antes da última leva de novidades? */
+  const temNovidades = (visto) => ms(visto) < ms(NOVIDADES);
   const EQUIPE = [
     { titulo: "Comece por aqui", cobre: ["inicio"], texto: "A primeira aba junta o que precisa de você hoje: inscrições esperando curadoria, casas para habilitar, datas sem prontidão e relatos novos.", itens: ["Comece o dia por ela."], ir: ["inicio", "Abrir Comece por aqui"] },
     { titulo: "Operação e alertas", requer: "operacao", cobre: ["operacao", "datas"], texto: "A aba Operação mostra a rodada dos 50 e o que precisa de atenção: datas passadas ainda com vendas abertas, datas próximas sem handoff e datas sem link de ingressos. Em Datas fica a lista completa com filtros.", itens: ["Clique numa data para abrir a ficha e o checklist no Notion."] },
     { titulo: "Curadoria", cobre: ["curadoria"], texto: "Toda inscrição de artista chega com a pré-curadoria pronta. Você aprova, pede ajustes ou não segue, e a mensagem vai direto para a artista.", itens: ["Use \"Copiar ficha\" para colar no Notion."], ir: ["curadoria", "Abrir curadoria"] },
     { titulo: "Casas e prontidão", cobre: ["casas_cad", "prontidao"], texto: "Em Cadastros de casas você habilita e classifica. Em Prontidão vê quem já fez o quê em cada data e os registros da noite.", itens: ["Classificação: 🟢 confiável, 🟡 desenvolvimento, 🔴 correção, ⛔ suspensa."], ir: ["prontidao", "Abrir prontidão"] },
     { titulo: "Convites e demanda", cobre: ["convites", "demanda"], texto: "Em Convites você chama artistas e casas que já estão na rede: elas recebem o link para criar a senha e o tutorial. Em Demanda você vê quantas pessoas pediram show em cada cidade.", itens: ["Para a casa ver campanha e materiais dela, o convite precisa ter o nome da casa.", "Cidade com muito pedido e nenhuma data é candidata a abrir."], ir: ["convites", "Abrir convites"] },
-    { titulo: "Documentos de cada data", cobre: ["documentos"], ...N, texto: "Anexe o contrato e os materiais de cada data à conta da artista ou da casa: aparecem no passo a passo dela. Aqui também ficam os arquivos que artistas e casas enviaram (rider, mapa de palco, fotos).", itens: [], ir: ["documentos", "Abrir documentos"] },
+    { titulo: "Contratos e documentos", cobre: ["documentos"], ...N2, texto: "Gere o contrato de cada data a partir de um modelo: o site preenche nome, data, cidade e casa, você completa o cachê, e a artista ou a casa preenche o resto, lê e assina na área dela. Você acompanha quem já assinou e baixa a cópia assinada. Aqui também ficam os links anexados e os arquivos que artistas e casas enviaram.", itens: ["Cole o modelo do Notion: [PREENCHER …] vira campo.", "Contrato assinado não muda mais: para corrigir, cancele e gere outro antes da assinatura."], ir: ["documentos", "Abrir documentos"] },
     { titulo: "Campanhas das casas", cobre: ["campanhas"], ...N, texto: "Veja o andamento da campanha de divulgação de cada casa: dias feitos, atrasados e o próximo. Carregue ou atualize uma campanha com a página ou o arquivo de dados do Bruno, sem SQL.", itens: ["Atualizar não apaga o que a casa já marcou.", "\"Casas no hub\" mostra formato, pessoas, campanha e leituras pendentes de cada casa."], ir: ["campanhas", "Abrir campanhas"] },
     { titulo: "Materiais e leitura confirmada", cobre: ["materiais"], ...N, texto: "Guias, playbooks e modelos para artistas e casas. Publique uma versão nova e escolha se ela muda o que a casa faz: se sim, a casa precisa confirmar \"Li e estou ciente\" de novo.", itens: ["Você vê quem já confirmou e quem falta.", "Material novo: título, link e quem vê (casas, artistas ou uma casa só)."], ir: ["materiais", "Abrir materiais"] },
     { titulo: "Relatos", cobre: ["relatos"], ...N, texto: "Quando alguém usa \"Algo deu errado?\", o relato chega aqui com a tela e os últimos erros daquela pessoa, para a equipe entender sem pedir print.", itens: [], ir: ["relatos", "Abrir relatos"] },
@@ -33,6 +37,7 @@ const TQTour = (() => {
         { titulo: "Primeiro, a inscrição", cobre: ["inscricao"], texto: "Preencha nome artístico, release, links e o seu rider. O que você digita é salvo sozinho, e você pode voltar quando quiser.", itens: ["Leva uns 10 minutos.", "Quanto mais completo, mais forte fica a pré-curadoria."], ir: ["inscricao", "Abrir minha inscrição"] },
         { titulo: "Pré-curadoria na hora", texto: "Ao enviar, o site calcula na hora a força da inscrição, de 0 a 100, e mostra o que pesou: perfil, público, rider, cidades e condições.", itens: ["Os alertas mostram o que dá para melhorar.", "Depois disso, a curadoria da equipe responde aqui mesmo."] },
         { titulo: "Suas datas, passo a passo", cobre: ["passos"], texto: "Quando uma data é confirmada, aparece a lista do que fazer, com prazo contado a partir do show: contrato, rider, horários, passagem de som e pós-show.", itens: ["Marque o que já fez: a equipe vê na hora.", "Em \"Contrato e materiais\" de cada data ficam o contrato e o envio do rider."], ir: ["passos", "Ver próximos passos"] },
+{ titulo: "Contrato para assinar", ...N2, texto: "Quando a equipe mandar o contrato de uma data, ele aparece no topo do passo a passo. Complete os seus dados, leia até o fim e assine digitando o seu nome completo, sem imprimir nada.", itens: ["Depois de assinado, a cópia fica em \"Contrato e materiais\" da data, para baixar ou imprimir."] },
         { titulo: "Você em cada praça", cobre: ["agenda", "pracas"], texto: "Com a conta vinculada ao seu histórico, você vê a sua agenda, o público de cada noite e a faixa típica das praças onde ainda não tocou.", itens: ["Clique em \"Quero tocar aqui\" para pedir uma data numa cidade nova."] },
         { titulo: "Materiais", cobre: ["materiais"], ...N, texto: "Guias e modelos do Tranquilo para artistas. Os modelos abrem só para leitura: toque em \"Fazer minha cópia\" para ter a sua versão editável.", itens: ["Se algum material pedir, confirme com \"Li e estou ciente\"."], ir: ["materiais", "Abrir materiais"] },
         { titulo: "Dúvidas frequentes", cobre: ["duvidas"], ...N, texto: "Respostas curtas para o que mais perguntam: inscrição, curadoria, contrato, rider, pagamento e o dia do show.", itens: ["Não achou? Use \"Algo deu errado?\" no rodapé e a equipe recebe."], ir: ["duvidas", "Abrir dúvidas"] },
@@ -46,6 +51,7 @@ const TQTour = (() => {
         { titulo: "Cadastro da casa", cobre: ["cadastro_casa"], texto: "Preencha a ficha. O site separa o que bloqueia a habilitação, o que bloqueia algumas datas e o que só enriquece a ficha.", itens: ["Responsável, WhatsApp, endereço, capacidade e som são o mínimo.", "Dá para atualizar a ficha a qualquer momento."], ir: ["cadastro_casa", "Abrir cadastro da casa"] },
         { titulo: "Habilitação", texto: "Com os dados mínimos, a equipe analisa e responde aqui. Uma casa habilitada recebe a primeira data como teste real.", itens: ["Se a equipe pedir ajuste, a mensagem aparece no topo."] },
         { titulo: "Cada data, passo a passo", cobre: ["passos"], texto: "Quando o Tranquilo repassa uma data, aparece o roteiro de cada noite com prazos: equipe, técnica, horários, divulgação e o dia do show.", itens: ["Marque cada item quando estiver feito.", "Em \"Contrato e materiais\" de cada data ficam o contrato e os arquivos."], ir: ["passos", "Ver próximos passos"] },
+{ titulo: "Contrato para assinar", ...N2, texto: "Quando a equipe mandar o contrato de uma data, ele aparece no topo do passo a passo. Complete os seus dados, leia até o fim e assine digitando o seu nome completo, sem imprimir nada.", itens: ["Depois de assinado, a cópia fica em \"Contrato e materiais\" da data, para baixar ou imprimir."] },
         { titulo: "Campanha de divulgação", cobre: ["campanha"], ...N, texto: "O que postar e mandar em cada dia, com os modelos do Canva e os links prontos. Marque \"Feito\" ao terminar: vale para toda a equipe da casa, e o Tranquilo acompanha.", itens: ["\"Levar para o Google Agenda\" coloca os dias da campanha na sua agenda.", "Dia que passou sem \"Feito\" aparece como atrasado."], ir: ["campanha", "Abrir campanha"] },
         { titulo: "Minhas datas e roteiro da noite", cobre: ["minhas", "roteiro"], texto: "Com a conta ligada à casa, você vê as próximas noites, o público de cada noite que já aconteceu e o roteiro do dia do show: chegada, passagem de som, portas e encerramento.", itens: [] },
         { titulo: "Registrar a noite", texto: "No dia seguinte, registre o público e o que aconteceu. Problema ordinário: resolva e registre. Exceção crítica: registre e avise a equipe.", itens: ["O público registrado vira a base de métricas da sua casa e da cidade."] },
@@ -218,7 +224,7 @@ const TQTour = (() => {
   // como liberar). Com `desde` (data em que viu o tutorial), só o que é mais novo que isso.
   function passosDe(perfil, temAba, desde) {
     const tem = (a) => !temAba || temAba(a);
-    return ROTEIROS[perfil].passos.filter((p) => (!p.soSe || tem(p.soSe)) && (!p.cobre || p.requer || p.cobre.some(tem)) && (!desde || (p.novo && p.novo > desde.slice(0, 10))));
+    return ROTEIROS[perfil].passos.filter((p) => (!p.soSe || tem(p.soSe)) && (!p.cobre || p.requer || p.cobre.some(tem)) && (!desde || (p.novo && ms(p.novo) > ms(desde))));
   }
   /** Abas da pessoa que nenhum passo do tutorial explica (o teste exige lista vazia). */
   function semTutorial(perfil, abas) {
@@ -264,5 +270,5 @@ const TQTour = (() => {
   }
 
   const linkDe = (perfil) => `${location.origin}${location.pathname}#tutorial-${perfil}`;
-  return { abrir, linkDe, ROTEIROS, NOVIDADES, semTutorial, passosDe, aberto: () => !!el };
+  return { abrir, linkDe, ROTEIROS, NOVIDADES, temNovidades, semTutorial, passosDe, aberto: () => !!el };
 })();
