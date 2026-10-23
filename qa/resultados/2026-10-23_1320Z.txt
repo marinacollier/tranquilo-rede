@@ -207,3 +207,22 @@ OK    celular: tutorial cabe na tela (390px, página 390px)
 OK    sem erros de JavaScript
 
 ## hub
+OK    casa vê os 10 dias da campanha do Rooftap
+OK    progresso começa em 0 de 10
+OK    dias que já passaram aparecem como atrasados
+OK    links das ações viram botões
+OK    marcar Feito atualiza o progresso e mostra quem marcou
+OK    Feito continua depois de recarregar
+FALHA quebrou: page.waitForEvent: Timeout 30000ms exceeded while waiting for event "download"
+OK    sem exceções JS 
+
+## inicio
+OK    adm-d: entra no Comece por aqui
+OK    adm-d: mostra datas do mês e alertas
+OK    adm-d: atalho abre Convites
+OK    eq-m: entra no Comece por aqui
+OK    eq-m: mostra datas do mês e alertas
+OK    eq-m: atalho abre Convites
+OK    sem erros de JavaScript 
+
+## movel
