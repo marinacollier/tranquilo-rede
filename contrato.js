@@ -6,20 +6,36 @@ const TQContrato = (() => {
   // Campos que a equipe já sabe: preenchidos sozinhos a partir da data e da conta (dá para corrigir antes de enviar).
   const DA_EQUIPE = {
     artista: "Nome artístico", data: "Data do show", cidade: "Cidade", casa: "Casa de shows", horario: "Horário",
-    cache: "Cachê (R$)", evento: "Nome do evento",
+    cache: "Cachê (R$)", evento: "Nome do evento", data_assinatura: "Data da assinatura",
   };
+  // Nomes que os modelos do Notion usam entre chaves para o que a equipe já sabe ({NOME DO ARTISTA}, {data}…).
+  const SINONIMOS = {
+    "nome do artista": "artista", "nome artistico": "artista", "artista": "artista",
+    "data": "data", "data da edicao": "data", "data do show": "data", "data do evento": "data",
+    "cidade": "cidade", "cidade/uf": "cidade", "casa": "casa", "casa de shows": "casa", "local e endereco": "casa",
+    "horario": "horario", "horario de abertura": "horario", "cache": "cache", "valor do cache": "cache",
+    "data de hoje": "data_assinatura", "data de assinatura": "data_assinatura",
+  };
+  const semAcento = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
   const slug = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "campo";
 
   // "ENDEREÇO COMPLETO" → "Endereço completo"; siglas (CPF, CNPJ, PIX…) ficam em maiúsculas.
   const SIGLAS = /^(cpf|cnpj|rg|cep|pix|uf|mei|ie|inss)$/i;
-  const rotulo = (r) => r.toLowerCase().split(" ").map((w, i) => SIGLAS.test(w) ? w.toUpperCase() : i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
-  /** Lê o modelo: {{chave}} e [PREENCHER rótulo] viram campos. Devolve o texto com tudo como {{chave}} e a lista de campos. */
+  const rotulo = (r) => r.toLowerCase().split(" ").map((w, i) => w.split("/").map((x) => SIGLAS.test(x) ? x.toUpperCase() : x).join("/")).map((w, i) => i === 0 ? w.charAt(0).toUpperCase() + w.slice(1) : w).join(" ");
+  /** Lê o modelo: {{chave}}, [PREENCHER rótulo], {rótulo} (como nos modelos do Notion) e [RÓTULO EM MAIÚSCULAS] viram campos.
+   *  Devolve o texto com tudo como {{chave}} e a lista de campos. */
   function campos(modelo) {
     const lista = [], visto = new Set();
     const add = (chave, rotulo) => { if (!visto.has(chave)) { visto.add(chave); lista.push({ chave, rotulo }); } return `{{${chave}}}`; };
     const texto = String(modelo)
       .replace(/\[\s*PREENCHER\s*:?\s*([^\]]{1,80})\]/gi, (_, r) => { const rot = r.trim().replace(/\s+/g, " "); return add(slug(rot), rotulo(rot)); })
-      .replace(/\{\{\s*([a-zA-Z0-9_]{1,40})\s*\}\}/g, (_, k) => add(k.toLowerCase(), DA_EQUIPE[k.toLowerCase()] || k.replace(/_/g, " ")));
+      .replace(/\{\{\s*([a-zA-Z0-9_]{1,40})\s*\}\}/g, (_, k) => add(k.toLowerCase(), DA_EQUIPE[k.toLowerCase()] || k.replace(/_/g, " ")))
+      .replace(/(?<!\{)\{([^{}\n]{1,60})\}(?!\})/g, (_, r) => porNome(r))
+      .replace(/\[([A-ZÀ-Ý][A-ZÀ-Ý0-9 /.-]{1,58})\]/g, (_, r) => porNome(r));
+    function porNome(r) {
+      const rot = r.trim().replace(/\s+/g, " "), k = SINONIMOS[semAcento(rot)];
+      return k ? add(k, DA_EQUIPE[k]) : add(slug(rot), rotulo(rot));
+    }
     return { texto, campos: lista };
   }
 
@@ -39,6 +55,7 @@ const TQContrato = (() => {
       if (y) s.data = `${d}/${m}/${y}`;
       s.cidade = evento.c || ""; s.casa = evento.h || ""; s.evento = evento.t || evento.n || "";
     }
+    s.data_assinatura = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
     return s;
   }
 
