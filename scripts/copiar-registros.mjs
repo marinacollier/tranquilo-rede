@@ -5,7 +5,9 @@
 import { readFile } from 'node:fs/promises';
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
-if (!token) { console.log('SUPABASE_ACCESS_TOKEN não configurado: nada copiado.'); process.exit(0); }
+// Sem o segredo, falha em vermelho (o GitHub avisa por e-mail): terminar "com sucesso" sem copiar nada esconderia
+// que os registros estão se perdendo.
+if (!token) { console.error('::error::SUPABASE_ACCESS_TOKEN não configurado: nenhum registro foi copiado. Crie o token em supabase.com/dashboard/account/tokens e guarde como segredo do repositório.'); process.exit(1); }
 const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 const API = `https://api.supabase.com/v1/projects/${ref}`;
