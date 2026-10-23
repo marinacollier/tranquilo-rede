@@ -3,6 +3,7 @@
 // Precisa do segredo SUPABASE_ACCESS_TOKEN (token pessoal do Supabase, em supabase.com/dashboard/account/tokens).
 // O log desta rotina mostra só contagens: o repositório é público e os registros têm e-mails e IPs.
 import { readFile } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 // Sem o segredo, falha em vermelho (o GitHub avisa por e-mail): terminar "com sucesso" sem copiar nada esconderia
@@ -29,18 +30,42 @@ const sql = (query) => chamar(`${API}/database/query`, { method: 'POST', body: J
 const existe = await sql(`select to_regclass('public.diario_servidor') is not null as ok`);
 if (!existe?.[0]?.ok) { console.log('Tabela diario_servidor não existe: rode o supabase/schema.sql no SQL Editor.'); process.exit(1); }
 // Procura o primeiro valor de uma chave em qualquer profundidade dos metadados (o formato varia por fonte).
-const achar = (o, chaves) => { if (!o || typeof o !== 'object') return null; for (const [k, v] of Object.entries(o)) { if (chaves.includes(k) && v != null && typeof v !== 'object') return v; const r = achar(v, chaves); if (r != null) return r; } return null; };
+// Vale para os dois formatos: metadados aninhados (antigo) e mapa plano com chaves como "request.method" (novo).
+const achar = (o, chaves) => { if (!o || typeof o !== 'object') return null; for (const [k, v] of Object.entries(o)) { if (chaves.includes(k.split('.').pop()) && v != null && typeof v !== 'object') return v; const r = achar(v, chaves); if (r != null) return r; } return null; };
+// Desde 23/09/2026 o Supabase consulta registros numa tabela única "logs" (SQL do ClickHouse), filtrada pela fonte.
+// A documentação diverge no nome da coluna da fonte (source ou source_name): tenta as variantes e guarda a que funcionou.
+const VARIANTES = [
+  (f) => `select id, timestamp, event_message, log_attributes from logs where source = '${f}' order by timestamp asc limit 1000`,
+  (f) => `select id, timestamp, event_message, log_attributes from logs where source_name = '${f}' order by timestamp asc limit 1000`,
+  (f) => `select timestamp, event_message, log_attributes from logs where source = '${f}' order by timestamp asc limit 1000`,
+  (f) => `select timestamp, event_message from logs where source = '${f}' order by timestamp asc limit 1000`,
+];
+let variante = null;
+async function consultar(fonte, ini, fim) {
+  const ordem = variante == null ? VARIANTES.map((_, i) => i) : [variante];
+  let ultimo = null;
+  for (const i of ordem) {
+    const r = await chamar(`${API}/analytics/endpoints/logs?${new URLSearchParams({ sql: VARIANTES[i](fonte), iso_timestamp_start: ini, iso_timestamp_end: fim })}`);
+    if (!r.error) { if (variante == null) { variante = i; console.log(`consulta que funcionou: variante ${i + 1}`); } return r.result || []; }
+    ultimo = r.error;
+  }
+  throw new Error(`${fonte}: ${JSON.stringify(ultimo).slice(0, 300)}`);
+}
+// Carimbo de tempo em microssegundos (formato antigo) ou texto de data (formato novo).
+const micros = (t) => typeof t === 'number' || /^\d+$/.test(String(t)) ? Number(t) : Date.parse(String(t).replace(' ', 'T') + (/[zZ]|[+-]\d\d:?\d\d$/.test(String(t)) ? '' : 'Z')) * 1000;
+const idDe = (x, fonte) => x.id ? `${fonte}:${x.id}` : `${fonte}:${micros(x.timestamp)}:${createHash('sha1').update(String(x.event_message)).digest('hex').slice(0, 16)}`;
 
 const agora = Date.now(), total = {};
+const falhas = [];
 for (const fonte of FONTES) {
   total[fonte] = { lidos: 0, novos: 0 };
+  try { await copiarFonte(fonte); } catch (e) { falhas.push(`${fonte}: ${e.message}`); }
+}
+async function copiarFonte(fonte) {
   for (let h = HORAS; h > 0; h -= JANELA) {
     const ini = new Date(agora - h * 3600e3).toISOString(), fim = new Date(agora - Math.max(h - JANELA, 0) * 3600e3).toISOString();
-    const q = `select id, timestamp, event_message, metadata from ${fonte} order by timestamp asc limit 1000`;
-    const r = await chamar(`${API}/analytics/endpoints/logs.all?${new URLSearchParams({ sql: q, iso_timestamp_start: ini, iso_timestamp_end: fim })}`);
-    if (r.error) throw new Error(`${fonte}: ${JSON.stringify(r.error).slice(0, 200)}`);
-    const linhas = (r.result || []).map((x) => ({ id: `${fonte}:${x.id}`, fonte, timestamp: x.timestamp, event_message: x.event_message, metadata: x.metadata ?? null,
-      status: Number(achar(x.metadata, ['status_code', 'status'])) || null, metodo: achar(x.metadata, ['method']), caminho: achar(x.metadata, ['path']) }));
+    const linhas = (await consultar(fonte, ini, fim)).map((x) => { const meta = x.log_attributes ?? x.metadata ?? null; return { id: idDe(x, fonte), fonte, timestamp: micros(x.timestamp), event_message: x.event_message, metadata: meta,
+      status: Number(achar(meta, ['status_code', 'status'])) || null, metodo: achar(meta, ['method']), caminho: achar(meta, ['path']) }; });
     total[fonte].lidos += linhas.length;
     for (let i = 0; i < linhas.length; i += 200) {
       const json = JSON.stringify(linhas.slice(i, i + 200)).replaceAll('$tqreg$', '$ tqreg$');
@@ -53,3 +78,4 @@ for (const fonte of FONTES) {
   }
 }
 for (const [f, t] of Object.entries(total)) console.log(`${f}: ${t.lidos} lidos, ${t.novos} novos guardados`);
+if (falhas.length) { for (const f of falhas) console.error('::error::' + f.slice(0, 400)); process.exit(1); }
