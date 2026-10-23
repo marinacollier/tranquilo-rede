@@ -13,7 +13,8 @@ grant usage on schema auth to authenticated, anon; grant execute on function aut
 const schema = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
 await db.exec(schema); await db.exec(schema); // idempotente
 await q(`insert into admins_iniciais values ('adm@x.com')`);
-const novo = async (email, tipo) => (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, now()) returning id`, [email, { tipo, nome: email.split('@')[0] }])).rows[0].id;
+// Fluxo real: cadastro e depois confirmação pelo link do e-mail.
+const novo = async (email, tipo) => { const id = (await q(`insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id`, [email, { tipo, nome: email.split('@')[0] }])).rows[0].id; await q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]); return id; };
 const adm = await novo('adm@x.com', 'artista'), casa = await novo('casa@x.com', 'casa'), casa2 = await novo('casa2@x.com', 'casa'), art = await novo('art@x.com', 'artista');
 const convite = async (uid, casa) => { const e = (await q(`select email from auth.users where id = $1`, [uid])).rows[0].email; await q(`insert into convites (email, tipo, vinculo_nome, aceito_em) values (lower($1), 'casa', $2, now()) on conflict (email) do update set vinculo_nome = excluded.vinculo_nome, aceito_em = now()`, [e, casa]); };
 const como = async (uid, fn) => { await db.exec(`set role authenticated; select set_config('tq.uid', '${uid}', false);`); try { return await fn(); } finally { await db.exec(`reset role; select set_config('tq.uid', '', false);`); } };

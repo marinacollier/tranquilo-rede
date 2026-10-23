@@ -31,9 +31,16 @@ const reg = (id, desc, esperado, observado, ok) => { res.push({ id, desc, espera
 const tenta = async (fn) => { try { const r = await fn(); return { ok: true, r }; } catch (e) { return { ok: false, e: e.message }; } };
 const como = async (uid, fn) => { await db.exec(`set role authenticated; select set_config('tq.uid', '${uid}', false);`); try { return await fn(); } finally { await db.exec(`reset role; select set_config('tq.uid', '', false); select set_config('tq.sistema', '', false);`); } };
 const anon = async (fn) => { await db.exec(`set role anon; select set_config('tq.uid', '', false);`); try { return await fn(); } finally { await db.exec(`reset role;`); } };
-const novo = async (email, meta = {}, confirmado = true) => (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, ${confirmado ? 'now()' : 'null'}) returning id`, [email, meta])).rows[0].id;
+// confirmado: true = cadastro e depois confirmação pelo link (fluxo real); 'auto' = já nasce confirmado (confirmação automática ligada).
+const novo = async (email, meta = {}, confirmado = true) => {
+  const id = (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, ${confirmado === 'auto' ? 'now()' : 'null'}) returning id`, [email, meta])).rows[0].id;
+  if (confirmado === true) await q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]);
+  return id;
+};
 const sys = async (sql, p) => { await db.exec(`select set_config('tq.sistema', '1', false)`); try { return await q(sql, p); } finally { await db.exec(`select set_config('tq.sistema', '', false)`); } };
-const perfil = async (id) => (await q(`select * from perfis where id = $1`, [id])).rows[0];
+// Leitura de observação (o teste vê o estado real, inclusive as colunas que a API esconde).
+await db.exec(`create function t_perfil(uuid) returns setof perfis language sql security definer as 'select * from perfis where id = $1'; grant execute on function t_perfil(uuid) to authenticated, anon;`);
+const perfil = async (id) => (await q(`select * from t_perfil($1)`, [id])).rows[0];
 const n = (r) => (r.ok ? `${r.r.affectedRows ?? r.r.rows?.length} linha(s)` : `erro: ${r.e}`);
 
 // ---------- cenário ----------
@@ -90,6 +97,12 @@ await como(art, async () => {
   await q(`update perfis set codigo_acesso = 'QUAL-QUER-COIS', vinculo_nome = 'Joyce Alane', senha_definida = true where id = $1`, [art]);
   p = await perfil(art);
   reg('P02', 'artista sem vínculo grava codigo_acesso/vinculo_nome arbitrários direto na API ("só adm muda vínculos")', 'recusado (vínculo só por adm ou convite)', `codigo_acesso=${p.codigo_acesso}, vinculo_nome=${p.vinculo_nome}`, p.codigo_acesso === null);
+  // O caminho legítimo: o código colado vira pedido, e a adm (ou um convite) confirma.
+  await q(`update perfis set vinculo_pedido = 'QUAL-QUER-COIS', vinculo_pedido_nome = 'Joyce Alane' where id = $1`, [art]);
+  const ped = (await q(`select * from meu_acesso()`)).rows[0];
+  reg('P02b', 'artista pede vínculo colando o código', 'pedido guardado, vínculo vazio', `pedido=${ped?.vinculo_pedido}, codigo=${ped?.codigo_acesso}`, ped?.vinculo_pedido === 'QUAL-QUER-COIS' && ped?.codigo_acesso === null);
+  await db.exec(`reset role`); await q(`update perfis set codigo_acesso = vinculo_pedido, vinculo_nome = vinculo_pedido_nome, vinculo_pedido = null where id = $1`, [art]);
+  await db.exec(`set role authenticated`);
   await q(`update perfis set vinculo_nome = 'Djonga' where id = $1`, [art]);
   p = await perfil(art);
   reg('P03', 'artista já vinculada troca só vinculo_nome (mantendo o código)', 'vinculo_nome inalterado', `vinculo_nome=${p.vinculo_nome}`, p.vinculo_nome === 'Joyce Alane');
@@ -98,7 +111,7 @@ await como(art, async () => {
   reg('P04', 'artista vinculada troca codigo_acesso', 'inalterado', `codigo_acesso=${p.codigo_acesso}`, p.codigo_acesso === 'QUAL-QUER-COIS');
   const o = await tenta(() => q(`update perfis set nome = 'hack' where id = $1`, [art2]));
   reg('P05', 'artista altera perfil de outra', '0 linhas', n(o), o.ok && o.r.affectedRows === 0);
-  const l = await q(`select * from perfis`);
+  const l = await q(`select id from perfis`);
   reg('P06', 'artista lista perfis', 'só o próprio', `${l.rows.length} linha(s)`, l.rows.length === 1);
   const ins = await tenta(() => q(`insert into perfis (id, email, tipo) values (gen_random_uuid(), 'x@x', 'adm')`));
   reg('P07', 'artista insere perfil adm novo', 'recusado', n(ins), !ins.ok);
@@ -117,13 +130,15 @@ await como(eq, async () => {
   reg('P10', 'equipe se promove a adm', 'tipo equipe', `tipo ${p.tipo}`, p.tipo === 'equipe');
   const o = await tenta(() => q(`update perfis set tipo = 'adm' where id = $1`, [art2]));
   reg('P11', 'equipe muda tipo de outra conta', '0 linhas', n(o), o.ok && o.r.affectedRows === 0);
-  const cods = (await q(`select email, codigo_acesso from perfis where codigo_acesso is not null`)).rows;
+  const lc = await tenta(() => q(`select email, codigo_acesso from perfis where codigo_acesso is not null`));
+  const cods = lc.ok ? lc.r.rows : [];
   reg('P12', 'equipe lê codigo_acesso de artistas/casas em perfis (o pacote de equipe não traz a lista de códigos; só o de adm)', 'códigos não expostos à equipe', `${cods.length} código(s) lidos: ${cods.map((c) => c.email + '=' + c.codigo_acesso).join(', ')}`, cods.length === 0);
 });
 // adm que vinculou o código interno pela aba Conta (fluxo previsto na tela "use o código interno de vocês")
 await sys(`update perfis set codigo_acesso = 'ADMA-DMAD-MADM' where id = $1`, [adm]);
 await como(eq, async () => {
-  const r = (await q(`select codigo_acesso from perfis where id = $1`, [adm])).rows[0];
+  const lr = await tenta(() => q(`select codigo_acesso from perfis where id = $1`, [adm]));
+  const r = lr.ok ? lr.r.rows[0] : null;
   reg('P13', 'equipe lê o código do pacote de adm guardado em perfis.codigo_acesso da adm', 'oculto (chave adm é só para adm)', `codigo_acesso adm = ${r?.codigo_acesso}`, !r?.codigo_acesso);
   const c = (await q(`select tipo from chaves_internas`)).rows.map((x) => x.tipo);
   reg('P14', 'equipe lê chaves_internas', 'só equipe', c.join(','), c.length === 1 && c[0] === 'equipe');
@@ -234,7 +249,7 @@ pj = await perfil(joyU);
 reg('V12', 'conta com e-mail convidado mas NÃO confirmado tenta reivindicar', 'sem vínculo', `vinculo ${pj.vinculo_nome}`, pj.vinculo_nome === null);
 // confirmação automática (Supabase com "Confirm email" desligado): o cadastro já nasce confirmado
 await como(adm, () => q(`insert into convites (email, tipo, nome) values ('nova-adm@x.com', 'adm', 'Nova adm')`));
-const atacante = await novo('nova-adm@x.com', { tipo: 'artista', nome: 'atacante' }, true);
+const atacante = await novo('nova-adm@x.com', { tipo: 'artista', nome: 'atacante' }, 'auto');
 const pat = await perfil(atacante);
 reg('V13', 'com confirmação de e-mail desligada, quem se cadastra primeiro com o e-mail convidado herda o convite de adm', 'depende da configuração; só o dono da caixa deveria herdar', `tipo ${pat.tipo}`, pat.tipo !== 'adm');
 // admins_iniciais sem confirmação

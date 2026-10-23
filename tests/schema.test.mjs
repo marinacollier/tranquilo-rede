@@ -41,7 +41,7 @@ await como(art, async () => {
 });
 await como(art2, async () => {
   ok((await q(`select * from inscricoes_artistas`)).rows.length === 0, 'artista não vê inscrição de outra');
-  ok((await q(`select * from perfis`)).rows.length === 1, 'artista só vê o próprio perfil');
+  ok((await q(`select id from perfis`)).rows.length === 1, 'artista só vê o próprio perfil');
   await q(`update perfis set tipo = 'adm' where id = $1`, [art2]);
 });
 ok((await q(`select tipo from perfis where id = $1`, [art2])).rows[0].tipo === 'artista', 'artista não se promove a adm');

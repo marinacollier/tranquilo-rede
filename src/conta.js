@@ -71,7 +71,7 @@ const TQConta = (() => {
       async meusRegistros() { return db.reg.filter((r) => r.user_id === db.sessao); },
       async vincularCodigo(codigo, nome) {
         const p = eu(); if (p.codigo_acesso) throw new Error("Esta conta já está vinculada. Fale com a equipe para trocar.");
-        p.codigo_acesso = codigo; p.vinculo_nome = nome; gravar(); return p;
+        p.vinculo_pedido = codigo; p.vinculo_pedido_nome = nome; p.vinculo_pedido_em = agora(); gravar(); return p;
       },
       async chaveInterna() { return null; },
       async inscricoes() { exigeEquipe(); return Object.values(db.insc).map((i) => ({ ...i, perfil: db.usuarios[i.user_id]?.perfil })); },
@@ -216,7 +216,25 @@ const TQConta = (() => {
     const base = () => location.origin + location.pathname;
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
-    const perfil = async () => { const u = await uid(); if (!u) return null; return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle()); };
+    // O código de acesso não sai na leitura de perfis (só por meu_acesso, e o de todos só para a adm: schema v8).
+    // Banco ainda sem a v8: lê como antes.
+    const COLS = "id,email,nome,tipo,whatsapp,vinculo_nome,criado_em,tutorial_visto_em,senha_definida,vinculo_pedido_nome,vinculo_pedido_em";
+    const semV8 = (e) => /PGRST202|42703|Could not find the function|does not exist/i.test(`${e?.code} ${e?.message}`);
+    const perfil = async () => {
+      const u = await uid(); if (!u) return null;
+      const r = await sb.from("perfis").select(COLS).eq("id", u).maybeSingle();
+      if (r.error && semV8(r.error)) return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle());
+      const p = ok(r); if (!p) return null;
+      const a = await sb.rpc("meu_acesso");
+      return { ...p, codigo_acesso: a.data?.[0]?.codigo_acesso ?? null, vinculo_pedido: a.data?.[0]?.vinculo_pedido ?? null };
+    };
+    const lerPerfis = async (montar) => {
+      const r = await montar(sb.from("perfis").select(COLS));
+      if (r.error && semV8(r.error)) return ok(await montar(sb.from("perfis").select("*")));
+      const ps = ok(r), cods = await sb.rpc("codigos_acesso");   // vazio para quem não é adm
+      const m = Object.fromEntries((cods.data || []).map((c) => [c.id, c]));
+      return ps.map((p) => ({ ...p, codigo_acesso: m[p.id]?.codigo_acesso ?? null, vinculo_pedido: m[p.id]?.vinculo_pedido ?? null }));
+    };
     // Nota interna fica em notas_internas (só a equipe lê). Banco ainda sem essa tabela: usa a coluna antiga.
     const semTabela = (e) => /PGRST205|42P01|Could not find the table/i.test(`${e?.code} ${e?.message}`);
     const comNotas = async (alvo, linhas) => {
@@ -236,7 +254,7 @@ const TQConta = (() => {
     };
     const comPerfis = async (linhas) => {
       if (!linhas.length) return linhas;
-      const ps = ok(await sb.from("perfis").select("*").in("id", linhas.map((l) => l.user_id)));
+      const ps = await lerPerfis((x) => x.in("id", linhas.map((l) => l.user_id)));
       return linhas.map((l) => ({ ...l, perfil: ps.find((p) => p.id === l.user_id) }));
     };
     return {
@@ -282,14 +300,16 @@ const TQConta = (() => {
       async meusRegistros() { return ok(await sb.from("registros_noite").select("*").eq("user_id", await uid())); },
       async vincularCodigo(codigo, nome) {
         const p = await perfil(); if (p.codigo_acesso) throw new Error("Esta conta já está vinculada. Fale com a equipe para trocar.");
-        return ok(await sb.from("perfis").update({ codigo_acesso: codigo, vinculo_nome: nome }).eq("id", p.id).select().single());
+        // Vira pedido: a administração confirma em Pessoas (o banco não deixa a conta se vincular sozinha).
+        ok(await sb.from("perfis").update({ vinculo_pedido: codigo, vinculo_pedido_nome: nome }).eq("id", p.id));
+        return perfil();
       },
       async chaveInterna(tipo) { return ok(await sb.from("chaves_internas").select("codigo").eq("tipo", tipo).maybeSingle())?.codigo || null; },
       async inscricoes() { return comNotas("insc", await comPerfis(ok(await sb.from("inscricoes_artistas").select("*").order("enviado_em", { ascending: false, nullsFirst: false })))); },
       async avaliarInscricao(iid, campos) { campos = await guardarNota("insc", iid, campos); ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
       async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
       async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
-      async perfis() { return ok(await sb.from("perfis").select("*").order("criado_em", { ascending: false })); },
+      async perfis() { return lerPerfis((x) => x.order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
       async registrosTodos() { return ok(await sb.from("registros_noite").select("*").order("criado_em", { ascending: false })); },
@@ -434,7 +454,8 @@ const TQConta = (() => {
     }
     S.conta = conta;
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
-    const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso;
+    // Código colado e ainda não confirmado pela adm também abre as métricas (é o mesmo que entrar pelo código).
+    const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso || perfil.vinculo_pedido;
     S.pac = null; S.eq = null; S.hub = null; S.campAberta = null;   // nada da conta anterior fica na tela
     if (cod) {
       // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
@@ -729,9 +750,9 @@ const TQConta = (() => {
     },
     conta() {
       const p = S.conta.perfil;
-      const podeVincular = !p.codigo_acesso && !S.pac;
+      const podeVincular = !p.codigo_acesso && !p.vinculo_pedido && !S.pac;
       return `<div class="tag">Conta</div><h1>${esc(p.nome || p.email)}</h1>
-      <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
+      <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : p.vinculo_pedido_nome ? `${esc(p.vinculo_pedido_nome)} <span class="badge b-warn">aguardando a equipe confirmar</span> <span class="muted" style="font-size:13px">as métricas já aparecem enquanto isso</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
       ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
@@ -1182,6 +1203,10 @@ const TQConta = (() => {
   }
   function seletorVinculo(p) {
     const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === p.tipo);
+    if (p.vinculo_pedido && !p.codigo_acesso) {
+      const certo = acessos.find((a) => a.codigo === p.vinculo_pedido);
+      return `<div><span class="badge b-warn">pediu: ${esc(p.vinculo_pedido_nome || "?")}</span> ${certo ? `<button class="btn sm" data-vinculo-confirmar="${p.id}">Confirmar</button>` : `<span class="muted" style="font-size:12px">código não confere com ${acessos.length ? "nenhuma conta da rede" : "o pacote (entre com o código de adm)"}</span>`} <button class="btn sm" data-vinculo-recusar="${p.id}">Recusar</button></div>`;
+    }
     if (!acessos.length) return p.vinculo_nome ? esc(p.vinculo_nome) : `<span class="muted">entre com o código de adm para vincular</span>`;
     return `<select data-vinculo="${p.id}"><option value="">Sem vínculo</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${p.codigo_acesso === a.codigo ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>`;
   }
@@ -1504,6 +1529,12 @@ const TQConta = (() => {
       return;
     }
     if (await cliquesContrato(t)) return;
+    const vc = t.closest("[data-vinculo-confirmar], [data-vinculo-recusar]"); if (vc) {
+      const pid = vc.dataset.vinculoConfirmar || vc.dataset.vinculoRecusar, p = (S.eq?.perfis || []).find((x) => x.id === pid); if (!p) return;
+      const a = vc.dataset.vinculoConfirmar && (S.pac?.acessos || []).find((x) => x.codigo === p.vinculo_pedido && x.tipo === p.tipo);
+      await api.atualizarPerfil(pid, a ? { codigo_acesso: a.codigo, vinculo_nome: a.nome, vinculo_pedido: null, vinculo_pedido_nome: null } : { vinculo_pedido: null, vinculo_pedido_nome: null });
+      S.eq = null; render(); return;
+    }
     const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
       if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
       try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(e.message); }

@@ -20,7 +20,7 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
 ## Para o Claude (próximas sessões)
 
 - [ ] Relatório de QA: terminar as seções A, B, D, E e I (https://claude.ai/artifact/GoyzkkPo58fVfgTb8o2AdE).
-- [ ] Fechar os 6 pontos de segurança em aberto (P02, P09, P12, P13, V13, X03), listados em `tests/seguranca.test.mjs`.
+- [x] Os 6 pontos de segurança em aberto (P02, P09, P12, P13, V13, X03) foram fechados no schema v8 em 23/10. Agora vincular uma conta por código vira um pedido, que a administração confirma em Pessoas.
 - [ ] Contrato automático, versão 2. Ideias:
   - contrato de casa e de franquia;
   - PDF de verdade, em vez do "imprimir ou salvar em PDF" do navegador;
