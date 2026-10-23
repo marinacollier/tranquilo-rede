@@ -1,6 +1,9 @@
 // Tutorial guiado do primeiro acesso, um roteiro por perfil.
 // Abre sozinho na primeira vez que a conta entra (perfis.tutorial_visto_em vazio) e também por link:
 //   #tutorial-artista · #tutorial-casa · #tutorial-equipe · #tutorial-adm · #tutorial-publico
+// Botões: Avançar/Voltar, "Pular tutorial" (não abre mais sozinho), × ou Esc = Fechar (pausa: no próximo acesso
+// continua do passo onde parou, uma vez só) e "Concluir" no último passo. "Ver de novo" abre o roteiro inteiro
+// e não muda nada do que já foi visto.
 "use strict";
 const TQTour = (() => {
   // Cada passo: título, texto, lista curta do que fazer e, opcionalmente, um atalho para uma aba.
@@ -118,6 +121,9 @@ const TQTour = (() => {
   };
 
   let el = null, estado = null;
+  const PAUSAS = 1;   // quantas vezes o tutorial volta sozinho depois de fechado no ×, antes de contar como visto
+  const ler = (k) => { try { return JSON.parse(localStorage.getItem(k) || "null"); } catch { return null; } };
+  const gravar = (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, JSON.stringify(v)); } catch { /* sem armazenamento */ } };
 
   function html() {
     const r = ROTEIROS[estado.perfil], passos = estado.passos, p0 = passos[estado.i], ultimo = estado.i === passos.length - 1;
@@ -126,17 +132,21 @@ const TQTour = (() => {
     const p = p0.requer && !tem(p0.requer)
       ? { ...p0, texto: p0.texto + " Este painel aparece depois que você cola o código interno da equipe na aba Conta.", ir: tem("conta") ? ["conta", "Abrir Conta"] : null }
       : { ...p0, ir: p0.ir && tem(p0.ir[0]) ? p0.ir : null };
+    const modo = estado.novidades ? "Novidades" : estado.retomou ? "Continuando o tutorial" : "Tutorial";
     return `<div class="tour-caixa" role="dialog" aria-modal="true" aria-labelledby="tourTit">
-      <div class="tour-topo"><span class="tag">${estado.novidades ? "Novidades" : "Tutorial"} · ${esc(r.rotulo)}</span><button class="tour-x" data-tour="pular" aria-label="Pular tutorial">Pular</button></div>
+      <div class="tour-topo"><span class="tag">${modo} · ${esc(r.rotulo)}</span><button class="tour-x" data-tour="fechar" aria-label="${estado.primeira ? "Fechar (continua depois)" : "Fechar"}" title="${estado.primeira ? "Fechar: no próximo acesso o tutorial continua daqui" : "Fechar"}">×</button></div>
       <div class="tour-num" aria-hidden="true">${estado.i + 1}<small>/${passos.length}</small></div>
       <h2 id="tourTit">${esc(p.titulo)}</h2>
       <p>${esc(p.texto)}</p>
       ${p.itens?.length ? `<ul>${p.itens.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : ""}
       ${p.ir && estado.aoIr ? `<button class="btn sm" data-tour="ir" data-aba-tour="${p.ir[0]}">${esc(p.ir[1])} →</button>` : ""}
+      ${ultimo && estado.dicaRever ? `<p class="tour-dica">Para ver de novo: ${esc(estado.dicaRever)}.</p>` : ""}
+      ${estado.novidades && estado.completo ? `<button class="tour-link" data-tour="completo">Ver o tutorial completo</button>` : ""}
       <div class="tour-pontos" aria-label="Passos">${passos.map((_, i) => `<button${i === estado.i ? ' aria-current="step"' : ""} aria-label="Passo ${i + 1} de ${passos.length}" data-tour="ir-passo" data-i="${i}" class="${i === estado.i ? "on" : i < estado.i ? "feito" : ""}"></button>`).join("")}</div>
       <div class="tour-acoes">
         <button class="btn" data-tour="voltar"${estado.i === 0 ? " disabled" : ""}>Voltar</button>
-        <button class="btn pri" data-tour="avancar" autofocus>${ultimo ? "Começar" : "Avançar"}</button>
+        ${ultimo ? "" : `<button class="tour-link" data-tour="pular">Pular tutorial</button>`}
+        <button class="btn pri" data-tour="avancar" autofocus>${ultimo ? "Concluir" : "Avançar"}</button>
       </div></div>`;
   }
 
@@ -151,20 +161,39 @@ const TQTour = (() => {
     el.querySelector('[data-tour="avancar"]')?.focus();
   }
 
-  function fechar(concluiu) {
+  // motivo: "concluiu" (último passo), "pulou" (Pular tutorial), "fechou" (× ou Esc) ou "atalho" (botão que leva a uma aba).
+  // No primeiro acesso, "fechou" e "atalho" deixam o tutorial pendente: ele volta do mesmo passo no próximo acesso (PAUSAS vezes).
+  function fechar(motivo) {
     if (!el) return;
     document.removeEventListener("keydown", teclas);
     document.querySelectorAll(".tour-foco").forEach((x) => x.classList.remove("tour-foco"));
     estado.inertes.forEach((x) => { x.inert = false; });
     el.remove(); el = null;
-    const fim = estado.aoFechar, antes = estado.foco; estado = null;
-    fim?.(concluiu);
-    if (antes && antes.isConnected && document.activeElement === document.body) antes.focus?.();
+    const e = estado; estado = null;
+    // "Ver de novo" só conta como visto se for até o fim (e aí apaga uma pausa pendente).
+    let visto = e.primeira || motivo === "concluiu";
+    if (!e.primeira && visto && e.chave) gravar(`tq-tour-${e.chave}`, null);
+    if (e.primeira && e.chave) {
+      const prog = ler(`tq-tour-${e.chave}`) || {};
+      const pausa = motivo === "fechou" || motivo === "atalho", pausas = (prog.pausas || 0) + (pausa ? 1 : 0);
+      visto = !pausa || pausas > PAUSAS;
+      gravar(`tq-tour-${e.chave}`, visto ? null : { i: e.i, pausas });
+    }
+    try { window.TQDiario?.registrar("tutorial", { roteiro: e.perfil, motivo, passo: e.i + 1, de: e.passos.length, modo: e.novidades ? "novidades" : e.primeira ? "primeiro" : "rever" }); } catch { /* diário é opcional */ }
+    e.aoFechar?.(visto, motivo);
+    if (e.primeira && motivo !== "concluiu" && motivo !== "completo" && e.dicaRever) avisar(visto ? `Tutorial ${motivo === "pulou" ? "pulado" : "fechado"}. Para ver de novo: ${e.dicaRever}.` : `Tutorial pausado: no próximo acesso ele continua do passo ${e.i + 1}. Ou abra agora em ${e.dicaRever}.`);
+    if (e.foco && e.foco.isConnected && document.activeElement === document.body) e.foco.focus?.();
+  }
+  // Aviso curto no canto da tela, que some sozinho.
+  function avisar(txt) {
+    document.querySelector(".tour-aviso")?.remove();
+    const a = document.createElement("div"); a.className = "tour-aviso"; a.setAttribute("role", "status"); a.textContent = txt;
+    document.body.appendChild(a); setTimeout(() => a.remove(), 7000);
   }
 
   function teclas(ev) {
     if (!el) return;
-    if (ev.key === "Escape") { ev.preventDefault(); fechar(false); }
+    if (ev.key === "Escape") { ev.preventDefault(); fechar("fechou"); }
     else if (ev.key === "ArrowRight") { ev.preventDefault(); passo(1); }
     else if (ev.key === "ArrowLeft") { ev.preventDefault(); passo(-1); }
     else if (ev.key === "Tab") {
@@ -179,7 +208,7 @@ const TQTour = (() => {
 
   function passo(d) {
     const n = estado.passos.length, i = estado.i + d;
-    if (i >= n) return fechar(true);
+    if (i >= n) return fechar("concluiu");
     if (i < 0) return;
     estado.i = i; desenhar();
   }
@@ -196,29 +225,37 @@ const TQTour = (() => {
     const cobertas = new Set(ROTEIROS[perfil].passos.flatMap((p) => [...(p.cobre || []), ...(p.ir ? [p.ir[0]] : []), ...(p.soSe ? [p.soSe] : [])]));
     return abas.filter((a) => !cobertas.has(a));
   }
-  /** Abre o tutorial do perfil. aoIr(aba) navega para a aba; temAba(aba) diz se ela existe; aoFechar(concluiu) registra que foi visto.
+  /** Abre o tutorial do perfil. aoIr(aba) navega para a aba; temAba(aba) diz se ela existe.
+   *  primeira: abriu sozinho (primeiro acesso ou novidades); chave: onde guardar a pausa neste aparelho.
+   *  aoFechar(visto, motivo): visto = pode marcar como visto (não volta sozinho). dicaRever: onde rever ("Como funciona, no menu").
    *  desde: data em que a pessoa viu o tutorial; abre só as novidades (e não abre se não houver). Devolve se abriu. */
-  function abrir(perfil, { aoFechar, aoIr, temAba, desde } = {}) {
+  function abrir(perfil, { aoFechar, aoIr, temAba, desde, primeira = false, chave, dicaRever } = {}) {
     if (!ROTEIROS[perfil]) return false;
-    if (el) fechar(false);
+    if (el) fechar("fechou");
     const foco = document.activeElement;
     // O resto da página fica inerte (fora do Tab e do leitor de tela) enquanto o tutorial está aberto.
     const inertes = [...document.body.children].filter((x) => !x.inert && x.tagName !== "SCRIPT");
     inertes.forEach((x) => { x.inert = true; });
     const passos = passosDe(perfil, temAba, desde);
     if (!passos.length) { inertes.forEach((x) => { x.inert = false; }); return false; }
-    estado = { perfil, i: 0, passos, aoFechar, aoIr, temAba, foco, inertes, novidades: !!desde };
+    // Fechado no × da última vez: continua do mesmo passo.
+    const prog = primeira && chave ? ler(`tq-tour-${chave}`) : null;
+    const i0 = prog && Number.isInteger(prog.i) ? Math.min(prog.i, passos.length - 1) : 0;
+    estado = { perfil, i: i0, passos, aoFechar, aoIr, temAba, foco, inertes, novidades: !!desde, retomou: i0 > 0, primeira, chave, dicaRever,
+      completo: () => { fechar("completo"); abrir(perfil, { aoIr, temAba, dicaRever, chave, aoFechar }); } };
     el = document.createElement("div");
     el.className = "tour";
     el.addEventListener("click", (ev) => {
       const b = ev.target.closest("[data-tour]");
-      if (!b) { if (ev.target === el) fechar(false); return; }
+      if (!b) return;   // clicar fora da caixa não fecha: evita perder o tutorial sem querer
       const acao = b.dataset.tour;
       if (acao === "avancar") passo(1);
       else if (acao === "voltar") passo(-1);
-      else if (acao === "pular") fechar(false);
+      else if (acao === "pular") fechar("pulou");
+      else if (acao === "fechar") fechar("fechou");
+      else if (acao === "completo") estado.completo();
       else if (acao === "ir-passo") { estado.i = +b.dataset.i; desenhar(); }
-      else if (acao === "ir") { const aba = b.dataset.abaTour, ir = estado.aoIr; fechar(false); ir?.(aba); }
+      else if (acao === "ir") { const aba = b.dataset.abaTour, ir = estado.aoIr; fechar("atalho"); ir?.(aba); }
     });
     document.body.appendChild(el);
     document.addEventListener("keydown", teclas);

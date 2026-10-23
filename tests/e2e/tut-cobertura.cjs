@@ -24,7 +24,7 @@ async function confere(p, roteiro, rotulo) {
     const ir = await p.$('.tour-caixa [data-tour="ir"]'); if (ir) { const aba = await ir.getAttribute('data-aba-tour'); if (!r.abas.includes(aba)) ok(false, `${rotulo}: atalho para aba inexistente ${aba}`); }
     await p.click('.tour-caixa [data-tour="avancar"]'); await p.waitForTimeout(60);
   }
-  ok(!(await p.$('.tour-caixa')), `${rotulo}: "Começar" fecha o tutorial`);
+  ok(!(await p.$('.tour-caixa')), `${rotulo}: "Concluir" fecha o tutorial`);
   return r;
 }
 (async () => {

@@ -1145,12 +1145,12 @@ const TQConta = (() => {
     else if (p.tutorial_visto_em.slice(0, 10) < TQTour.NOVIDADES) abrirTutorial(p.tipo, true, p.tutorial_visto_em);
   }
   function abrirTutorial(tipo, primeira, desde) {
-    TQTour.abrir(tipo, { desde,
+    TQTour.abrir(tipo, { desde, primeira, chave: "conta-" + tipo, dicaRever: S.conta ? "aba Conta → \"Ver o tutorial de novo\", ou \"Como funciona\" no menu" : null,
       // Atalhos para abas só fazem sentido com a conta aberta; pelo link público o tutorial é só leitura.
       aoIr: S.conta ? (aba) => { if (S.conta && abas().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } } : null,
       temAba: S.conta ? (aba) => abas().some(([k]) => k === aba) : null,
-      aoFechar: async () => {
-        if (!primeira || !S.conta) return;
+      aoFechar: async (visto) => {
+        if (!visto || !S.conta) return;
         S.conta.perfil.tutorial_visto_em = new Date().toISOString();
         try { await api.marcarTutorial(); } catch { /* fica para a próxima vez */ }
       },
@@ -1549,7 +1549,8 @@ const TQConta = (() => {
   function tutorialPublico(forcar) {
     if (S.conta || TQTour.aberto()) return;
     if (!forcar && store.get("tq-tutorial-publico")) return;
-    TQTour.abrir("publico", { aoFechar: () => { store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
+    TQTour.abrir("publico", { primeira: !forcar, chave: "publico", dicaRever: "botão \"Como funciona\", no topo da página",
+      aoFechar: (visto) => { if (visto) store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
   }
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }

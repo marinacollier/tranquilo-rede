@@ -18,9 +18,11 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   ok(/Avise-me/.test(await p.textContent('#tourTit')), 'público: avança para o passo do aviso');
   ok(await p.$('#avise.tour-foco') !== null, 'público: destaca o bloco "Me avise" na página');
   await p.click('[data-tour="voltar"]'); ok(/Agenda e ingressos/.test(await p.textContent('#tourTit')), 'público: voltar funciona');
-  await p.keyboard.press('Escape'); ok(await p.$('.tour') === null, 'público: Esc pula o tutorial');
-  await p.reload(); await p.waitForTimeout(1500);
-  ok(await p.$('.tour') === null, 'público: não reabre na segunda visita');
+  await p.keyboard.press('Escape'); ok(await p.$('.tour') === null, 'público: Esc fecha (pausa) o tutorial');
+  await p.reload(); await p.waitForSelector('.tour-caixa', { timeout: 8000 });
+  ok(/Continuando/.test(await p.textContent('.tour-caixa .tag')) && /Agenda e ingressos/.test(await p.textContent('#tourTit')), 'público: depois de fechar, a próxima visita continua do mesmo passo');
+  await p.click('[data-tour="pular"]'); await p.reload(); await p.waitForTimeout(1500);
+  ok(await p.$('.tour') === null, 'público: depois de "Pular tutorial", não reabre');
   await p.click('[data-como-funciona]'); ok(await p.$('.tour') !== null, 'público: "Como funciona" reabre'); await p.click('[data-tour="pular"]');
   // 2. Me avise
   await p.selectOption('#avCidade', '__outra'); ok(await p.isVisible('#avOutra'), 'aviso: "Outra cidade" abre campo');
@@ -40,11 +42,14 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   ok(await p.$('.tour') === null && /Inscreva-se na rede/.test(await p.textContent('#app')), 'artista: atalho do tutorial abre a inscrição');
   await p.click('#sair'); await p.waitForTimeout(300);
   await p.click('#entrar'); await p.waitForTimeout(150); await p.fill('#email', 'nova@teste.com'); await p.fill('#esenha', 'senha123'); await p.click('#eok'); await p.waitForTimeout(800);
-  ok(await p.$('.tour') === null, 'artista: tutorial não reabre no segundo login');
+  ok(/^Continuando/.test(await p.textContent('.tour-caixa .tag').catch(() => '')), 'artista: no segundo login o tutorial continua de onde o atalho parou');
+  await p.click('[data-tour="pular"]'); await p.click('#sair'); await p.waitForTimeout(300);
+  await p.click('#entrar'); await p.waitForTimeout(150); await p.fill('#email', 'nova@teste.com'); await p.fill('#esenha', 'senha123'); await p.click('#eok'); await p.waitForTimeout(800);
+  ok(await p.$('.tour') === null, 'artista: depois de pular, não reabre no login seguinte');
   await p.click('[data-aba="conta"]'); await p.click('[data-rever-tutorial]'); ok(await p.$('.tour') !== null, 'artista: "Ver o tutorial de novo" reabre');
   const nPassos = await p.$$eval('.tour-pontos button', (x) => x.length);   // o roteiro cresce quando entram abas novas
   for (let i = 0; i < nPassos; i++) await p.click('[data-tour="avancar"]');
-  ok(await p.$('.tour') === null, 'artista: "Começar" no último passo fecha');
+  ok(await p.$('.tour') === null, 'artista: "Concluir" no último passo fecha');
   await p.click('#sairConta'); await p.waitForTimeout(300);
   // 4. Equipe: convite, tutorial, demanda
   await p.click('#entrar'); await p.waitForTimeout(150); await p.click('[data-demo="equipe"]'); await p.waitForSelector('.tour-caixa');
