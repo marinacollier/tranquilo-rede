@@ -35,7 +35,7 @@ for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist'
 }
 
 // 3. Funções
-for (const f of ['pre_curadoria', 'pendencias_casa', 'eh_equipe', 'eh_adm']) {
+for (const f of ['pre_curadoria', 'pendencias_casa', 'eh_equipe', 'eh_adm', 'meu_acesso', 'codigos_acesso']) {
   const corpo = f === 'pre_curadoria' || f === 'pendencias_casa' ? JSON.stringify({ d: {} }) : '{}';
   const r = await pedir(`/rest/v1/rpc/${f}`, { method: 'POST', body: corpo });
   const falta = /PGRST202|Could not find the function/i.test(codigo(r.corpo));
