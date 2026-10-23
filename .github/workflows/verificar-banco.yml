@@ -21,6 +21,8 @@ jobs:
       - name: Verificar
         id: v
         run: node supabase/verificar.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         continue-on-error: true
       - name: Guardar resultado na branch verificacao
         run: |

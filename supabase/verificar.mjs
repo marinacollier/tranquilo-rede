@@ -66,5 +66,15 @@ reg('site publicado aponta para este Supabase', site.includes(url), site.include
 const lib = await fetch('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm').then((r) => r.status).catch(() => 0);
 reg('biblioteca supabase-js (CDN)', lib === 200, `HTTP ${lib}`);
 
+// 6. Com o token do Supabase (segredo SUPABASE_ACCESS_TOKEN): ensaia o schema.sql inteiro numa transação desfeita
+// no fim (rollback). Não muda nada no banco; se alguma parte falhar, mostra o erro exato que o SQL Editor daria.
+const tok = process.env.SUPABASE_ACCESS_TOKEN, ref = url.match(/https:\/\/([^.]+)\./)?.[1];
+if (tok && ref) {
+  const q = async (query) => { const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); return { status: r.status, corpo: await r.text() }; };
+  const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
+  const e = await q(`begin;\n${schema}\n;rollback;`);
+  reg('schema.sql roda sem erro (ensaio desfeito)', e.status < 300, e.status < 300 ? 'todas as seções rodaram' : `HTTP ${e.status} ${e.corpo.slice(0, 600)}`);
+}
+
 await writeFile('verificacao.json', JSON.stringify({ quando: new Date().toISOString(), url, resultados: res }, null, 2));
 process.exitCode = res.every((r) => r.ok) ? 0 : 1;
