@@ -14,7 +14,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
     await p.click('label:has(input[name="tipoNovo"][value="casa"])'); await p.waitForTimeout(200);
     await p.fill('#enome', 'Rooftap Teste'); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
-    await p.waitForSelector('[data-aba="campanha"]', { timeout: 8000 }); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    // "Pular tutorial" (Esc só pausa: o tutorial voltaria depois do recarregar e cobriria a tela).
+    await p.waitForSelector('[data-aba="campanha"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
     await p.click('[data-aba="campanha"]'); await p.waitForSelector('.camp-dia', { timeout: 5000 });
     ok((await p.$$('.camp-dia')).length === 10, 'casa vê os 10 dias da campanha do Rooftap');
     ok(/0 de 10 dias feitos/.test(await p.innerText('#app')), 'progresso começa em 0 de 10');
