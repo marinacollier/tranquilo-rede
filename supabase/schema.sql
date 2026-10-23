@@ -1320,3 +1320,125 @@ begin
 end $$;
 revoke all on function contrato_salvar_dados(uuid, jsonb), contrato_li_ate_o_fim(uuid), assinar_contrato(uuid, text, text) from public, anon;
 grant execute on function contrato_salvar_dados(uuid, jsonb), contrato_li_ate_o_fim(uuid), assinar_contrato(uuid, text, text) to authenticated;
+
+-- =====================================================================
+-- v8: segurança — P09, V13 e X03 (tests/seguranca.test.mjs). Só banco, compatível com o site no ar.
+-- P02, P12 e P13 dependem de mudança no site e ficam para a v9.
+-- =====================================================================
+
+-- P09: o gatilho não confia mais na configuração tq.sistema, que qualquer sessão consegue mudar.
+-- Passa direto só o que o próprio banco faz: as funções do sistema rodam como dona da tabela
+-- (security definer); quem usa o site roda como "authenticated" ou "anon" e não consegue trocar isso.
+create or replace function proteger_perfil() returns trigger
+language plpgsql security invoker set search_path = public as $$
+begin
+  if current_user not in ('authenticated', 'anon') then return new; end if;
+  if not eh_adm() then
+    new.tipo := old.tipo;
+    new.email := old.email;
+    if old.codigo_acesso is not null or new.codigo_acesso is not distinct from old.codigo_acesso then
+      new.codigo_acesso := old.codigo_acesso;
+      new.vinculo_nome := old.vinculo_nome;
+    end if;
+  elsif old.tipo = 'adm' and new.tipo <> 'adm' and (select count(*) from perfis where tipo = 'adm') <= 1 then
+    raise exception 'Esta é a última conta de administração: promova outra pessoa antes.';
+  end if;
+  return new;
+end $$;
+revoke all on function proteger_perfil() from public, anon, authenticated;
+
+-- V13: convite de equipe ou administração só vale com prova de que a pessoa é dona da caixa de e-mail:
+-- a passagem de "não confirmado" para "confirmado" (clique no link). Cadastrar-se com o e-mail convidado
+-- não basta, mesmo se o Supabase estiver com a confirmação de e-mail desligada. Quem já tem conta e foi
+-- convidada para equipe/adm é promovida pela administração, em Pessoas.
+create or replace function aplicar_convite_interno(uid uuid, mail text, caixa_provada boolean) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites; atual perfis; do_adm boolean;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  if c.tipo in ('equipe', 'adm') and not caixa_provada then return false; end if;  -- convite continua pendente
+  select * into atual from perfis where id = uid;
+  do_adm := exists (select 1 from perfis where id = c.criado_por and tipo = 'adm');
+  if not do_adm and (atual.tipo in ('equipe', 'adm') or atual.codigo_acesso is not null
+      or (atual.tipo is distinct from c.tipo and (exists (select 1 from inscricoes_artistas where user_id = uid)
+                                                  or exists (select 1 from cadastros_casas where user_id = uid)))) then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.codigo_acesso, p.codigo_acesso) end,
+    vinculo_nome = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.vinculo_nome, p.vinculo_nome) end
+  where p.id = uid;
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+revoke all on function aplicar_convite_interno(uuid, text, boolean) from public, anon, authenticated;
+
+-- Caminhos sem prova da caixa (cadastro, reivindicar ao entrar): só convites de artista e casa.
+create or replace function aplicar_convite(uid uuid, mail text) returns boolean
+language sql security definer set search_path = public as $$
+  select aplicar_convite_interno(uid, mail, false);
+$$;
+revoke all on function aplicar_convite(uuid, text) from public, anon, authenticated;
+
+-- Confirmação do e-mail é a prova da caixa: aqui convites de equipe/adm valem.
+create or replace function ao_confirmar_email() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.email_confirmed_at is null and new.email_confirmed_at is not null then
+    if exists (select 1 from admins_iniciais where email = lower(new.email)) then
+      update perfis set tipo = 'adm' where id = new.id;
+    end if;
+    perform aplicar_convite_interno(new.id, new.email, true);
+  end if;
+  return new;
+end $$;
+revoke all on function ao_confirmar_email() from public, anon, authenticated;
+
+-- X03: links nos dados de artista e casa só podem ser http(s). Bloqueia javascript:, data:, vbscript: e file:
+-- em qualquer campo de texto do formulário (inclusive listas), porque viram <a href> nas telas da equipe.
+create or replace function sem_link_perigoso() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.dados is not null and exists (
+    select 1 from jsonb_path_query(new.dados, 'lax $.** ? (@.type() == "string")') v
+    where (v #>> '{}') ~* '^[[:space:]]*(javascript|data|vbscript|file)[[:space:]]*:'
+  ) then
+    raise exception 'Link inválido: use um endereço que comece com http:// ou https://.' using errcode = '22023';
+  end if;
+  return new;
+end $$;
+revoke all on function sem_link_perigoso() from public, anon, authenticated;
+drop trigger if exists trg_inscricao_alinks on inscricoes_artistas;
+create trigger trg_inscricao_alinks before insert or update on inscricoes_artistas for each row execute function sem_link_perigoso();
+drop trigger if exists trg_casa_alinks on cadastros_casas;
+create trigger trg_casa_alinks before insert or update on cadastros_casas for each row execute function sem_link_perigoso();
+
+-- V13 (cadastro): a conta que já nasce confirmada e SEM senha veio de link mágico ou convite por e-mail,
+-- ou seja, a pessoa clicou num link que chegou na caixa dela: isso prova a caixa. Já quem se cadastra
+-- com senha e nasce confirmada (confirmação de e-mail desligada no Supabase) não provou nada:
+-- não vira adm pela lista inicial nem herda convite de equipe/adm; isso só vale ao confirmar o e-mail.
+create or replace function novo_usuario() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  pedido text := coalesce(new.raw_user_meta_data ->> 'tipo', 'artista');
+  caixa_provada boolean := new.email_confirmed_at is not null and coalesce(new.encrypted_password, '') = '';
+begin
+  insert into perfis (id, email, nome, tipo, senha_definida)
+  values (
+    new.id, lower(new.email), coalesce(new.raw_user_meta_data ->> 'nome', ''),
+    case
+      when caixa_provada and exists (select 1 from admins_iniciais where email = lower(new.email)) then 'adm'::tipo_perfil
+      when pedido = 'casa' then 'casa'::tipo_perfil
+      else 'artista'::tipo_perfil
+    end,
+    coalesce(new.encrypted_password, '') <> ''
+  ) on conflict (id) do nothing;
+  if new.email_confirmed_at is not null then perform aplicar_convite_interno(new.id, new.email, caixa_provada); end if;
+  return new;
+end $$;
+revoke all on function novo_usuario() from public, anon, authenticated;

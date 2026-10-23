@@ -14,7 +14,7 @@ grant usage on schema auth to authenticated, anon; grant execute on function aut
 const schema = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8');
 await db.exec(schema); await db.exec(schema); // idempotente
 await q(`insert into admins_iniciais values ('adm@x.com')`);
-const novo = async (email, tipo) => (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, now()) returning id`, [email, { tipo, nome: email.split('@')[0] }])).rows[0].id;
+const novo = async (email, tipo) => { const id = (await q(`insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id`, [email, { tipo, nome: email.split('@')[0] }])).rows[0].id; await q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]); return id; };  // cadastro com senha e depois confirmação do e-mail (fluxo real)
 const adm = await novo('adm@x.com', 'artista'), art = await novo('art@x.com', 'artista'), art2 = await novo('art2@x.com', 'artista');
 const como = async (uid, fn) => { await db.exec(`set role authenticated; select set_config('tq.uid', '${uid}', false);`); try { return await fn(); } finally { await db.exec(`reset role; select set_config('tq.uid', '', false);`); } };
 const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) process.exitCode = 1; };
