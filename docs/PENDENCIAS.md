@@ -13,9 +13,9 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
   1. Criar uma integração interna só de leitura em notion.so/profile/integrations.
   2. Salvar a chave como `NOTION_TOKEN`.
   3. Conectar a integração às bases Eventos e Base de conhecimento (⋯ → Conexões).
-- [ ] **Artistas e bandas (Notion).** O pedido já foi feito ao Thales. Quando ele liberar, testar o acesso de novo.
+- [x] **Artistas e bandas (Notion):** acesso liberado e conferido em 23/10.
 - [ ] **Antes do time testar os tutoriais:** `update perfis set tutorial_visto_em = null where email like 'teste-%@gmail.com';`
-- [ ] **Contrato automático:** o jurídico confirma se a assinatura eletrônica simples serve para os contratos de artista. Ela registra o nome digitado, a leitura até o fim, o hash SHA-256, a hora, o IP e o navegador. Também confirma se algum tipo de contrato precisa de gov.br ou de uma plataforma como Clicksign.
+- [ ] **Contrato automático:** perguntar ao Thales que sistema assina hoje. No Notion não há Clicksign nem DocuSign; os campos de auditoria e o "Link para enviar para artista preencher dados do contrato" indicam um fluxo próprio, ainda não validado. Também: o jurídico confirma se a assinatura eletrônica simples serve para os contratos de artista. Ela registra o nome digitado, a leitura até o fim, o hash SHA-256, a hora, o IP e o navegador. Também confirma se algum tipo de contrato precisa de gov.br ou de uma plataforma como Clicksign.
 
 ## Para o Claude (próximas sessões)
 
