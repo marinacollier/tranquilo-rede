@@ -31,12 +31,8 @@ const reg = (id, desc, esperado, observado, ok) => { res.push({ id, desc, espera
 const tenta = async (fn) => { try { const r = await fn(); return { ok: true, r }; } catch (e) { return { ok: false, e: e.message }; } };
 const como = async (uid, fn) => { await db.exec(`set role authenticated; select set_config('tq.uid', '${uid}', false);`); try { return await fn(); } finally { await db.exec(`reset role; select set_config('tq.uid', '', false); select set_config('tq.sistema', '', false);`); } };
 const anon = async (fn) => { await db.exec(`set role anon; select set_config('tq.uid', '', false);`); try { return await fn(); } finally { await db.exec(`reset role;`); } };
-// confirmado: true = cadastro e depois confirmação pelo link (fluxo real); 'auto' = já nasce confirmado (confirmação automática ligada).
-const novo = async (email, meta = {}, confirmado = true) => {
-  const id = (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, ${confirmado === 'auto' ? 'now()' : 'null'}) returning id`, [email, meta])).rows[0].id;
-  if (confirmado === true) await q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]);
-  return id;
-};
+const novo = async (email, meta = {}, confirmado = true) => { const id = (await q(`insert into auth.users (email, raw_user_meta_data) values ($1, $2) returning id`, [email, meta])).rows[0].id; if (confirmado) await q(`update auth.users set email_confirmed_at = now() where id = $1`, [id]); return id; };  // cadastro e depois confirmação (fluxo real)
+const novoJaConfirmado = async (email, meta = {}) => (await q(`insert into auth.users (email, raw_user_meta_data, email_confirmed_at) values ($1, $2, now()) returning id`, [email, meta])).rows[0].id;  // cadastro com senha e confirmação desligada
 const sys = async (sql, p) => { await db.exec(`select set_config('tq.sistema', '1', false)`); try { return await q(sql, p); } finally { await db.exec(`select set_config('tq.sistema', '', false)`); } };
 // Leitura de observação (o teste vê o estado real, inclusive as colunas que a API esconde).
 await db.exec(`create function t_perfil(uuid) returns setof perfis language sql security definer as 'select * from perfis where id = $1'; grant execute on function t_perfil(uuid) to authenticated, anon;`);
@@ -249,7 +245,7 @@ pj = await perfil(joyU);
 reg('V12', 'conta com e-mail convidado mas NÃO confirmado tenta reivindicar', 'sem vínculo', `vinculo ${pj.vinculo_nome}`, pj.vinculo_nome === null);
 // confirmação automática (Supabase com "Confirm email" desligado): o cadastro já nasce confirmado
 await como(adm, () => q(`insert into convites (email, tipo, nome) values ('nova-adm@x.com', 'adm', 'Nova adm')`));
-const atacante = await novo('nova-adm@x.com', { tipo: 'artista', nome: 'atacante' }, 'auto');
+const atacante = await novoJaConfirmado('nova-adm@x.com', { tipo: 'artista', nome: 'atacante' });
 const pat = await perfil(atacante);
 reg('V13', 'com confirmação de e-mail desligada, quem se cadastra primeiro com o e-mail convidado herda o convite de adm', 'depende da configuração; só o dono da caixa deveria herdar', `tipo ${pat.tipo}`, pat.tipo !== 'adm');
 // admins_iniciais sem confirmação
