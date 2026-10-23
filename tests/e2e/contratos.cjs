@@ -25,6 +25,13 @@ E por estarem de acordo, assinam.`;
     // equipe: modelo e envio
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular();
     await p.click('[data-aba="documentos"]'); await p.waitForSelector('#contrAuto');
+    {
+      // Datas próximas sem contrato: "Preparar contrato" já escolhe a data.
+      const pre = await p.$('[data-ct-pre]');
+      if (pre) { const ev = (await pre.getAttribute('data-ct-pre')).split('|')[0]; await pre.click(); await p.waitForTimeout(200);
+        ok(await p.inputValue('#ctEv') === ev && /sem contrato/.test(await p.textContent('#app')), 'lista de datas sem contrato e "Preparar contrato" já escolhe a data'); }
+      else ok(false, 'lista de datas sem contrato não apareceu');
+    }
     await p.click('#contrAuto summary'); await p.fill('#mcNome', 'Apresenta artista'); await p.fill('#mcTexto', MODELO); await p.click('#mcOk');
     await p.waitForSelector('[data-ct-mod-editar]');
     ok(/Apresenta artista.*7 campos/s.test(await p.textContent('#contrAuto')), 'modelo salvo: [PREENCHER …] e {{…}} viram 7 campos');

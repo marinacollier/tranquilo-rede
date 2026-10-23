@@ -349,11 +349,36 @@
       "fonte": "Telas de campanha e materiais do site (23/10/2026)"
     },
     {
+      "publico": "casa",
+      "pergunta": "Como a casa assina o contrato?",
+      "resposta": "Quando a equipe manda o contrato, ele aparece no topo de \"Próximos passos\", com o botão \"Ler e assinar\". Complete os dados da casa, leia até o fim e assine digitando o nome completo de quem responde pela casa. A cópia assinada fica em \"Contrato e materiais\" da data, para baixar ou imprimir."
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Colei o código da casa e aparece \"aguardando a equipe confirmar\". Está certo?",
+      "resposta": "Está. A ligação da conta à casa na rede é confirmada pela administração, por segurança. Enquanto isso, as datas e os números da casa já aparecem normalmente."
+    },
+    {
       "publico": "artista",
       "pergunta": "Onde encontro os guias e modelos do Tranquilo?",
       "resposta": "Na aba Materiais. Os modelos abrem só para leitura: toque em \"Fazer minha cópia\" para ter a sua versão editável no Google Drive. Se algum material pedir \"Li e estou ciente\", leia e confirme: fica registrado para aquela versão.",
       "links": [],
       "fonte": "Telas de campanha e materiais do site (23/10/2026)"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Como assino o contrato?",
+      "resposta": "Quando a equipe manda o contrato de uma data, ele aparece no topo de \"Próximos passos\", com o botão \"Ler e assinar\". São três passos:\n1. Complete os seus dados (CPF, endereço, chave Pix ou o que o contrato pedir) e salve.\n2. Leia o contrato até o fim: o botão de assinar só libera quando o texto chega ao fim.\n3. Digite o seu nome completo, marque que leu e concorda, e assine.\nDepois de assinado, a cópia fica em \"Contrato e materiais\" da data, para baixar ou imprimir."
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Errei um dado do contrato. E agora?",
+      "resposta": "Antes de assinar, é só corrigir os seus dados e salvar de novo (o site pede para ler até o fim outra vez). Depois de assinado, o contrato não muda mais: fale com a equipe pelo botão \"Algo deu errado?\". A equipe cancela e manda um novo, se for o caso."
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Colei o meu código e aparece \"aguardando a equipe confirmar\". Está certo?",
+      "resposta": "Está. Por segurança, a ligação da conta ao seu histórico na rede é confirmada pela administração. Enquanto isso, as suas datas e números já aparecem normalmente. Quando a equipe confirmar, o aviso some."
     }
   ]
 }

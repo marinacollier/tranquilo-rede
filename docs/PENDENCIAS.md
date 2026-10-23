@@ -4,6 +4,8 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
 
 ## Com a Marina
 
+- [ ] **SMTP no Supabase (P0 para abrir a quem é de fora).** O servidor de e-mail padrão só entrega para a equipe do projeto: convites, confirmação e troca de senha não chegam para artistas e casas. Onde configurar: Supabase → Authentication → Emails → SMTP Settings (Resend, Brevo, Postmark ou o e-mail do domínio).
+- [ ] **Ao fim da rodada do time:** apagar as contas teste-* (linha no início de `.privado/contas-teste.sql`).
 - [ ] **SITE_SECRET no GitHub.** O valor antigo não foi achado. Opções:
   - recuperar na conta do Claude Team (variáveis do ambiente ou conversas daquela sessão);
   - criar um novo, de 32 caracteres ou mais, guardado num gerenciador de senhas. Com um novo, todos os códigos de acesso mudam e precisam ser reenviados. Quem entra com e-mail e senha não é afetado.
@@ -19,7 +21,7 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
 
 ## Para o Claude (próximas sessões)
 
-- [ ] Relatório de QA: terminar as seções A, B, D, E e I (https://claude.ai/artifact/GoyzkkPo58fVfgTb8o2AdE).
+- [x] Relatório de QA completo em 23/10 (https://claude.ai/artifact/GoyzkkPo58fVfgTb8o2AdE). Veredito: pode seguir para o teste do time; ainda não pode abrir para artistas e casas de fora.
 - [x] **P09, V13 e X03 fechados** (v8 no `supabase/schema.sql`), aplicados em produção em 23/10 pela sessão do claude.ai
       (migração `seguranca_v8_p09_v13_x03`). P09 conferido no banco real com o ataque simulado numa transação desfeita.
       `tests/seguranca.test.mjs`: 83 OK / 6 FALHA → 86 OK / 3 FALHA, também com `--supabase`.
@@ -35,8 +37,8 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
     uma função (`meu_codigo()`) e a adm vê os códigos de todos por outra função.
   - P02: a conta deixa de gravar o próprio vínculo; manda um pedido (`pedir_vinculo(codigo, nome)`) que a adm confirma em Pessoas.
   - Não aplicar a parte do banco antes de publicar o site junto, senão o login por código quebra.
-- [ ] Contrato automático, versão 2. Ideias:
-  - contrato de casa e de franquia;
+- [ ] Contrato automático, versão 2. Já feito em 23/10: lista de datas dos próximos 60 dias sem contrato, com "Preparar contrato", e perguntas no FAQ. Falta:
+  - modelos para casa e franquia (a tela já gera contrato para contas de casa; falta cadastrar os modelos);
   - PDF de verdade, em vez do "imprimir ou salvar em PDF" do navegador;
   - aviso por e-mail quando o contrato chega e quando é assinado;
   - levar o status para o Notion, se a escrita for liberada só nesses campos.

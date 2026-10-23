@@ -647,11 +647,17 @@ const TQConta = (() => {
     if (E.contr === null || E.modContr === null) return `<div class="alert warn" style="margin-bottom:14px"><b>Contrato automático ainda não está ligado no banco</b>Rode o supabase/schema.sql (parte v7) para usar.</div>`;
     const mods = E.modContr || [], prep = S.cPrep, ed = mods.find((m) => m.id === S.cModEd);
     const lista = (E.contr || []).filter((c) => c.status !== "cancelado" || S.cVerCancel);
+    const pre = prep || S.cPre || {};
+    // Próximas datas (60 dias) sem contrato digital nem contrato anexado: para ninguém ficar sem.
+    const comContrato = new Set([...(E.contr || []).filter((c) => c.status !== "cancelado").map((c) => c.evento_id), ...(E.docs || []).filter((d) => d.tipo === "contrato").map((d) => d.evento_id)]);
+    const ate = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10), hoje = new Date().toISOString().slice(0, 10);
+    const semContrato = datas.filter((e) => e.d >= hoje && e.d <= ate && !comContrato.has(e.id));
+    const contaDe = (e) => contas.find((p) => p.vinculo_nome && (e.a || []).some((a) => a.toLowerCase() === p.vinculo_nome.toLowerCase()));
     return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Contrato para assinar no site</h3>
       <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa preenche antes de assinar (CPF, endereço, Pix…).</p>
       <div class="grid g3">
-        <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${prep?.conta === p.id ? " selected" : ""}>${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
-        <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${prep?.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${pre.conta === p.id ? " selected" : ""}>${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${pre.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Modelo</b><select id="ctMod"><option value="">${mods.length ? "Escolha o modelo" : "Cadastre um modelo abaixo"}</option>${mods.map((m) => `<option value="${m.id}"${prep?.modelo === m.id ? " selected" : ""}>${esc(m.nome)}</option>`).join("")}</select></label>
       </div><div class="barra-acoes"><button class="btn" id="ctPrep">Preparar contrato</button></div>
       ${prep ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
@@ -668,6 +674,7 @@ const TQConta = (() => {
         <div class="barra-acoes"><button class="btn" id="mcOk">${ed ? "Salvar alterações" : "Salvar modelo"}</button>${ed ? `<button class="btn" data-ct-mod-editar="">Cancelar edição</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="mcErr"></div>
         <p class="muted" style="font-size:12px;margin:4px 0 0">Mudar o modelo não muda contratos já enviados.</p>
       </details></div>
+      ${semContrato.length ? `<h2>Datas dos próximos 60 dias sem contrato (${semContrato.length})</h2><p class="sub">Nenhum contrato gerado nem anexado para estas datas.</p><div class="list">${semContrato.slice(0, 30).map((e) => { const c = contaDe(e); return `<div class="row card" style="padding:10px 14px"><span><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc((e.a || []).join(", ") || e.m)}${e.h ? " · " + esc(e.h) : ""}</span>${c ? "" : ` <span class="muted" style="font-size:12px">· sem conta ligada no site</span>`}</span><button class="btn sm" data-ct-pre="${esc(e.id)}|${c ? c.id : ""}">Preparar contrato</button></div>`; }).join("")}</div>` : ""}
       <h2>Contratos para assinar</h2>${tabela("contr", [
         { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
@@ -1352,7 +1359,11 @@ const TQConta = (() => {
         titulo: `${m.nome} · ${p.vinculo_nome || p.nome || p.email}${e ? ` · ${e.c} ${dt(e.d).slice(0, 5)}` : ""}`.slice(0, 160) };
       render(); $("#ctTit")?.scrollIntoView({ block: "center" }); return true;
     }
-    if (t.id === "ctDescartar") { S.cPrep = null; render(); return true; }
+    if (t.id === "ctDescartar") { S.cPrep = null; S.cPre = null; render(); return true; }
+    const pr = t.closest("[data-ct-pre]"); if (pr) {
+      const [ev, conta] = pr.dataset.ctPre.split("|"); S.cPrep = null; S.cPre = { ev, conta: conta || "" }; render();
+      $("#contrAuto")?.scrollIntoView({ block: "start" }); ($("#ctConta")?.value ? $("#ctMod") : $("#ctConta"))?.focus(); return true;
+    }
     if (t.id === "ctEnviar") {
       const P = S.cPrep; if (!P) return true;
       document.querySelectorAll("[data-ct-campo]").forEach((i) => { P.valores[i.dataset.ctCampo] = i.value.trim(); });
@@ -1364,7 +1375,7 @@ const TQConta = (() => {
       if (texto.length < 50) return erro("O texto do modelo está curto demais."), true;
       await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa });
       TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
-      S.cPrep = null; S.eq = null; render(); return true;
+      S.cPrep = null; S.cPre = null; S.eq = null; render(); return true;
     }
     const can = t.closest("[data-ct-cancelar]"); if (can) {
       if (!confirm("Cancelar este contrato? A pessoa deixa de ver o pedido de assinatura.")) return true;
