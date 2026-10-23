@@ -13,14 +13,16 @@ const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8')
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 const API = `https://api.supabase.com/v1/projects/${ref}`;
 const H = { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' };
-const HORAS = Number(process.env.HORAS || 26), JANELA = 2;   // olha 26 h para trás em janelas de 2 h (a API limita a consulta)
+const HORAS = Number(process.env.HORAS || 26), JANELA = 6;   // olha 26 h para trás em janelas de 6 h (a API limita a consulta a 24 h)
+const PAUSA = Number(process.env.PAUSA_MS ?? 2500);           // a API de registros recusa (429) chamadas seguidas demais
 const FONTES = ['auth_logs', 'edge_logs', 'postgres_logs'];
 
+const esperar = (ms) => new Promise((ok) => setTimeout(ok, ms));
 async function chamar(url, init = {}) {
   for (let t = 1; ; t++) {
     const r = await fetch(url, { ...init, headers: H });
     if (r.ok) return r.json();
-    if ((r.status === 429 || r.status >= 500) && t < 5) { await new Promise((ok) => setTimeout(ok, 3000 * t)); continue; }
+    if ((r.status === 429 || r.status >= 500) && t < 7) { await esperar(Number(r.headers.get('retry-after')) * 1000 || 10000 * t); continue; }
     throw new Error(`${r.status} em ${url.replace(API, '').split('?')[0]}: ${(await r.text()).slice(0, 200)}`);
   }
 }
@@ -45,6 +47,7 @@ async function consultar(fonte, ini, fim) {
   const ordem = variante == null ? VARIANTES.map((_, i) => i) : [variante];
   let ultimo = null;
   for (const i of ordem) {
+    await esperar(PAUSA);
     const r = await chamar(`${API}/analytics/endpoints/logs?${new URLSearchParams({ sql: VARIANTES[i](fonte), iso_timestamp_start: ini, iso_timestamp_end: fim })}`);
     if (!r.error) { if (variante == null) { variante = i; console.log(`consulta que funcionou: variante ${i + 1}`); } return r.result || []; }
     ultimo = r.error;
@@ -62,9 +65,14 @@ for (const fonte of FONTES) {
   try { await copiarFonte(fonte); } catch (e) { falhas.push(`${fonte}: ${e.message}`); }
 }
 async function copiarFonte(fonte) {
-  for (let h = HORAS; h > 0; h -= JANELA) {
-    const ini = new Date(agora - h * 3600e3).toISOString(), fim = new Date(agora - Math.max(h - JANELA, 0) * 3600e3).toISOString();
-    const linhas = (await consultar(fonte, ini, fim)).map((x) => { const meta = x.log_attributes ?? x.metadata ?? null; return { id: idDe(x, fonte), fonte, timestamp: micros(x.timestamp), event_message: x.event_message, metadata: meta,
+  const janelas = [];
+  for (let h = HORAS; h > 0; h -= JANELA) janelas.push([agora - h * 3600e3, agora - Math.max(h - JANELA, 0) * 3600e3]);
+  while (janelas.length) {
+    const [a, b] = janelas.shift();
+    const brutas = await consultar(fonte, new Date(a).toISOString(), new Date(b).toISOString());
+    // Bateu no limite de 1000 linhas: divide a janela ao meio para não perder registros.
+    if (brutas.length >= 1000 && b - a > 10 * 60e3) { janelas.unshift([a, (a + b) / 2], [(a + b) / 2, b]); continue; }
+    const linhas = brutas.map((x) => { const meta = x.log_attributes ?? x.metadata ?? null; return { id: idDe(x, fonte), fonte, timestamp: micros(x.timestamp), event_message: x.event_message, metadata: meta,
       status: Number(achar(meta, ['status_code', 'status'])) || null, metodo: achar(meta, ['method']), caminho: achar(meta, ['path']) }; });
     total[fonte].lidos += linhas.length;
     for (let i = 0; i < linhas.length; i += 200) {
