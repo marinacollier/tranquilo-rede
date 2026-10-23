@@ -1,0 +1,22 @@
+name: Relatório de uso (testes)
+
+# Só roda à mão. Mostra quem usou o site, erros e relatos, sem e-mails ou telefones de pessoas reais.
+on:
+  workflow_dispatch:
+    inputs:
+      dias:
+        description: Quantos dias para trás
+        default: '3'
+
+jobs:
+  relatorio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/relatorio-uso.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          DIAS: ${{ inputs.dias }}
