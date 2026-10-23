@@ -127,10 +127,22 @@ const TQConta = (() => {
       async hubMateriais() {
         const h = hubDemo(), minhas = (db.ciencias || []).filter((c) => c.user_id === db.sessao);
         const vig = (h.materiais || []).map((m) => (h.versoes || []).filter((v) => v.material_id === m.id).sort((a, b) => b.publicada_em.localeCompare(a.publicada_em))[0]).filter(Boolean);
-        return { materiais: h.materiais || [], versoes: h.versoes || [], minhas, todas: db.ciencias || [],
+        const versoes = [...(h.versoes || [])].sort((a, b) => b.publicada_em.localeCompare(a.publicada_em));   // como no banco: mais recente primeiro
+        return { materiais: h.materiais || [], versoes, minhas, todas: db.ciencias || [],
           pendentes: vig.filter((v) => v.exige_ciencia && !minhas.some((c) => c.versao_id === v.id)).map((v) => ({ versao_id: v.id })) };
       },
       async darCiencia(versaoId) { (db.ciencias ||= []).push({ versao_id: versaoId, user_id: db.sessao, registrada_em: agora() }); gravar(); },
+      async publicarVersao(v) {
+        exigeEquipe(); const h = hubDemo();
+        if ((h.versoes || []).some((x) => x.material_id === v.material_id && x.versao === v.versao)) throw new Error("duplicate key value violates unique constraint");
+        (h.versoes ||= []).push({ ...v, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+      },
+      async novoMaterial(m, v) {
+        exigeEquipe(); const h = hubDemo();
+        if ((h.materiais || []).some((x) => x.slug === m.slug)) throw new Error("duplicate key value violates unique constraint");
+        const mid = id(); (h.materiais ||= []).push({ ...m, id: mid, ativo: true });
+        (h.versoes ||= []).push({ ...v, material_id: mid, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+      },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
@@ -334,6 +346,12 @@ const TQConta = (() => {
         return { materiais: ok(materiais), versoes: ok(versoes), minhas: ok(minhas), pendentes: ok(pendentes), todas: ok(todas) };
       },
       async darCiencia(versaoId) { ok(await sb.from("ciencias").insert({ versao_id: versaoId })); },
+      // Equipe: nova versão de um material (quem publica e quando são carimbados pelo banco).
+      async publicarVersao(v) { ok(await sb.from("material_versoes").insert(v)); },
+      async novoMaterial(m, v) {
+        const [mat] = ok(await sb.from("materiais").insert(m).select("id"));
+        ok(await sb.from("material_versoes").insert({ ...v, material_id: mat.id }));
+      },
       async relatos() { return ok(await sb.from("diario").select("criado_em,user_id,perfil,tela,detalhe,navegador").eq("acao", "relato").order("criado_em", { ascending: false }).limit(300)); },
     };
   }
@@ -724,7 +742,7 @@ const TQConta = (() => {
       return `<div class="tag">Campanha</div><h1>Campanha de divulgação</h1><p class="sub">O que postar e mandar em cada dia. Marque "Feito" quando terminar: vale para toda a equipe da casa, e o Tranquilo acompanha.</p>
       ${H.campanhas.map((c) => {
         const its = H.itens.filter((i) => i.campanha_id === c.id), nf = its.filter((i) => feitos[i.id]).length;
-        return `<h2>${esc(c.titulo)}</h2><div class="row" style="margin-bottom:8px"><span class="muted">${nf} de ${its.length} dias feitos</span>${c.fonte_url ? `<a class="btn sm" href="${esc(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>
+        return `<h2>${esc(c.titulo)}</h2><div class="row" style="margin-bottom:8px"><span class="muted">${nf} de ${its.length} dias feitos</span><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-camp-ics="${c.id}" title="Baixa um arquivo .ics com os dias da campanha. No Google Agenda: Configurações › Importar.">Levar para o Google Agenda</button>${c.fonte_url ? `<a class="btn sm" href="${esc(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div></div>
         <div class="progress" style="margin-bottom:14px"><i style="width:${its.length ? Math.round((nf / its.length) * 100) : 0}%"></i></div>
         <div class="list">${its.map((i) => diaCampanha(i, feitos, true)).join("")}</div>`;
       }).join("")}`;
@@ -762,11 +780,14 @@ const TQConta = (() => {
               return `<div class="muted" style="font-size:13px;margin-top:8px"><b>Ciência da versão ${esc(v.versao)}:</b> ${deram.length} ${deram.length === 1 ? "pessoa" : "pessoas"}${alvo.length ? ` · faltam ${faltam.length}${faltam.length && faltam.length <= 8 ? ": " + faltam.map((p) => esc(p.vinculo_nome || p.nome || p.email)).join(", ") : ""}` : ""}</div>`; })()
           : pend.has(v.id) ? `<div class="alert warn" style="margin-top:10px"><b>Leia e confirme</b>Esta versão muda o que a casa faz. Abra, leia e confirme.<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-ciencia="${v.id}">Li e estou ciente</button></div></div>`
           : minha[v.id] ? `<div class="muted" style="font-size:13px;margin-top:8px">✓ Você confirmou a leitura da versão ${esc(v.versao)} em ${dt(String(minha[v.id]).slice(0, 10))}.</div>` : "";
-        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div></div>${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}</div>${ciencia}</div>`;
+        const copia = url && urlCopia(url);
+        const quem = equipe ? `<div class="muted" style="font-size:12px">Para ${(m.publico || []).join(" e ")}${m.casa_ref ? " · só " + esc(m.casa_ref) : ""}</div>` : "";
+        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div>${quem}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}${copia ? `<a class="btn sm" href="${esc(copia)}" target="_blank" rel="noopener" title="Cria uma cópia no seu Google Drive para você editar. O original não muda.">Fazer minha cópia</a>` : ""}</div></div>${ciencia}</div>`;
       });
       const nPend = H.pendentes?.length || 0;
-      return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem como leitura: para usar, faça uma cópia (Arquivo › Fazer uma cópia)."}</p>
+      return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem só para leitura: para usar, toque em \"Fazer minha cópia\" (ou Arquivo › Fazer uma cópia)."}</p>
       ${!equipe && nPend ? `<div class="alert warn" style="margin-bottom:12px"><b>${nPend} ${nPend === 1 ? "material pede" : "materiais pedem"} sua confirmação de leitura</b>Eles aparecem abaixo com o botão "Li e estou ciente".</div>` : ""}
+      ${equipe ? formMateriais(H) : ""}
       <div class="list">${cards.join("") || vazio("Nenhum material publicado ainda", "Quando a equipe publicar guias e modelos, eles aparecem aqui.", "", "materiais")}</div>`;
     },
     documentos() {
@@ -910,6 +931,49 @@ const TQConta = (() => {
   }
   const hojeSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
   const linkAcao = (l) => /^https:\/\//i.test(l.url || "") ? `<a class="btn sm" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.rotulo || "abrir")}</a>` : "";
+  // Google Docs, Planilhas e Apresentações: o endereço /copy abre direto o "Fazer uma cópia" (o original fica protegido).
+  function urlCopia(url) {
+    const m = String(url).match(/^https:\/\/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]{20,})/);
+    return m ? `https://docs.google.com/${m[1]}/d/${m[2]}/copy` : null;
+  }
+  // Equipe: publicar nova versão (com ou sem nova confirmação de leitura) e cadastrar material novo, sem SQL.
+  function formMateriais(H) {
+    const ops = H.materiais.map((m) => `<option value="${m.id}">${esc(m.titulo)}${m.casa_ref ? " · " + esc(m.casa_ref) : ""}</option>`).join("");
+    const casas = [...new Set([...(H.campanhas || []).map((c) => c.casa_ref), ...H.materiais.map((m) => m.casa_ref)].filter(Boolean))];
+    const tipos = ["guia", "playbook", "template", "briefing", "checklist", "politica", "termo", "outro"];
+    return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><b>Publicar nova versão ou material novo</b></summary>
+      <p class="muted" style="font-size:13px">Peça nova confirmação de leitura só quando a mudança altera o que a casa faz (campanha, playbook do Apresenta, funções de anfitrião e fotografia). Ajuste de texto ou visual: publique sem pedir.</p>
+      <h3>Nova versão</h3>
+      ${ops ? `<div class="grid g2"><label>Material<select id="mvMat">${ops}</select></label><label>Versão<input id="mvVer" maxlength="20" placeholder="ex.: 2 ou 2026-11"></label></div>
+      <label>O que mudou<input id="mvRes" maxlength="200" placeholder="ex.: novo roteiro do anfitrião"></label>
+      <label>Link desta versão (opcional)<input id="mvUrl" type="url" placeholder="https://… (vazio = mesmo link de sempre)"></label>
+      <label class="fcheck"><input type="checkbox" id="mvCie"> <span>Muda o que a casa faz: pedir "Li e estou ciente" de novo</span></label>
+      <div class="barra-acoes"><button class="btn pri" data-mat-versao>Publicar versão</button></div>` : `<p class="muted">Cadastre um material primeiro.</p>`}
+      <h3>Material novo</h3>
+      <div class="grid g2"><label>Título<input id="mnTit" maxlength="160" placeholder="ex.: Função do anfitrião"></label><label>Tipo<select id="mnTipo">${tipos.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
+      <label>Link (Google Docs, Notion, Canva…)<input id="mnUrl" type="url" placeholder="https://"></label>
+      <div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="checkbox" id="mnCasa" checked> Casas</label><label class="fcheck"><input type="checkbox" id="mnArt"> Artistas</label></div>
+      <label>Só para uma casa (opcional)<input id="mnRef" list="mnRefs" placeholder="vazio = todas as casas"><datalist id="mnRefs">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
+      <label class="fcheck"><input type="checkbox" id="mnCie"> <span>Pedir "Li e estou ciente"</span></label>
+      <div class="barra-acoes"><button class="btn pri" data-mat-novo>Cadastrar material</button></div>
+      <div class="err" id="materr" role="alert"></div></details>`;
+  }
+  // Campanha em arquivo de calendário (.ics): os mesmos dias e ações da tela, para importar no Google Agenda.
+  function icsCampanha(c, itens) {
+    const e = (s) => String(s || "").replace(/\\/g, "\\\\").replace(/([,;])/g, "\\$1").replace(/\r?\n/g, "\\n");
+    const dobra = (l) => { const out = []; let cur = "", n = 0;   // linhas de até 75 bytes, como pede o formato
+      for (const ch of l) { const b = new TextEncoder().encode(ch).length; if (n + b > 73) { out.push(cur); cur = ""; n = 0; } cur += ch; n += b; }
+      return [...out, cur].join("\r\n "); };
+    const d8 = (iso) => iso.replace(/-/g, ""), mais1 = (iso) => new Date(Date.parse(iso + "T12:00:00Z") + 864e5).toISOString().slice(0, 10);
+    const ev = itens.map((i) => {
+      const canais = [...new Set((i.acoes || []).map((a) => a.canal).filter(Boolean))].join(", ");
+      const desc = (i.acoes || []).map((a) => `${a.canal || ""}${a.show ? " · " + a.show : ""}: ${a.texto || ""}${(a.links || []).map((l) => `\n${l.rotulo || "link"}: ${l.url}`).join("")}`).join("\n\n");
+      return ["BEGIN:VEVENT", `UID:${i.id}@rede-tranquilo`, `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").slice(0, 15)}Z`,
+        `DTSTART;VALUE=DATE:${d8(i.dia)}`, `DTEND;VALUE=DATE:${d8(mais1(i.dia))}`, `SUMMARY:${e(`Campanha ${c.casa_ref || ""}: ${canais || i.rotulo || ""}`)}`,
+        `DESCRIPTION:${e(desc + "\n\nMarque como feito no painel: " + location.origin + location.pathname)}`, "END:VEVENT"].map(dobra).join("\r\n");
+    });
+    return ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Rede Tranquilo//Campanha//PT", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${e(c.titulo)}`, ...ev, "END:VCALENDAR"].join("\r\n") + "\r\n";
+  }
   // Um dia da campanha: ações (canal, show, texto, links) e o "feito" compartilhado pela casa.
   function diaCampanha(i, feitos, podeMarcar) {
     const f = feitos[i.id], hoje = hojeSP(), atrasado = !f && i.dia < hoje, ehHoje = i.dia === hoje;
@@ -1133,6 +1197,40 @@ const TQConta = (() => {
       return;
     }
     if (t.closest("[data-hub-recarregar]")) { S.hub = null; render(); return; }
+    const ics = t.closest("[data-camp-ics]"); if (ics && S.hub?.campanhas) {
+      const c = S.hub.campanhas.find((x) => x.id === ics.dataset.campIcs); if (!c) return;
+      const blob = new Blob([icsCampanha(c, S.hub.itens.filter((i) => i.campanha_id === c.id))], { type: "text/calendar;charset=utf-8" });
+      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `campanha-${c.slug || "tranquilo"}.ics` });
+      document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      alert("Arquivo baixado. No Google Agenda (no computador): Configurações › Importar e exportar › Importar, e escolha o arquivo. Os dias entram como eventos de dia inteiro.");
+      return;
+    }
+    if (t.closest("[data-mat-versao], [data-mat-novo]")) {
+      const err = $("#materr"); err.textContent = ""; S.matAberto = true;
+      const url = (s) => s.trim();
+      try {
+        if (t.closest("[data-mat-versao]")) {
+          const versao = $("#mvVer").value.trim(), u = url($("#mvUrl").value);
+          if (!versao) { err.textContent = "Dê um nome à versão (ex.: 2)."; $("#mvVer").focus(); return; }
+          if (u && !/^https:\/\//i.test(u)) { err.textContent = "O link precisa começar com https://"; $("#mvUrl").focus(); return; }
+          const pede = $("#mvCie").checked;
+          if (!confirm(pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?")) return;
+          await api.publicarVersao({ material_id: $("#mvMat").value, versao, resumo: $("#mvRes").value.trim() || null, url: u || null, exige_ciencia: pede });
+        } else {
+          const titulo = $("#mnTit").value.trim(), u = url($("#mnUrl").value), publico = [$("#mnCasa").checked && "casa", $("#mnArt").checked && "artista"].filter(Boolean);
+          if (titulo.length < 3) { err.textContent = "Escreva o título do material."; $("#mnTit").focus(); return; }
+          if (!/^https:\/\//i.test(u)) { err.textContent = "Cole o link do material (começando com https://)."; $("#mnUrl").focus(); return; }
+          if (!publico.length) { err.textContent = "Escolha quem vê: casas, artistas ou os dois."; return; }
+          const ref = $("#mnRef").value.trim();
+          const slug = (titulo + (ref ? "-" + ref : "")).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+          await api.novoMaterial({ slug, titulo, tipo_material: $("#mnTipo").value, publico, fonte_url: u, casa_ref: ref || null, fonte_tipo: "link" },
+            { versao: "1", resumo: "Primeira versão", exige_ciencia: $("#mnCie").checked });
+        }
+        TQDiario.registrar("material_publicado", {});
+        S.hub = null; await carregarHub();
+      } catch (e) { err.textContent = /duplicate|unique|já foi salvo/i.test(e.message) ? "Já existe uma versão (ou um material) com esse nome. Use outro." : traduz(e.message || ""); }
+      return;
+    }
     const cie = t.closest("[data-ciencia]"); if (cie) {
       if (!confirm("Confirmar que você leu esta versão do material? A confirmação fica registrada com data e hora.")) return;
       try { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
