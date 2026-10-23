@@ -22,7 +22,9 @@ const codigo = (c) => (typeof c === 'object' && c ? `${c.code || ''} ${c.message
 // 1. API no ar e chave aceita
 // (a chave publicável não lê o catálogo /rest/v1/ — isso exige a chave secreta —, então testamos numa tabela)
 const raiz = await pedir('/rest/v1/perfis?select=id&limit=1');
-reg('API REST e chave publicável', raiz.status === 200, `HTTP ${raiz.status} ${raiz.status === 200 ? 'chave aceita' : codigo(raiz.corpo)}`);
+// 42501 = a chave foi aceita e o banco negou a leitura ao visitante (o esperado desde o schema v3); chave errada não traz esse código.
+const aceita = raiz.status === 200 || /42501/.test(codigo(raiz.corpo));
+reg('API REST e chave publicável', aceita, `HTTP ${raiz.status} ${aceita ? 'chave aceita' : codigo(raiz.corpo)}`);
 
 // 2. Tabelas: existir é o que importa (sem login, as regras de acesso podem negar a leitura, o que é esperado)
 for (const t of ['perfis', 'inscricoes_artistas', 'cadastros_casas', 'checklist', 'registros_noite', 'chaves_internas', 'admins_iniciais', 'convites', 'avisos_cidade', 'diario', 'diario_servidor', 'notas_internas', 'documentos', 'lembretes']) {
