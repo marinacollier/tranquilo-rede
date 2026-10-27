@@ -10,7 +10,7 @@ import { mkdir, readFile, rm, writeFile, cp } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import {
-  eventosDoRetrato, baseDoRetrato, eventosDaApi, baseDaApi, titulosDaApi, textoDaPaginaApi, normalizar, chave,
+  eventosDoRetrato, lineupDoRetrato, baseDoRetrato, eventosDaApi, baseDaApi, titulosDaApi, textoDaPaginaApi, normalizar, chave,
 } from './dados.mjs';
 
 // Título como o site oficial mostra: sem a data na frente e sem a casa entre parênteses no fim.
@@ -46,7 +46,7 @@ if (token) {
 }
 metodo ||= await readFile(path.join(RAIZ, 'data/metodo.md'), 'utf8');
 
-const eventos = normalizar(brutos, titulos, hoje);
+const eventos = normalizar(brutos, titulos, hoje, await lineupDoRetrato());
 if (eventos.length < MINIMO_EVENTOS) {
   console.error(`Só ${eventos.length} eventos lidos (mínimo ${MINIMO_EVENTOS}). Publicação abortada para não pôr dados quebrados no ar.`);
   process.exit(2);
@@ -170,14 +170,14 @@ for (const [cod, obj] of pacotes) {
 // ---------- 5. camada pública (sem números de público) ----------
 const futuros = eventos.filter((e) => e.futuro);
 const circulacao = artistasAtivos
-  .map((a) => ({ nome: a.nome, futuras: a.eventos.filter((e) => e.futuro && e.modelo !== 'Descubra') }))
+  .map((a) => ({ nome: a.nome, futuras: a.eventos.filter((e) => e.futuro && e.modelo !== 'Descubra' && e.artistasPublicos.includes(a.nome)) }))
   .filter((a) => a.futuras.length)
   .map((a) => ({ nome: a.nome, cidades: [...new Set(a.futuras.map((e) => e.cidade))], proxima: a.futuras[0].data, datas: a.futuras.length }))
   .sort((x, y) => y.datas - x.datas);
 const publico = {
   geradoEm, hoje, fonte,
   // id = página do evento no Notion: liga a agenda aos passos marcados (checklist) e aos lembretes de prazo.
-  agenda: futuros.map((e) => ({ id: e.id, d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistas, l: e.link, t: tituloPublico(e.nome) })),
+  agenda: futuros.map((e) => ({ id: e.id, d: e.data, c: e.cidade, m: e.modelo, h: e.casa, a: e.artistasPublicos, l: e.link, t: tituloPublico(e.nome) })),
   circulacao,
   cidades: cidades.map((c) => ({ cidade: c, noites: eventos.filter((e) => e.cidade === c && e.realizado).length, futuras: futuros.filter((e) => e.cidade === c).length })),
   casas: [...casas.values()].map((c) => ({ id: c.id, nome: c.nome, cidade: c.cidade })).sort((a, b) => a.cidade.localeCompare(b.cidade) || a.nome.localeCompare(b.nome)),

@@ -33,6 +33,16 @@ async function lerPsv(arquivo, campos) {
 
 export const CAMPOS_EVENTO = ['id', 'nome', 'status', 'data', 'geral', 'antecipada', 'porta', 'vip', 'cap', 'link', 'casa', 'tipo', 'praca', 'clima'];
 
+// Line-up confirmado (banco Line-up do Notion): artistas de cada data, inclusive as do Descubra, que não estão no título.
+// revelar = sim | nao | vazio. Só "sim" vai para a agenda pública; o resto fica nos painéis internos e no da própria artista.
+export async function lineupDoRetrato(arquivo = 'data/lineup.psv') {
+  let linhas;
+  try { linhas = await lerPsv(arquivo, ['evento', 'artista', 'revelar']); } catch (e) { if (e.code === 'ENOENT') return {}; throw e; }
+  const porEvento = {};
+  for (const l of linhas) if (l.evento && l.artista) (porEvento[l.evento] ||= []).push({ nome: l.artista, revelar: l.revelar === 'sim' });
+  return porEvento;
+}
+
 export async function eventosDoRetrato(arquivo = 'data/eventos.psv') {
   return (await lerPsv(arquivo, CAMPOS_EVENTO)).map((r) => ({
     id: r.id, nome: r.nome, status: r.status || null, data: diaEmSP(r.data),
@@ -205,7 +215,7 @@ function modeloDe(e) {
 
 const ENCERRADO = new Set(['Cancelado', 'Adiado', 'Duplicado']);
 
-export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date().toISOString())) {
+export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date().toISOString()), lineup = {}) {
   const nomesCasa = {};
   for (const e of eventosBrutos) {
     const { casa } = lerTitulo(e.nome);
@@ -224,7 +234,11 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date(
     .filter((e) => !/^novo evento \(modelo\)$/i.test(e.nome.trim()))
     .map((e) => {
       const cidade = (e.praca && (titulos[e.praca]?.nome || ref.pracas[e.praca])) || cidadeDoTitulo(e.nome) || 'Sem praça';
-      const { artistas } = lerTitulo(e.nome);
+      const { artistas: doTitulo } = lerTitulo(e.nome);
+      // O título já é público; do line-up, só quem está marcado para revelar vai para a agenda pública.
+      const lu = lineup[e.id] || [];
+      const artistas = [...doTitulo, ...lu.map((a) => a.nome)];
+      const artistasPublicos = [...doTitulo, ...lu.filter((a) => a.revelar).map((a) => a.nome)];
       // Vendidos = antecipada + porta. VIP/cortesia não é venda e não entra na estimativa de público.
       const soma = [e.antecipada, e.porta].some((x) => x != null) ? (e.antecipada || 0) + (e.porta || 0) : null;
       const publico = e.publicoNotion ?? e.geral ?? soma;
@@ -233,7 +247,7 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date(
       const cap = e.cap ?? titulos[e.casa]?.capacidade ?? null;
       return {
         id: e.id, nome: e.nome, data: e.data, status, cidade,
-        modelo: modeloDe(e), casaId: e.casa, casa: nomeCasa(e.casa, cidade), artistas,
+        modelo: modeloDe(e), casaId: e.casa, casa: nomeCasa(e.casa, cidade), artistas, artistasPublicos,
         publico: publico != null && publico > 0 ? publico : null, vendidos: soma, cap,
         link: e.link && /^https?:\/\//i.test(e.link) && !/linkdesativado|linkinutilizado/.test(e.link) ? e.link : null, clima: e.clima,
         realizado: passado && !ENCERRADO.has(status),
@@ -248,6 +262,9 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date(
   const chaveDe = (nome) => chave(apelidos[chave(nome)] || nome);
   const exibido = {};
   for (const e of eventos) for (const nome of e.artistas) exibido[chaveDe(nome)] = apelidos[chave(nome)] || nome;
-  for (const e of eventos) e.artistas = [...new Set(e.artistas.map((n) => exibido[chaveDe(n)]))];
+  for (const e of eventos) {
+    e.artistas = [...new Set(e.artistas.map((n) => exibido[chaveDe(n)]))];
+    e.artistasPublicos = [...new Set(e.artistasPublicos.map((n) => exibido[chaveDe(n)]))];
+  }
   return eventos;
 }
