@@ -379,6 +379,97 @@
       "publico": "artista",
       "pergunta": "Colei o meu código e aparece \"aguardando a equipe confirmar\". Está certo?",
       "resposta": "Está. Por segurança, a ligação da conta ao seu histórico na rede é confirmada pela administração. Enquanto isso, as suas datas e números já aparecem normalmente. Quando a equipe confirmar, o aviso some."
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Qual é o horário padrão da noite?",
+      "resposta": "Cada data mostra o cronograma dela em \"Como é a noite\". No Descubra (3 artistas): passagens de som das 16h10 às 18h, portas às 19h, shows às 20h, 20h45 e 21h30. No Apresenta (2 artistas): de segunda a sexta, portas às 19h e shows às 20h10 e 21h; sábado e domingo, portas às 16h e shows às 17h20 e 18h10. A casa só ajusta se combinar antes com a Operações. No dia, não muda.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Criança paga ingresso?",
+      "resposta": "Até 3 anos não paga. De 3 a 14 anos paga ingresso criança (50%). Menores de 10 só entram com responsável.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Quantas cortesias cada artista tem?",
+      "resposta": "Por artista: 2 a 3 pessoas da equipe e 3 a 4 convidados. A casa pede os nomes ao artista e monta a lista da portaria.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que vai no camarim?",
+      "resposta": "Descubra: 18 águas sem rótulo em temperatura ambiente, 10 Lambe Lambe e 10 Estrella Galicia, 5 refrigerantes e 6 maçãs. Apresenta: 18 águas sem rótulo (e 6 geladas), 12 Lambe Lambe e 12 Estrella Galicia, 6 refrigerantes em lata, 2 caixas de Bis, 1 cacho de banana e 6 maçãs. Antes de os artistas chegarem: água, lugar para sentar e para guardar as coisas.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O artista pediu algo fora do rider. O que fazer?",
+      "resposta": "Explique com cordialidade que o Tranquilo trabalha com um padrão para atender todos os artistas da mesma forma, inclusive no camarim. Se for algo realmente necessário, avise a Operações do Tranquilo.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Um artista chegou atrasado.",
+      "resposta": "O cronograma da noite vem primeiro. Ajuste a passagem de som sem mexer no horário dos shows.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Alguém da equipe faltou.",
+      "resposta": "Chame a pessoa reserva que já estava combinada. Por isso ela é definida antes, até 4 a 5 dias antes do evento.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Pessoas de fora querem ficar no camarim.",
+      "resposta": "Com delicadeza, explique que o camarim é só para os artistas e as equipes deles.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Alguém pediu reembolso ou cancelamento do ingresso.",
+      "resposta": "Oriente a pessoa a falar com a Ingresse por e-mail. A casa não faz reembolso.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Emergência médica ou de segurança.",
+      "resposta": "Acione a segurança na hora. O bem-estar do público e dos artistas vem antes de tudo. Depois, registre a ocorrência na noite.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Quantos convidados posso levar?",
+      "resposta": "Por artista: 2 a 3 pessoas da equipe e 3 a 4 convidados. Mande os nomes para a casa, que monta a lista da portaria.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Posso pedir para não ser fotografado?",
+      "resposta": "Não. As regras de registro são combinadas na contratação.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "artista",
+      "pergunta": "Qual equipamento a casa tem?",
+      "resposta": "Mesa digital de no mínimo 18 canais, P.A. de 2 caixas ativas, monitor com 3 vias, 4 SM58, 2 SM57, 2 condensadores pequenos, 4 DIs, pedestais, 4 pontos de 110V, 3 cadeiras ou banquetas e técnico de som durante todo o evento. O formato é voz e violão, voz e piano, duo ou trio acústico; o que passar disso é avaliado antes.",
+      "links": [],
+      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
     }
   ]
 }
