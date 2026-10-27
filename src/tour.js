@@ -63,7 +63,7 @@ const TQTour = (() => {
     equipe: {
       rotulo: "Equipe",
       passos: [
-        { titulo: "Bem-vindo à operação da rede", texto: "Esta área junta o que a matriz precisa acompanhar sem microgerenciar: datas, alertas, curadoria, casas, campanhas e materiais.", itens: ["Os dados de eventos vêm do Notion e são atualizados toda noite."] },
+        { titulo: "Bem-vindo à operação da rede", texto: "Esta área junta o que a Central precisa acompanhar sem microgerenciar: datas, alertas, curadoria, casas, campanhas e materiais.", itens: ["Os dados de eventos vêm do Notion e são atualizados toda noite."] },
         ...EQUIPE,
         CONTA(" Cole aqui o código interno da equipe para liberar Operação, Datas, Base de conhecimento e Método."),
       ],

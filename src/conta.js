@@ -836,7 +836,7 @@ const TQConta = (() => {
         const ps = e ? R.passosDaData(modelo, e.d, Object.fromEntries(cs.map((c) => [c.item, true])), hojeIso()) : [];
         return { ev, e, quem: nomes[u] || "–", modelo, feitos: cs.length, total: ps.length || (modelo === "casa" ? R.PASSOS_CASA.length : R.PASSOS_ARTISTA.length), atras: ps.filter((p) => p.atrasado).length };
       });
-      return `<div class="tag">Prontidão</div><h1>Quem já fez o quê</h1><p class="sub">Checklists marcados por artistas e casas em cada data. A matriz consulta e só intervém quando há motivo (método V0.1: observabilidade, não microgestão).</p>
+      return `<div class="tag">Prontidão</div><h1>Quem já fez o quê</h1><p class="sub">Checklists marcados por artistas e casas em cada data. A Central consulta e só intervém quando há motivo (método V0.1: observabilidade, não microgestão).</p>
       ${tabela("pront", [
         { t: "Data", v: (l) => l.e?.d || "", h: (l) => l.e ? `<b>${dt(l.e.d)}</b> ${esc(l.e.c)}` : `<span class="muted">${esc(l.ev.slice(0, 8))}</span>` },
         { t: "Quem", v: (l) => l.quem, h: (l) => `${esc(l.quem)} <span class="muted">· ${l.modelo}</span>` },
@@ -1099,7 +1099,7 @@ const TQConta = (() => {
     const casas = [...new Set([...(H.campanhas || []).map((c) => c.casa_ref), ...H.materiais.map((m) => m.casa_ref)].filter(Boolean))];
     const tipos = ["guia", "playbook", "template", "briefing", "checklist", "politica", "termo", "outro"];
     return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><b>Publicar nova versão ou material novo</b></summary>
-      <p class="muted" style="font-size:13px">Peça nova confirmação de leitura só quando a mudança altera o que a casa faz (campanha, playbook do Apresenta, funções de anfitrião e fotografia). Ajuste de texto ou visual: publique sem pedir.</p>
+      <p class="muted" style="font-size:13px">Peça nova confirmação de leitura só quando a mudança altera o que a casa faz (campanha, playbook do Apresenta, funções de anfitrião e social media). Ajuste de texto ou visual: publique sem pedir.</p>
       <h3>Nova versão</h3>
       ${ops ? `<div class="grid g2"><label>Material<select id="mvMat">${ops}</select></label><label>Versão<input id="mvVer" maxlength="20" placeholder="ex.: 2 ou 2026-11"></label></div>
       <label>O que mudou<input id="mvRes" maxlength="200" placeholder="ex.: novo roteiro do anfitrião"></label>

@@ -1,6 +1,6 @@
 {
   "_sobre": "Dúvidas frequentes mostradas no site. Artista e casa: escritas a partir do Método V0.1 e dos passos do site. Portaria e ingressos: artigos da Base de conhecimento do Notion reescritos para quem é de fora (sem dados internos). Ajuste aqui ou peça ajuste.",
-  "geradoEm": "2026-10-23",
+  "geradoEm": "2026-10-27",
   "itens": [
     {
       "publico": "artista",
@@ -126,12 +126,12 @@
     },
     {
       "publico": "casa_portaria",
-      "pergunta": "Como cadastro a pessoa da portaria para ler os ingressos?",
-      "resposta": "Antes: confirme que a pessoa já tem cadastro na Ingresse com o e-mail que você vai usar. Sem isso, o e-mail não aparece ao adicionar.\n1. Acesse https://backstage.ingresse.com/ e faça login.\n2. Se aparecer \"Este é você?\", clique em Sim, continuar (ou Não, trocar, se não for você).\n3. Em Meus eventos, clique no evento.\n4. No menu lateral, clique em Permissões.\n5. Em Adicionar usuário, digite o e-mail da pessoa e escolha a permissão adequada.\n6. Depois, oriente a pessoa a entrar no app Ingresse Backstage para fazer o check-in.",
+      "pergunta": "Como a pessoa da portaria passa a ler os ingressos?",
+      "resposta": "Quem cria o evento na Ingresse e libera as permissões é a Central (Isa). A casa não cadastra o operador sozinha.\n1. Mande à Central, pelo grupo do evento, o nome e o e-mail da pessoa da portaria, até o D-7, junto com a equipe da noite.\n2. A pessoa precisa ter cadastro na Ingresse com esse mesmo e-mail (confira em https://backstage.ingresse.com/).\n3. A Central dá a permissão de Operador de Porta e libera a venda na porta no D-5/D-4.\n4. Depois disso, a pessoa baixa o app Ingresse Backstage e entra com esse e-mail (veja a pergunta seguinte).",
       "links": [
         "https://backstage.ingresse.com/"
       ],
-      "fonte": "Base de conhecimento (Notion)",
+      "fonte": "Operação do Tranquilo (Gui), 27/10/2026",
       "notion": "6a11bc84dcd24425aaf72072482aad70"
     },
     {
@@ -330,7 +330,7 @@
     {
       "publico": "casa",
       "pergunta": "O que significa \"Li e estou ciente\"?",
-      "resposta": "Alguns materiais mudam o que a casa faz (a campanha, o playbook do Apresenta, as funções de anfitrião e fotografia). Quando sai uma versão nova deles, aparece o pedido em Materiais: abra, leia e confirme. A confirmação fica registrada com data e hora para aquela versão. Ajustes de texto não pedem confirmação.",
+      "resposta": "Alguns materiais mudam o que a casa faz (a campanha, o playbook do Apresenta, as funções de anfitrião e social media). Quando sai uma versão nova deles, aparece o pedido em Materiais: abra, leia e confirme. A confirmação fica registrada com data e hora para aquela versão. Ajustes de texto não pedem confirmação.",
       "links": [],
       "fonte": "Telas de campanha e materiais do site (23/10/2026)"
     },

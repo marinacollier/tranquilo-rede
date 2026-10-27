@@ -1100,7 +1100,7 @@ const TELAS = {
   },
   roteiro() {
     const md = S.pac.metodo || "", pega = (t) => { const i = md.indexOf("## " + t); if (i < 0) return ""; const j = md.indexOf("\n## ", i + 3); return md.slice(i, j < 0 ? undefined : j); };
-    return `<div class="tag">Roteiro da noite</div><h1>O que a casa registra</h1><p class="sub">Do método V0.1 do Tranquilo: depois do handoff, a casa produz a data e registra prontidão, execução e ocorrências. Ninguém da matriz precisa acompanhar em tempo real.</p>
+    return `<div class="tag">Roteiro da noite</div><h1>O que a casa registra</h1><p class="sub">Do método V0.1 do Tranquilo: depois do handoff, a casa produz a data e registra prontidão, execução e ocorrências. Ninguém da Central precisa acompanhar em tempo real.</p>
     <div class="grid g2">${["Checklist pré-evento (a casa registra)", "Registro durante o evento", "Ocorrências", "Resultado Mínimo Tranquilo", "Qualificação pela execução", "O handoff é o centro operacional"].map((t) => `<div class="card md">${markdown(pega(t))}</div>`).join("")}</div>`;
   },
 };
