@@ -27,6 +27,7 @@ const lista = schema.match(/etapa_ not in \(([^)]*)\)/)[1].match(/'([a-z_]+)'/g)
 ok(lista.join() === E.ETAPAS_CASA.join(), 'etapas que a casa marca: iguais no site e no banco');
 const ts = (await import('node:fs')).readFileSync(new URL('../supabase/functions/lembretes/index.ts', import.meta.url), 'utf8');
 ok(R.PASSOS_CASA.every(([k, d]) => ts.includes(`["${k}", ${d},`)), 'lembretes por e-mail têm os mesmos passos da casa');
+ok(ts.includes(JSON.stringify(E.PASSO_FUNCOES)), 'lembretes por e-mail usam o mesmo mapa de passos por função');
 
 // ---------- banco ----------
 const db = new PGlite();

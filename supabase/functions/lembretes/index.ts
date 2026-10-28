@@ -33,6 +33,10 @@ const PASSOS: Record<string, [string, number, string][]> = {
     ["fechamento", 2, "Fechamento (D+2)"], ["material_social", 2, "Material da social media (48 h)"],
   ],
 };
+// Pessoa da equipe da casa (perfis.funcoes) só recebe aviso dos passos da função dela (src/equipe.js, PASSO_FUNCOES).
+// O dono da casa (sem função) e o Líder Local recebem todos.
+const PASSO_FUNCOES: Record<string, string[]> = {"handoff":["produtor"],"ficha":["produtor"],"rider":["produtor","som"],"tecnico":["som","produtor"],"roteiro":["produtor"],"escrito":["produtor"],"travas":["produtor","bar"],"equipe_reserva":["produtor"],"porta_reserva":["porta","produtor"],"briefing_anfitriao":["anfitriao"],"pacote_grupo":["produtor"],"caixa_producao":["produtor"],"estoque":["bar","produtor"],"prontidao":["produtor","som","bar","porta","anfitriao","social_media"],"publico":["porta","produtor"],"fechamento":["produtor","bar"],"material_social":["social_media"]};
+const daFuncao = (fs: string[] | null, item: string) => !fs?.length || fs.includes("lider") || (PASSO_FUNCOES[item] || ["produtor"]).some((f) => fs.includes(f));
 const chave = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const diaSP = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 const somar = (iso: string, dias: number) => new Date(new Date(iso + "T12:00:00Z").getTime() + dias * 864e5).toISOString().slice(0, 10);
@@ -64,9 +68,11 @@ Deno.serve(async (req) => {
 
   const pub = await (await fetch(site + "public.json", { cache: "no-store" })).json();
   const hoje = diaSP(), em3 = somar(hoje, 3);
-  const { data: perfis } = await sb.from("perfis").select("id,email,tipo,nome,vinculo_nome").in("tipo", ["artista", "casa"]).not("vinculo_nome", "is", null);
+  const { data: perfis } = await sb.from("perfis").select("id,email,tipo,nome,vinculo_nome,funcoes").in("tipo", ["artista", "casa"]).not("vinculo_nome", "is", null);
   const { data: chk } = await sb.from("checklist").select("user_id,evento_id,item,feito").eq("feito", true);
-  const feito = new Set((chk || []).map((c) => `${c.user_id}|${c.evento_id}|${c.item}`));
+  // Na casa, o passo marcado por qualquer pessoa (dono ou equipe) vale para todas.
+  const grupo: Record<string, string> = Object.fromEntries((perfis || []).map((p) => [p.id, p.tipo === "casa" ? `casa:${chave(p.vinculo_nome)}` : p.id]));
+  const feito = new Set((chk || []).map((c) => `${grupo[c.user_id] || c.user_id}|${c.evento_id}|${c.item}`));
   const porNome: Record<string, typeof perfis> = {};
   for (const p of perfis || []) (porNome[`${p.tipo}|${chave(p.vinculo_nome)}`] ||= []).push(p);
 
@@ -81,7 +87,7 @@ Deno.serve(async (req) => {
       for (const [item, dias, titulo] of PASSOS[tipo]) {
         const prazo = somar(e.d, dias);
         const momento = prazo === em3 ? "D-3" : prazo === hoje ? "hoje" : null;
-        if (!momento || feito.has(`${p.id}|${e.id}|${item}`)) continue;
+        if (!momento || feito.has(`${grupo[p.id] || p.id}|${e.id}|${item}`) || (tipo === "casa" && !daFuncao(p.funcoes, item))) continue;
         resumo.avaliados++;
         const reg = { user_id: p.id, evento_id: e.id, item, momento: ativo ? momento : `${momento}:ensaio`, situacao: ativo ? "enviado" : "ensaio", detalhe: `${titulo} · ${br(e.d)} ${e.c}` };
         const { data: novo } = await sb.from("lembretes").upsert(reg, { onConflict: "user_id,evento_id,item,momento", ignoreDuplicates: true }).select();
