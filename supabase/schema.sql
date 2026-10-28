@@ -1575,3 +1575,248 @@ begin
   end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v11: equipe da casa por função e Trilha da Nova Casa (Operações, 27/10/2026). Idempotente.
+-- Mesmas regras de src/equipe.js. O site novo funciona com o banco antes e depois (as abas novas avisam).
+-- =====================================================================
+-- perfis.funcoes vazio = dono da casa (vê tudo da casa); preenchido = pessoa da equipe, que vê só o da função.
+alter table perfis add column if not exists funcoes text[];
+alter table convites add column if not exists funcoes text[];
+grant select (funcoes) on perfis to authenticated;
+
+create or replace function funcoes_erro(fs text[]) returns text
+language sql immutable set search_path = public as $$
+  select case
+    when fs is null or cardinality(fs) = 0 then 'Escolha pelo menos uma função.'
+    when exists (select 1 from unnest(fs) f where f not in ('lider', 'produtor', 'anfitriao', 'social_media', 'som', 'bar', 'porta')) then 'Função desconhecida.'
+    when 'anfitriao' = any (fs) and 'social_media' = any (fs) then 'Anfitrião e social media nunca são a mesma pessoa.'
+    when 'som' = any (fs) and exists (select 1 from unnest(fs) f where f not in ('som', 'lider')) then 'O técnico de som não acumula outra função (só pode ser também o Líder Local).'
+    else null end
+$$;
+
+-- Casa da conta logada (dono ou equipe) e se ela é o dono (conta da casa ligada, sem função).
+create or replace function minha_casa_ref() returns text
+language sql stable security definer set search_path = public as $$
+  select vinculo_nome from perfis where id = auth.uid() and tipo = 'casa' and vinculo_nome is not null
+$$;
+create or replace function sou_dono_da_casa(ref text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from perfis where id = auth.uid() and tipo = 'casa' and funcoes is null and codigo_acesso is not null and lower(vinculo_nome) = lower(ref))
+$$;
+revoke all on function minha_casa_ref(), sou_dono_da_casa(text) from public, anon;
+grant execute on function minha_casa_ref(), sou_dono_da_casa(text) to authenticated;
+
+-- A função da pessoa só muda pelo dono (equipe_casa) ou pela administração.
+create or replace function proteger_perfil() returns trigger
+language plpgsql security invoker set search_path = public as $$
+begin
+  if current_user not in ('authenticated', 'anon') then return new; end if;   -- funções do próprio banco (v8, P09)
+  if not eh_adm() then
+    new.tipo := old.tipo;
+    new.email := old.email;
+    new.codigo_acesso := old.codigo_acesso;
+    new.vinculo_nome := old.vinculo_nome;
+    new.funcoes := old.funcoes;
+    if old.codigo_acesso is not null then
+      new.vinculo_pedido := old.vinculo_pedido; new.vinculo_pedido_nome := old.vinculo_pedido_nome; new.vinculo_pedido_em := old.vinculo_pedido_em;
+    elsif new.vinculo_pedido is distinct from old.vinculo_pedido then
+      if new.vinculo_pedido is not null and new.vinculo_pedido !~ '^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$' then raise exception 'Código de acesso inválido.'; end if;
+      new.vinculo_pedido_nome := left(new.vinculo_pedido_nome, 120);
+      new.vinculo_pedido_em := case when new.vinculo_pedido is null then null else now() end;
+    else
+      new.vinculo_pedido_nome := old.vinculo_pedido_nome; new.vinculo_pedido_em := old.vinculo_pedido_em;
+    end if;
+  elsif old.tipo = 'adm' and new.tipo <> 'adm' and (select count(*) from perfis where tipo = 'adm') <= 1 then
+    raise exception 'Esta é a última conta de administração: promova outra pessoa antes.';
+  end if;
+  return new;
+end $$;
+revoke all on function proteger_perfil() from public, anon, authenticated;
+
+-- Convite aceito: a pessoa da equipe da casa recebe a função junto com o vínculo.
+create or replace function aplicar_convite_interno(uid uuid, mail text, caixa_provada boolean) returns boolean
+language plpgsql security definer set search_path = public as $$
+declare c convites; atual perfis; do_adm boolean;
+begin
+  select * into c from convites where email = lower(mail) and aceito_em is null;
+  if not found then return false; end if;
+  if c.tipo in ('equipe', 'adm') and not caixa_provada then return false; end if;  -- convite continua pendente
+  select * into atual from perfis where id = uid;
+  do_adm := exists (select 1 from perfis where id = c.criado_por and tipo = 'adm');
+  if not do_adm and (atual.tipo in ('equipe', 'adm') or atual.codigo_acesso is not null
+      or (atual.tipo is distinct from c.tipo and (exists (select 1 from inscricoes_artistas where user_id = uid)
+                                                  or exists (select 1 from cadastros_casas where user_id = uid)))) then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
+  update perfis p set
+    tipo = c.tipo,
+    nome = case when coalesce(p.nome, '') = '' then c.nome else p.nome end,
+    whatsapp = coalesce(p.whatsapp, c.whatsapp),
+    codigo_acesso = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.codigo_acesso, p.codigo_acesso) end,
+    vinculo_nome = case when c.tipo in ('equipe', 'adm') then null else coalesce(c.vinculo_nome, p.vinculo_nome) end,
+    funcoes = case when c.tipo = 'casa' then c.funcoes else null end
+  where p.id = uid;
+  update convites set aceito_em = now() where email = c.email;
+  return true;
+end $$;
+revoke all on function aplicar_convite_interno(uuid, text, boolean) from public, anon, authenticated;
+
+-- Equipe da casa: quem ocupa cada função, com contato e reserva. O dono monta; a equipe da casa e a Central leem.
+create table if not exists equipe_casa (
+  id uuid primary key default gen_random_uuid(),
+  casa_ref text not null,
+  nome text not null check (length(nome) between 1 and 120),
+  whatsapp text check (whatsapp is null or length(whatsapp) <= 30),
+  email text check (email is null or email ~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]{2,}$'),
+  funcoes text[] not null,
+  reserva boolean not null default false,
+  criado_por uuid references perfis (id) on delete set null default auth.uid(),
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+create unique index if not exists equipe_casa_email on equipe_casa (lower(casa_ref), email) where email is not null;
+alter table equipe_casa enable row level security;
+drop policy if exists eqc_ler on equipe_casa;
+create policy eqc_ler on equipe_casa for select using (eh_equipe() or lower(casa_ref) = lower(minha_casa_ref()));
+drop policy if exists eqc_criar on equipe_casa;
+create policy eqc_criar on equipe_casa for insert with check (sou_dono_da_casa(casa_ref));
+drop policy if exists eqc_editar on equipe_casa;
+create policy eqc_editar on equipe_casa for update using (sou_dono_da_casa(casa_ref)) with check (sou_dono_da_casa(casa_ref));
+drop policy if exists eqc_apagar on equipe_casa;
+create policy eqc_apagar on equipe_casa for delete using (sou_dono_da_casa(casa_ref));
+revoke all on equipe_casa from anon;
+grant select, insert, update, delete on equipe_casa to authenticated;
+
+-- Valida as funções (mesmas regras do site) e leva a mudança para a conta da pessoa: mudar a função muda o que
+-- ela vê; tirar da equipe (ou trocar o e-mail) desliga a conta da casa e cancela o convite aberto.
+create or replace function equipe_casa_sincronizar() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare e text; antigo text;
+begin
+  antigo := case when tg_op in ('UPDATE', 'DELETE') then old.email end;
+  if tg_op = 'UPDATE' then new.email := nullif(lower(btrim(new.email)), ''); end if;
+  if antigo is not null and (tg_op = 'DELETE' or antigo is distinct from new.email) then
+    update perfis set codigo_acesso = null, vinculo_nome = null, funcoes = null
+      where lower(email) = antigo and tipo = 'casa' and funcoes is not null and lower(vinculo_nome) = lower(old.casa_ref);
+    delete from convites where email = antigo and aceito_em is null and funcoes is not null and lower(vinculo_nome) = lower(old.casa_ref);
+  end if;
+  if tg_op = 'DELETE' then return old; end if;
+  new.funcoes := array(select distinct f from unnest(new.funcoes) f order by 1);
+  e := funcoes_erro(new.funcoes);
+  if e is not null then raise exception '%', e using errcode = '22023'; end if;
+  new.nome := btrim(new.nome);
+  new.email := nullif(lower(btrim(new.email)), '');
+  new.atualizado_em := now();
+  if tg_op = 'UPDATE' then new.casa_ref := old.casa_ref; new.criado_por := old.criado_por; new.criado_em := old.criado_em; end if;
+  if new.email is not null then
+    update perfis set funcoes = new.funcoes where lower(email) = new.email and tipo = 'casa' and funcoes is not null and lower(vinculo_nome) = lower(new.casa_ref);
+    update convites set funcoes = new.funcoes where email = new.email and aceito_em is null and funcoes is not null and lower(vinculo_nome) = lower(new.casa_ref);
+  end if;
+  return new;
+end $$;
+revoke all on function equipe_casa_sincronizar() from public, anon, authenticated;
+drop trigger if exists trg_equipe_casa on equipe_casa;
+create trigger trg_equipe_casa before insert or update or delete on equipe_casa for each row execute function equipe_casa_sincronizar();
+
+-- O dono convida uma pessoa da equipe para a plataforma: ela entra ligada à casa, só com a função dela.
+create or replace function convidar_equipe_casa(membro uuid) returns text
+language plpgsql security definer set search_path = public as $$
+declare m equipe_casa; d perfis; ja perfis; cv convites;
+begin
+  select * into m from equipe_casa where id = membro;
+  if not found then raise exception 'Pessoa não encontrada na equipe.'; end if;
+  if not sou_dono_da_casa(m.casa_ref) then raise exception 'Só o responsável da casa convida a equipe.'; end if;
+  if m.email is null then raise exception 'Coloque o e-mail da pessoa antes de convidar.'; end if;
+  select * into d from perfis where id = auth.uid();
+  select * into ja from perfis where lower(email) = m.email;
+  if found then
+    if ja.tipo = 'casa' and ja.funcoes is not null and lower(ja.vinculo_nome) = lower(m.casa_ref) then return 'ja_tem_acesso'; end if;
+    raise exception 'Este e-mail já tem uma conta na rede. Peça à equipe do Tranquilo para ligar a conta à sua casa.';
+  end if;
+  select * into cv from convites where email = m.email;
+  if found and (cv.aceito_em is not null or cv.funcoes is null or lower(coalesce(cv.vinculo_nome, '')) <> lower(m.casa_ref)) then
+    raise exception 'Este e-mail já tem um convite de outra área da rede. Fale com a equipe do Tranquilo.';
+  end if;
+  insert into convites (email, tipo, nome, whatsapp, codigo_acesso, vinculo_nome, criado_por, funcoes)
+  values (m.email, 'casa', m.nome, m.whatsapp, d.codigo_acesso, d.vinculo_nome, d.id, m.funcoes)
+  on conflict (email) do update set nome = excluded.nome, whatsapp = excluded.whatsapp, funcoes = excluded.funcoes, criado_em = now();
+  return 'convidado';
+end $$;
+revoke all on function convidar_equipe_casa(uuid) from public, anon;
+grant execute on function convidar_equipe_casa(uuid) to authenticated;
+
+-- A equipe da casa com a situação do acesso de cada pessoa (sem e-mail, convidada, com acesso).
+create or replace function equipe_da_casa() returns table (id uuid, nome text, whatsapp text, email text, funcoes text[], reserva boolean, acesso text)
+language sql stable security definer set search_path = public as $$
+  select m.id, m.nome, m.whatsapp, m.email, m.funcoes, m.reserva,
+    case when m.email is null then 'sem_email'
+         when exists (select 1 from perfis p where lower(p.email) = m.email and p.tipo = 'casa' and p.funcoes is not null and lower(p.vinculo_nome) = lower(m.casa_ref)) then 'ativo'
+         when exists (select 1 from convites c where c.email = m.email and c.aceito_em is null and c.funcoes is not null) then 'convidado'
+         else 'sem_convite' end
+  from equipe_casa m where lower(m.casa_ref) = lower(minha_casa_ref())
+  order by m.reserva, m.criado_em
+$$;
+revoke all on function equipe_da_casa() from public, anon;
+grant execute on function equipe_da_casa() to authenticated;
+
+-- Passo marcado por qualquer pessoa da casa vale para a casa inteira (o dono vê o que o produtor marcou).
+create or replace function checklist_da_casa() returns setof checklist
+language sql stable security definer set search_path = public as $$
+  select c.* from checklist c join perfis p on p.id = c.user_id
+  where p.tipo = 'casa' and minha_casa_ref() is not null and lower(p.vinculo_nome) = lower(minha_casa_ref())
+$$;
+create or replace function desmarcar_passo_casa(ev text, it text) returns void
+language sql security definer set search_path = public as $$
+  delete from checklist c using perfis p
+  where p.id = c.user_id and p.tipo = 'casa' and minha_casa_ref() is not null and lower(p.vinculo_nome) = lower(minha_casa_ref())
+    and c.evento_id = ev and c.item = it
+$$;
+revoke all on function checklist_da_casa(), desmarcar_passo_casa(text, text) from public, anon;
+grant execute on function checklist_da_casa(), desmarcar_passo_casa(text, text) to authenticated;
+
+-- Trilha da Nova Casa: 7 dias úteis, Thales → Gui → Isa → Bruno, com a casa confirmando a parte dela.
+-- A nota de passagem (combinado financeiro) é interna: a casa lê a trilha por minha_trilha(), sem a nota.
+create table if not exists trilhas (
+  casa_ref text primary key check (length(casa_ref) between 1 and 160),
+  inicio date not null,
+  nota_passagem text check (nota_passagem is null or length(nota_passagem) <= 4000),
+  criado_por uuid references perfis (id) on delete set null default auth.uid(),
+  criado_em timestamptz not null default now()
+);
+create table if not exists trilha_marcos (
+  casa_ref text not null references trilhas (casa_ref) on delete cascade on update cascade,
+  etapa text not null check (etapa ~ '^[a-z_]{2,30}$'),
+  feito_por uuid references perfis (id) on delete set null default auth.uid(),
+  feito_em timestamptz not null default now(),
+  primary key (casa_ref, etapa)
+);
+alter table trilhas enable row level security;
+alter table trilha_marcos enable row level security;
+drop policy if exists tri_equipe on trilhas;
+create policy tri_equipe on trilhas for all using (eh_equipe()) with check (eh_equipe());
+drop policy if exists trm_equipe on trilha_marcos;
+create policy trm_equipe on trilha_marcos for all using (eh_equipe()) with check (eh_equipe());
+revoke all on trilhas, trilha_marcos from anon;
+grant select, insert, update, delete on trilhas, trilha_marcos to authenticated;
+
+create or replace function minha_trilha() returns table (casa_ref text, inicio date, marcos jsonb)
+language sql stable security definer set search_path = public as $$
+  select t.casa_ref, t.inicio, coalesce((select jsonb_object_agg(m.etapa, m.feito_em) from trilha_marcos m where m.casa_ref = t.casa_ref), '{}'::jsonb)
+  from trilhas t where lower(t.casa_ref) = lower(minha_casa_ref())
+$$;
+-- O dono confirma as etapas que são da casa (as outras, a Central marca).
+create or replace function trilha_marcar_casa(etapa_ text, feito boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare ref text;
+begin
+  select t.casa_ref into ref from trilhas t where lower(t.casa_ref) = lower(minha_casa_ref());
+  if ref is null then raise exception 'A sua casa ainda não tem trilha.'; end if;
+  if not sou_dono_da_casa(ref) then raise exception 'Só o responsável da casa confirma as etapas da trilha.'; end if;
+  if etapa_ not in ('resp_espaco', 'leitura', 'data_aprovada', 'equipe_ok', 'homologacao') then raise exception 'Esta etapa é da Central.'; end if;
+  if feito then insert into trilha_marcos (casa_ref, etapa) values (ref, etapa_) on conflict do nothing;
+  else delete from trilha_marcos where casa_ref = ref and etapa = etapa_; end if;
+end $$;
+revoke all on function minha_trilha(), trilha_marcar_casa(text, boolean) from public, anon;
+grant execute on function minha_trilha(), trilha_marcar_casa(text, boolean) to authenticated;
