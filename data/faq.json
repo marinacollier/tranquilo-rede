@@ -47,9 +47,9 @@
     {
       "publico": "artista",
       "pergunta": "Quantas pessoas posso levar ao backstage?",
-      "resposta": "No máximo 2 acompanhantes por banda. Mande a lista com os nomes até 7 dias antes do show, junto com a confirmação dos horários.",
+      "resposta": "Por artista: 2 a 3 pessoas da equipe e 3 a 4 convidados. Mande os nomes para a casa até 7 dias antes, para a lista da portaria.",
       "links": [],
-      "fonte": "Método V0.1 e passo a passo do site"
+      "fonte": "Manuais da Operação (21/10/2026)"
     },
     {
       "publico": "artista",
@@ -89,9 +89,9 @@
     {
       "publico": "casa",
       "pergunta": "Quais são os prazos da casa?",
-      "resposta": "Contados a partir da data do show:\n1. 30 dias antes: receber o repasse da data.\n2. 28 dias antes: revisar a ficha da casa e conferir o rider do artista.\n3. 21 dias antes: confirmar técnico de som e setup; fechar o roteiro do dia.\n4. 14 dias antes: confirmar tudo por escrito, incluindo maquininha com plano B (Pix ou link).\n5. 7 dias antes: travas finais (horários, camarim, bar, limpeza, caixa).\n6. No dia: prontidão da noite e registro do público e das ocorrências.\n7. 1 dia depois: fechamento e prestação de contas.",
+      "resposta": "Contados a partir da data do show (cada data mostra os seus no passo a passo):\n1. 30 dias antes: receber o repasse da data.\n2. 28 dias antes: revisar a ficha da casa e conferir o rider do artista.\n3. 21 dias antes: confirmar técnico de som e setup; fechar o roteiro do dia.\n4. 14 dias antes: confirmar tudo por escrito, incluindo maquininha com plano B (Pix ou link).\n5. 7 dias antes: travas finais; equipe escalada com uma reserva por função; operadores de porta com reserva (nome e e-mail para a Central).\n6. 5 dias antes (no máximo 4): pacote fixado no grupo com os artistas (cronograma, alimentação e consumação, camarim, lista e cortesias).\n7. 2 dias antes: caixa de produção conferida.\n8. 1 dia antes: planilha de estoque, depois das últimas compras.\n9. No dia: prontidão da noite e registro do público e das ocorrências.\n10. 2 dias depois: fechamento com PDV, custos, intercorrências e estoque.",
       "links": [],
-      "fonte": "Método V0.1 e passo a passo do site"
+      "fonte": "Manuais da Operação (21/10/2026) e passo a passo do site"
     },
     {
       "publico": "casa",

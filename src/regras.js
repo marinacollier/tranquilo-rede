@@ -22,7 +22,7 @@
     const score = completude + tracao + tecnica + circulacao + condicoes;
     const alertas = [];
     if (links === 0) alertas.push("Sem link de áudio ou vídeo");
-    if (integrantes > 5) alertas.push("Formação com mais de 5 pessoas: rota condicionada");
+    if (integrantes > 3) alertas.push("Formação acima de trio: o padrão é voz e um instrumento, duo ou trio");
     if (d.rider_tipo === "especial") alertas.push("Rider de produção especial");
     if (cache > 1500) alertas.push("Cachê mínimo acima de R$ 1.500");
     if (cidadesOk === 0) alertas.push("Nenhuma cidade de interesse na rede atual");
@@ -30,12 +30,16 @@
       detalhe: { completude, tracao, tecnica, circulacao, condicoes } };
   }
 
+  // Público sentado é regra fixa do Tranquilo (manuais da Operação, 21/10/2026). Casa já habilitada não perde a
+  // habilitação por isso: vê o aviso de nova exigência até preencher (ver casa_rehabilitar no banco).
+  const NOVA_EXIGENCIA = "Capacidade de público sentado";
   function pendenciasCasa(d = {}) {
     const hab = [], match = [], enriquecimento = [];
     if (!tem(d.responsavel)) hab.push("Responsável local");
     if (!tem(d.whatsapp)) hab.push("WhatsApp do responsável");
     if (!tem(d.endereco) || !tem(d.cidade)) hab.push("Endereço e cidade");
     if (int(d.capacidade) <= 0) hab.push("Capacidade de público");
+    if (int(d.capacidade_sentado) <= 0) hab.push(NOVA_EXIGENCIA);
     if (!tem(d.som) || d.som === "nao_tem") hab.push("Como resolve o som (PA próprio ou parceiro técnico)");
     if (String(d.aceite_responsabilidades) !== "true") hab.push("Aceite da matriz de responsabilidades da casa");
     if (!tem(d.palco)) match.push("Medidas do palco");
@@ -54,12 +58,12 @@
   // Fonte: checklist de operações dos eventos (T-28, T-21, T-14, T-7, dia, pós) e método V0.1 (handoff) no Notion.
   const PASSOS_ARTISTA = [
     ["contrato", -35, "Ler e assinar o contrato", "Condição econômica, responsabilidades e cancelamento. Sem contrato assinado a data não é repassada para a casa."],
-    ["formacao", -28, "Fechar formação e equipe", "Quem sobe ao palco e quem acompanha (técnico de som, produção). No backstage, no máximo 2 acompanhantes por banda."],
+    ["formacao", -28, "Fechar formação e equipe", "Formato do Tranquilo: voz e um instrumento, duo ou trio. Quem acompanha: 2 a 3 pessoas da equipe e 3 a 4 convidados por artista."],
     ["rider", -28, "Enviar rider técnico e mapa de palco", "A casa precisa do rider 4 semanas antes para confirmar PA, monitores, microfones e DIs."],
     ["som", -21, "Validar o som com a casa", "Combine com o técnico da casa o setup (PA, mesa, monitores, microfones, DI, cabos) e o horário da passagem de som."],
     ["logistica", -21, "Confirmar logística", "Transporte, hospedagem e horário de chegada, direto com a casa e com o parceiro logístico, quando houver."],
     ["divulgacao", -15, "Começar a divulgação", "Campanha mínima de 15 dias com o briefing e o link de ingressos que o Tranquilo envia. Mande fotos e release atualizados."],
-    ["horarios", -7, "Confirmar horários e acompanhantes", "Chegada, passagem de som, portas, início e horário final. Lista com nomes de quem entra no backstage."],
+    ["horarios", -7, "Confirmar horários e acompanhantes", "Chegada, passagem de som, portas, início e horário final. Mande à casa os nomes da equipe (2 a 3) e dos convidados (3 a 4) para a lista da portaria."],
     ["roteiro", -2, "Revisar o roteiro da noite", "Duração do show, intervalos e fala. A apresentação é o centro da noite."],
     ["passagem", 0, "Chegar e fazer a passagem de som", "No horário combinado. Problema comum: resolva direto com a casa. Exceção crítica: avise o Tranquilo."],
     ["pagamento", 1, "Enviar nota fiscal ou recibo", "Com os dados de pagamento, para o fechamento da data e o pagamento do cachê."],
@@ -73,9 +77,14 @@
     ["roteiro", -21, "Fechar o roteiro do dia", "Equipe, passagem, portas, início, intervalos, encerramento e desmontagem."],
     ["escrito", -14, "Confirmar tudo por escrito", "Equipamentos e fornecedores, maquininha com plano B (Pix ou link), rádios, plano B/C para som, energia, internet e chuva."],
     ["travas", -7, "Travas finais", "Horários de chegada, compras de camarim, bar e limpeza, briefing do time local e plano de caixa."],
+    ["equipe_reserva", -7, "Equipe escalada com reserva", "Produtor, técnico de som, bar e porta escalados, com uma pessoa reserva por função. Confirme com a Operações."],
+    ["porta_reserva", -7, "Operadores de porta com reserva", "Quem fica na porta e a reserva, com cadastro na Ingresse com o mesmo e-mail. Mande nome e e-mail à Central, que libera as permissões."],
+    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas", "Até 5 dias antes (no máximo 4): cronograma com chegada e passagem de som, alimentação e consumação, camarim e lista de entrada e cortesias. Fixe no WhatsApp do grupo."],
+    ["caixa_producao", -2, "Caixa de produção conferida", "Fita zebrada, durex, cenografia e luminosos, conferidos até 2 dias antes."],
+    ["estoque", -1, "Planilha de estoque", "Preencha depois das últimas compras: é a base do fechamento no D+2."],
     ["prontidao", 0, "Prontidão da noite", "Marca instalada, casa pronta, artista presente, portas abertas, show iniciado e encerrado."],
     ["publico", 0, "Registrar o público e as ocorrências", "Use \"Registrar a noite\" logo depois do show."],
-    ["fechamento", 1, "Fechamento e prestação de contas", "Pagamentos, conferência de Pix, cartão e dinheiro, devoluções e erros básicos registrados."],
+    ["fechamento", 2, "Fechamento (D+2)", "PDV, custos, intercorrências e estoque, na planilha da cidade. Novos pedidos de bebida só depois do estoque preenchido."],
   ];
 
   function passosDaData(modelo, dataIso, feitos, hoje) {
@@ -91,5 +100,5 @@
     });
   }
 
-  g.TQRegras = { CIDADES_REDE, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, passosDaData };
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, passosDaData };
 })(typeof window !== "undefined" ? window : globalThis);

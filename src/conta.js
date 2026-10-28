@@ -547,7 +547,7 @@ const TQConta = (() => {
     ["A casa", [
       ["nome", "Nome da casa", "text", null, 1], ["cidade", "Cidade", "text", null, 1], ["estado", "Estado (UF)", "text", null, 1],
       ["endereco", "Endereço", "text", null, 1], ["instagram", "Instagram", "text"],
-      ["capacidade", "Capacidade de público em formato de show (pessoas)", "number", null, 1], ["capacidade_sentado", "Pessoas sentadas", "number"],
+      ["capacidade", "Capacidade de público em formato de show (pessoas)", "number", null, 1], ["capacidade_sentado", "Capacidade com o público sentado (pessoas)", "number", null, 1, "Regra do Tranquilo: o público assiste sentado (cadeiras, cangas, almofadas e pufes)."],
       ["dias", "Dias e horários possíveis para shows", "text"],
     ]],
     ["Responsável", [["responsavel", "Responsável local", "text", null, 1], ["whatsapp", "WhatsApp", "text", null, 1], ["email_contato", "E-mail de contato", "text"]]],
@@ -1062,6 +1062,9 @@ const TQConta = (() => {
       agora = `<div class="alert good"><b>Casa habilitada${c.classificacao ? ` · ${CLASSE[c.classificacao]}` : ""}</b>${esc(c.parecer || "")} ${evs.length ? "" : "Próximo passo: a primeira data é um teste real. Quando ela for confirmada, o passo a passo aparece aqui."}</div>${pend.match.length ? listaPend : ""}`;
     }
     if (!c && p.codigo_acesso && evs.length) etapa = 4;
+    // Regra nova (público sentado): a casa já habilitada continua habilitada e vê o aviso até preencher.
+    if (c?.status === "habilitada" && R.pendenciasCasa(c.dados || {}).habilitacao.includes(R.NOVA_EXIGENCIA))
+      agora = `<div class="alert warn" style="margin-bottom:10px"><b>Nova exigência: capacidade com o público sentado</b>O público do Tranquilo assiste sentado. Informe quantas pessoas a casa recebe sentadas (cadeiras, cangas, almofadas e pufes). A casa continua habilitada.<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Atualizar cadastro</button></div></div>` + agora;
     return `<div class="tag">Casa</div><h1>${esc(p.vinculo_nome || c?.dados?.nome || p.nome || "Sua casa")}</h1>
     <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e registra prontidão, público e ocorrências. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
     ${linhaTempo(etapas, etapa)}${agora}

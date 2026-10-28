@@ -29,7 +29,7 @@ for (let i = 0; i < 400; i++) {
     falhas++; if (falhas < 4) console.log('Diferença na pré-curadoria', d, js, sql);
   }
   const c = Object.fromEntries(['responsavel', 'whatsapp', 'endereco', 'cidade', 'som', 'palco', 'microfones', 'luz', 'restricoes', 'camarim', 'backline', 'acessibilidade', 'instagram', 'como_chegar'].map((k) => [k, talvez('x')]));
-  c.som = escolhe(['pa_proprio', 'nao_tem', '']); c.capacidade = talvez(String(rnd(300))); c.aceite_responsabilidades = escolhe(['true', 'false', '']);
+  c.som = escolhe(['pa_proprio', 'nao_tem', '']); c.capacidade = talvez(String(rnd(300))); c.capacidade_sentado = talvez(String(rnd(200))); c.aceite_responsabilidades = escolhe(['true', 'false', '']);
   const cj = pendenciasCasa(c), cs = (await db.query('select pendencias_casa($1) r', [c])).rows[0].r;
   if (['habilitacao', 'match', 'enriquecimento'].some((k) => JSON.stringify(cj[k]) !== JSON.stringify(cs[k]))) { falhas++; if (falhas < 4) console.log('Diferença na habilitação', c, cj, cs); }
 }

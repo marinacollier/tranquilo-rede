@@ -60,8 +60,8 @@ await como(eq, async () => {
 await como(casa, async () => {
   await q(`insert into cadastros_casas (user_id, dados, status) values ($1, $2, 'em_analise')`, [casa, { responsavel: 'Ana', cidade: 'Recife' }]);
   let r = (await q(`select status, pendencias from cadastros_casas`)).rows[0];
-  ok(r.status === 'incompleto' && r.pendencias.habilitacao.length === 5, `casa sem dados mínimos fica "incompleto" (${r.pendencias.habilitacao.join('; ')})`);
-  await q(`update cadastros_casas set dados = $2, status = 'em_analise', classificacao = 'confiavel' where user_id = $1`, [casa, { responsavel: 'Ana', whatsapp: '81', endereco: 'Rua', cidade: 'Recife', capacidade: '150', som: 'PA próprio', aceite_responsabilidades: 'true', palco: '4x3' }]);
+  ok(r.status === 'incompleto' && r.pendencias.habilitacao.length === 6, `casa sem dados mínimos fica "incompleto" (${r.pendencias.habilitacao.join('; ')})`);
+  await q(`update cadastros_casas set dados = $2, status = 'em_analise', classificacao = 'confiavel' where user_id = $1`, [casa, { responsavel: 'Ana', whatsapp: '81', endereco: 'Rua', cidade: 'Recife', capacidade: '150', capacidade_sentado: '120', som: 'PA próprio', aceite_responsabilidades: 'true', palco: '4x3' }]);
   r = (await q(`select status, classificacao, pendencias from cadastros_casas`)).rows[0];
   ok(r.status === 'em_analise' && r.classificacao === null && r.pendencias.match.length === 4, 'casa completa vai para análise e não se autoclassifica');
   await q(`insert into checklist (user_id, evento_id, item) values ($1, 'ev1', 't28_rider')`, [casa]);
@@ -79,6 +79,13 @@ await como(casa, async () => {
   await q(`update cadastros_casas set dados = dados || '{"backline":"bateria"}', status = 'rascunho' where user_id = $1`, [casa]);
   const r = (await q(`select status, classificacao from cadastros_casas`)).rows[0];
   ok(r.status === 'habilitada' && r.classificacao === 'desenvolvimento', 'casa habilitada atualiza cadastro sem perder status');
+  // v10: capacidade sentada obrigatória. Casa já habilitada sem ela continua habilitada (aviso de nova exigência no site).
+  await q(`update cadastros_casas set dados = dados - 'capacidade_sentado' where user_id = $1`, [casa]);
+  const r2 = (await q(`select status, pendencias from cadastros_casas`)).rows[0];
+  ok(r2.status === 'habilitada' && r2.pendencias.habilitacao.includes('Capacidade de público sentado'), 'exigência nova (público sentado) não tira a habilitação de quem já estava habilitada');
+  await q(`update cadastros_casas set dados = dados - 'whatsapp' where user_id = $1`, [casa]);
+  ok((await q(`select status from cadastros_casas`)).rows[0].status === 'incompleto', 'mas apagar um dado mínimo antigo ainda tira a habilitação');
+  await q(`update cadastros_casas set dados = dados || '{"whatsapp":"81","capacidade_sentado":"120"}' where user_id = $1`, [casa]);
   ok((await q(`select * from registros_noite`)).rows.length === 1, 'casa vê o próprio registro');
 });
 await como(art, async () => { ok((await q(`select * from registros_noite`)).rows.length === 0 && (await q(`select * from chaves_internas`)).rows.length === 0, 'artista não vê registros de casa nem chaves'); });

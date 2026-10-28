@@ -11,8 +11,8 @@ const TQTour = (() => {
   // Passo com `cobre` só aparece se ao menos uma das abas existir para a pessoa; `novo` marca o que entrou depois
   // (quem já tinha visto o tutorial recebe só as novidades). O teste do navegador confere a cobertura de cada perfil.
   // Datas com hora (UTC): quem viu o tutorial antes delas recebe só as novidades. Compara o instante, não só o dia.
-  const NOVIDADES = "2026-10-23T14:00:00Z";
-  const N = { novo: "2026-10-23" }, N2 = { novo: NOVIDADES };
+  const NOVIDADES = "2026-10-27T23:00:00Z";
+  const N = { novo: "2026-10-23" }, N2 = { novo: "2026-10-23T14:00:00Z" }, N3 = { novo: NOVIDADES };
   const ms = (x) => { const t = Date.parse(x); return Number.isNaN(t) ? 0 : t; };
   /** A pessoa viu o tutorial antes da última leva de novidades? */
   const temNovidades = (visto) => ms(visto) < ms(NOVIDADES);
@@ -50,7 +50,7 @@ const TQTour = (() => {
         { titulo: "Bem-vinda à Rede Tranquilo", texto: "Aqui a casa produz as datas com autonomia: recebe a data repassada pelo Tranquilo, registra a prontidão e a noite, e o Tranquilo acompanha sem precisar ligar.", itens: ["A casa só vê as próprias datas.", "Tudo o que você marca chega na hora para a equipe."] },
         { titulo: "Cadastro da casa", cobre: ["cadastro_casa"], texto: "Preencha a ficha. O site separa o que bloqueia a habilitação, o que bloqueia algumas datas e o que só enriquece a ficha.", itens: ["Responsável, WhatsApp, endereço, capacidade e som são o mínimo.", "Dá para atualizar a ficha a qualquer momento."], ir: ["cadastro_casa", "Abrir cadastro da casa"] },
         { titulo: "Habilitação", texto: "Com os dados mínimos, a equipe analisa e responde aqui. Uma casa habilitada recebe a primeira data como teste real.", itens: ["Se a equipe pedir ajuste, a mensagem aparece no topo."] },
-        { titulo: "Cada data, passo a passo", cobre: ["passos"], texto: "Quando o Tranquilo repassa uma data, aparece o roteiro de cada noite com prazos: equipe, técnica, horários, divulgação e o dia do show.", itens: ["Marque cada item quando estiver feito.", "Em \"Contrato e materiais\" de cada data ficam o contrato e os arquivos."], ir: ["passos", "Ver próximos passos"] },
+        { titulo: "Cada data, passo a passo", cobre: ["passos"], ...N3, texto: "Quando o Tranquilo repassa uma data, aparece o roteiro de cada noite com prazos, do repasse ao fechamento no D+2: equipe e porta com reserva (D-7), pacote fixado no grupo com os artistas (D-5), caixa de produção (D-2) e planilha de estoque (D-1).", itens: ["Marque cada item quando estiver feito.", "Em \"Como é a noite\" ficam o cronograma, o camarim, o rider e o padrão da noite; em \"Contrato e materiais\", o contrato e os arquivos."], ir: ["passos", "Ver próximos passos"] },
 { titulo: "Contrato para assinar", ...N2, texto: "Quando a equipe mandar o contrato de uma data, ele aparece no topo do passo a passo. Complete os seus dados, leia até o fim e assine digitando o seu nome completo, sem imprimir nada.", itens: ["Depois de assinado, a cópia fica em \"Contrato e materiais\" da data, para baixar ou imprimir."] },
         { titulo: "Campanha de divulgação", cobre: ["campanha"], ...N, texto: "O que postar e mandar em cada dia, com os modelos do Canva e os links prontos. Marque \"Feito\" ao terminar: vale para toda a equipe da casa, e o Tranquilo acompanha.", itens: ["\"Levar para o Google Agenda\" coloca os dias da campanha na sua agenda.", "Dia que passou sem \"Feito\" aparece como atrasado."], ir: ["campanha", "Abrir campanha"] },
         { titulo: "Minhas datas e roteiro da noite", cobre: ["minhas", "roteiro"], texto: "Com a conta ligada à casa, você vê as próximas noites, o público de cada noite que já aconteceu e o roteiro do dia do show: chegada, passagem de som, portas e encerramento.", itens: [] },

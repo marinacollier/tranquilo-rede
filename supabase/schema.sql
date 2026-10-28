@@ -1493,3 +1493,85 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function meu_acesso(), codigos_acesso() from public, anon;
 grant execute on function meu_acesso(), codigos_acesso() to authenticated;
+
+-- =====================================================================
+-- v10: regras da noite e prazos da Operação (manuais de 21/10/2026). Mesmas regras de src/regras.js.
+-- · Formação: alerta acima de trio (o padrão é voz e um instrumento, duo ou trio).
+-- · Público sentado é regra fixa: a capacidade sentada passa a bloquear a habilitação de casa nova.
+--   Casa já habilitada não perde a habilitação por essa exigência nova (vê um aviso no site até preencher).
+-- =====================================================================
+create or replace function pre_curadoria(d jsonb, cidades_rede text[] default array[
+  'São Paulo','Belo Horizonte','Rio de Janeiro','Brasília','Curitiba','Florianópolis','Porto Alegre',
+  'Campinas','Santos','Santo André','Sorocaba','Itajaí','Salvador','Recife']) returns jsonb
+language plpgsql immutable set search_path = public as $$
+declare
+  ouvintes int := int_seguro(d ->> 'ouvintes_mensais');
+  seguidores int := int_seguro(d ->> 'seguidores_instagram');
+  links int := (case when coalesce(d ->> 'spotify', '') <> '' then 1 else 0 end)
+             + (case when coalesce(d ->> 'youtube', '') <> '' then 1 else 0 end)
+             + (case when coalesce(d ->> 'outro_link', '') <> '' then 1 else 0 end);
+  integrantes int := case when coalesce(d ->> 'integrantes', '') = '' then 1 else int_seguro(d ->> 'integrantes') end;
+  cache int := int_seguro(d ->> 'cache_minimo');
+  cidades jsonb := case when jsonb_typeof(d -> 'cidades_interesse') = 'array' then d -> 'cidades_interesse' else '[]'::jsonb end;
+  cidades_ok int := 0;
+  completude int := 0; tracao int := 0; tecnica int := 0; circulacao int := 0; condicoes int := 0;
+  total int; faixa text; alertas jsonb := '[]'::jsonb;
+begin
+  if length(coalesce(d ->> 'release', '')) >= 200 then completude := completude + 5; end if;
+  if coalesce(d ->> 'foto', '') <> '' then completude := completude + 5; end if;
+  if links >= 2 then completude := completude + 5; end if;
+  if coalesce(d ->> 'contato_producao', '') <> '' then completude := completude + 5; end if;
+  tracao := case when ouvintes >= 50000 then 20 when ouvintes >= 10000 then 15 when ouvintes >= 2000 then 10 when ouvintes >= 500 then 5 else 0 end
+          + case when seguidores >= 20000 then 15 when seguidores >= 5000 then 10 when seguidores >= 1000 then 5 else 0 end;
+  tecnica := case d ->> 'rider_tipo' when 'circulavel' then 20 when 'condicionado' then 10 when 'especial' then 3 else 0 end;
+  select count(*) into cidades_ok from jsonb_array_elements(cidades) c
+  where jsonb_typeof(c) = 'string' and c #>> '{}' = any (cidades_rede);
+  circulacao := least(15, cidades_ok * 5);
+  condicoes := case when (d ->> 'aceita_bonus') = 'true' then 10 when cache > 0 and cache <= 800 then 5 else 0 end;
+  total := completude + tracao + tecnica + circulacao + condicoes;
+  faixa := case when total >= 65 then 'Prioridade' when total >= 40 then 'Avaliar' else 'Abaixo do corte' end;
+  if links = 0 then alertas := alertas || '["Sem link de áudio ou vídeo"]'::jsonb; end if;
+  if integrantes > 3 then alertas := alertas || '["Formação acima de trio: o padrão é voz e um instrumento, duo ou trio"]'::jsonb; end if;
+  if d ->> 'rider_tipo' = 'especial' then alertas := alertas || '["Rider de produção especial"]'::jsonb; end if;
+  if cache > 1500 then alertas := alertas || '["Cachê mínimo acima de R$ 1.500"]'::jsonb; end if;
+  if cidades_ok = 0 then alertas := alertas || '["Nenhuma cidade de interesse na rede atual"]'::jsonb; end if;
+  return jsonb_build_object(
+    'score', total, 'faixa', faixa, 'alertas', alertas,
+    'detalhe', jsonb_build_object('completude', completude, 'tracao', tracao, 'tecnica', tecnica, 'circulacao', circulacao, 'condicoes', condicoes)
+  );
+end $$;
+
+create or replace function pendencias_casa(d jsonb) returns jsonb
+language plpgsql immutable set search_path = public as $$
+declare hab jsonb := '[]'::jsonb; mat jsonb := '[]'::jsonb; enr jsonb := '[]'::jsonb;
+begin
+  if coalesce(d ->> 'responsavel', '') = '' then hab := hab || '["Responsável local"]'; end if;
+  if coalesce(d ->> 'whatsapp', '') = '' then hab := hab || '["WhatsApp do responsável"]'; end if;
+  if coalesce(d ->> 'endereco', '') = '' or coalesce(d ->> 'cidade', '') = '' then hab := hab || '["Endereço e cidade"]'; end if;
+  if int_seguro(d ->> 'capacidade') <= 0 then hab := hab || '["Capacidade de público"]'; end if;
+  if int_seguro(d ->> 'capacidade_sentado') <= 0 then hab := hab || '["Capacidade de público sentado"]'; end if;
+  if coalesce(d ->> 'som', '') in ('', 'nao_tem') then hab := hab || '["Como resolve o som (PA próprio ou parceiro técnico)"]'; end if;
+  if (d ->> 'aceite_responsabilidades') is distinct from 'true' then hab := hab || '["Aceite da matriz de responsabilidades da casa"]'; end if;
+  if coalesce(d ->> 'palco', '') = '' then mat := mat || '["Medidas do palco"]'; end if;
+  if coalesce(d ->> 'microfones', '') = '' then mat := mat || '["Microfones e DIs disponíveis"]'; end if;
+  if coalesce(d ->> 'luz', '') = '' then mat := mat || '["Luz (frontal para rosto)"]'; end if;
+  if coalesce(d ->> 'restricoes', '') = '' then mat := mat || '["Restrições de horário e volume"]'; end if;
+  if coalesce(d ->> 'camarim', '') = '' then mat := mat || '["Camarim"]'; end if;
+  if coalesce(d ->> 'backline', '') = '' then enr := enr || '["Backline"]'; end if;
+  if coalesce(d ->> 'acessibilidade', '') = '' then enr := enr || '["Acessibilidade"]'; end if;
+  if coalesce(d ->> 'instagram', '') = '' then enr := enr || '["Instagram"]'; end if;
+  if coalesce(d ->> 'como_chegar', '') = '' then enr := enr || '["Como chegar (transporte e estacionamento)"]'; end if;
+  return jsonb_build_object('habilitacao', hab, 'match', mat, 'enriquecimento', enr);
+end $$;
+
+create or replace function casa_rehabilitar() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  -- Só derruba a habilitação o que já era exigido antes; a capacidade sentada (v10) vira aviso para quem já estava habilitada.
+  if new.user_id = auth.uid() and new.status = 'habilitada' and exists (
+    select 1 from jsonb_array_elements_text(coalesce(new.pendencias -> 'habilitacao', '[]')) x where x <> 'Capacidade de público sentado'
+  ) then
+    new.status := 'incompleto';
+  end if;
+  return new;
+end $$;

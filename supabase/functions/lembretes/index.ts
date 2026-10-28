@@ -26,8 +26,10 @@ const PASSOS: Record<string, [string, number, string][]> = {
   casa: [
     ["handoff", -30, "Receber a data repassada pelo Tranquilo"], ["ficha", -28, "Revisar a ficha da casa para este formato"], ["rider", -28, "Conferir o rider do artista"],
     ["tecnico", -21, "Confirmar técnico de som e setup"], ["roteiro", -21, "Fechar o roteiro do dia"], ["escrito", -14, "Confirmar tudo por escrito"],
-    ["travas", -7, "Travas finais"], ["prontidao", 0, "Prontidão da noite"], ["publico", 0, "Registrar o público e as ocorrências"],
-    ["fechamento", 1, "Fechamento e prestação de contas"],
+    ["travas", -7, "Travas finais"], ["equipe_reserva", -7, "Equipe escalada com reserva"], ["porta_reserva", -7, "Operadores de porta com reserva"],
+    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas"], ["caixa_producao", -2, "Caixa de produção conferida"], ["estoque", -1, "Planilha de estoque"],
+    ["prontidao", 0, "Prontidão da noite"], ["publico", 0, "Registrar o público e as ocorrências"],
+    ["fechamento", 2, "Fechamento (D+2)"],
   ],
 };
 const chave = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
