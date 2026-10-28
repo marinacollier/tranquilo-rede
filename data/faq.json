@@ -470,6 +470,34 @@
       "resposta": "Mesa digital de no mínimo 18 canais, P.A. de 2 caixas ativas, monitor com 3 vias, 4 SM58, 2 SM57, 2 condensadores pequenos, 4 DIs, pedestais, 4 pontos de 110V, 3 cadeiras ou banquetas e técnico de som durante todo o evento. O formato é voz e violão, voz e piano, duo ou trio acústico; o que passar disso é avaliado antes.",
       "links": [],
       "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "Como monto a equipe da casa?",
+      "resposta": "Na aba Equipe da casa. São 7 funções na noite: Líder Local, produtor, anfitrião, social media, técnico de som, bar e porta, com no mínimo 5 pessoas e 1 reserva combinada na semana do evento. O dono monta a equipe e responde por ela: a Central não contrata nem escala. Regras fixas: anfitrião e social media nunca são a mesma pessoa, e o técnico de som não acumula outra função. O produtor pode acumular bar ou porta.",
+      "links": [],
+      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "A minha equipe pode entrar na plataforma?",
+      "resposta": "Pode. Coloque o e-mail da pessoa na Equipe da casa e toque em \"Dar acesso\". Ela entra ligada à sua casa e vê só o que é da função dela: os passos de cada data, o \"Como é a noite\" da função e o que ela lê e devolve. O que alguém da equipe marca vale para a casa inteira. Se você tirar a pessoa da equipe, a conta dela deixa de ver a casa.",
+      "links": [],
+      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que é a trilha da nova casa?",
+      "resposta": "É a habilitação em 7 dias úteis. Dia 1: Thales passa a casa para a Operações. Dias 2 e 3: Gui manda as perguntas sobre o espaço e os documentos, e a casa confirma a leitura do Guia. Dias 4 e 5: Isa propõe as datas e o produto, e a casa aprova por escrito. Dias 6 e 7: Bruno publica a campanha e responde as dúvidas. Na aba Trilha da nova casa você vê com quem está o bastão e marca o que é da casa. Depois da trilha, a casa monta o tripé, o Líder Local e a equipe, e faz a homologação do espaço e do som no prazo combinado com o Gui.",
+      "links": [],
+      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "O que a casa decide sozinha?",
+      "resposta": "Quem entra na equipe, quanto ganha, escala e reserva; quem é o tripé e o Líder Local; fornecedores, cardápio e marca de bebida; horário de chegada da equipe; layout e cenografia dentro do padrão da noite; e como resolver imprevistos no dia, com o manual na mão. Combina antes, por escrito: datas, horário padrão de portas, preço e cortesias fora do padrão, troca de equipamento do rider, artista indicado pela cidade e peça nova com a marca. Não muda nunca: silêncio no show, público sentado, formato enxuto, som confortável e bar longe do palco.",
+      "links": [],
+      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
     }
   ]
 }

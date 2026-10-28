@@ -1140,15 +1140,19 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Agora", ["inicio", "passos", "campanha", "operacao", "agenda", "minhas"]],
-  ["Entrada na rede", ["curadoria", "casas_cad", "convites", "prontidao", "documentos", "pessoas"]],
+  ["Agora", ["inicio", "minha_funcao", "passos", "trilha", "campanha", "operacao", "agenda", "minhas"]],
+  ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "convites", "prontidao", "documentos", "pessoas"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
-  ["Seu cadastro", ["inscricao", "cadastro_casa"]],
+  ["Seu cadastro", ["inscricao", "cadastro_casa", "equipe_casa"]],
   ["Referência", ["materiais", "roteiro", "duvidas", "base", "metodo", "acessos"]],
   ["Conta", ["conta"]],
 ];
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONES = {
+  minha_funcao: ic('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>'),
+  equipe_casa: ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 016 4.8"/>'),
+  trilha: ic('<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 000-6h-2a3 3 0 010-6h6"/>'),
+  trilhas: ic('<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 000-6h-2a3 3 0 010-6h6"/>'),
   inicio: ic('<path d="M4 11l8-7 8 7v9a1 1 0 01-1 1h-4v-6h-6v6H5a1 1 0 01-1-1z"/>'),
   campanha: ic('<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'),
   campanhas: ic('<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'),
