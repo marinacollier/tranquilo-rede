@@ -75,19 +75,20 @@ const TQOperacao = (() => {
     return p === "Descubra" ? CRONOGRAMA.Descubra : CRONOGRAMA[fimDeSemana(iso) ? "Apresenta:fim" : "Apresenta:semana"];
   }
 
-  /** Bloco "Como é a noite" de uma data, para a casa ou para a artista. */
-  function bloco(e, perfil) {
+  /** Bloco "Como é a noite" de uma data, para a casa ou para a artista.
+   *  partes (opcional, pessoa da equipe da casa): só as seções da função dela (TQEquipe.partesNoite). */
+  function bloco(e, perfil, partes) {
     const p = produto(e.m), c = cronograma(e.m, e.d); if (!p || !c) return "";
-    const casa = perfil === "casa";
+    const casa = perfil === "casa", v = partes || { cronograma: 1, cortesias: 1, camarim: 1, checklist: casa, rider: 1, padrao: 1, depois: casa };
     return `<details style="margin-top:6px"><summary>Como é a noite (${p})</summary>
       <p class="muted" style="font-size:13px;margin:8px 0 4px">${esc(c.nota)}</p>${tabela(c.linhas, ["Horário", "O que acontece"])}
-      <h4 style="margin:12px 0 4px">Cortesias</h4><p style="margin:0">${esc(CORTESIAS)}</p>
-      <h4 style="margin:12px 0 4px">Camarim</h4>${lista(CAMARIM[p])}
-      ${casa ? `<h4 style="margin:12px 0 4px">Até 4 a 5 dias antes: fixar no grupo com os artistas</h4>${lista(CHECKLIST_SEMANA.artistas)}
-      <h4 style="margin:12px 0 4px">E confirmar com a Operações</h4>${lista(CHECKLIST_SEMANA.operacoes)}
-      <h4 style="margin:12px 0 4px">Rider técnico</h4>${tabela(RIDER_TECNICO, ["Item", "Padrão"])}` : `<h4 style="margin:12px 0 4px">Rider técnico da casa</h4>${tabela(RIDER_TECNICO, ["Item", "Padrão"])}`}
+      ${v.cortesias ? `<h4 style="margin:12px 0 4px">Cortesias</h4><p style="margin:0">${esc(CORTESIAS)}</p>` : ""}
+      ${v.camarim ? `<h4 style="margin:12px 0 4px">Camarim</h4>${lista(CAMARIM[p])}` : ""}
+      ${casa && v.checklist ? `<h4 style="margin:12px 0 4px">Até 4 a 5 dias antes: fixar no grupo com os artistas</h4>${lista(CHECKLIST_SEMANA.artistas)}
+      <h4 style="margin:12px 0 4px">E confirmar com a Operações</h4>${lista(CHECKLIST_SEMANA.operacoes)}` : ""}
+      ${v.rider ? `<h4 style="margin:12px 0 4px">${casa ? "Rider técnico" : "Rider técnico da casa"}</h4>${tabela(RIDER_TECNICO, ["Item", "Padrão"])}` : ""}
       <h4 style="margin:12px 0 4px">Padrão da noite</h4>${lista(p === "Apresenta" ? PADRAO_NOITE.concat(PADRAO_APRESENTA) : PADRAO_NOITE)}
-      ${casa ? `<h4 style="margin:12px 0 4px">Depois do evento</h4>${lista(DEPOIS)}` : ""}
+      ${casa && v.depois ? `<h4 style="margin:12px 0 4px">Depois do evento</h4>${lista(DEPOIS)}` : ""}
       <p class="muted" style="font-size:12px;margin-top:8px">${esc(FONTE)}, versão de ${esc(VERSAO)}.</p></details>`;
   }
 

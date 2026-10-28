@@ -106,7 +106,7 @@ const TQConta = (() => {
       async marcarTutorial() { eu().tutorial_visto_em = agora(); gravar(); },
       async reivindicar() {
         const p = eu(), c = p && db.conv[p.email]; if (!c || c.aceito_em) return false;
-        Object.assign(p, { tipo: c.tipo, codigo_acesso: c.codigo_acesso || p.codigo_acesso, vinculo_nome: c.vinculo_nome || p.vinculo_nome }); c.aceito_em = agora(); gravar(); return true;
+        Object.assign(p, { tipo: c.tipo, codigo_acesso: c.codigo_acesso || p.codigo_acesso, vinculo_nome: c.vinculo_nome || p.vinculo_nome, funcoes: c.tipo === "casa" ? c.funcoes || null : null }); c.aceito_em = agora(); gravar(); return true;
       },
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
@@ -176,6 +176,43 @@ const TQConta = (() => {
         const t = TQContrato.preencher(c.texto, c.campos, c.dados); if (await TQContrato.hash(t) !== h) throw new Error("O contrato mudou enquanto você lia. Recarregue a página e leia de novo.");
         Object.assign(c, { status: "assinado", texto_final: t, hash: h, assinado_nome: nome, assinado_em: agora(), ip: "demonstração", navegador: navigator.userAgent.slice(0, 300) }); gravar(); return c;
       },
+      // Equipe da casa por função e Trilha da Nova Casa (mesmas regras do banco, schema v11).
+      async equipeCasa() {
+        const p = eu(); if (!p?.vinculo_nome) return [];
+        const temConta = (m) => Object.values(db.usuarios).some((u) => u.perfil.email === m.email && u.perfil.funcoes);
+        return (db.eqc || []).filter((m) => m.casa_ref === p.vinculo_nome).map((m) => ({ ...m, acesso: !m.email ? "sem_email" : temConta(m) ? "ativo" : db.conv[m.email] ? "convidado" : "sem_convite" }));
+      },
+      async salvarMembro(m) {
+        const e = TQEquipe.funcoesErro(m.funcoes); if (e) throw new Error(e);
+        const p = eu(); if (p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome) throw new Error("Só o responsável da casa mexe na equipe.");
+        db.eqc ||= []; const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, funcoes: [...new Set(m.funcoes)].sort(), reserva: !!m.reserva };
+        if (m.id) Object.assign(db.eqc.find((x) => x.id === m.id), linha); else db.eqc.push({ ...linha, id: id(), casa_ref: p.vinculo_nome, criado_em: agora() });
+        gravar();
+      },
+      async removerMembro(mid) { db.eqc = (db.eqc || []).filter((x) => x.id !== mid); gravar(); },
+      async convidarMembro(mid) {
+        const m = (db.eqc || []).find((x) => x.id === mid), p = eu(); if (!m?.email) throw new Error("Coloque o e-mail da pessoa antes de convidar.");
+        db.conv[m.email] = { email: m.email, tipo: "casa", nome: m.nome, whatsapp: m.whatsapp, codigo_acesso: p.codigo_acesso, vinculo_nome: p.vinculo_nome, funcoes: m.funcoes, criado_em: agora(), aceito_em: null };
+        gravar(); return { enviado: false, demo: true };
+      },
+      async equipesTodas() { exigeEquipe(); return db.eqc || []; },
+      async checklistCasa() { return this.meuChecklist(); },
+      async desmarcarCasa(ev, it) { return this.marcar(ev, it, false); },
+      async minhaTrilha() { const p = eu(), t = p?.vinculo_nome && (db.tri || {})[p.vinculo_nome]; return t ? { casa_ref: p.vinculo_nome, inicio: t.inicio, marcos: t.marcos || {} } : null; },
+      async trilhaMarcarCasa(etapa, feito) {
+        const p = eu(), t = (db.tri || {})[p?.vinculo_nome]; if (!t) throw new Error("A sua casa ainda não tem trilha.");
+        if (p.funcoes) throw new Error("Só o responsável da casa confirma as etapas da trilha.");
+        if (!TQEquipe.ETAPAS_CASA.includes(etapa)) throw new Error("Esta etapa é da Central.");
+        t.marcos ||= {}; if (feito) t.marcos[etapa] = agora(); else delete t.marcos[etapa]; gravar();
+      },
+      async trilhas() {
+        exigeEquipe(); const T = db.tri || {};
+        return { trilhas: Object.entries(T).map(([k, t]) => ({ casa_ref: k, inicio: t.inicio, nota_passagem: t.nota || null })),
+          marcos: Object.entries(T).flatMap(([k, t]) => Object.entries(t.marcos || {}).map(([etapa, em]) => ({ casa_ref: k, etapa, feito_em: em }))) };
+      },
+      async salvarTrilha(t) { exigeEquipe(); db.tri ||= {}; db.tri[t.casa_ref] = { ...(db.tri[t.casa_ref] || {}), inicio: t.inicio, nota: t.nota || null }; gravar(); },
+      async marcarTrilha(ref, etapa, feito) { exigeEquipe(); const t = db.tri[ref]; t.marcos ||= {}; if (feito) t.marcos[etapa] = agora(); else delete t.marcos[etapa]; gravar(); },
+      async apagarTrilha(ref) { exigeEquipe(); delete db.tri[ref]; gravar(); },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
@@ -218,18 +255,20 @@ const TQConta = (() => {
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     // O código de acesso não sai na leitura de perfis (só por meu_acesso, e o de todos só para a adm: schema v8).
     // Banco ainda sem a v8: lê como antes.
-    const COLS = "id,email,nome,tipo,whatsapp,vinculo_nome,criado_em,tutorial_visto_em,senha_definida,vinculo_pedido_nome,vinculo_pedido_em";
+    const COLS0 = "id,email,nome,tipo,whatsapp,vinculo_nome,criado_em,tutorial_visto_em,senha_definida,vinculo_pedido_nome,vinculo_pedido_em", COLS = COLS0 + ",funcoes";
+    // Função na equipe da casa (schema v11). Banco ainda sem a coluna: lê como antes.
+    const lerCols = async (montar) => { const r = await montar(sb.from("perfis").select(COLS)); return r.error && /funcoes/.test(r.error.message || "") ? montar(sb.from("perfis").select(COLS0)) : r; };
     const semV8 = (e) => /PGRST202|42703|Could not find the function|does not exist/i.test(`${e?.code} ${e?.message}`);
     const perfil = async () => {
       const u = await uid(); if (!u) return null;
-      const r = await sb.from("perfis").select(COLS).eq("id", u).maybeSingle();
+      const r = await lerCols((x) => x.eq("id", u).maybeSingle());
       if (r.error && semV8(r.error)) return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle());
       const p = ok(r); if (!p) return null;
       const a = await sb.rpc("meu_acesso");
       return { ...p, codigo_acesso: a.data?.[0]?.codigo_acesso ?? null, vinculo_pedido: a.data?.[0]?.vinculo_pedido ?? null };
     };
     const lerPerfis = async (montar) => {
-      const r = await montar(sb.from("perfis").select(COLS));
+      const r = await lerCols(montar);
       if (r.error && semV8(r.error)) return ok(await montar(sb.from("perfis").select("*")));
       const ps = ok(r), cods = await sb.rpc("codigos_acesso");   // vazio para quem não é adm
       const m = Object.fromEntries((cods.data || []).map((c) => [c.id, c]));
@@ -417,6 +456,28 @@ const TQConta = (() => {
         ok(await sb.from("material_versoes").insert({ ...v, material_id: mat.id }));
       },
       async relatos() { return ok(await sb.from("diario").select("criado_em,user_id,perfil,tela,detalhe,navegador").eq("acao", "relato").order("criado_em", { ascending: false }).limit(300)); },
+      // Equipe da casa por função e Trilha da Nova Casa (schema v11).
+      async equipeCasa() { return ok(await sb.rpc("equipe_da_casa")); },
+      async salvarMembro(m) {
+        const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, funcoes: m.funcoes, reserva: !!m.reserva };
+        ok(m.id ? await sb.from("equipe_casa").update(linha).eq("id", m.id) : await sb.from("equipe_casa").insert({ ...linha, casa_ref: m.casa_ref }));
+      },
+      async removerMembro(mid) { ok(await sb.from("equipe_casa").delete().eq("id", mid)); },
+      async convidarMembro(mid, email, nome) {
+        if (ok(await sb.rpc("convidar_equipe_casa", { membro: mid })) === "ja_tem_acesso") return { ja: true };
+        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome, tipo: "casa" } } });
+        return { enviado: !error, erro: error ? traduz(error.message) : null };
+      },
+      async equipesTodas() { return ok(await sb.from("equipe_casa").select("*").order("criado_em")); },
+      // Passos marcados por qualquer pessoa da casa (banco sem a v11: só os da própria conta).
+      async checklistCasa() { const r = await sb.rpc("checklist_da_casa"); return r.error ? this.meuChecklist() : r.data; },
+      async desmarcarCasa(ev, it) { const r = await sb.rpc("desmarcar_passo_casa", { ev, it }); if (r.error) await this.marcar(ev, it, false); },
+      async minhaTrilha() { const r = await sb.rpc("minha_trilha"); return r.error ? null : r.data?.[0] || null; },
+      async trilhaMarcarCasa(etapa, feito) { ok(await sb.rpc("trilha_marcar_casa", { etapa_: etapa, feito })); },
+      async trilhas() { const [t, m] = await Promise.all([sb.from("trilhas").select("*").order("inicio", { ascending: false }), sb.from("trilha_marcos").select("casa_ref,etapa,feito_em")]); return { trilhas: ok(t), marcos: ok(m) }; },
+      async salvarTrilha(t) { ok(await sb.from("trilhas").upsert({ casa_ref: t.casa_ref, inicio: t.inicio, nota_passagem: t.nota || null })); },
+      async marcarTrilha(ref, etapa, feito) { ok(feito ? await sb.from("trilha_marcos").upsert({ casa_ref: ref, etapa }) : await sb.from("trilha_marcos").delete().match({ casa_ref: ref, etapa })); },
+      async apagarTrilha(ref) { ok(await sb.from("trilhas").delete().eq("casa_ref", ref)); },
     };
   }
   function traduz(m) {
@@ -448,7 +509,9 @@ const TQConta = (() => {
     if (perfil.tipo === "artista") conta.insc = await api.minhaInscricao();
     if (perfil.tipo === "casa") { conta.casa = await api.minhaCasa(); conta.reg = await api.meusRegistros(); }
     if (perfil.tipo === "artista" || perfil.tipo === "casa") {
-      conta.chk = await api.meuChecklist();
+      conta.chk = perfil.tipo === "casa" ? await api.checklistCasa() : await api.meuChecklist();
+      // Trilha da nova casa: só o dono da casa acompanha (a equipe da casa não vê).
+      if (perfil.tipo === "casa" && !perfil.funcoes) conta.trilha = await api.minhaTrilha().catch(() => null);
       // Documentos e materiais são da versão nova do banco: se falharem, o resto da conta funciona.
       [conta.docs, conta.arqs, conta.contr] = await Promise.all([api.documentos().catch(() => []), api.meusArquivos().catch(() => ({})), api.contratos().catch(() => [])]);
     }
@@ -456,7 +519,7 @@ const TQConta = (() => {
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
     // Código colado e ainda não confirmado pela adm também abre as métricas (é o mesmo que entrar pelo código).
     const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso || perfil.vinculo_pedido;
-    S.pac = null; S.eq = null; S.hub = null; S.campAberta = null;   // nada da conta anterior fica na tela
+    S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; S.tri = null; S.eqcEd = null; S.triEd = null;   // nada da conta anterior fica na tela
     if (cod) {
       // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
       try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id && pac.perfil === perfil.tipo) S.pac = pac; }
@@ -478,13 +541,27 @@ const TQConta = (() => {
   async function recarregar() { const p = await api.sessao(); if (p) { const aba = S.aba; await carregar(p); if (abas().some(([k]) => k === aba)) S.aba = aba; } render(); }
 
   const ROTULO = { artista: "Artista", casa: "Casa", equipe: "Equipe", adm: "Administração" };
+  // Funções da conta na equipe da casa; null = dono da casa (ou conta que não é de casa).
+  const funcoesDe = () => (S.conta?.perfil.tipo === "casa" && S.conta.perfil.funcoes?.length ? S.conta.perfil.funcoes : null);
+  const nomesFuncoes = (fs) => (fs || []).map((f) => TQEquipe.NOME[f] || f).join(" · ");
+  const roteiroConta = () => (funcoesDe() ? "casa_equipe" : S.conta.perfil.tipo);
+  const lerChecklist = () => (S.conta.perfil.tipo === "casa" ? api.checklistCasa() : api.meuChecklist());
   function abas() {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
-    if (t === "casa") return [["passos", "Próximos passos"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
-    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
+    if (t === "casa") {
+      // Pessoa da equipe da casa: só o que é da função dela (Trilha da Nova Casa, seção 5).
+      const fs = funcoesDe();
+      if (fs) {
+        const A = TQEquipe.abasDaFuncao(fs);
+        return [["minha_funcao", "Minha função"], ["passos", "Próximos passos"], ...(A.campanha ? [["campanha", "Campanha"]] : []), ...(A.equipe ? [["equipe_casa", "Equipe da casa"]] : []),
+          ...doPac.filter(([k]) => k !== "minhas" || A.metricas), ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+      }
+      return [["passos", "Próximos passos"], ...(S.conta.trilha ? [["trilha", "Trilha da nova casa"]] : []), ["equipe_casa", "Equipe da casa"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+    }
+    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Trilhas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -618,14 +695,15 @@ const TQConta = (() => {
   }
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
-    const ps = R.passosDaData(modelo, e.d, feitos, hojeIso());
+    const fs = funcoesDe();
+    const ps = R.passosDaData(modelo, e.d, feitos, hojeIso()).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
     const proximo = ps.find((p) => !p.feito && !p.passou);
-    const registro = modelo === "casa" && e.d <= hojeIso() ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
+    const registro = modelo === "casa" && e.d <= hojeIso() && TQEquipe.vePasso(fs, "publico") ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
-      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo)}${blocoMateriais(e)}</div>`;
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
@@ -759,10 +837,90 @@ const TQConta = (() => {
       const p = S.conta.perfil;
       const podeVincular = !p.codigo_acesso && !p.vinculo_pedido && !S.pac;
       return `<div class="tag">Conta</div><h1>${esc(p.nome || p.email)}</h1>
-      <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : p.vinculo_pedido_nome ? `${esc(p.vinculo_pedido_nome)} <span class="badge b-warn">aguardando a equipe confirmar</span> <span class="muted" style="font-size:13px">as métricas já aparecem enquanto isso</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
+      <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}${funcoesDe() ? ` · ${esc(nomesFuncoes(funcoesDe()))}` : ""}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : p.vinculo_pedido_nome ? `${esc(p.vinculo_pedido_nome)} <span class="badge b-warn">aguardando a equipe confirmar</span> <span class="muted" style="font-size:13px">as métricas já aparecem enquanto isso</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
       ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
       <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
+    },
+    // ---------- equipe da casa por função e trilha da nova casa ----------
+    equipe_casa() {
+      const L = S.conta.equipe, dono = !funcoesDe(), p = S.conta.perfil;
+      if (!p.vinculo_nome) return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>${vazio("A conta ainda não está ligada à casa", "Quando a equipe do Tranquilo ligar esta conta à sua casa (pelo convite ou em Pessoas), você monta a equipe aqui.", "", "equipe_casa")}`;
+      if (L === undefined) { carregarEquipeCasa(); return carregando("a equipe da casa"); }
+      if (L === null) return faltaSchema("Equipe da casa");
+      const cob = TQEquipe.cobertura(L), ed = dono && L.find((m) => m.id === S.eqcEd);
+      const ACESSO = { ativo: ["b-good", "com acesso"], convidado: ["b-warn", "convite enviado"], sem_convite: ["", "sem acesso à plataforma"], sem_email: ["", "sem e-mail"] };
+      const pessoa = (m) => `<div class="card row"><span><b>${esc(m.nome)}</b>${m.reserva ? ' <span class="badge">reserva</span>' : ""} ${(m.funcoes || []).map((f) => `<span class="pill">${esc(TQEquipe.NOME[f] || f)}</span>`).join("")}
+        <div class="muted" style="font-size:12px">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}${dono ? ` · <span class="badge ${ACESSO[m.acesso]?.[0] || ""}">${ACESSO[m.acesso]?.[1] || ""}</span>` : ""}</div>
+        ${TQEquipe.funcoesAvisos(m.funcoes).map((a) => `<div class="muted" style="font-size:12px">⚠️ ${esc(a)}</div>`).join("")}</span>
+        ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
+      return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
+      <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} São 7 funções na noite, com no mínimo ${TQEquipe.MINIMO_PESSOAS} pessoas e 1 reserva combinada na semana do evento.</p>
+      <div class="alert ${cob.completa ? "good" : "warn"}"><b>${cob.completa ? "Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (produtor, anfitrião e social media), Líder Local e as 7 funções, com reserva." : esc([...cob.pend, ...cob.erros].join(" · "))}</div>
+      <div class="grid g4" style="margin:12px 0">${TQEquipe.FUNCOES.map(([k, n, o, q]) => { const quem = L.filter((m) => !m.reserva && (m.funcoes || []).includes(k)).map((m) => m.nome);
+        return `<div class="card"><b>${esc(n)}</b>${TQEquipe.TRIPE.includes(k) ? ' <span class="badge">tripé</span>' : ""}<div style="margin:4px 0">${quem.length ? esc(quem.join(", ")) : '<span class="badge b-warn">falta</span>'}</div><div class="muted" style="font-size:12px">${esc(o)} <b>Quando:</b> ${esc(q)}.</div></div>`; }).join("")}</div>
+      <h2>Pessoas (${L.length})</h2>${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.</p>`}
+      ${dono ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : "Adicionar pessoa"}</h3>
+        <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="eqcNome" maxlength="120" value="${esc(ed?.nome || "")}"></label><label class="fcampo"><b>WhatsApp</b><input id="eqcWa" inputmode="tel" maxlength="30" value="${esc(ed?.whatsapp || "")}"></label>
+        <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label></div>
+        <b style="font-size:14px">Funções</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="checkbox" data-eqc-funcao="${k}"${ed?.funcoes?.includes(k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
+        <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
+        <p class="muted" style="font-size:12px;margin:6px 0 0">Regras fixas: anfitrião e social media nunca são a mesma pessoa; o técnico de som não acumula. O Líder Local é uma das pessoas da equipe e pode ser você (sem e-mail, já que você tem a conta da casa).</p>
+        <div class="err" role="status" aria-live="polite" id="eqcErr"></div><div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button>${ed ? `<button class="btn" data-eqc-editar="">Cancelar</button>` : ""}</div></div>` : ""}`;
+    },
+    minha_funcao() {
+      const fs = funcoesDe() || [];
+      return `<div class="tag">Minha função</div><h1>${esc(nomesFuncoes(fs))}</h1>
+      <p class="sub">Você faz parte da equipe de ${esc(S.conta.perfil.vinculo_nome || "uma casa da rede")}. Aqui está o que é seu: o que ler uma vez, o que chega a cada show e o que você devolve. Quem muda a sua função é o responsável da casa.</p>
+      ${fs.map((f) => { const d = TQEquipe.PERFIL[f], F = TQEquipe.FUNCOES.find((x) => x[0] === f); if (!d || !F) return "";
+        return `<div class="card" style="margin-bottom:12px"><h3 style="margin-top:0">${esc(F[1])}</h3><p class="muted" style="margin:0 0 8px">${esc(F[2])} <b>Quando:</b> ${esc(F[3])}.</p>
+        <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div><b>${t}</b><ul class="passos">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div></div>`; }).join("")}
+      <div class="alert"><b>O que não muda em nenhuma casa</b>Silêncio durante o show, público sentado, formato enxuto (voz e um instrumento, duo ou trio), som confortável e bar longe do palco.</div>
+      <div class="barra-acoes"><button class="btn pri" data-ir="passos">Ver os passos de cada data →</button></div>`;
+    },
+    trilha() {
+      const T = S.conta.trilha;
+      if (!T) return `<div class="tag">Trilha da nova casa</div><h1>Trilha da nova casa</h1>${vazio("A trilha ainda não começou", "Quando a Central iniciar a habilitação da sua casa, os 7 dias úteis aparecem aqui.", "", "trilha")}`;
+      if (S.conta.equipe === undefined && S.conta.perfil.vinculo_nome) carregarEquipeCasa();
+      const feitos = Object.fromEntries(Object.entries(T.marcos || {}).map(([k, em]) => [k, { em }]));
+      const A = TQEquipe.andamento(T.inicio, feitos, hojeIso()), cob = S.conta.equipe ? TQEquipe.cobertura(S.conta.equipe) : null;
+      const linha = (e) => `<li class="${e.feito ? "feito" : e.atrasado ? "atrasado" : ""}"><label>${e.casa ? `<input type="checkbox" data-trilha-casa="${e.chave}"${e.feito ? " checked" : ""}>` : `<span aria-hidden="true" style="width:16px;display:inline-block">${e.feito ? "✓" : "○"}</span>`} <span><b>${esc(e.titulo)}</b> <span class="muted">· ${e.casa ? "a casa (você marca)" : `${esc(e.quem)}, ${esc(TQEquipe.AREA[e.quem] || "")}`}${e.prazo ? ` · até ${dtc(e.prazo)}` : ""}${e.atrasado ? " · atrasado" : ""}</span>${e.texto ? `<br><span class="muted" style="font-size:13px">${esc(e.texto)}</span>` : ""}</span></label></li>`;
+      return `<div class="tag">Trilha da nova casa</div><h1>${A.fechada ? "Trilha fechada" : "Sua habilitação em 7 dias úteis"}</h1>
+      <p class="sub">Cada pessoa da Central fala com a casa no máximo dois dias: um para enviar, outro para responder as dúvidas. A casa nunca recebe duas pessoas falando do mesmo assunto. Marque aqui o que é da casa.</p>
+      <div class="alert ${A.atrasadas ? "warn" : A.fechada ? "good" : ""}"><b>${A.feitas} de ${A.total} etapas · ${A.fechada ? "a casa conhece as quatro áreas e assume a operação" : `agora com ${A.com === "casa" ? "você" : esc(A.com)}`}</b>${A.proxima ? `${esc(A.proxima.titulo)}, até ${dtc(A.proxima.prazo)}. ` : ""}Trilha de ${dtc(A.etapas[0].prazo)} a ${dtc(A.fim)}.</div>
+      <div class="progress" style="margin:10px 0 14px"><i style="width:${Math.round((A.feitas / A.total) * 100)}%"></i></div>
+      ${[...new Set(A.etapas.map((e) => e.dia))].map((d) => `<h3>Dia ${d} · ${dtc(TQEquipe.diaUtil(T.inicio, d))}</h3><ul class="passos">${A.etapas.filter((e) => e.dia === d).map(linha).join("")}</ul>`).join("")}
+      <h2>Depois da trilha</h2><p class="sub">É responsabilidade da casa, com o prazo combinado com o Gui no dia 3. A Central confere uma vez, antes do primeiro evento.</p>
+      ${cob ? `<div class="alert ${cob.completa ? "good" : "warn"}" style="margin-bottom:10px"><b>Equipe ${cob.completa ? "completa" : "incompleta"}</b>${cob.completa ? "" : esc(cob.pend.join(" · ")) + " "}<button class="btn sm" data-ir="equipe_casa">Abrir a equipe</button></div>` : ""}
+      <ul class="passos">${A.depois.map(linha).join("")}</ul>`;
+    },
+    trilhas() {
+      const T = S.tri; if (!T) { carregarTrilhas(); return carregando("as trilhas"); }
+      if (T.erro) return faltaSchema("Trilhas");
+      if (!S.eq) carregarEquipe();   // nomes das casas dos convites
+      const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso();
+      const casas = [...new Set((S.eq?.conv || []).filter((c) => c.tipo === "casa" && c.vinculo_nome).map((c) => c.vinculo_nome))].sort();
+      const ed = T.trilhas.find((t) => t.casa_ref === S.triEd);
+      const cartao = (t) => {
+        const feitos = Object.fromEntries(T.marcos.filter((m) => m.casa_ref === t.casa_ref).map((m) => [m.etapa, { em: m.feito_em }]));
+        const A = TQEquipe.andamento(t.inicio, feitos, hoje), eq = T.equipes.filter((m) => k(m.casa_ref) === k(t.casa_ref)), cob = TQEquipe.cobertura(eq);
+        const linha = (e) => `<li class="${e.feito ? "feito" : e.atrasado ? "atrasado" : ""}"><label><input type="checkbox" data-tri-marco="${esc(t.casa_ref)}|${e.chave}"${e.feito ? " checked" : ""}> <span><b>${e.dia ? `Dia ${e.dia} · ` : ""}${esc(e.titulo)}</b> <span class="muted">· ${esc(e.quem === "casa" ? "a casa" : e.quem)}${e.prazo ? ` · até ${dtc(e.prazo)}` : ""}${e.atrasado ? " · atrasado" : ""}</span></span></label></li>`;
+        return `<details class="card" style="margin-bottom:10px"${S.triAberta === t.casa_ref ? " open" : ""}><summary><b>${esc(t.casa_ref)}</b> <span class="muted">· ${dtc(A.etapas[0].prazo)} a ${dtc(A.fim)}</span>
+          <span class="badge ${A.atrasadas ? "b-crit" : A.fechada ? "b-good" : "b-warn"}">${A.feitas}/${A.total}${A.atrasadas ? ` · ${A.atrasadas} atrasada${A.atrasadas > 1 ? "s" : ""}` : ""}</span> ${A.fechada ? "" : `<span class="muted">com ${esc(A.com === "casa" ? "a casa" : A.com)}</span>`} <span class="badge ${cob.completa ? "b-good" : ""}">equipe ${cob.completa ? "completa" : `${eq.length} pessoa${eq.length === 1 ? "" : "s"}`}</span></summary>
+          <ul class="passos" style="margin-top:10px">${[...A.etapas, ...A.depois].map(linha).join("")}</ul>
+          ${t.nota_passagem ? `<div class="alert" style="margin-top:8px"><b>Nota de passagem (só a Central vê)</b><span style="white-space:pre-wrap">${esc(t.nota_passagem)}</span></div>` : ""}
+          ${eq.length ? `<p style="margin:10px 0 4px"><b>Equipe da casa</b></p><ul class="passos">${eq.map((m) => `<li>${esc(m.nome)}${m.reserva ? " (reserva)" : ""} · ${esc(nomesFuncoes(m.funcoes))}${m.whatsapp ? ` · ${esc(m.whatsapp)}` : ""}</li>`).join("")}</ul>${cob.completa ? "" : `<p class="muted" style="font-size:13px">${esc(cob.pend.join(" · "))}</p>`}` : `<p class="muted" style="font-size:13px">A casa ainda não cadastrou a equipe.</p>`}
+          <div class="barra-acoes"><button class="btn sm" data-tri-editar="${esc(t.casa_ref)}">Editar dia 1 e nota</button><button class="btn sm" data-tri-apagar="${esc(t.casa_ref)}">Apagar trilha</button></div></details>`;
+      };
+      return `<div class="tag">Trilhas</div><h1>Trilha da nova casa</h1>
+      <p class="sub">Habilitação em 7 dias úteis: Thales passa o lead (dia 1), Gui (dias 2 e 3), Isa (dias 4 e 5) e Bruno (dias 6 e 7). Cada um marca a sua etapa aqui; a casa confirma a parte dela (respostas, leitura do Guia e data aprovada) pela área dela. Fins de semana e feriados nacionais não contam.</p>
+      ${T.trilhas.length ? T.trilhas.map(cartao).join("") : vazio("Nenhuma trilha em andamento", "Comece a trilha de uma casa nova logo abaixo: o dia 1 é o dia em que o Thales passa o lead.", "", "trilhas")}
+      <div class="card" style="margin-top:14px" id="triForm"><h3 style="margin-top:0">${ed ? `Editar a trilha de ${esc(ed.casa_ref)}` : "Começar a trilha de uma casa"}</h3>
+        <div class="fgrid"><label class="fcampo"><b>Casa (o mesmo nome do convite)</b><input id="triCasa" list="triCasas" maxlength="160" value="${esc(ed?.casa_ref || "")}"${ed ? " readonly" : ""}><datalist id="triCasas">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
+        <label class="fcampo"><b>Dia 1 (Thales passa o lead)</b><input id="triInicio" type="date" value="${esc(ed?.inicio || hoje)}"></label></div>
+        <label class="fcampo"><b>Nota de passagem do Thales (só a Central vê)</b><textarea id="triNota" rows="4" maxlength="4000" placeholder="Contato, nome do dono, casa, combinado financeiro e observações (tudo o que foi prometido fora do padrão)">${esc(ed?.nota_passagem || "")}</textarea></label>
+        <p class="muted" style="font-size:12px;margin:4px 0 0">A casa vê a trilha quando a conta dela está ligada a este mesmo nome.</p>
+        <div class="err" role="status" aria-live="polite" id="triErr"></div><div class="barra-acoes"><button class="btn pri" id="triOk">${ed ? "Salvar" : "Começar trilha"}</button>${ed ? `<button class="btn" data-tri-editar="">Cancelar</button>` : ""}</div></div>`;
     },
     // ---------- equipe ----------
     inicio() {
@@ -1048,6 +1206,9 @@ const TQConta = (() => {
   }
   function passosCasa() {
     const p = S.conta.perfil, c = S.conta.casa, evs = eventosDaConta();
+    if (funcoesDe()) return `<div class="tag">${esc(nomesFuncoes(funcoesDe()))}</div><h1>${esc(p.vinculo_nome || "Sua casa")}</h1>
+      <p class="sub">Os passos de cada data que são da sua função, com prazo. O que você marca vale para a casa inteira: o responsável e a Central acompanham.</p>
+      ${evs.length ? `<h2>Datas da casa</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, os passos da sua função aparecem aqui.", "", "passos")}`;
     const etapas = ["Cadastro", "Dados mínimos", "Análise da equipe", "Habilitada", "Primeira data", "Classificação"];
     let etapa = 0, agora = "";
     const pend = c?.pendencias || R.pendenciasCasa(c?.dados || {});
@@ -1287,9 +1448,9 @@ const TQConta = (() => {
     const p = S.conta?.perfil; if (!p) return;
     if (p.senha_definida === false || api.precisaSenha?.()) return pedirSenha();
     if (TQTour.aberto()) return;
-    if (!p.tutorial_visto_em) abrirTutorial(p.tipo, true);
+    if (!p.tutorial_visto_em) abrirTutorial(roteiroConta(), true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
-    else if (TQTour.temNovidades(p.tutorial_visto_em)) abrirTutorial(p.tipo, true, p.tutorial_visto_em);
+    else if (TQTour.temNovidades(p.tutorial_visto_em)) abrirTutorial(roteiroConta(), true, p.tutorial_visto_em);
   }
   function abrirTutorial(tipo, primeira, desde) {
     TQTour.abrir(tipo, { desde, primeira, chave: "conta-" + tipo, dicaRever: S.conta ? "aba Conta → \"Ver o tutorial de novo\", ou \"Como funciona\" no menu" : null,
@@ -1399,9 +1560,87 @@ const TQConta = (() => {
     }
     return false;
   }
+  // Equipe da casa (dono e equipe) e trilhas (Central): carregados quando a aba abre.
+  async function carregarEquipeCasa() {
+    if (S.eqcCarregando || !S.conta) return; S.eqcCarregando = true;
+    const quem = S.conta.perfil.id;
+    try { const L = await api.equipeCasa(); if (S.conta?.perfil.id === quem) S.conta.equipe = L; }
+    catch { if (S.conta?.perfil.id === quem) S.conta.equipe = null; }
+    finally { S.eqcCarregando = false; }
+    render();
+  }
+  async function carregarTrilhas() {
+    if (S.triCarregando) return; S.triCarregando = true;
+    try { const [t, e] = await Promise.all([api.trilhas(), api.equipesTodas().catch(() => [])]); S.tri = { ...t, equipes: e || [] }; }
+    catch (e) { S.tri = { erro: e.message }; }
+    finally { S.triCarregando = false; }
+    render();
+  }
+  async function cliquesEquipe(t) {
+    const ed = t.closest("[data-eqc-editar]"); if (ed) { S.eqcEd = ed.dataset.eqcEditar || null; render(); $("#eqcForm")?.scrollIntoView({ block: "center" }); return true; }
+    if (t.id === "eqcOk") {
+      const err = $("#eqcErr"), funcoes = [...document.querySelectorAll("[data-eqc-funcao]")].filter((x) => x.checked).map((x) => x.dataset.eqcFuncao);
+      const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), funcoes, reserva: $("#eqcReserva").checked };
+      if (!m.nome) { err.textContent = "Coloque o nome da pessoa."; return true; }
+      if (m.email && !EMAIL_OK.test(m.email)) { err.textContent = "Esse e-mail não parece válido. Confira se está escrito certo."; return true; }
+      const e = TQEquipe.funcoesErro(funcoes); if (e) { err.textContent = e; return true; }
+      err.textContent = "Salvando…";
+      try { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.conta.equipe = undefined; await carregarEquipeCasa(); }
+      catch (x) { err.textContent = /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || ""); }
+      return true;
+    }
+    const rm = t.closest("[data-eqc-remover]"); if (rm) {
+      const m = (S.conta.equipe || []).find((x) => x.id === rm.dataset.eqcRemover);
+      if (!m || !confirm(`Tirar ${m.nome} da equipe?${m.acesso === "ativo" ? " A conta dessa pessoa deixa de ver a casa." : ""}`)) return true;
+      try { await api.removerMembro(m.id); TQDiario.registrar("equipe_casa", { acao: "tirou" }); S.conta.equipe = undefined; await carregarEquipeCasa(); } catch (x) { alert(traduz(x.message || "")); }
+      return true;
+    }
+    const cv = t.closest("[data-eqc-convidar]"); if (cv) {
+      const m = (S.conta.equipe || []).find((x) => x.id === cv.dataset.eqcConvidar); if (!m) return true;
+      try {
+        const r = await api.convidarMembro(m.id, m.email, m.nome); TQDiario.registrar("equipe_convite", { funcoes: m.funcoes });
+        const site = location.origin + location.pathname, criar = `${site}#criar&email=${encodeURIComponent(m.email)}&tipo=casa`;
+        const zap = `Oi, ${m.nome}! Você entrou na equipe de ${S.conta.perfil.vinculo_nome} na Rede Tranquilo (${nomesFuncoes(m.funcoes)}). Mandei um link de acesso para ${m.email}. Se não chegar, crie a sua senha com esse mesmo e-mail aqui: ${criar}\n\nNo primeiro acesso, um tutorial mostra o que é seu.`;
+        if (r.ja) alert(`${m.nome} já tem acesso.`);
+        else { navigator.clipboard?.writeText(zap).catch(() => {}); alert(`${r.enviado ? `Link de acesso enviado para ${m.email}.` : `O e-mail não saiu${r.erro ? ` (${r.erro})` : ""}.`} A mensagem para o WhatsApp foi copiada:\n\n${zap}`); }
+        S.conta.equipe = undefined; await carregarEquipeCasa();
+      } catch (x) { alert(traduz(x.message || "")); }
+      return true;
+    }
+    if (t.dataset?.trilhaCasa) {
+      const etapa = t.dataset.trilhaCasa;
+      try { await api.trilhaMarcarCasa(etapa, t.checked); TQDiario.registrar("trilha_casa", { etapa, feito: t.checked }); S.conta.trilha = await api.minhaTrilha(); const y = scrollY; render(); scrollTo(0, y); }
+      catch (x) { alert(traduz(x.message || "")); t.checked = !t.checked; }
+      return true;
+    }
+    // Central: trilhas das casas novas.
+    if (t.dataset?.triMarco) {
+      const v = t.dataset.triMarco, i = v.lastIndexOf("|"), ref = v.slice(0, i), etapa = v.slice(i + 1); S.triAberta = ref;
+      try { await api.marcarTrilha(ref, etapa, t.checked); TQDiario.registrar("trilha_marco", { etapa, feito: t.checked }); const y = scrollY; S.tri = null; await carregarTrilhas(); scrollTo(0, y); }
+      catch (x) { alert(traduz(x.message || "")); t.checked = !t.checked; }
+      return true;
+    }
+    const te = t.closest("[data-tri-editar]"); if (te) { S.triEd = te.dataset.triEditar || null; render(); $("#triForm")?.scrollIntoView({ block: "center" }); return true; }
+    if (t.id === "triOk") {
+      const err = $("#triErr"), casa_ref = $("#triCasa").value.trim(), inicio = $("#triInicio").value, nota = $("#triNota").value.trim();
+      if (!casa_ref || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)) { err.textContent = "Escolha a casa e o dia 1."; return true; }
+      if (!S.triEd && S.tri.trilhas.some((x) => x.casa_ref.toLowerCase() === casa_ref.toLowerCase())) { err.textContent = "Esta casa já tem trilha: use \"Editar dia 1 e nota\"."; return true; }
+      err.textContent = "Salvando…";
+      try { await api.salvarTrilha({ casa_ref, inicio, nota }); TQDiario.registrar("trilha", { acao: S.triEd ? "editou" : "comecou" }); S.triEd = null; S.triAberta = casa_ref; S.tri = null; await carregarTrilhas(); }
+      catch (x) { err.textContent = traduz(x.message || ""); }
+      return true;
+    }
+    const ta = t.closest("[data-tri-apagar]"); if (ta) {
+      if (!confirm(`Apagar a trilha de ${ta.dataset.triApagar}? As etapas marcadas também saem.`)) return true;
+      try { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); } catch (x) { alert(traduz(x.message || "")); }
+      return true;
+    }
+    return false;
+  }
   async function cliques(ev) {
     const t = ev.target;
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); S.aba = ir.dataset.ir; render(); scrollTo(0, 0); return; }
+    if (await cliquesEquipe(t)) return;
     const ent = t.closest("[data-entrada]"); if (ent) {
       ev.preventDefault(); const em = $("#email")?.value || ""; S.entrada = ent.dataset.entrada; render();
       if ($("#email")) $("#email").value = em;
@@ -1470,7 +1709,7 @@ const TQConta = (() => {
       try {
         await api.registrar(eventoId, { publico: pub === "" ? null : +pub, ocorrencia: $("#rocc").value.trim() || null, gravidade: $("#rgrav").value, como_resolveu: $("#rres").value.trim() || null });
         S.conta.reg = await api.meusRegistros();
-        const chk = S.conta.chk; if (!chk.some((c) => c.evento_id === eventoId && c.item === "publico")) { await api.marcar(eventoId, "publico", true); S.conta.chk = await api.meuChecklist(); }
+        const chk = S.conta.chk; if (!chk.some((c) => c.evento_id === eventoId && c.item === "publico")) { await api.marcar(eventoId, "publico", true); S.conta.chk = await lerChecklist(); }
         $("#dlg").close(); render();
       } catch (e) { $("#derr").textContent = e.message; }
       return;
@@ -1587,7 +1826,7 @@ const TQConta = (() => {
       navigator.clipboard?.writeText(txt); t.textContent = "Copiada"; return;
     }
     // ---------- primeiro acesso, convites e avisos ----------
-    if (t.closest("[data-rever-tutorial]")) { abrirTutorial(S.conta.perfil.tipo, false); return; }
+    if (t.closest("[data-rever-tutorial]")) { abrirTutorial(roteiroConta(), false); return; }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
       if (a.length < 8) { err.textContent = "Use pelo menos 8 caracteres."; return; }
@@ -1691,7 +1930,7 @@ const TQConta = (() => {
     }
     const ps = t.dataset?.passo; if (ps) {
       const [eventoId, item] = ps.split("|");
-      try { await api.marcar(eventoId, item, t.checked); S.conta.chk = await api.meuChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); }
+      try { if (!t.checked && S.conta.perfil.tipo === "casa") await api.desmarcarCasa(eventoId, item); else await api.marcar(eventoId, item, t.checked); S.conta.chk = await lerChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); }
       catch (e) { alert(e.message); t.checked = !t.checked; }
       return;
     }
