@@ -32,7 +32,7 @@ const PASSOS: Record<string, [string, number, string][]> = {
     ["fechamento", 2, "Fechamento (D+2)"],
   ],
 };
-const chave = (s: string) => (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const chave = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const diaSP = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 const somar = (iso: string, dias: number) => new Date(new Date(iso + "T12:00:00Z").getTime() + dias * 864e5).toISOString().slice(0, 10);
 const br = (iso: string) => iso.split("-").reverse().join("/");
