@@ -169,7 +169,7 @@ const CIDADES_TITULO = [
   ['São Paulo', /s[ãa]o paulo|\bsp\b/i], ['Belo Horizonte', /belo horizonte|\bbh\b/i], ['Florianópolis', /floripa|florian[óo]polis/i],
   ['Rio de Janeiro', /rio de janeiro/i], ['Salvador', /salvador/i], ['Recife', /recife/i], ['Curitiba', /curitiba/i],
   ['Brasília', /bras[íi]lia/i], ['Santo André', /santo andr[ée]/i], ['Campinas', /campinas/i], ['Santos', /\bsantos\b/i],
-  ['Sorocaba', /sorocaba/i], ['Porto Alegre', /porto alegre/i], ['Itajaí', /itaja[íi]/i],
+  ['Sorocaba', /sorocaba/i], ['Porto Alegre', /porto alegre/i], ['Itajaí', /itaja[íi]/i], ['Criciúma', /crici[úu]ma/i], ['Limeira', /limeira/i],
 ];
 const NAO_ARTISTA = /line-up|pendente|registrad|^tranquilo|^semana \d|^#|evento secreto|novo evento/i;
 export const chave = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
