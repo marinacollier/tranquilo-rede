@@ -12,18 +12,19 @@ const schema = readFileSync(new URL('../supabase/schema.sql', import.meta.url), 
 // ---------- regras no site ----------
 const subconjuntos = [];
 for (let m = 1; m < 1 << E.CHAVES.length; m++) subconjuntos.push(E.CHAVES.filter((_, i) => m & (1 << i)));
-ok(E.funcoesErro(['anfitriao', 'social_media']) && E.funcoesErro(['som', 'bar']) && !E.funcoesErro(['som', 'lider']) && !E.funcoesErro(['produtor', 'porta']), 'acúmulos: anfitrião ≠ social media; som só com Líder Local; produtor com porta pode');
-ok(E.funcoesAvisos(['produtor', 'anfitriao']).length === 1 && !E.funcoesAvisos(['produtor', 'bar', 'lider']).length, 'combinação fora do Guia vira aviso (não bloqueia)');
-const cheia = [{ nome: 'A', funcoes: ['lider', 'produtor', 'porta'] }, { nome: 'B', funcoes: ['anfitriao'] }, { nome: 'C', funcoes: ['social_media'] }, { nome: 'D', funcoes: ['som'] }, { nome: 'E', funcoes: ['bar'] }, { nome: 'F', funcoes: ['bar'], reserva: true }];
-ok(E.cobertura(cheia).completa, 'equipe com as 7 funções, 5 pessoas e 1 reserva está completa');
+ok(E.funcoesErro(['anfitriao', 'social_media']) && E.funcoesErro(['som', 'lider']) && E.funcoesErro(['lider', 'porta']) && !E.funcoesErro(['lider']) && E.funcoesErro(['produtor']), 'Guia v1.5: cada função é de uma pessoa diferente');
+ok(E.TRIPE.join() === 'lider,anfitriao,social_media' && !E.OBRIGATORIAS.includes('bar'), 'tripé do Guia (Líder Local, anfitrião, social media); bar é da casa e não é obrigatório');
+const cheia = [{ nome: 'A', funcoes: ['lider'] }, { nome: 'B', funcoes: ['anfitriao'] }, { nome: 'C', funcoes: ['social_media'] }, { nome: 'D', funcoes: ['som'] }, { nome: 'E', funcoes: ['porta'] }, { nome: 'F', funcoes: ['porta'], reserva: true }];
+ok(E.cobertura(cheia).completa, 'equipe do Guia completa: tripé, som, porta e 1 reserva (bar é opcional)');
 const c2 = E.cobertura(cheia.slice(0, 4));
-ok(!c2.completa && c2.faltam.join() === 'bar' && c2.pend.some((p) => /mínimo é 5/.test(p)) && c2.pend.some((p) => /reserva/.test(p)), 'equipe incompleta: mostra função sem titular, mínimo de 5 e reserva');
+ok(!c2.completa && c2.faltam.join() === 'porta' && c2.pend.some((p) => /reserva/.test(p)), 'equipe incompleta: mostra função sem titular e a reserva');
 ok(E.diaUtil('2027-01-04', 7) === '2027-01-12' && E.diaUtil('2027-01-01', 1) === '2027-01-04' && E.diaUtil('2026-11-19', 2) === '2026-11-23', 'dias úteis: 04/01/2027 fecha em 12/01 (como na simulação), pula feriado e fim de semana');
 const a = E.andamento('2027-01-04', { nota: { em: 'x' }, msg1: {} }, '2027-01-06');
 ok(a.feitas === 2 && a.com === 'casa' && a.proxima.chave === 'resp_espaco' && a.atrasadas === 2 && a.fim === '2027-01-12', `andamento: bastão com a casa, ${a.atrasadas} etapas atrasadas`);
+ok(a.depois[0].chave === 'tripe' && a.depois[0].prazo === '2027-01-19', 'nomes do tripé: primeira coisa depois do treinamento, em até 1 semana (19/01)');
 ok(R.PASSOS_CASA.every(([k]) => E.PASSO_FUNCOES[k]), 'todo passo da casa tem função responsável');
 ok(E.vePasso(['bar'], 'estoque') && !E.vePasso(['bar'], 'pacote_grupo') && E.vePasso(['lider'], 'pacote_grupo') && E.vePasso(null, 'fechamento'), 'cada função vê os passos dela; dono e Líder Local veem todos');
-const lista = schema.match(/etapa_ not in \(([^)]*)\)/)[1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
+const lista = [...schema.matchAll(/etapa_ not in \(([^)]*)\)/g)].pop()[1].match(/'([a-z_]+)'/g).map((x) => x.slice(1, -1));
 ok(lista.join() === E.ETAPAS_CASA.join(), 'etapas que a casa marca: iguais no site e no banco');
 const ts = (await import('node:fs')).readFileSync(new URL('../supabase/functions/lembretes/index.ts', import.meta.url), 'utf8');
 ok(R.PASSOS_CASA.every(([k, d]) => ts.includes(`["${k}", ${d},`)), 'lembretes por e-mail têm os mesmos passos da casa');
@@ -49,16 +50,16 @@ const sql = (r) => r.rows;
 
 let prod;
 await como(dono, async () => {
-  prod = sql(await q(`insert into equipe_casa (casa_ref, nome, whatsapp, email, funcoes) values ('Casa Aurora', ' Ana ', '11 9999-0000', 'Ana@Aurora.com', '{produtor,porta,produtor}') returning id, nome, email, funcoes`))[0];
-  ok(prod.nome === 'Ana' && prod.email === 'ana@aurora.com' && prod.funcoes.join() === 'porta,produtor', 'dono cadastra pessoa da equipe (nome, e-mail e funções normalizados)');
+  prod = sql(await q(`insert into equipe_casa (casa_ref, nome, whatsapp, email, funcoes) values ('Casa Aurora', ' Ana ', '11 9999-0000', 'Ana@Aurora.com', '{lider,lider}') returning id, nome, email, funcoes`))[0];
+  ok(prod.nome === 'Ana' && prod.email === 'ana@aurora.com' && prod.funcoes.join() === 'lider', 'dono cadastra pessoa da equipe (nome, e-mail e funções normalizados)');
   const e = await tenta(() => q(`insert into equipe_casa (casa_ref, nome, funcoes) values ('Casa Aurora', 'Bia', '{anfitriao,social_media}')`));
-  ok(/nunca são a mesma pessoa/.test(e || ''), 'banco recusa anfitrião e social media na mesma pessoa');
+  ok(/pessoa diferente/.test(e || ''), 'banco recusa duas funções na mesma pessoa (Guia v1.5)');
   const e2 = await tenta(() => q(`insert into equipe_casa (casa_ref, nome, funcoes) values ('Casa Outra', 'Intrusa', '{bar}')`));
   ok(!!e2, 'dono não mexe na equipe de outra casa');
   ok(sql(await q(`select convidar_equipe_casa($1) r`, [prod.id]))[0].r === 'convidado', 'dono convida a pessoa para a plataforma');
 });
 const cv = sql(await q(`select tipo, vinculo_nome, codigo_acesso, funcoes from convites where email = 'ana@aurora.com'`))[0];
-ok(cv?.tipo === 'casa' && cv.vinculo_nome === 'Casa Aurora' && cv.codigo_acesso === 'AAAA-BBBB-CCCC' && cv.funcoes.join() === 'porta,produtor', 'convite sai ligado à casa e com as funções');
+ok(cv?.tipo === 'casa' && cv.vinculo_nome === 'Casa Aurora' && cv.codigo_acesso === 'AAAA-BBBB-CCCC' && cv.funcoes.join() === 'lider', 'convite sai ligado à casa e com as funções');
 await como(outra, async () => {
   ok(!sql(await q(`select * from equipe_casa`)).length, 'outra casa não vê a equipe da Aurora');
   ok(!!(await tenta(() => q(`select convidar_equipe_casa($1)`, [prod.id]))), 'outra casa não convida pela Aurora');
@@ -66,7 +67,7 @@ await como(outra, async () => {
 const ana = await novo('ana@aurora.com', 'artista');
 await q(`update auth.users set email_confirmed_at = now() where id = $1`, [ana]);   // o convite vale ao confirmar o e-mail
 const pa = sql(await q(`select tipo, vinculo_nome, codigo_acesso, funcoes from perfis where id = $1`, [ana]))[0];
-ok(pa.tipo === 'casa' && pa.vinculo_nome === 'Casa Aurora' && pa.funcoes.join() === 'porta,produtor', 'ao criar a conta, a pessoa entra na casa com a função');
+ok(pa.tipo === 'casa' && pa.vinculo_nome === 'Casa Aurora' && pa.funcoes.join() === 'lider', 'ao criar a conta, a pessoa entra na casa com a função');
 await como(ana, async () => {
   await q(`update perfis set funcoes = '{lider}' where id = $1`, [ana]);
   ok(sql(await q(`select equipe_da_casa()`)).length === 1, 'pessoa da equipe vê a equipe da casa');
@@ -74,7 +75,7 @@ await como(ana, async () => {
   await q(`insert into checklist (user_id, evento_id, item) values ($1, 'ev1', 'pacote_grupo')`, [ana]);
   ok(!!(await tenta(() => q(`select trilha_marcar_casa('leitura', true)`))), 'pessoa da equipe não confirma etapa da trilha');
 });
-ok(sql(await q(`select funcoes from perfis where id = $1`, [ana]))[0].funcoes.join() === 'porta,produtor', 'pessoa da equipe não muda a própria função');
+ok(sql(await q(`select funcoes from perfis where id = $1`, [ana]))[0].funcoes.join() === 'lider', 'pessoa da equipe não muda a própria função');
 await como(dono, async () => {
   ok(sql(await q(`select * from equipe_da_casa()`))[0].acesso === 'ativo', 'dono vê que a pessoa já tem acesso');
   ok(sql(await q(`select * from checklist_da_casa()`)).some((c) => c.item === 'pacote_grupo'), 'passo marcado pelo produtor aparece para o dono');

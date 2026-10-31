@@ -89,7 +89,7 @@
     {
       "publico": "casa",
       "pergunta": "Quais são os prazos da casa?",
-      "resposta": "Contados a partir da data do show (cada data mostra os seus no passo a passo):\n1. 30 dias antes: receber o repasse da data.\n2. 28 dias antes: revisar a ficha da casa e conferir o rider do artista.\n3. 21 dias antes: confirmar técnico de som e setup; fechar o roteiro do dia.\n4. 14 dias antes: confirmar tudo por escrito, incluindo maquininha com plano B (Pix ou link).\n5. 7 dias antes: travas finais; equipe escalada com uma reserva por função; operadores de porta com reserva (nome e e-mail para a Central).\n6. 5 dias antes (no máximo 4): pacote fixado no grupo com os artistas (cronograma, alimentação e consumação, camarim, lista e cortesias).\n7. 2 dias antes: caixa de produção conferida.\n8. 1 dia antes: planilha de estoque, depois das últimas compras.\n9. No dia: prontidão da noite e registro do público e das ocorrências.\n10. 2 dias depois: fechamento com PDV, custos, intercorrências e estoque.",
+      "resposta": "Contados a partir da data do show (cada data mostra os seus no passo a passo):\n1. 30 dias antes: receber o repasse da data.\n2. 28 dias antes: revisar a ficha da casa e conferir o rider do artista.\n3. 21 dias antes: confirmar técnico de som e setup; fechar o roteiro do dia.\n4. 14 dias antes: confirmar tudo por escrito, incluindo maquininha com plano B (Pix ou link).\n5. 7 dias antes: travas finais; briefing do anfitrião; equipe escalada com uma reserva por função; operadores de porta com reserva (nome e e-mail para a Central).\n6. 5 dias antes (no máximo 4): pacote fixado no grupo com os artistas (cronograma, alimentação e consumação, camarim, lista e cortesias).\n7. 1 dia antes: planilha de estoque, depois das últimas compras.\n8. No dia: prontidão da noite e registro do público e das ocorrências.\n9. 2 dias depois: fechamento com PDV, custos, intercorrências e estoque.\n10. Até 48 h depois: material da social media (pasta crua na manhã seguinte, 3 vídeos e fotos).",
       "links": [],
       "fonte": "Manuais da Operação (21/10/2026) e passo a passo do site"
     },
@@ -474,23 +474,23 @@
     {
       "publico": "casa",
       "pergunta": "Como monto a equipe da casa?",
-      "resposta": "Na aba Equipe da casa. São 7 funções na noite: Líder Local, produtor, anfitrião, social media, técnico de som, bar e porta, com no mínimo 5 pessoas e 1 reserva combinada na semana do evento. O dono monta a equipe e responde por ela: a Central não contrata nem escala. Regras fixas: anfitrião e social media nunca são a mesma pessoa, e o técnico de som não acumula outra função. O produtor pode acumular bar ou porta.",
+      "resposta": "Na aba Equipe da casa. Pelo Guia do Franqueado são 4 cadeiras: você (o dono), o Líder Local (que é o produtor e pode ser você mesmo), o anfitrião e a social media; mais o técnico de som e os operadores de porta. Cada função é de uma pessoa diferente, e a equipe da noite tem 1 reserva definida na semana do evento. O bar é responsabilidade da casa: o Tranquilo não fala com a equipe de bar. A Central não contrata nem escala ninguém.",
       "links": [],
-      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+      "fonte": "Guia do Franqueado v1.5 e combinados da Operações (30/10/2026)"
     },
     {
       "publico": "casa",
       "pergunta": "A minha equipe pode entrar na plataforma?",
-      "resposta": "Pode. Coloque o e-mail da pessoa na Equipe da casa e toque em \"Dar acesso\". Ela entra ligada à sua casa e vê só o que é da função dela: os passos de cada data, o \"Como é a noite\" da função e o que ela lê e devolve. O que alguém da equipe marca vale para a casa inteira. Se você tirar a pessoa da equipe, a conta dela deixa de ver a casa.",
+      "resposta": "Pode. Coloque o e-mail da pessoa na Equipe da casa e toque em \"Dar acesso\". Ela entra ligada à sua casa e vê só o que é da função dela: os passos dela em cada data, o \"Como é a noite\" da função e o que ela lê e devolve. O que alguém da equipe marca vale para a casa inteira. Se você tirar a pessoa da equipe, a conta dela deixa de ver a casa.",
       "links": [],
       "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
     },
     {
       "publico": "casa",
-      "pergunta": "O que é a trilha da nova casa?",
-      "resposta": "É a habilitação em 7 dias úteis. Dia 1: Thales passa a casa para a Operações. Dias 2 e 3: Gui manda as perguntas sobre o espaço e os documentos, e a casa confirma a leitura do Guia. Dias 4 e 5: Isa propõe as datas e o produto, e a casa aprova por escrito. Dias 6 e 7: Bruno publica a campanha e responde as dúvidas. Na aba Trilha da nova casa você vê com quem está o bastão e marca o que é da casa. Depois da trilha, a casa monta o tripé, o Líder Local e a equipe, e faz a homologação do espaço e do som no prazo combinado com o Gui.",
+      "pergunta": "O que é o treinamento da nova casa?",
+      "resposta": "É a habilitação em 7 dias úteis, em que a casa conversa com todas as áreas do Tranquilo para conhecer os detalhes e orientar o time que vai montar. Dia 1: Thales passa a casa para a Operações. Dias 2 e 3: Gui manda as perguntas sobre o espaço, o Guia e a Ficha da unidade; a casa devolve a Ficha em até 3 dias (isso confirma a leitura do Guia) e faz a conversa de alinhamento. Dias 4 e 5: Isa propõe datas e produto, e a casa aprova por escrito. Dias 6 e 7: Bruno publica a campanha e responde as dúvidas. Depois do treinamento, a primeira coisa é mandar os nomes do tripé (Líder Local, anfitrião e social media) em até 1 semana, para cada um receber o seu briefing. Antes do primeiro evento: contrato assinado, espaço e som homologados, técnico de som, operadores de porta cadastrados na Ingresse, planilhas da cidade e 1 reserva.",
       "links": [],
-      "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+      "fonte": "Guia do Franqueado v1.5 e combinados da Operações (30/10/2026)"
     },
     {
       "publico": "casa",
@@ -498,6 +498,13 @@
       "resposta": "Quem entra na equipe, quanto ganha, escala e reserva; quem é o tripé e o Líder Local; fornecedores, cardápio e marca de bebida; horário de chegada da equipe; layout e cenografia dentro do padrão da noite; e como resolver imprevistos no dia, com o manual na mão. Combina antes, por escrito: datas, horário padrão de portas, preço e cortesias fora do padrão, troca de equipamento do rider, artista indicado pela cidade e peça nova com a marca. Não muda nunca: silêncio no show, público sentado, formato enxuto, som confortável e bar longe do palco.",
       "links": [],
       "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
+    },
+    {
+      "publico": "casa",
+      "pergunta": "A casa precisa ter almofadas e cangas?",
+      "resposta": "Não é obrigação da casa nem do Tranquilo. O público do Tranquilo assiste sentado no chão, e a gente estimula as pessoas a levarem itens de conforto, como cangas e almofadas. A casa ajuda incentivando nos convites, nos posts e no grupo da comunidade.",
+      "links": [],
+      "fonte": "Combinado com a Operações (Gui), 29/10/2026"
     }
   ]
 }

@@ -43,7 +43,7 @@ const TQOperacao = (() => {
     "Palco é o ponto mais iluminado, com 2 a 4 pontos de luz no artista, cadeiras e o letreiro “Ouvidos Atentos, Corações Abertos”.",
     "Plateia em penumbra durante o show; no intervalo a luz sobe só o necessário.",
     "Bar em silêncio durante o show, sem reposição barulhenta. O intervalo é o momento de vender.",
-    "Público assiste sentado; a entrada com canga é incentivada.",
+    "Público assiste sentado no chão. O Tranquilo estimula o público a levar itens de conforto (cangas e almofadas): a casa incentiva nos convites e posts.",
     "Equipe fala baixo e trata todo mundo com cuidado.",
     "Crianças: até 3 anos não pagam; de 3 a 14 anos pagam ingresso criança (50%); menores de 10 só entram com responsável.",
   ];

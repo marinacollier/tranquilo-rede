@@ -81,7 +81,6 @@
     ["porta_reserva", -7, "Operadores de porta com reserva", "Quem fica na porta e a reserva, com cadastro na Ingresse com o mesmo e-mail. Mande nome e e-mail à Central, que libera as permissões."],
     ["briefing_anfitriao", -7, "Briefing do anfitrião", "O briefing chega no D-7 com as apresentações dos artistas: leia e prepare as três falas da noite."],
     ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas", "Até 5 dias antes (no máximo 4): cronograma com chegada e passagem de som, alimentação e consumação, camarim e lista de entrada e cortesias. Fixe no WhatsApp do grupo."],
-    ["caixa_producao", -2, "Caixa de produção conferida", "Fita zebrada, durex, cenografia e luminosos, conferidos até 2 dias antes."],
     ["estoque", -1, "Planilha de estoque", "Preencha depois das últimas compras: é a base do fechamento no D+2."],
     ["prontidao", 0, "Prontidão da noite", "Marca instalada, casa pronta, artista presente, portas abertas, show iniciado e encerrado."],
     ["publico", 0, "Registrar o público e as ocorrências", "Use \"Registrar a noite\" logo depois do show."],

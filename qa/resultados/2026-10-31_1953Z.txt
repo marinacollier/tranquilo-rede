@@ -1,0 +1,406 @@
+# Testes da Rede Tranquilo — 2026-10-31 19:53 UTC — commit 6dc69c9
+
+## Banco (PGlite com o supabase/schema.sql)
+OK    e-mail da lista não vira adm antes de confirmar o e-mail
+OK    e-mail da lista vira adm ao confirmar
+OK    pedir "equipe" no cadastro não dá equipe
+OK    cadastro de casa vira casa
+OK    artista não se autoaprova nem forja score (status rascunho, score 85, Prioridade)
+OK    artista envia para curadoria
+OK    inscrição em análise fica travada para a artista
+OK    artista não cria cadastro de casa
+OK    artista não vê inscrição de outra
+OK    artista só vê o próprio perfil
+OK    artista não se promove a adm
+OK    antes da promoção, não vê fila
+OK    adm promove para equipe
+OK    equipe vê a fila de curadoria
+OK    equipe aprova e fica registrada como avaliadora
+OK    equipe não vira adm sozinha
+OK    equipe lê só a chave de equipe
+OK    casa sem dados mínimos fica "incompleto" (WhatsApp do responsável; Endereço e cidade; Capacidade de público; Capacidade de público sentado; Como resolve o som (PA próprio ou parceiro técnico); Aceite da matriz de responsabilidades da casa)
+OK    casa completa vai para análise e não se autoclassifica
+OK    equipe lê só a chave de equipe
+OK    equipe vê prontidão e registros da noite
+OK    adm lê as duas chaves
+OK    casa habilitada atualiza cadastro sem perder status
+OK    exigência nova (público sentado) não tira a habilitação de quem já estava habilitada
+OK    mas apagar um dado mínimo antigo ainda tira a habilitação
+OK    casa vê o próprio registro
+OK    artista não vê registros de casa nem chaves
+OK    inscrição vazia: score 0, abaixo do corte, alertas
+OK    equipe não convida para administração
+OK    equipe não convida para equipe
+OK    artista não lê convites
+OK    artista não cria convite para si
+OK    artista não chama aplicar_convite
+OK    convite não vale antes de confirmar o e-mail
+OK    ao confirmar o e-mail, o convite liga a conta à artista
+OK    convite fica marcado como aceito
+OK    convite por link cria a conta de equipe pedindo para definir senha
+OK    sem e-mail confirmado, reivindicar não vincula
+OK    conta antiga recebe o vínculo ao confirmar o e-mail
+OK    pessoa marca o próprio tutorial como visto
+OK    aviso sem consentimento é recusado
+OK    mesmo contato na mesma cidade não duplica
+OK    visitante não lê os avisos de ninguém
+OK    equipe lê os avisos por cidade
+OK    artista não lê os avisos
+OK    número quebrado não derruba o salvamento e datas/avaliação não são forjáveis (score 30)
+OK    artista não troca o nome do vínculo sem trocar o código
+OK    capacidade com decimal é aceita
+OK    equipe não manda convite que rebaixaria a adm
+OK    equipe avalia mas não reescreve o score
+OK    artista não registra noite de casa
+OK    conta logada não consegue TRUNCATE
+OK    público negativo é recusado
+OK    a última adm não se rebaixa
+OK    aviso: contato inválido, duplicata com espaço e TRUNCATE recusados
+OK    data do aviso vem do banco
+OK    enxurrada de avisos é barrada
+OK    visitante grava no diário mas não lê
+OK    artista não lê o diário
+OK    o diário liga ao usuário do token, não ao enviado
+OK    equipe lê o diário
+OK    documento só aceita link https
+OK    artista vê o próprio contrato e o modelo
+OK    artista não anexa documento
+OK    outra artista não vê o contrato alheio
+OK    nem a adm lê a configuração interna pelo site
+OK    equipe grava e lê a nota interna
+OK    nota interna nunca fica na linha que a artista lê
+OK    artista não lê notas internas
+OK    casa não grava nota interna
+OK    schema.sql roda de novo sem erro e sem perder dados
+OK    schema.sql roda de novo sem erro e sem perder dados
+
+## Contrato automático (PGlite)
+OK    artista não cria contrato
+OK    artista não cria modelo
+OK    equipe não cria contrato já assinado
+OK    outra artista não vê o contrato
+OK    outra artista não preenche o contrato
+OK    artista vê o próprio contrato
+OK    artista não altera o texto
+OK    artista não preenche campo que não é dela
+OK    valor não pode trazer {{campo}}
+OK    não assina com campo vazio
+OK    não assina sem ler até o fim
+OK    exige nome completo
+OK    não assina se o texto da tela for outro
+OK    assinatura guarda o texto final, o hash, o nome e a hora
+OK    depois de assinado, os dados não mudam
+OK    não assina duas vezes
+OK    nem a equipe cancela um contrato assinado
+OK    contrato assinado não é apagado
+OK    equipe cancela contrato ainda não assinado
+OK    equipe não reescreve o texto depois de enviado
+OK    {NOME DO ARTISTA}, {data}, {cidade/UF}, {data de hoje} e {{cache}} viram campos que a equipe já sabe
+OK    [NOME ARTÍSTICO] e [DATA] reaproveitam os mesmos campos
+OK    siglas ficam em maiúsculas (CPF/CNPJ, PIX)
+OK    colchetes com número de cláusula não viram campo
+OK    sugestões: nome, data do show e data da assinatura por extenso
+OK    preencher troca todos os campos, inclusive os repetidos
+
+## Segurança (ataques da auditoria; ABERTO = problema conhecido ainda não corrigido)
+OK    [A01] artista lê inscrição de outra
+OK    [A02] artista altera inscrição de outra
+OK    [A03] artista cria inscrição em nome de outra (user_id alheio)
+OK    [A04] artista se autoaprova/forja score no INSERT
+OK    [A05] artista forja avaliado_por/avaliado_em no INSERT
+OK    [A06] artista se autoaprova no UPDATE / escreve parecer
+OK    [A07] artista apaga inscrição de outra
+OK    [A08] artista transfere a própria inscrição para outro user_id
+OK    [A09] artista lê nota_interna da própria inscrição ("só a equipe vê")
+OK    [A10] artista reenvia após ajustes (transição legítima)
+OK    [A11] artista edita inscrição em análise
+OK    [P01] artista muda o próprio tipo para adm e o e-mail
+OK    [P02] artista sem vínculo grava codigo_acesso/vinculo_nome arbitrários direto na API ("só adm muda vínculos")
+OK    [P02b] artista pede vínculo colando o código
+OK    [P03] artista já vinculada troca só vinculo_nome (mantendo o código)
+OK    [P04] artista vinculada troca codigo_acesso
+OK    [P05] artista altera perfil de outra
+OK    [P06] artista lista perfis
+OK    [P07] artista insere perfil adm novo
+OK    [P08] artista apaga o próprio perfil (direito de exclusão LGPD)
+OK    [P09] artista com sessão SQL seta tq.sistema=1 e vira adm (gatilho confia numa GUC que o próprio usuário define)
+OK    [P10] equipe se promove a adm
+OK    [P11] equipe muda tipo de outra conta
+OK    [P12] equipe lê codigo_acesso de artistas/casas em perfis (o pacote de equipe não traz a lista de códigos; só o de adm)
+OK    [P13] equipe lê o código do pacote de adm guardado em perfis.codigo_acesso da adm
+OK    [P14] equipe lê chaves_internas
+OK    [P15] artista lê chaves_internas
+OK    [P16] artista lê admins_iniciais
+OK    [C01] casa se autohabilita no INSERT (status/classificacao/parecer/pendencias)
+OK    [C02] casa forja avaliado_por no INSERT
+OK    [C03] casa se declara já parceira e aponta notion_casa_id de outra casa
+OK    [C04] casa se autohabilita no UPDATE
+OK    [C05] casa lê cadastro de outra
+OK    [C06] casa altera cadastro de outra
+OK    [C07] casa cria inscrição de artista
+OK    [C08] casa lê nota_interna do próprio cadastro
+OK    [C09] casa habilitada apaga os dados mínimos e continua habilitada
+OK    [K01] artista lê checklist de outra conta
+OK    [K02] artista grava checklist em nome de outra
+OK    [K03] artista altera checklist de outra
+OK    [K04] artista apaga checklist de outra
+OK    [K05] artista lê registros da noite de casa
+OK    [K06] artista (não casa) grava "registro da noite" com público
+OK    [K07] artista apaga registro de casa
+OK    [V01] equipe convida adm
+OK    [V02] equipe redireciona convite de equipe (criado pela adm) para outro e-mail
+OK    [V03] equipe rebaixa convite de equipe criado pela adm para artista
+OK    [V04] equipe apaga convite de equipe criado pela adm
+OK    [V05a] equipe cria convite de artista para o e-mail de uma conta adm existente
+OK    [V05] adm faz login depois do convite da equipe: reivindicar_convite() a rebaixa
+OK    [V06] equipe troca perfil e vínculo de conta artista existente via convite ("só adm muda perfis/vínculos")
+OK    [V07] equipe "reabre" convite já aceito (aceito_em = null) para reaplicar
+OK    [V08] artista reivindica convite de outro e-mail (função sem parâmetro usa auth.users.email)
+OK    [V09] authenticated chama aplicar_convite(uid, e-mail alheio) direto
+OK    [V10] authenticated chama função de gatilho direto
+OK    [V11] artista lê convites
+OK    [V12] conta com e-mail convidado mas NÃO confirmado tenta reivindicar
+OK    [V13] com confirmação de e-mail desligada, quem se cadastra primeiro com o e-mail convidado herda o convite de adm
+OK    [V14] cadastro NÃO confirmado com e-mail de admins_iniciais já nasce adm
+OK    [N01] anon lê perfis
+OK    [N01] anon lê inscricoes_artistas
+OK    [N01] anon lê cadastros_casas
+OK    [N01] anon lê checklist
+OK    [N01] anon lê registros_noite
+OK    [N01] anon lê chaves_internas
+OK    [N01] anon lê admins_iniciais
+OK    [N01] anon lê convites
+OK    [N01] anon lê avisos_cidade
+OK    [N01] anon lê diario
+OK    [N01] anon lê diario_servidor
+OK    [N01] anon lê notas_internas
+OK    [N02] anon insere aviso com consentimento=false
+OK    [N03] anon insere aviso com campo enorme
+OK    [N04] anon insere 2000 avisos com contatos distintos em sequência (limite de taxa?)
+OK    [N05] anon insere aviso com contato inválido, HTML na cidade e criado_em forjado
+OK    [N06] anon cadastra o e-mail de terceiro no "me avise" (sem dupla confirmação)
+OK    [N07] anon apaga avisos
+OK    [N08] anon chama aplicar_convite
+OK    [N09] anon chama reivindicar_convite
+OK    [N10] anon chama eh_adm/eh_equipe/pre_curadoria/pendencias_casa
+OK    [N11] anon grava no diário um evento atribuído à conta da adm
+OK    [N12] anon grava 1000 eventos de ~3,5 KB no diário (limite de taxa/volume?)
+OK    [N13] anon insere perfil
+OK    [N14] anon cria convite
+OK    [N15] diário tem evento atribuído à adm sem ela estar logada
+OK    [X01] equipe grava HTML em faixa/score_detalhe de inscrição (renderizados sem esc() em conta.js medidor/curadoria)
+OK    [X02] a artista recebe a faixa com HTML do banco (passosArtista → medidor)
+OK    [X03] artista grava spotify = "javascript:..." (vira <a href> na ficha da equipe)
+OK    [L01] adm apaga inscrição a pedido do titular
+OK    [L02] adm apaga perfil a pedido do titular
+[modo mock do teste original] 90 verificações, 0 falha(s): 
+
+## contratos
+OK    lista de datas sem contrato e "Preparar contrato" já escolhe a data
+OK    modelo salvo: [PREENCHER …] e {{…}} viram 7 campos
+OK    preparar preenche o nome e deixa o CPF para a artista
+OK    contrato enviado aparece como "Aguardando dados"
+OK    artista vê o aviso do contrato no passo a passo
+OK    texto mostra o cachê da equipe e marca o que falta
+OK    "Assinar" desabilitado antes de preencher e ler
+OK    dados salvos entram no texto
+OK    ainda desabilitado antes de rolar até o fim
+OK    rolar até o fim libera a assinatura
+OK    exige marcar "li e concordo"
+OK    exige nome completo (Digite o seu nome completo para assinar (é a sua assinatura).)
+OK    assinatura confirmada com nome e código de verificação
+OK    cópia para imprimir traz o registro da assinatura
+OK    equipe vê o contrato assinado, sem botão de cancelar
+OK    sem erro JS 
+
+## diario
+OK    tabela ausente: eventos guardados no navegador (7)
+OK    o que foi digitado não entra no diário
+OK    recarregar a página não perde a fila
+OK    banco aceitando: todos os 7 eventos que esperavam chegaram (13 enviados)
+OK    chegam abertura do site e cliques
+OK    sem erros de JavaScript 
+
+## equipe
+OK    dono vê a aba Equipe da casa (e ainda não a Trilha)
+OK    sem função escolhida, o site explica e não salva
+OK    uma função por pessoa (Guia v1.5): a escolha é única
+OK    pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)
+OK    "Dar acesso" cria o convite ligado à casa, com a função
+OK    primeiro acesso da equipe abre o tutorial dela, cobrindo as 6 abas
+OK    porta vê Minha função, sem a equipe, o cadastro e as métricas da casa
+OK    Minha função mostra o que a porta lê, recebe e devolve
+OK    trilha começada em 04/01/2027 fecha em 12/01 (7 dias úteis)
+OK    Central marca a etapa dela (nota de passagem)
+OK    com a trilha começada, o dono vê a aba Trilha da nova casa
+OK    a casa não vê a nota de passagem
+OK    a casa confirma a leitura do Guia e não marca etapa da Central
+OK    sem erro JS 
+
+## fluxos
+OK    público: tutorial abre na primeira visita
+OK    público: avança para o passo do aviso
+OK    público: destaca o bloco "Me avise" na página
+OK    público: voltar funciona
+OK    público: Esc fecha (pausa) o tutorial
+OK    público: depois de fechar, a próxima visita continua do mesmo passo
+OK    público: depois de "Pular tutorial", não reabre
+OK    público: "Como funciona" reabre
+OK    aviso: "Outra cidade" abre campo
+OK    aviso: valida contato
+OK    aviso: exige autorização
+OK    aviso: pedido registrado
+OK    artista: tutorial abre no primeiro acesso
+OK    artista: atalho do tutorial abre a inscrição
+OK    artista: no segundo login o tutorial continua de onde o atalho parou
+OK    artista: depois de pular, não reabre no login seguinte
+OK    artista: "Ver o tutorial de novo" reabre
+OK    artista: "Concluir" no último passo fecha
+OK    equipe: tutorial próprio no primeiro acesso
+OK    equipe: não pode convidar administração
+OK    equipe: convite gera mensagem com link de criar senha
+OK    equipe: WhatsApp já vai para o número da casa
+OK    equipe: convite aparece na lista como aguardando
+OK    equipe: tutorial da casa vai com o link certo
+OK    equipe: registra que o tutorial foi enviado
+OK    equipe: demanda mostra Recife pedida e sem data
+OK    convite: link abre o cadastro preenchido como casa
+OK    convite: casa convidada vê o tutorial de casa
+OK    convite: casa convidada entra na área da casa
+OK    link #tutorial-artista abre sem login
+OK    celular: tutorial cabe na tela (390px, página 390px)
+OK    sem erros de JavaScript
+
+## hub
+OK    casa vê os 10 dias da campanha do Rooftap
+OK    progresso começa em 0 de 10
+OK    dias que já passaram aparecem como atrasados
+OK    links das ações viram botões
+OK    marcar Feito atualiza o progresso e mostra quem marcou
+OK    Feito continua depois de recarregar
+OK    campanha baixa em .ics com os 10 dias (linhas dentro do limite)
+OK    aviso de material pendente de leitura
+OK    "Li e estou ciente" registra e some o botão
+OK    material sem ciência só tem o botão Abrir
+OK    Google Docs ganha "Fazer minha cópia" (/copy)
+OK    casa não vê o formulário de publicar
+OK    matriz vê o andamento (Rooftap A campanha do Rooftap 1/10 3 03/11/2026)
+OK    matriz abre o dia a dia, sem poder marcar
+OK    matriz vê quantos confirmaram a leitura
+OK    casas no hub: Rooftap com pessoa, formato e campanha (CASA ↑ PESSOAS FORMATO CAMPANHA LEITURAS PENDENTES Rooftap 1 leve 1/10 3 ATRASADOS 0)
+OK    arquivo de dados: prévia com dias, ações, casa e identificador
+OK    campanha nova aparece no andamento (0/2)
+OK    página HTML: prévia da versão nova (9 dias, 24 ações)
+OK    reimportar: dia retirado sai e o feito continua (CASA CAMPANHA FEITOS ATRASADOS ↓ PRÓXIMO DIA Rooftap A campanha do Rooftap 1/9 3 03/11/2026 Casa Nova Campanha Casa Nova 0/2 0 02/11/2026)
+OK    campanha atualizada pede "Li e estou ciente" em Materiais
+OK    versão sem pedir ciência não gera pendência
+OK    versão repetida é recusada com mensagem clara
+OK    versão que muda o que a casa faz pede ciência de novo
+OK    link sem https é recusado
+OK    material novo aparece com ciência pedida
+OK    casa volta a ter pendência: nova versão + material novo (4 materiais pedem sua confirmação de leitura
+Eles aparecem a)
+OK    sem exceções JS 
+
+## inicio
+OK    adm-d: entra no Comece por aqui
+OK    adm-d: mostra datas do mês e alertas
+OK    adm-d: atalho abre Convites
+OK    eq-m: entra no Comece por aqui
+OK    eq-m: mostra datas do mês e alertas
+OK    eq-m: atalho abre Convites
+OK    sem erros de JavaScript 
+
+## movel
+OK    aviso de privacidade não fica por cima do tutorial
+OK    casa-tutorial: sem rolagem lateral (390px de 390)
+OK    aviso de privacidade volta quando o tutorial fecha
+OK    casa-campanha: sem rolagem lateral (390px de 390)
+OK    casa-materiais: sem rolagem lateral (390px de 390)
+OK    casa: dúvidas novas aparecem (campanha, agenda, ciência)
+OK    casa-duvidas: sem rolagem lateral (390px de 390)
+OK    equipe-campanhas: sem rolagem lateral (390px de 390)
+OK    nome da casa na tabela não quebra no meio da palavra
+OK    equipe-materiais: sem rolagem lateral (390px de 390)
+OK    sem erro JS 
+
+## operacao
+OK    computador: Roteiro da noite mostra cronogramas, camarim, rider e crianças
+OK    computador: sem rolagem lateral
+OK    celular: Roteiro da noite mostra cronogramas, camarim, rider e crianças
+OK    celular: sem rolagem lateral
+OK    sem erro JS 
+
+## tut-cobertura
+OK    conta artista: tutorial cobre as 5 abas
+OK    conta artista: abre sozinho no primeiro acesso com 8 passos
+OK    conta artista: "Concluir" fecha o tutorial
+OK    conta artista: sem erro JS 
+OK    conta casa: tutorial cobre as 7 abas
+OK    conta casa: abre sozinho no primeiro acesso com 11 passos
+OK    conta casa: "Concluir" fecha o tutorial
+OK    conta casa: sem erro JS 
+OK    conta equipe: tutorial cobre as 12 abas
+OK    conta equipe: abre sozinho no primeiro acesso com 12 passos
+OK    conta equipe: "Concluir" fecha o tutorial
+OK    conta equipe: quem já tinha visto recebe só as novidades (5 passos, começa em "Treinamento das casas novas")
+OK    conta equipe: depois de ver as novidades, não abre de novo
+OK    conta equipe com código interno: tutorial cobre as 16 abas
+OK    conta equipe: sem erro JS 
+OK    conta adm: tutorial cobre as 13 abas
+OK    conta adm: abre sozinho no primeiro acesso com 14 passos
+OK    conta adm: "Concluir" fecha o tutorial
+OK    conta adm com código interno: tutorial cobre as 21 abas
+OK    conta adm: sem erro JS 
+OK    código artista: tutorial cobre as 3 abas
+OK    código artista: abre sozinho no primeiro acesso com 6 passos
+OK    código artista: "Concluir" fecha o tutorial
+OK    código artista: sem erro JS 
+OK    código casa: tutorial cobre as 3 abas
+OK    código casa: abre sozinho no primeiro acesso com 6 passos
+OK    código casa: "Concluir" fecha o tutorial
+OK    código casa: novidades para quem já tinha visto
+OK    código casa: sem erro JS 
+OK    código equipe: tutorial cobre as 4 abas
+OK    código equipe: abre sozinho no primeiro acesso com 5 passos
+OK    código equipe: "Concluir" fecha o tutorial
+OK    código equipe: sem erro JS 
+OK    código adm: tutorial cobre as 8 abas
+OK    código adm: abre sozinho no primeiro acesso com 7 passos
+OK    código adm: "Concluir" fecha o tutorial
+OK    código adm: sem erro JS 
+
+## tut-controles
+OK    código casa: tutorial abre sozinho no primeiro acesso
+OK    código casa: "Voltar" desabilitado no primeiro passo
+OK    código casa: Avançar e setas do teclado mudam de passo
+OK    código casa: clicar fora da caixa não fecha
+OK    código casa: tem "Pular tutorial" e ×
+OK    código casa: × fecha e avisa que continua do passo 2
+OK    código casa: no acesso seguinte continua do mesmo passo
+OK    código casa: fechado de novo, não volta sozinho (conta como visto)
+OK    "Como funciona" abre o tutorial inteiro, do primeiro passo
+OK    código casa: sem erro JS 
+OK    código artista: "Pular tutorial" avisa onde ver de novo
+OK    código artista: depois de pular, não abre sozinho
+OK    código artista: sem erro JS 
+OK    conta artista: tutorial abre no primeiro acesso
+OK    conta artista: último passo tem "Concluir" e diz onde ver de novo
+OK    conta artista: "Concluir" fecha sem aviso
+OK    conta artista: concluído, não abre de novo
+OK    conta artista: "Ver o tutorial de novo" abre do começo
+OK    conta artista: fechar o "ver de novo" não mostra aviso de pausa
+OK    conta artista: fechar o "ver de novo" não faz o tutorial voltar sozinho
+OK    conta artista: atalho do passo leva para a aba
+OK    conta artista: sem erro JS 
+OK    novidades: abre só o que é novo
+OK    novidades: "Ver o tutorial completo" abre os 12 passos
+OK    novidades: sem erro JS 
+OK    celular: botões cabem na tela e têm 44px de toque (×44, pular 44)
+
+## vinculo
+OK    depois de colar o código, a conta mostra o vínculo aguardando confirmação
+OK    o campo de código some enquanto o pedido está aberto
+OK    as métricas do código já abrem (aba Minha agenda)
+OK    o pedido e as métricas continuam depois de recarregar
+OK    sem erro JS 

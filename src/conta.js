@@ -559,9 +559,9 @@ const TQConta = (() => {
         return [["minha_funcao", "Minha função"], ["passos", "Próximos passos"], ...(A.campanha ? [["campanha", "Campanha"]] : []), ...(A.equipe ? [["equipe_casa", "Equipe da casa"]] : []),
           ...doPac.filter(([k]) => k !== "minhas" || A.metricas), ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
       }
-      return [["passos", "Próximos passos"], ...(S.conta.trilha ? [["trilha", "Trilha da nova casa"]] : []), ["equipe_casa", "Equipe da casa"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+      return [["passos", "Próximos passos"], ...(S.conta.trilha ? [["trilha", "Treinamento da casa"]] : []), ["equipe_casa", "Equipe da casa"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
     }
-    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Trilhas"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
+    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -855,17 +855,17 @@ const TQConta = (() => {
         ${TQEquipe.funcoesAvisos(m.funcoes).map((a) => `<div class="muted" style="font-size:12px">⚠️ ${esc(a)}</div>`).join("")}</span>
         ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
       return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
-      <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} São 7 funções na noite, com no mínimo ${TQEquipe.MINIMO_PESSOAS} pessoas e 1 reserva combinada na semana do evento.</p>
-      <div class="alert ${cob.completa ? "good" : "warn"}"><b>${cob.completa ? "Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (produtor, anfitrião e social media), Líder Local e as 7 funções, com reserva." : esc([...cob.pend, ...cob.erros].join(" · "))}</div>
+      <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} Pelo Guia do Franqueado: as 4 cadeiras (você, o Líder Local, o anfitrião e a social media), o técnico de som e os operadores de porta, cada função com uma pessoa diferente (só você pode ser também o Líder Local), e 1 reserva para a equipe da noite.</p>
+      <div class="alert ${cob.completa ? "good" : "warn"}"><b>${cob.completa ? "Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (Líder Local, anfitrião e social media), técnico de som e porta, com reserva." : esc([...cob.pend, ...cob.erros].join(" · "))}</div>
       <div class="grid g4" style="margin:12px 0">${TQEquipe.FUNCOES.map(([k, n, o, q]) => { const quem = L.filter((m) => !m.reserva && (m.funcoes || []).includes(k)).map((m) => m.nome);
         return `<div class="card"><b>${esc(n)}</b>${TQEquipe.TRIPE.includes(k) ? ' <span class="badge">tripé</span>' : ""}<div style="margin:4px 0">${quem.length ? esc(quem.join(", ")) : '<span class="badge b-warn">falta</span>'}</div><div class="muted" style="font-size:12px">${esc(o)} <b>Quando:</b> ${esc(q)}.</div></div>`; }).join("")}</div>
       <h2>Pessoas (${L.length})</h2>${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.</p>`}
       ${dono ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : "Adicionar pessoa"}</h3>
         <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="eqcNome" maxlength="120" value="${esc(ed?.nome || "")}"></label><label class="fcampo"><b>WhatsApp</b><input id="eqcWa" inputmode="tel" maxlength="30" value="${esc(ed?.whatsapp || "")}"></label>
         <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label></div>
-        <b style="font-size:14px">Funções</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="checkbox" data-eqc-funcao="${k}"${ed?.funcoes?.includes(k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
+        <b style="font-size:14px">Função</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${ed?.funcoes?.includes(k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
         <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
-        <p class="muted" style="font-size:12px;margin:6px 0 0">Regras fixas: anfitrião e social media nunca são a mesma pessoa; o técnico de som não acumula. O Líder Local é uma das pessoas da equipe e pode ser você (sem e-mail, já que você tem a conta da casa).</p>
+        <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
         <div class="err" role="status" aria-live="polite" id="eqcErr"></div><div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button>${ed ? `<button class="btn" data-eqc-editar="">Cancelar</button>` : ""}</div></div>` : ""}`;
     },
     minha_funcao() {
@@ -880,17 +880,17 @@ const TQConta = (() => {
     },
     trilha() {
       const T = S.conta.trilha;
-      if (!T) return `<div class="tag">Trilha da nova casa</div><h1>Trilha da nova casa</h1>${vazio("A trilha ainda não começou", "Quando a Central iniciar a habilitação da sua casa, os 7 dias úteis aparecem aqui.", "", "trilha")}`;
+      if (!T) return `<div class="tag">Treinamento da casa</div><h1>Treinamento da nova casa</h1>${vazio("O treinamento ainda não começou", "Quando a Central iniciar a habilitação da sua casa, os 7 dias úteis aparecem aqui.", "", "trilha")}`;
       if (S.conta.equipe === undefined && S.conta.perfil.vinculo_nome) carregarEquipeCasa();
       const feitos = Object.fromEntries(Object.entries(T.marcos || {}).map(([k, em]) => [k, { em }]));
       const A = TQEquipe.andamento(T.inicio, feitos, hojeIso()), cob = S.conta.equipe ? TQEquipe.cobertura(S.conta.equipe) : null;
       const linha = (e) => `<li class="${e.feito ? "feito" : e.atrasado ? "atrasado" : ""}"><label>${e.casa ? `<input type="checkbox" data-trilha-casa="${e.chave}"${e.feito ? " checked" : ""}>` : `<span aria-hidden="true" style="width:16px;display:inline-block">${e.feito ? "✓" : "○"}</span>`} <span><b>${esc(e.titulo)}</b> <span class="muted">· ${e.casa ? "a casa (você marca)" : `${esc(e.quem)}, ${esc(TQEquipe.AREA[e.quem] || "")}`}${e.prazo ? ` · até ${dtc(e.prazo)}` : ""}${e.atrasado ? " · atrasado" : ""}</span>${e.texto ? `<br><span class="muted" style="font-size:13px">${esc(e.texto)}</span>` : ""}</span></label></li>`;
-      return `<div class="tag">Trilha da nova casa</div><h1>${A.fechada ? "Trilha fechada" : "Sua habilitação em 7 dias úteis"}</h1>
-      <p class="sub">Cada pessoa da Central fala com a casa no máximo dois dias: um para enviar, outro para responder as dúvidas. A casa nunca recebe duas pessoas falando do mesmo assunto. Marque aqui o que é da casa.</p>
-      <div class="alert ${A.atrasadas ? "warn" : A.fechada ? "good" : ""}"><b>${A.feitas} de ${A.total} etapas · ${A.fechada ? "a casa conhece as quatro áreas e assume a operação" : `agora com ${A.com === "casa" ? "você" : esc(A.com)}`}</b>${A.proxima ? `${esc(A.proxima.titulo)}, até ${dtc(A.proxima.prazo)}. ` : ""}Trilha de ${dtc(A.etapas[0].prazo)} a ${dtc(A.fim)}.</div>
+      return `<div class="tag">Treinamento da casa</div><h1>${A.fechada ? "Treinamento concluído" : "Seu treinamento em 7 dias úteis"}</h1>
+      <p class="sub">Nos 7 dias, a casa conversa com todas as áreas do Tranquilo para conhecer os detalhes e conseguir orientar o time que vai montar. Cada pessoa da Central fala com a casa no máximo dois dias: um para enviar, outro para responder as dúvidas. A casa nunca recebe duas pessoas falando do mesmo assunto. Marque aqui o que é da casa.</p>
+      <div class="alert ${A.atrasadas ? "warn" : A.fechada ? "good" : ""}"><b>${A.feitas} de ${A.total} etapas · ${A.fechada ? "a casa conhece as quatro áreas e assume a operação" : `agora com ${A.com === "casa" ? "você" : esc(A.com)}`}</b>${A.proxima ? `${esc(A.proxima.titulo)}, até ${dtc(A.proxima.prazo)}. ` : ""}Treinamento de ${dtc(A.etapas[0].prazo)} a ${dtc(A.fim)}.</div>
       <div class="progress" style="margin:10px 0 14px"><i style="width:${Math.round((A.feitas / A.total) * 100)}%"></i></div>
       ${[...new Set(A.etapas.map((e) => e.dia))].map((d) => `<h3>Dia ${d} · ${dtc(TQEquipe.diaUtil(T.inicio, d))}</h3><ul class="passos">${A.etapas.filter((e) => e.dia === d).map(linha).join("")}</ul>`).join("")}
-      <h2>Depois da trilha</h2><p class="sub">É responsabilidade da casa, com o prazo combinado com o Gui no dia 3. A Central confere uma vez, antes do primeiro evento.</p>
+      <h2>Depois do treinamento</h2><p class="sub">Primeiro, em até 1 semana, os nomes do tripé: cada um recebe o seu briefing e as funções antes do evento. O resto fica pronto antes do primeiro evento, e a Operações confere uma vez.</p>
       ${cob ? `<div class="alert ${cob.completa ? "good" : "warn"}" style="margin-bottom:10px"><b>Equipe ${cob.completa ? "completa" : "incompleta"}</b>${cob.completa ? "" : esc(cob.pend.join(" · ")) + " "}<button class="btn sm" data-ir="equipe_casa">Abrir a equipe</button></div>` : ""}
       <ul class="passos">${A.depois.map(linha).join("")}</ul>`;
     },
@@ -912,7 +912,7 @@ const TQConta = (() => {
           ${eq.length ? `<p style="margin:10px 0 4px"><b>Equipe da casa</b></p><ul class="passos">${eq.map((m) => `<li>${esc(m.nome)}${m.reserva ? " (reserva)" : ""} · ${esc(nomesFuncoes(m.funcoes))}${m.whatsapp ? ` · ${esc(m.whatsapp)}` : ""}</li>`).join("")}</ul>${cob.completa ? "" : `<p class="muted" style="font-size:13px">${esc(cob.pend.join(" · "))}</p>`}` : `<p class="muted" style="font-size:13px">A casa ainda não cadastrou a equipe.</p>`}
           <div class="barra-acoes"><button class="btn sm" data-tri-editar="${esc(t.casa_ref)}">Editar dia 1 e nota</button><button class="btn sm" data-tri-apagar="${esc(t.casa_ref)}">Apagar trilha</button></div></details>`;
       };
-      return `<div class="tag">Trilhas</div><h1>Trilha da nova casa</h1>
+      return `<div class="tag">Treinamentos</div><h1>Treinamento da nova casa</h1>
       <p class="sub">Habilitação em 7 dias úteis: Thales passa o lead (dia 1), Gui (dias 2 e 3), Isa (dias 4 e 5) e Bruno (dias 6 e 7). Cada um marca a sua etapa aqui; a casa confirma a parte dela (respostas, leitura do Guia e data aprovada) pela área dela. Fins de semana e feriados nacionais não contam.</p>
       ${T.trilhas.length ? T.trilhas.map(cartao).join("") : vazio("Nenhuma trilha em andamento", "Comece a trilha de uma casa nova logo abaixo: o dia 1 é o dia em que o Thales passa o lead.", "", "trilhas")}
       <div class="card" style="margin-top:14px" id="triForm"><h3 style="margin-top:0">${ed ? `Editar a trilha de ${esc(ed.casa_ref)}` : "Começar a trilha de uma casa"}</h3>

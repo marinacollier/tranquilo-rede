@@ -27,15 +27,16 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok((await abas()).includes('equipe_casa') && !(await abas()).includes('trilha'), 'dono vê a aba Equipe da casa (e ainda não a Trilha)');
     await p.click('[data-aba="equipe_casa"]'); await p.waitForSelector('#eqcNome');
     await p.fill('#eqcNome', 'Ana'); await p.fill('#eqcEmail', 'ana@casa.com');
-    await p.check('[data-eqc-funcao="anfitriao"]'); await p.check('[data-eqc-funcao="social_media"]'); await p.click('#eqcOk');
-    ok(/nunca são a mesma pessoa/.test(await p.textContent('#eqcErr')), 'anfitrião e social media na mesma pessoa: o site explica e não salva');
-    await p.uncheck('[data-eqc-funcao="anfitriao"]'); await p.uncheck('[data-eqc-funcao="social_media"]'); await p.check('[data-eqc-funcao="produtor"]'); await p.check('[data-eqc-funcao="porta"]');
+    await p.click('#eqcOk');
+    ok(/Escolha a função/.test(await p.textContent('#eqcErr')), 'sem função escolhida, o site explica e não salva');
+    ok(await p.$$eval('[data-eqc-funcao]', (xs) => xs.every((x) => x.type === 'radio')), 'uma função por pessoa (Guia v1.5): a escolha é única');
+    await p.check('[data-eqc-funcao="porta"]');
     await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]');
     const txt = await p.textContent('#app');
     ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Falta Líder Local/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
     await p.click('[data-eqc-convidar]'); await p.waitForTimeout(400);
     const cv = (await db()).conv['ana@casa.com'];
-    ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta,produtor', '"Dar acesso" cria o convite ligado à casa, com as funções');
+    ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta', '"Dar acesso" cria o convite ligado à casa, com a função');
     // 2. A pessoa da equipe entra só com a função dela.
     await sair(); await criar('casa', 'Ana', 'ana@casa.com');
     await p.waitForSelector('.tour-caixa', { timeout: 8000 });
@@ -44,11 +45,9 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
       const ps = TQTour.passosDe('casa_equipe', (a) => abas.includes(a)); const ex = new Set(ps.flatMap((x) => [...(x.cobre || []), ...(x.ir ? [x.ir[0]] : [])]));
       return { abas, faltam: abas.filter((a) => !ex.has(a)) }; });
     ok(/Equipe da casa/.test(tag) && !cob.faltam.length, `primeiro acesso da equipe abre o tutorial dela, cobrindo as ${cob.abas.length} abas${cob.faltam.length ? ' (faltam ' + cob.faltam.join(', ') + ')' : ''}`);
-    ok(cob.abas[0] === 'minha_funcao' && cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'produtor vê Minha função e a equipe, sem o cadastro e sem as métricas da casa');
+    ok(cob.abas[0] === 'minha_funcao' && !cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'porta vê Minha função, sem a equipe, o cadastro e as métricas da casa');
     await pular(); await p.click('[data-aba="minha_funcao"]');
-    ok(/Produtor/.test(await p.textContent('#app')) && /Pacote fixado no grupo/.test(await p.textContent('#app')), 'Minha função mostra o que o produtor lê, recebe e devolve');
-    await p.click('[data-aba="equipe_casa"]'); await p.waitForTimeout(300);
-    ok(!(await p.$('#eqcForm')) && !(await p.$('[data-eqc-remover]')), 'pessoa da equipe só vê a equipe (não muda nada)');
+    ok(/Operador\(a\) de porta/.test(await p.textContent('#app')) && /Lista de entrada e cortesias/.test(await p.textContent('#app')), 'Minha função mostra o que a porta lê, recebe e devolve');
     // 3. A Central começa a trilha.
     await sair(); await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
     await p.click('[data-aba="trilhas"]'); await p.waitForSelector('#triCasa');
@@ -58,7 +57,8 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.click('[data-tri-marco="Casa Teste|nota"]'); await p.waitForTimeout(400);
     ok(!!(await db()).tri['Casa Teste'].marcos.nota, 'Central marca a etapa dela (nota de passagem)');
     // 4. A casa vê a trilha e confirma a leitura.
-    await sair(); await p.click('#entrar'); await p.fill('#email', 'dono@casa.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await pular(); await p.waitForTimeout(500);
+    await sair(); await p.click('#entrar'); await p.fill('#email', 'dono@casa.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await pular();
+    await p.waitForSelector('[data-aba="trilha"]', { timeout: 10000 }).catch(() => {}); await pular();
     ok((await abas()).includes('trilha'), 'com a trilha começada, o dono vê a aba Trilha da nova casa');
     await p.click('[data-aba="trilha"]'); await p.waitForSelector('[data-trilha-casa="leitura"]');
     ok(!/Combinado: piloto/.test(await p.textContent('#app')), 'a casa não vê a nota de passagem');

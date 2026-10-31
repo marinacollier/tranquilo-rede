@@ -1820,3 +1820,32 @@ begin
 end $$;
 revoke all on function minha_trilha(), trilha_marcar_casa(text, boolean) from public, anon;
 grant execute on function minha_trilha(), trilha_marcar_casa(text, boolean) to authenticated;
+
+-- =====================================================================
+-- v12: equipe da casa pelo Guia do Franqueado v1.5 (30/10/2026). Idempotente.
+-- Cada função é de uma pessoa diferente (só o dono pode ser também o Líder Local, que é o produtor).
+-- Depois do treinamento: nomes do tripé em até 1 semana e os pré-requisitos do primeiro evento.
+-- Mesmas regras de src/equipe.js.
+-- =====================================================================
+create or replace function funcoes_erro(fs text[]) returns text
+language sql immutable set search_path = public as $$
+  select case
+    when fs is null or cardinality(fs) = 0 then 'Escolha a função da pessoa.'
+    when exists (select 1 from unnest(fs) f where f not in ('lider', 'anfitriao', 'social_media', 'som', 'porta', 'bar')) then 'Função desconhecida.'
+    when cardinality(fs) > 1 then 'Cada função é de uma pessoa diferente (Guia do Franqueado). Só o dono pode ser também o Líder Local.'
+    else null end
+$$;
+
+create or replace function trilha_marcar_casa(etapa_ text, feito boolean) returns void
+language plpgsql security definer set search_path = public as $$
+declare ref text;
+begin
+  select t.casa_ref into ref from trilhas t where lower(t.casa_ref) = lower(minha_casa_ref());
+  if ref is null then raise exception 'A sua casa ainda não tem treinamento.'; end if;
+  if not sou_dono_da_casa(ref) then raise exception 'Só o responsável da casa confirma as etapas do treinamento.'; end if;
+  if etapa_ not in ('resp_espaco', 'leitura', 'data_aprovada', 'tripe', 'equipe_ok', 'porta_ingresse', 'planilhas', 'homologacao') then raise exception 'Esta etapa é da Central.'; end if;
+  if feito then insert into trilha_marcos (casa_ref, etapa) values (ref, etapa_) on conflict do nothing;
+  else delete from trilha_marcos where casa_ref = ref and etapa = etapa_; end if;
+end $$;
+revoke all on function trilha_marcar_casa(text, boolean) from public, anon;
+grant execute on function trilha_marcar_casa(text, boolean) to authenticated;
