@@ -165,15 +165,16 @@ await como(casa, async () => {
   const i = await tenta(() => q(`insert into inscricoes_artistas (user_id) values ($1)`, [casa]));
   reg('C07', 'casa cria inscrição de artista', 'recusado', n(i), !i.ok);
 });
-const completa = { responsavel: 'Ana', whatsapp: '81', endereco: 'Rua', cidade: 'Recife', capacidade: '150', som: 'pa_proprio', aceite_responsabilidades: 'true' };
+const completa = { nome: 'Casa', responsavel: 'Ana', whatsapp: '81', endereco: 'Rua', cidade: 'Recife', capacidade: '150', capacidade_sentado: '100', som: 'pa_proprio' };
 await como(casa, () => q(`update cadastros_casas set dados = $2, status = 'em_analise' where user_id = $1`, [casa, completa]));
 await como(eq, () => q(`update cadastros_casas set status = 'habilitada', nota_interna = 'INTERNO: dono atrasa pagamento' where user_id = $1`, [casa]));
 await como(casa, async () => {
   const r = (await q(`select nota_interna from cadastros_casas where user_id = $1`, [casa])).rows[0];
   reg('C08', 'casa lê nota_interna do próprio cadastro', 'oculta', `nota_interna = "${r.nota_interna}"`, r.nota_interna === null);
-  await q(`update cadastros_casas set dados = '{}' where user_id = $1`, [casa]);
+  // v13: ficha enviada não muda direto (só por pedido de atualização que a Central aprova).
+  const u9 = await tenta(() => q(`update cadastros_casas set dados = '{}' where user_id = $1`, [casa]));
   const c = (await q(`select status, jsonb_array_length(pendencias->'habilitacao') h from cadastros_casas where user_id = $1`, [casa])).rows[0];
-  reg('C09', 'casa habilitada apaga os dados mínimos e continua habilitada', 'volta para análise/incompleto', `status ${c.status}, pendências de habilitação ${c.h}`, c.status !== 'habilitada');
+  reg('C09', 'casa habilitada apaga os dados mínimos e continua habilitada', 'recusado ou volta para incompleto', u9.ok ? `status ${c.status}, pendências de habilitação ${c.h}` : n(u9), !u9.ok || c.status !== 'habilitada');
 });
 
 // ---------- checklist e registros ----------

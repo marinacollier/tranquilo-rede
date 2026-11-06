@@ -106,3 +106,26 @@ await como(dono, async () => {
 });
 await como(outra, async () => { ok(!sql(await q(`select * from minha_trilha()`)).length, 'outra casa não vê a trilha da Aurora'); });
 ok(sql(await q(`select etapa from trilha_marcos order by etapa`)).map((r) => r.etapa).join() === 'leitura,nota', 'confirmação de leitura da casa registrada');
+
+// v13: disponibilidade de datas e pedidos de atualização ficam isolados por casa.
+const amanha = new Date(Date.now() + 864e5).toISOString().slice(0, 10);
+await como(dono, async () => {
+  await q(`insert into disponibilidade_casa (casa_ref, dia, situacao) values ('Casa Aurora', $1, 'disponivel')`, [amanha]);
+  ok(!!(await tenta(() => q(`insert into disponibilidade_casa (casa_ref, dia, situacao) values ('Casa Outra', $1, 'disponivel')`, [amanha]))), 'casa não marca a disponibilidade de outra casa');
+  ok(!!(await tenta(() => q(`insert into disponibilidade_casa (casa_ref, dia, situacao) values ('Casa Aurora', '2020-01-01', 'disponivel')`))), 'não marca disponibilidade no passado');
+});
+await como(outra, async () => {
+  ok(!sql(await q(`select * from disponibilidade_casa`)).length, 'outra casa não vê a disponibilidade da Aurora');
+  await q(`update disponibilidade_casa set situacao = 'indisponivel'`);
+});
+ok(sql(await q(`select situacao from disponibilidade_casa`))[0].situacao === 'disponivel', 'outra casa não muda a disponibilidade da Aurora');
+await como(eq, async () => {
+  ok(sql(await q(`select * from disponibilidade_casa`)).length === 1, 'a Central vê a disponibilidade');
+  ok(!(await tenta(() => q(`update disponibilidade_casa set situacao = 'indisponivel'`))) && sql(await q(`select situacao from disponibilidade_casa`))[0].situacao === 'disponivel', 'a Central não altera a disponibilidade da casa (só lê)');
+});
+await q(`insert into cadastros_casas (user_id, dados, status) values ($1, '{"nome":"Casa Aurora"}', 'em_analise')`, [dono]);
+await como(dono, async () => { await q(`select solicitar_atualizacao_ficha($1)`, [{ luz: 'nova' }]); });
+await como(outra, async () => {
+  ok(!sql(await q(`select * from solicitacoes_ficha`)).length, 'outra casa não vê o pedido de atualização da Aurora');
+  ok(!!(await tenta(() => q(`select responder_solicitacao_ficha((select id from solicitacoes_ficha limit 1), true)`))), 'casa não responde pedidos');
+});
