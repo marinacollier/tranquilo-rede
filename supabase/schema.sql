@@ -1849,3 +1849,197 @@ begin
 end $$;
 revoke all on function trilha_marcar_casa(text, boolean) from public, anon;
 grant execute on function trilha_marcar_casa(text, boolean) to authenticated;
+
+-- =====================================================================
+-- v13: Ficha da Casa fiel à Ficha da unidade (modelo v1 do Gui, 30/10/2026), atualização por solicitação,
+-- disponibilidade de datas da casa e combinados da parceria. Idempotente. Mesmas regras de src/regras.js.
+-- Fichas antigas usam outros nomes de campo (responsavel, cidade): valem também, nada do que já foi preenchido se perde.
+-- =====================================================================
+create or replace function pendencias_casa(d jsonb) returns jsonb
+language plpgsql immutable set search_path = public as $$
+declare hab jsonb := '[]'::jsonb; mat jsonb := '[]'::jsonb; enr jsonb := '[]'::jsonb;
+  tem_lista boolean;
+begin
+  if coalesce(d ->> 'nome', '') = '' then hab := hab || '["Nome da casa"]'; end if;
+  if coalesce(nullif(d ->> 'cidade_uf', ''), d ->> 'cidade', '') = '' then hab := hab || '["Cidade/UF"]'; end if;
+  if coalesce(d ->> 'endereco', '') = '' then hab := hab || '["Endereço completo"]'; end if;
+  if coalesce(nullif(d ->> 'dono_nome', ''), d ->> 'responsavel', '') = '' then hab := hab || '["Dono A: nome completo"]'; end if;
+  if coalesce(d ->> 'whatsapp', '') = '' then hab := hab || '["Dono A: WhatsApp"]'; end if;
+  if int_seguro(d ->> 'capacidade_sentado') <= 0 then hab := hab || '["Capacidade com público sentado no chão"]'; end if;
+  if coalesce(d ->> 'palco', '') = '' then mat := mat || '["Palco (medidas e altura)"]'; end if;
+  if coalesce(d ->> 'camarim', '') = '' then mat := mat || '["Camarim"]'; end if;
+  if coalesce(d ->> 'som', '') = '' and coalesce(d ->> 'rider', '') = '' then mat := mat || '["Sistema de som ou rider técnico da casa"]'; end if;
+  if coalesce(d ->> 'luz', '') = '' then mat := mat || '["Luz"]'; end if;
+  if coalesce(d ->> 'menores', '') = '' then mat := mat || '["Menores de idade"]'; end if;
+  if coalesce(d ->> 'instagram', '') = '' then enr := enr || '["Instagram da casa"]'; end if;
+  if coalesce(d ->> 'como_chegar', '') = '' then enr := enr || '["Como chegar"]'; end if;
+  tem_lista := case when jsonb_typeof(d -> 'acessibilidade') = 'array' then jsonb_array_length(d -> 'acessibilidade') > 0 else coalesce(d ->> 'acessibilidade', '') <> '' end;
+  if not tem_lista and coalesce(d ->> 'acessibilidade_obs', '') = '' then enr := enr || '["Acessibilidade"]'; end if;
+  if not (case when jsonb_typeof(d -> 'dias_semana') = 'array' then jsonb_array_length(d -> 'dias_semana') > 0 else false end) then enr := enr || '["Dias da semana que podem receber o Tranquilo"]'; end if;
+  return jsonb_build_object('habilitacao', hab, 'match', mat, 'enriquecimento', enr);
+end $$;
+
+create or replace function casa_rehabilitar() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  -- Só derruba a habilitação o que já era exigido antes; a capacidade sentada (v10) vira aviso para quem já estava habilitada.
+  if new.user_id = auth.uid() and new.status = 'habilitada' and exists (
+    select 1 from jsonb_array_elements_text(coalesce(new.pendencias -> 'habilitacao', '[]')) x where x <> 'Capacidade com público sentado no chão'
+  ) then
+    new.status := 'incompleto';
+  end if;
+  return new;
+end $$;
+
+-- Combinados da parceria (Parte 1 da Ficha: divisão das receitas, contatos, próximos passos). Só a Central grava;
+-- a casa lê na própria linha. Ficha já enviada não muda em silêncio: a casa pede a atualização e a Central aprova.
+alter table cadastros_casas add column if not exists combinados jsonb;
+
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- A equipe não edita os dados da casa; só aplica um pedido aprovado (responder_solicitacao_ficha liga "aplicando").
+    if not exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto) then
+      new.dados := old.dados;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status in ('em_analise', 'habilitada', 'suspensa') and new.dados is distinct from old.dados then
+      raise exception 'A ficha já foi enviada ao Tranquilo: use "Solicitar atualização".' using errcode = '42501';
+    end if;
+    if old.status in ('habilitada', 'suspensa') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+
+create table if not exists solicitacoes_ficha (
+  id uuid primary key default gen_random_uuid(),
+  casa_id uuid not null references cadastros_casas (id) on delete cascade,
+  user_id uuid not null references perfis (id) on delete cascade,
+  antes jsonb not null default '{}'::jsonb,
+  proposto jsonb not null check (jsonb_typeof(proposto) = 'object'),
+  mensagem text check (mensagem is null or length(mensagem) <= 1000),
+  status text not null default 'pendente' check (status in ('pendente', 'aprovada', 'recusada', 'cancelada')),
+  criado_em timestamptz not null default now(),
+  revisado_por uuid references perfis (id) on delete set null,
+  revisado_em timestamptz,
+  resposta text check (resposta is null or length(resposta) <= 1000),
+  aplicando boolean not null default false
+);
+alter table solicitacoes_ficha add column if not exists aplicando boolean not null default false;
+alter table solicitacoes_ficha enable row level security;
+drop policy if exists sol_ler on solicitacoes_ficha;
+create policy sol_ler on solicitacoes_ficha for select using (user_id = auth.uid() or eh_equipe());
+revoke all on solicitacoes_ficha from anon, authenticated;
+grant select on solicitacoes_ficha to authenticated;
+
+-- A casa pede a atualização: grava só os campos que mudaram, com o valor anterior. Um pedido aberto por casa.
+create or replace function solicitar_atualizacao_ficha(proposto jsonb, mensagem text default null) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare c cadastros_casas; mudou jsonb := '{}'::jsonb; antes jsonb := '{}'::jsonb; k text; v jsonb; sid uuid;
+begin
+  select * into c from cadastros_casas where user_id = auth.uid();
+  if not found then raise exception 'Cadastre a casa antes de pedir atualização.'; end if;
+  if jsonb_typeof(proposto) <> 'object' then raise exception 'Pedido inválido.'; end if;
+  for k, v in select * from jsonb_each(proposto) loop
+    if length(k) > 60 or k !~ '^[a-z_0-9]+$' then raise exception 'Campo inválido: %', left(k, 60); end if;
+    if exists (select 1 from jsonb_path_query(v, 'lax $.** ? (@.type() == "string")') s
+               where (s #>> '{}') ~* '^[[:space:]]*(javascript|data|vbscript|file)[[:space:]]*:') then
+      raise exception 'Link inválido: use um endereço que comece com http:// ou https://.' using errcode = '22023';
+    end if;
+    if (c.dados -> k) is distinct from v and not (coalesce(c.dados ->> k, '') = '' and coalesce(v #>> '{}', '') = '') then
+      mudou := mudou || jsonb_build_object(k, v);
+      antes := antes || jsonb_build_object(k, coalesce(c.dados -> k, 'null'::jsonb));
+    end if;
+  end loop;
+  if mudou = '{}'::jsonb then raise exception 'Nada mudou em relação à ficha atual.'; end if;
+  update solicitacoes_ficha set status = 'cancelada', revisado_em = now(), resposta = 'Substituída por um pedido mais novo.'
+    where casa_id = c.id and status = 'pendente';
+  insert into solicitacoes_ficha (casa_id, user_id, antes, proposto, mensagem)
+  values (c.id, auth.uid(), antes, mudou, left(nullif(btrim(mensagem), ''), 1000)) returning id into sid;
+  return sid;
+end $$;
+
+create or replace function cancelar_solicitacao_ficha(sid uuid) returns void
+language sql security definer set search_path = public as $$
+  update solicitacoes_ficha set status = 'cancelada', revisado_em = now()
+  where id = sid and user_id = auth.uid() and status = 'pendente'
+$$;
+
+-- A Central aprova (a ficha recebe só os campos pedidos) ou recusa, com resposta para a casa.
+create or replace function responder_solicitacao_ficha(sid uuid, aprovar boolean, resposta_ text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare s solicitacoes_ficha;
+begin
+  if not eh_equipe() then raise exception 'Só a equipe do Tranquilo responde as solicitações.'; end if;
+  select * into s from solicitacoes_ficha where id = sid for update;
+  if not found or s.status <> 'pendente' then raise exception 'Esta solicitação não está mais pendente.'; end if;
+  if aprovar then
+    update solicitacoes_ficha set aplicando = true where id = sid;
+    update cadastros_casas set dados = coalesce(dados, '{}'::jsonb) || s.proposto where id = s.casa_id;
+  end if;
+  update solicitacoes_ficha set status = case when aprovar then 'aprovada' else 'recusada' end,
+    revisado_por = auth.uid(), revisado_em = now(), resposta = left(nullif(btrim(resposta_), ''), 1000), aplicando = false
+  where id = sid;
+end $$;
+
+-- A Central registra os combinados da parceria (Parte 1 da Ficha).
+create or replace function definir_combinados(cid uuid, c jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not eh_equipe() then raise exception 'Só a equipe do Tranquilo registra os combinados.'; end if;
+  if jsonb_typeof(c) <> 'object' then raise exception 'Combinados inválidos.'; end if;
+  update cadastros_casas set combinados = c where id = cid;
+end $$;
+revoke all on function solicitar_atualizacao_ficha(jsonb, text), cancelar_solicitacao_ficha(uuid), responder_solicitacao_ficha(uuid, boolean, text), definir_combinados(uuid, jsonb) from public, anon;
+grant execute on function solicitar_atualizacao_ficha(jsonb, text), cancelar_solicitacao_ficha(uuid), responder_solicitacao_ficha(uuid, boolean, text), definir_combinados(uuid, jsonb) to authenticated;
+
+-- Disponibilidade de datas da casa (área Datas): a casa informa, a Central consulta. Disponível não é reserva.
+create table if not exists disponibilidade_casa (
+  casa_ref text not null check (length(casa_ref) between 1 and 160),
+  dia date not null,
+  situacao text not null check (situacao in ('disponivel', 'indisponivel')),
+  nota text check (nota is null or length(nota) <= 200),
+  atualizado_por uuid references perfis (id) on delete set null default auth.uid(),
+  atualizado_em timestamptz not null default now(),
+  primary key (casa_ref, dia)
+);
+alter table disponibilidade_casa enable row level security;
+drop policy if exists disp_ler on disponibilidade_casa;
+create policy disp_ler on disponibilidade_casa for select using (eh_equipe() or lower(casa_ref) = lower(minha_casa_ref()));
+drop policy if exists disp_gravar on disponibilidade_casa;
+create policy disp_gravar on disponibilidade_casa for insert with check (sou_dono_da_casa(casa_ref) and dia >= current_date - 1);
+drop policy if exists disp_editar on disponibilidade_casa;
+create policy disp_editar on disponibilidade_casa for update using (sou_dono_da_casa(casa_ref)) with check (sou_dono_da_casa(casa_ref) and dia >= current_date - 1);
+drop policy if exists disp_apagar on disponibilidade_casa;
+create policy disp_apagar on disponibilidade_casa for delete using (sou_dono_da_casa(casa_ref));
+revoke all on disponibilidade_casa from anon;
+grant select, insert, update, delete on disponibilidade_casa to authenticated;
+create or replace function disponibilidade_carimbo() returns trigger
+language plpgsql set search_path = public as $$
+begin new.atualizado_por := auth.uid(); new.atualizado_em := now(); return new; end $$;
+drop trigger if exists trg_disp on disponibilidade_casa;
+create trigger trg_disp before insert or update on disponibilidade_casa for each row execute function disponibilidade_carimbo();

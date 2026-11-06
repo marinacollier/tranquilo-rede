@@ -30,27 +30,30 @@
       detalhe: { completude, tracao, tecnica, circulacao, condicoes } };
   }
 
-  // Público sentado é regra fixa do Tranquilo (manuais da Operação, 21/10/2026). Casa já habilitada não perde a
-  // habilitação por isso: vê o aviso de nova exigência até preencher (ver casa_rehabilitar no banco).
-  const NOVA_EXIGENCIA = "Capacidade de público sentado";
+  // Campos da Ficha da unidade (modelo v1 do Gui, 30/10/2026). Fichas antigas usam outros nomes de campo: valem também,
+  // para nada do que a casa já preencheu se perder (responsavel → dono_nome, cidade → cidade_uf, dias → funcionamento).
+  // Público sentado é regra fixa do Tranquilo. Casa já habilitada não perde a habilitação por isso: vê o aviso de nova
+  // exigência até preencher (ver casa_rehabilitar no banco).
+  const NOVA_EXIGENCIA = "Capacidade com público sentado no chão";
+  const lista = (v) => Array.isArray(v) ? v.length > 0 : tem(v);
   function pendenciasCasa(d = {}) {
     const hab = [], match = [], enriquecimento = [];
-    if (!tem(d.responsavel)) hab.push("Responsável local");
-    if (!tem(d.whatsapp)) hab.push("WhatsApp do responsável");
-    if (!tem(d.endereco) || !tem(d.cidade)) hab.push("Endereço e cidade");
-    if (int(d.capacidade) <= 0) hab.push("Capacidade de público");
+    const v = (novo, antigo) => tem(d[novo]) ? d[novo] : d[antigo];
+    if (!tem(d.nome)) hab.push("Nome da casa");
+    if (!tem(v("cidade_uf", "cidade"))) hab.push("Cidade/UF");
+    if (!tem(d.endereco)) hab.push("Endereço completo");
+    if (!tem(v("dono_nome", "responsavel"))) hab.push("Dono A: nome completo");
+    if (!tem(d.whatsapp)) hab.push("Dono A: WhatsApp");
     if (int(d.capacidade_sentado) <= 0) hab.push(NOVA_EXIGENCIA);
-    if (!tem(d.som) || d.som === "nao_tem") hab.push("Como resolve o som (PA próprio ou parceiro técnico)");
-    if (String(d.aceite_responsabilidades) !== "true") hab.push("Aceite da matriz de responsabilidades da casa");
-    if (!tem(d.palco)) match.push("Medidas do palco");
-    if (!tem(d.microfones)) match.push("Microfones e DIs disponíveis");
-    if (!tem(d.luz)) match.push("Luz (frontal para rosto)");
-    if (!tem(d.restricoes)) match.push("Restrições de horário e volume");
+    if (!tem(d.palco)) match.push("Palco (medidas e altura)");
     if (!tem(d.camarim)) match.push("Camarim");
-    if (!tem(d.backline)) enriquecimento.push("Backline");
-    if (!tem(d.acessibilidade)) enriquecimento.push("Acessibilidade");
-    if (!tem(d.instagram)) enriquecimento.push("Instagram");
-    if (!tem(d.como_chegar)) enriquecimento.push("Como chegar (transporte e estacionamento)");
+    if (!tem(d.som) && !tem(d.rider)) match.push("Sistema de som ou rider técnico da casa");
+    if (!tem(d.luz)) match.push("Luz");
+    if (!tem(d.menores)) match.push("Menores de idade");
+    if (!tem(d.instagram)) enriquecimento.push("Instagram da casa");
+    if (!tem(d.como_chegar)) enriquecimento.push("Como chegar");
+    if (!lista(d.acessibilidade) && !tem(d.acessibilidade_obs)) enriquecimento.push("Acessibilidade");
+    if (!lista(d.dias_semana)) enriquecimento.push("Dias da semana que podem receber o Tranquilo");
     return { habilitacao: hab, match, enriquecimento };
   }
 

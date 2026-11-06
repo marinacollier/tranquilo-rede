@@ -28,8 +28,8 @@ for (let i = 0; i < 400; i++) {
   if (JSON.stringify(js) !== JSON.stringify({ score: sql.score, faixa: sql.faixa, alertas: sql.alertas, detalhe: { completude: sql.detalhe.completude, tracao: sql.detalhe.tracao, tecnica: sql.detalhe.tecnica, circulacao: sql.detalhe.circulacao, condicoes: sql.detalhe.condicoes } })) {
     falhas++; if (falhas < 4) console.log('Diferença na pré-curadoria', d, js, sql);
   }
-  const c = Object.fromEntries(['responsavel', 'whatsapp', 'endereco', 'cidade', 'som', 'palco', 'microfones', 'luz', 'restricoes', 'camarim', 'backline', 'acessibilidade', 'instagram', 'como_chegar'].map((k) => [k, talvez('x')]));
-  c.som = escolhe(['pa_proprio', 'nao_tem', '']); c.capacidade = talvez(String(rnd(300))); c.capacidade_sentado = talvez(String(rnd(200))); c.aceite_responsabilidades = escolhe(['true', 'false', '']);
+  const c = Object.fromEntries(['nome', 'cidade_uf', 'cidade', 'endereco', 'dono_nome', 'responsavel', 'whatsapp', 'palco', 'camarim', 'som', 'rider', 'luz', 'menores', 'instagram', 'como_chegar', 'acessibilidade_obs'].map((k) => [k, talvez('x')]));
+  c.capacidade_sentado = talvez(String(rnd(200))); c.acessibilidade = escolhe([[], ['rampa'], 'texto antigo', '', undefined]); c.dias_semana = escolhe([[], ['sexta', 'sabado'], undefined]);
   const cj = pendenciasCasa(c), cs = (await db.query('select pendencias_casa($1) r', [c])).rows[0].r;
   if (['habilitacao', 'match', 'enriquecimento'].some((k) => JSON.stringify(cj[k]) !== JSON.stringify(cs[k]))) { falhas++; if (falhas < 4) console.log('Diferença na habilitação', c, cj, cs); }
 }
