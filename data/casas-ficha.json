@@ -3,6 +3,7 @@
   "geradoEm": "2026-11-06",
   "casas": {
     "02ed27531f484042a9c993c0890c4d16": {
+      "nome": "Café Maritaka",
       "endereco": "R. Dr. Heitor Penteado, 1580 - Joaquim Egídio, Campinas - SP, 13108-002",
       "complemento": "Em frente ao posto desativado.",
       "como_chegar": "De carro: estacionamento amplo bem em frente ao café.\nDe ônibus: o ponto fica a uma curta caminhada da entrada.\nO local tem segurança.",
@@ -12,119 +13,145 @@
       "instagram": "@cafemaritaka"
     },
     "0cea6a61f5e3431b95a4f0f87c08a651": {
+      "nome": "O Quinteiro",
       "endereco": "R. Salinas, 1008 — Floresta — BH",
       "como_chegar": "Opções próximas (estimadas)\n- Zona Azul (Av. Prof. Alfredo Balena): distância quase zero, vaga na rua\n- Estacionamento Maxpark: R. Pouso Alegre, 1771 (Horto) — 24h — (no Hospital Infantil São Camilo Unimed)\n\nRotativo Digital BH (rua)\n- Vagas nas vias públicas do entorno (checar placas do trecho)\n\nTransporte público\n- Linhas que descem a Av. do Contorno: 9412, 9414, 9204, 9405\n- Linhas para o Floresta: 9106\n- Outras linhas que passem na Rua Pouso Alegre / Rua Salinas\n- Fácil acesso a linhas de ônibus do Centro\n- Próximo da Estação Central do metrô\n\nSegurança (rua)\n- Preferir áreas movimentadas e bem iluminadas, especialmente à noite",
       "capacidade": "300",
       "capacidade_sentado": "200"
     },
     "0fa5de18aef2468bbc77ee7f2fa2be5a": {
+      "nome": "Flor de Café",
       "endereco": "Largo de São Bento, 91 - Sorocaba - SP, 18035-240",
       "capacidade_sentado": "80",
       "instagram": "@flordecafe.cafeteriaearte"
     },
     "18b655dd76944386af25883412047733": {
+      "nome": "HiFi Augusta",
       "endereco": "R. Augusta, 591 - Consolação, São Paulo - SP, 01315-000",
       "capacidade": "600",
       "rider": "https://drive.google.com/drive/folders/1F0U3brGQhn5eAW5oVpiW1AutOYLJ2Rcf?usp=drive_link",
       "instagram": "@augustahifi.sp"
     },
     "26f0800216474889aba95e5f2ff5a8e8": {
+      "nome": "Clotilde Café Jardim",
       "endereco": "R. Galeão Carvalhal, 370 - Jardim Bela Vista, Santo André - SP, 09041-400, Brasil",
       "capacidade_sentado": "90",
       "instagram": "@clotilde.cafejardim"
     },
     "2b011caaf0cf4b3aabceaca709068559": {
+      "nome": "Musica aos Montes",
       "endereco": "Av. Agulhas Negras, 225 - Mangabeiras, Belo Horizonte - MG, 30210-340",
       "site": "https://musicaaosmontes.com/",
       "instagram": "@musicaaosmontes"
     },
     "2e983bbf4e848032ab19ed0ca9fa08fe": {
+      "nome": "Gabinete Português",
       "capacidade_sentado": "350"
     },
     "2e983bbf4e8480f68d0ec024c54e2c64": {
+      "nome": "Clube dos Democráticos",
       "capacidade": "500"
     },
     "2f683bbf4e848096a1b4df667335454d": {
+      "nome": "Museu de Artes e Ofícios",
       "endereco": "Praça Rui Barbosa, 600 - Centro, Belo Horizonte - MG, 30160-000",
       "capacidade": "300",
       "capacidade_sentado": "240"
     },
     "3a5b872a910648449ec1306baa21ad31": {
+      "nome": "D House",
       "capacidade_sentado": "380",
       "site": "https://dhousecuritiba.com.br/"
     },
     "3ea83bbf4e8480f296f9e97fb90cbed2": {
+      "nome": "ROOFTAP",
       "endereco": "Rua Guararapes, 1736 - Cidade Monções, São Paulo - SP, 04561-003",
       "capacidade_sentado": "180"
     },
     "47ba7c5e2f0d410e9050a44fca494a97": {
+      "nome": "Experience",
       "endereco": "Lapa — Rua Riachuelo, nº 20, Rio de Janeiro - RJ",
       "capacidade_sentado": "220",
       "instagram": "@experiencemusiclapa_"
     },
     "5472d5c28b2d40b1843d20a5065e907f": {
+      "nome": "Coringa Madá",
       "capacidade": "300",
       "capacidade_sentado": "250",
       "instagram": "@coringa.mada"
     },
     "557806e796d5430baef7b33f69b9fd38": {
+      "nome": "Teatro Mars",
       "endereco": "Rua João Passalaqua, 80 - Bela Vista, São Paulo - SP, 01326-020",
       "capacidade": "600",
       "instagram": "@teatromars"
     },
     "65f89893bd624a3e93bc0eca240d0a62": {
+      "nome": "Casa de Cultura Volta ao Mundo e Conexões",
       "endereco": "Rua do Rosário, 24 - Centro, Rio de Janeiro - RJ, 20041-002",
       "instagram": "@casadeculturavmc"
     },
     "698727ad0895479bbb254d307d92a08f": {
+      "nome": "Espaço 512",
       "endereco": "Rua João Alfredo, 512 - Cidade Baixa, Porto Alegre - RS",
       "capacidade_sentado": "250"
     },
     "6b2c942d9f4949c2aba0cea17fc695d8": {
+      "nome": "Iracema",
       "endereco": "Rua Almandina, 56 — Santa Tereza, Belo Horizonte/MG",
       "instagram": "@iracemabh"
     },
     "7046b6f3e0d5486e9d715e07c5a7d03b": {
+      "nome": "Infinu",
       "endereco": "SHCS CRS 506, Bloco A, Loja 67, Asa Sul, Brasília - DF, 70350-515 (referência: ao lado da Praça das Avós, W3 Sul)",
       "capacidade_sentado": "240",
       "instagram": "@infinubsb"
     },
     "72d72240bc1442088e022abec2aaf4b6": {
+      "nome": "Greta Galpão",
       "endereco": "Rua Pedro Soares de Almeida, 104 - Vila Anglo Brasileira, São Paulo - SP, 05029-030",
       "capacidade_sentado": "280",
       "site": "https://www.gretagalpao.com/",
       "instagram": "@gretagalpao"
     },
     "737fb142f82f4b9f8e8b4113d1331a97": {
+      "nome": "Herval 33",
       "endereco": "Rua Marquês de Herval, 33 - Valongo, Santos - SP, 11010-310",
       "capacidade_sentado": "200"
     },
     "a6457eb1ed95437a81a179050a3b3827": {
+      "nome": "Galeria Carmo Sion",
       "endereco": "- Avenida Nossa Senhora do Carmo, 221 — Belo Horizonte, MG\n- Rua Outono, 98 — Belo Horizonte, MG",
       "capacidade_sentado": "450"
     },
     "ac3800fb62b04744a77828219d953f94": {
+      "nome": "Cento e Quatro — 104",
       "endereco": "Praça Rui Barbosa, 104 — Centro — BH",
       "capacidade": "1200",
       "capacidade_sentado": "700",
       "site": "https://www.centoequatro.org/"
     },
     "d26e6d51b68042ebafec780add5d21b3": {
+      "nome": "Kasartes Gastrobar",
       "endereco": "Rua Maria Flora Caldeira, 81 - Cabeçudas, Itajaí - SC",
       "capacidade": "60",
       "instagram": "@kasartesgastrobar"
     },
     "d4e460de801b4cc4a4d2c7bd53e7b812": {
+      "nome": "Céu Curitiba",
       "capacidade_sentado": "220"
     },
     "d4f0634f11124672a196ae499cd7f1f6": {
+      "nome": "Casa Céu Floripa",
       "capacidade_sentado": "300"
     },
     "d4fc90df16a24bdfbe19ca956f0d75aa": {
+      "nome": "DHouse",
       "endereco": "Rua José Sikorski, 46, Santo Inácio, Curitiba, PR, 82010-090, Brasil",
       "capacidade": "450"
     },
     "d5772b93ee904e16a1b8f8e1d5a5feb0": {
+      "nome": "LayBack OKA",
       "endereco": "Rod. Francisco Magno Vieira (SC-405), 4397 - Campeche, Florianópolis - SC, 88065-000, Brasil",
       "complemento": "Loja 32",
       "capacidade": "450",
@@ -132,11 +159,13 @@
       "instagram": "@layback_oka"
     },
     "d5ca2cf46403412ca7c35aca8546a558": {
+      "nome": "Czar",
       "endereco": "Frederico Cantarelli, 68 - Mercês, Curitiba - PR",
       "capacidade_sentado": "400",
       "instagram": "@czarcuritiba"
     },
     "eda1bfbee14642268f3aabd6d8d86acb": {
+      "nome": "Ratazana",
       "endereco": "Avenida Santos Dumont, 2225 - Michel, Criciúma - SC, 88803-002",
       "como_chegar": "Recomendamos ir de transporte por aplicativo: a casa não tem estacionamento.",
       "capacidade": "400",
@@ -146,19 +175,25 @@
       "instagram": "@ratazanacomedy"
     },
     "ee83f96284ac4a43b2410973061fae0f": {
+      "nome": "União Fraterna",
       "endereco": "Rua Guaicurus, 27 - Água Branca, São Paulo - SP, 05033-000",
       "capacidade_sentado": "550",
       "site": "https://www.uniaofraterna.org.br/",
       "instagram": "@uniaofraternasp"
     },
     "facbb695a5f74490955d188d6cf39de6": {
+      "nome": "Casa Pantaii Floripa",
       "capacidade_sentado": "250"
     },
     "fd6fbc9d92ec429a9a0649382db606cb": {
+      "nome": "Frege",
       "endereco": "Avenida Rio Branco, 155 - Recife Antigo, Recife - PE, 50030-310, Brasil",
       "capacidade_sentado": "240",
       "site": "https://frege.ola.click/",
       "instagram": "@fregerecife"
+    },
+    "9a4624643d6544a3b4d26caa5a10bb72": {
+      "nome": "Nosso Quintal"
     }
   }
 }

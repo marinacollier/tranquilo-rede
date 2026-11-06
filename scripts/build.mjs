@@ -153,7 +153,7 @@ for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))
   await pacote('casa', c.id, c.nome, {
     cidade: c.cidade, eventos: c.eventos.map(compacto),
     rede: rede.length ? { noites: rede.length, mediana: quantil(rede, 0.5) } : null,
-    ficha_notion: { nome: c.nome, ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
+    ficha_notion: { ...(/^Casa (em|da rede)\b/.test(c.nome) ? {} : { nome: c.nome }), ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
   }, { cidades: c.cidade });
 }
 await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo });
