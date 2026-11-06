@@ -215,12 +215,12 @@ const TQConta = (() => {
       async apagarTrilha(ref) { exigeEquipe(); delete db.tri[ref]; gravar(); },
       // Ficha da Casa: pedido de atualização (a Central aprova), combinados e disponibilidade de datas (schema v13).
       async minhasSolicitacoes() { return (db.sol || []).filter((x) => x.user_id === db.sessao).sort((a, b) => b.criado_em.localeCompare(a.criado_em)); },
-      async solicitarAtualizacao(proposto) {
+      async solicitarAtualizacao(proposto, mensagem) {
         const c = db.casas[db.sessao]; if (!c) throw new Error("Cadastre a casa antes de pedir atualização.");
         const mudou = {}, antes = {}; for (const [k, v] of Object.entries(proposto)) if (JSON.stringify(c.dados[k] ?? "") !== JSON.stringify(v ?? "")) { mudou[k] = v; antes[k] = c.dados[k] ?? null; }
         if (!Object.keys(mudou).length) throw new Error("Nada mudou em relação à ficha atual.");
         (db.sol ||= []).forEach((x) => { if (x.casa_id === c.id && x.status === "pendente") x.status = "cancelada"; });
-        db.sol.push({ id: id(), casa_id: c.id, user_id: db.sessao, antes, proposto: mudou, status: "pendente", criado_em: agora() }); gravar();
+        db.sol.push({ id: id(), casa_id: c.id, user_id: db.sessao, antes, proposto: mudou, mensagem: mensagem || null, status: "pendente", criado_em: agora() }); gravar();
       },
       async cancelarSolicitacao(sid) { const x = (db.sol || []).find((y) => y.id === sid && y.user_id === db.sessao && y.status === "pendente"); if (x) { x.status = "cancelada"; gravar(); } },
       async solicitacoesTodas() { exigeEquipe(); return db.sol || []; },
@@ -553,7 +553,7 @@ const TQConta = (() => {
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
     // Código colado e ainda não confirmado pela adm também abre as métricas (é o mesmo que entrar pelo código).
     const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso || perfil.vinculo_pedido;
-    S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; S.tri = null; S.eqcEd = null; S.triEd = null;   // nada da conta anterior fica na tela
+    S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; S.tri = null; S.eqcEd = null; S.triEd = null; S.disp = undefined; S.fichaPedido = false; S.sub = {};   // nada da conta anterior fica na tela
     if (cod) {
       // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
       try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id && pac.perfil === perfil.tipo) S.pac = pac; }
@@ -575,6 +575,31 @@ const TQConta = (() => {
   async function recarregar() { const p = await api.sessao(); if (p) { const aba = S.aba; await carregar(p); if (abas().some(([k]) => k === aba)) S.aba = aba; } render(); }
 
   const ROTULO = { artista: "Artista", casa: "Casa", equipe: "Equipe", adm: "Administração" };
+  // ---------- portal da casa: quatro áreas ----------
+  // Ficha da Casa (dados cadastrais e equipe), Operações (como fazer), Datas (disponibilidade e datas confirmadas) e
+  // Marketing (campanhas). Cada informação tem uma tela dona (docs/INFORMATION_OWNERSHIP.md); as outras só apontam para ela.
+  const AREAS_CASA = [["ficha", "Ficha da Casa"], ["operacoes", "Operações"], ["datas_casa", "Datas"], ["marketing", "Marketing"]];
+  function subsDaArea(area) {
+    if (S.conta?.perfil.tipo !== "casa") return [];
+    const fs = funcoesDe(), A = fs ? TQEquipe.abasDaFuncao(fs) : null;
+    const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
+    if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
+    if (area === "operacoes") return [...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
+      ["materiais", "Guia e materiais"], ...(pacAbas.includes("roteiro") ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
+    if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", fs ? "Datas e passos" : "Datas confirmadas"],
+      ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
+    if (area === "marketing") return !fs || A.campanha ? [["campanha", "Campanhas"]] : [];
+    return [];
+  }
+  /** Área do portal da casa que contém a tela k (ou null). */
+  function areaDe(k) { if (!k || S.conta?.perfil.tipo !== "casa") return null; for (const [a] of AREAS_CASA) if (subsDaArea(a).some(([x]) => x === k)) return a; return null; }
+  function irPara(k) { const a = areaDe(k); if (a) { (S.sub ||= {})[a] = k; S.aba = a; } else S.aba = k; }
+  function telaArea(area) {
+    const subs = subsDaArea(area); if (!subs.length) return "";
+    S.sub ||= {}; let k = S.sub[area]; if (!subs.some(([x]) => x === k)) k = subs[0][0]; S.sub[area] = k;
+    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc(AREAS_CASA.find(([a]) => a === area)[1])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${area}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
+    return nav + (TELAS[k] || window.TQ_TELAS?.[k])();
+  }
   // Funções da conta na equipe da casa; null = dono da casa (ou conta que não é de casa).
   const funcoesDe = () => (S.conta?.perfil.tipo === "casa" && S.conta.perfil.funcoes?.length ? S.conta.perfil.funcoes : null);
   const nomesFuncoes = (fs) => (fs || []).map((f) => TQEquipe.NOME[f] || f).join(" · ");
@@ -585,17 +610,9 @@ const TQConta = (() => {
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
-    if (t === "casa") {
-      // Pessoa da equipe da casa: só o que é da função dela (Trilha da Nova Casa, seção 5).
-      const fs = funcoesDe();
-      if (fs) {
-        const A = TQEquipe.abasDaFuncao(fs);
-        return [["minha_funcao", "Minha função"], ["passos", "Próximos passos"], ...(A.campanha ? [["campanha", "Campanha"]] : []), ...(A.equipe ? [["equipe_casa", "Equipe da casa"]] : []),
-          ...doPac.filter(([k]) => k !== "minhas" || A.metricas), ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
-      }
-      return [["passos", "Próximos passos"], ...(S.conta.trilha ? [["trilha", "Treinamento da casa"]] : []), ["equipe_casa", "Equipe da casa"], ["campanha", "Campanha"], ["cadastro_casa", "Cadastro da casa"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
-    }
-    const base = [["inicio", "Comece por aqui"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
+    // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
+    if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
+    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -889,6 +906,7 @@ const TQConta = (() => {
   }
 
   const TELAS = {
+    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"),
     passos() {
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
@@ -1026,6 +1044,76 @@ const TQConta = (() => {
         <label class="fcampo"><b>Nota de passagem do Thales (só a Central vê)</b><textarea id="triNota" rows="4" maxlength="4000" placeholder="Contato, nome do dono, casa, combinado financeiro e observações (tudo o que foi prometido fora do padrão)">${esc(ed?.nota_passagem || "")}</textarea></label>
         <p class="muted" style="font-size:12px;margin:4px 0 0">A casa vê a trilha quando a conta dela está ligada a este mesmo nome.</p>
         <div class="err" role="status" aria-live="polite" id="triErr"></div><div class="barra-acoes"><button class="btn pri" id="triOk">${ed ? "Salvar" : "Começar trilha"}</button>${ed ? `<button class="btn" data-tri-editar="">Cancelar</button>` : ""}</div></div>`;
+    },
+    // ---------- Datas: disponibilidade da casa (a casa informa; a Isa consulta em Agenda das casas) ----------
+    agenda_casa() {
+      const ref = S.conta.perfil.vinculo_nome;
+      if (!ref) return `<div class="tag">Datas</div><h1>Disponibilidade</h1>${vazio("A conta ainda não está ligada à casa", "Quando a equipe do Tranquilo ligar esta conta à sua casa, você informa aqui os dias livres.", "", "agenda_casa")}`;
+      if (S.disp === undefined) { carregarDisp(); return carregando("a disponibilidade"); }
+      if (S.disp === null) return faltaSchema("Datas");
+      const mes = S.dispMes || hojeIso().slice(0, 7), evs = (S.pac?.eventos || []).filter((e) => !e.z);
+      const dias = TQEquipe.diasSemana || [];
+      const fichaDias = S.conta.casa?.dados?.dias_semana || [];
+      return `<div class="tag">Datas</div><h1>Disponibilidade da casa</h1>
+      <p class="sub">Marque os dias em que a casa pode receber o Tranquilo e os dias em que não pode. A Isa consulta este calendário para montar a agenda. Disponível não é reserva: a data só vale quando a Isa confirma com a casa.</p>
+      ${calendarioMes(mes, (dia) => { const r = S.disp.find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia), e = evs.filter((x) => x.d === dia);
+        return { classe: e.length ? "ev" : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: dia >= hojeIso() }; }, "data-disp-dia")}
+      ${fichaDias.length ? `<p class="muted" style="font-size:13px">Na Ficha, a casa disse que recebe: ${esc(fichaDias.map((d) => ({ segunda: "segunda", terca: "terça", quarta: "quarta", quinta: "quinta", sexta: "sexta", sabado: "sábado", domingo: "domingo" }[d] || d)).join(", "))}. <button class="btn sm" data-disp-semana>Marcar esses dias deste mês como disponíveis</button></p>` : ""}
+      <div class="err" role="status" aria-live="polite" id="dispErr"></div>`;
+    },
+    // ---------- equipe: painel da operação e agenda das casas ----------
+    painel() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o painel"); }
+      const P = S.pac, hoje = hojeIso(), em14 = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
+      if (!P) return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver os eventos.</div>`;
+      const k = (x) => String(x || "").trim().toLowerCase();
+      const f = S.pf ||= { cidade: "", casa: "", status: "", foco: "" };
+      const casaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h));
+      const contratoDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); const anexado = (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
+        return cs.length ? (cs.every((c) => c.status === "assinado") ? ["b-good", "assinado no site"] : ["b-warn", `${cs.filter((c) => c.status !== "assinado").length} para assinar`]) : anexado ? ["", "PDF anexado (assinatura não confirmada)"] : ["b-crit", "sem contrato"]; };
+      const linhas = P.eventos.filter((e) => !e.z && e.d >= hoje).map((e) => { const c = casaDe(e), ct = contratoDe(e);
+        const pend = [...(!e.l ? ["sem link de ingressos"] : []), ...(ct[0] === "b-crit" ? ["sem contrato"] : []), ...(!c ? ["casa sem ficha no site"] : c.status !== "habilitada" ? [`ficha: ${STATUS_CASA[c.status]?.[1] || c.status}`] : []),
+          ...((E.sol || []).some((x) => c && x.casa_id === c.id && x.status === "pendente") ? ["pedido de atualização da ficha"] : [])];
+        return { e, c, ct, pend, atencao: e.d <= em14 && pend.length > 0 }; })
+        .filter((l) => (!f.cidade || l.e.c === f.cidade) && (!f.casa || l.e.h === f.casa) && (!f.status || l.e.s === f.status) && (!f.foco || (f.foco === "atencao" ? l.atencao : f.foco === "contrato" ? l.ct[0] !== "b-good" : l.pend.length)));
+      const todas = P.eventos.filter((e) => !e.z && e.d >= hoje), uniq = (xs) => [...new Set(xs.filter(Boolean))].sort();
+      const sel = (id, rot, val, ops) => `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot}</option>${ops.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+      const n = (fn) => linhas.filter(fn).length;
+      return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1>
+      <p class="sub">Todos os próximos eventos, do mais perto para o mais longe, com o que falta em cada um. Vendas: os números vêm do Notion (público e vendidos lançados); a integração com a Ingresse ainda não existe, então datas futuras aparecem sem venda.</p>
+      <div class="stats">${kpi(n((l) => l.atencao), "precisam de atenção (14 dias)")}${kpi(n((l) => l.ct[0] !== "b-good"), "sem contrato assinado no site")}${kpi(n((l) => !l.c || l.c.status !== "habilitada"), "casa sem ficha habilitada")}${kpi((E.sol || []).filter((x) => x.status === "pendente").length, "pedidos de atualização de ficha")}</div>
+      <div class="filters">${sel("cidade", "Todas as cidades", f.cidade, uniq(todas.map((e) => e.c)))}${sel("casa", "Todas as casas", f.casa, uniq(todas.map((e) => e.h)))}${sel("status", "Todos os status", f.status, uniq(todas.map((e) => e.s)))}
+      <select data-pf="foco" aria-label="Foco"><option value="">Todos os eventos</option>${[["atencao", "Precisa de atenção (14 dias)"], ["contrato", "Contrato pendente"], ["pend", "Com qualquer pendência"]].map(([v, t]) => `<option value="${v}"${f.foco === v ? " selected" : ""}>${t}</option>`).join("")}</select></div>
+      ${tabela("painel", [
+        { t: "Data", v: (l) => l.e.d, h: (l) => `<b>${dt(l.e.d)}</b>${l.atencao ? ' <span class="badge b-crit">atenção</span>' : ""}` },
+        { t: "Evento", v: (l) => l.e.n, h: (l) => `${esc(l.e.c)} · ${esc(l.e.h || "casa a definir")}<div class="muted" style="font-size:12px">${esc((l.e.a || []).join(", ") || l.e.m || "")}</div>` },
+        { t: "Status", v: (l) => l.e.s, h: (l) => esc(l.e.s || "–") },
+        { t: "Vendas", n: 1, v: (l) => l.e.v ?? -1, h: (l) => l.e.v != null ? `${fmt(l.e.v)}${l.e.x ? ` de ${fmt(l.e.x)}` : ""}` : `<span class="muted">sem dado</span>` },
+        { t: "Contrato", v: (l) => l.ct[1], h: (l) => `<span class="badge ${l.ct[0]}">${esc(l.ct[1])}</span>` },
+        { t: "Casa", v: (l) => l.c?.status || "", h: (l) => l.c ? badge(STATUS_CASA, l.c.status) : `<span class="muted">sem ficha no site</span>` },
+        { t: "Pendências", n: 1, v: (l) => l.pend.length, h: (l) => l.pend.length ? l.pend.map((x) => `<span class="pill">${esc(x)}</span>`).join("") : "–" },
+      ], linhas, { i: 0, dir: 1 }, vazio("Nenhum evento com esses filtros", "Mude os filtros acima.", "", "painel"))}
+      <p class="muted" style="font-size:12px">Bonificações (como Estrella Galicia) e o status jurídico dos contratos assinados fora do site ainda não têm fonte validada: não aparecem aqui até a regra ser confirmada.</p>`;
+    },
+    agenda_casas() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("a agenda das casas"); }
+      if (E.disp === null) return faltaSchema("Agenda das casas");
+      const k = (x) => String(x || "").trim().toLowerCase(), evs = (S.pac?.eventos || []).filter((e) => !e.z);
+      const casas = [...new Set([...(E.disp || []).map((x) => x.casa_ref), ...(E.conv || []).filter((c) => c.tipo === "casa" && c.vinculo_nome).map((c) => c.vinculo_nome)])].sort();
+      const casa = S.agCasa && casas.includes(S.agCasa) ? S.agCasa : casas[0], mes = S.dispMes || hojeIso().slice(0, 7);
+      const doMes = (x) => x.dia.startsWith(mes);
+      const conflitos = (E.disp || []).filter((x) => x.situacao === "indisponivel" && evs.some((e) => e.d === x.dia && k(e.h) === k(x.casa_ref)));
+      return `<div class="tag">Agenda das casas</div><h1>Disponibilidade por casa</h1>
+      <p class="sub">O que cada casa informou na área Datas, junto com os eventos já confirmados. Disponível não é reserva: confirme com a casa antes de fechar a data. Só a casa altera a disponibilidade dela.</p>
+      ${casas.length ? `<div class="filters"><select data-ag-casa aria-label="Casa">${casas.map((c) => `<option${c === casa ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+      ${calendarioMes(mes, (dia) => { const r = (E.disp || []).find((x) => k(x.casa_ref) === k(casa) && x.dia === dia), e = evs.filter((x) => x.d === dia && k(x.h) === k(casa));
+        return { classe: e.length ? (r?.situacao === "indisponivel" ? "conflito" : "ev") : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: false }; })}
+      <h2>Casas com dias livres neste mês</h2>${tabela("agmes", [
+        { t: "Casa", v: (r) => r.casa, h: (r) => `<b>${esc(r.casa)}</b>` },
+        { t: "Dias disponíveis", n: 1, v: (r) => r.livres.length, h: (r) => r.livres.length ? r.livres.map((d) => dtc(d)).join(", ") : "–" },
+        { t: "Indisponíveis", n: 1, v: (r) => r.fora },
+      ], casas.map((c) => ({ casa: c, livres: (E.disp || []).filter((x) => k(x.casa_ref) === k(c) && doMes(x) && x.situacao === "disponivel").map((x) => x.dia).sort(), fora: (E.disp || []).filter((x) => k(x.casa_ref) === k(c) && doMes(x) && x.situacao === "indisponivel").length })), { i: 1, dir: -1 }, "")}
+      ${conflitos.length ? `<div class="alert crit"><b>Conflitos: evento confirmado em dia marcado como indisponível</b>${conflitos.map((x) => `${esc(x.casa_ref)} · ${dt(x.dia)}`).join("; ")}</div>` : ""}` : vazio("Nenhuma casa informou a disponibilidade ainda", "Quando uma casa marcar os dias livres na área Datas, o calendário aparece aqui.", "", "agenda_casas")}`;
     },
     // ---------- equipe ----------
     inicio() {
@@ -1348,27 +1436,12 @@ const TQConta = (() => {
     if (funcoesDe()) return `<div class="tag">${esc(nomesFuncoes(funcoesDe()))}</div><h1>${esc(p.vinculo_nome || "Sua casa")}</h1>
       <p class="sub">Os passos de cada data que são da sua função, com prazo. O que você marca vale para a casa inteira: o responsável e a Central acompanham.</p>
       ${evs.length ? `<h2>Datas da casa</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, os passos da sua função aparecem aqui.", "", "passos")}`;
-    const etapas = ["Cadastro", "Dados mínimos", "Análise da equipe", "Habilitada", "Primeira data", "Classificação"];
-    let etapa = 0, agora = "";
-    const pend = c?.pendencias || R.pendenciasCasa(c?.dados || {});
-    const listaPend = `<div class="grid g3" style="margin-top:10px">${[["habilitacao", "Bloqueia a habilitação", "b-crit"], ["match", "Falta para alguns shows", "b-warn"], ["enriquecimento", "Enriquece a ficha", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><ul class="passos">${pend[k].map((x) => `<li>${esc(x)}</li>`).join("") || "<li class='muted'>Nada pendente</li>"}</ul></div>`).join("")}</div>`;
-    if (!c || c.status === "rascunho") agora = `<div class="alert warn"><b>Complete o cadastro da casa</b>Com os dados mínimos, a casa entra na fila de habilitação.<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Abrir cadastro →</button></div></div>${listaPend}`;
-    else if (c.status === "incompleto") { etapa = 1; agora = `<div class="alert crit"><b>Faltam dados mínimos para habilitar</b><div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Completar cadastro →</button></div></div>${listaPend}`; }
-    else if (c.status === "em_analise") { etapa = 2; agora = `<div class="alert"><b>Cadastro com a equipe</b>A equipe confere os dados e responde aqui.</div>${listaPend}`; }
-    else if (c.status === "ajustes") { etapa = 1; agora = `<div class="alert warn"><b>A equipe pediu ajustes</b>${esc(c.parecer || "")}<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Editar cadastro →</button></div></div>${listaPend}`; }
-    else if (c.status === "suspensa") { etapa = 5; agora = `<div class="alert crit"><b>Casa suspensa</b>${esc(c.parecer || "Fale com a equipe do Tranquilo.")}</div>`; }
-    else if (c.status === "habilitada") {
-      etapa = c.classificacao ? 5 : evs.length ? 4 : 3;
-      agora = `<div class="alert good"><b>Casa habilitada${c.classificacao ? ` · ${CLASSE[c.classificacao]}` : ""}</b>${esc(c.parecer || "")} ${evs.length ? "" : "Próximo passo: a primeira data é um teste real. Quando ela for confirmada, o passo a passo aparece aqui."}</div>${pend.match.length ? listaPend : ""}`;
-    }
-    if (!c && p.codigo_acesso && evs.length) etapa = 4;
-    // Regra nova (público sentado): a casa já habilitada continua habilitada e vê o aviso até preencher.
-    if (c?.status === "habilitada" && R.pendenciasCasa(c.dados || {}).habilitacao.includes(R.NOVA_EXIGENCIA))
-      agora = `<div class="alert warn" style="margin-bottom:10px"><b>Nova exigência: capacidade com o público sentado</b>O público do Tranquilo assiste sentado. Informe quantas pessoas a casa recebe sentadas (cadeiras, cangas, almofadas e pufes). A casa continua habilitada.<div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-ir="cadastro_casa">Atualizar cadastro</button></div></div>` + agora;
-    return `<div class="tag">Casa</div><h1>${esc(p.vinculo_nome || c?.dados?.nome || p.nome || "Sua casa")}</h1>
-    <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e registra prontidão, público e ocorrências. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
-    ${linhaTempo(etapas, etapa)}${agora}
-    ${evs.length ? `<h2>Suas datas</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : ""}
+    // O status da habilitação e o que falta ficam na Ficha da Casa (uma fonte só); aqui, só o aviso com o atalho.
+    const aviso = !c || c.status !== "habilitada" ? `<div class="alert ${c?.status === "suspensa" ? "crit" : "warn"}" style="margin-bottom:12px"><b>${!c ? "A Ficha da Casa ainda não foi enviada" : c.status === "suspensa" ? "Casa suspensa" : `Ficha: ${esc(STATUS_CASA[c.status]?.[1] || c.status)}`}</b>${c?.parecer ? esc(c.parecer) + " " : ""}<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="cadastro_casa">Abrir a Ficha da Casa</button></div></div>` : "";
+    return `<div class="tag">Datas</div><h1>Datas confirmadas</h1>
+    <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e marca cada passo, com prazo. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
+    ${aviso}
+    ${evs.length ? `<div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, o passo a passo aparece aqui. Para o Tranquilo saber quando a casa pode receber shows, preencha a Disponibilidade.", `<button class="btn" data-ir="agenda_casa">Abrir a disponibilidade</button>`, "passos")}
     ${S.conta.reg.length ? `<h2>Noites registradas</h2><div class="list">${S.conta.reg.map((r) => `<div class="card row"><span>${esc(S.pac?.eventos.find((e) => e.id === r.evento_id)?.n || r.evento_id)}</span><span>${r.publico != null ? fmt(r.publico) + " pessoas" : ""} ${r.gravidade === "excecao" ? '<span class="badge b-crit">exceção</span>' : ""}</span></div>`).join("")}</div>` : ""}`;
   }
 
@@ -1608,8 +1681,8 @@ const TQConta = (() => {
   function abrirTutorial(tipo, primeira, desde) {
     TQTour.abrir(tipo, { desde, primeira, chave: "conta-" + tipo, dicaRever: S.conta ? "aba Conta → \"Ver o tutorial de novo\", ou \"Como funciona\" no menu" : null,
       // Atalhos para abas só fazem sentido com a conta aberta; pelo link público o tutorial é só leitura.
-      aoIr: S.conta ? (aba) => { if (S.conta && abas().some(([k]) => k === aba)) { S.aba = aba; render(); scrollTo(0, 0); } } : null,
-      temAba: S.conta ? (aba) => abas().some(([k]) => k === aba) : null,
+      aoIr: S.conta ? (aba) => { if (S.conta && (abas().some(([k]) => k === aba) || areaDe(aba))) { irPara(aba); render(); scrollTo(0, 0); } } : null,
+      temAba: S.conta ? (aba) => abas().some(([k]) => k === aba) || !!areaDe(aba) : null,
       aoFechar: async (visto) => {
         if (!visto || !S.conta) return;
         S.conta.perfil.tutorial_visto_em = new Date().toISOString();
@@ -1655,7 +1728,7 @@ const TQConta = (() => {
   // ---------- eventos ----------
   async function cliquesContrato(t) {
     const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) e.textContent = m; };
-    const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; S.aba = "passos"; render(); scrollTo(0, 0); return true; }
+    const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; irPara("passos"); render(); scrollTo(0, 0); return true; }
     if (t.closest("[data-ct-voltar]")) { S.contrAberto = null; render(); scrollTo(0, 0); return true; }
     const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c); return true; }
     const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
@@ -1712,6 +1785,25 @@ const TQConta = (() => {
       S.conta.contr = await api.contratos(); render(); scrollTo(0, 0); return true;
     }
     return false;
+  }
+  // Calendário de um mês (segunda a domingo). celula(dia) → { classe, rotulo, clicavel }.
+  function calendarioMes(mes, celula, attr) {
+    const [a, m] = mes.split("-").map(Number), primeiro = new Date(Date.UTC(a, m - 1, 1)), total = new Date(Date.UTC(a, m, 0)).getUTCDate();
+    const vazios = (primeiro.getUTCDay() + 6) % 7, nome = primeiro.toLocaleDateString("pt-BR", { month: "long", year: "numeric", timeZone: "UTC" });
+    const ant = new Date(Date.UTC(a, m - 2, 1)).toISOString().slice(0, 7), prox = new Date(Date.UTC(a, m, 1)).toISOString().slice(0, 7);
+    let html = `<div class="cal"><div class="row" style="margin-bottom:8px"><button class="btn sm" data-cal-mes="${ant}" aria-label="Mês anterior">‹</button><b style="text-transform:capitalize">${esc(nome)}</b><button class="btn sm" data-cal-mes="${prox}" aria-label="Próximo mês">›</button></div>
+      <div class="cal-grade">${["seg", "ter", "qua", "qui", "sex", "sáb", "dom"].map((d) => `<div class="cal-cab">${d}</div>`).join("")}${'<div></div>'.repeat(vazios)}`;
+    for (let d = 1; d <= total; d++) {
+      const dia = `${mes}-${String(d).padStart(2, "0")}`, c = celula(dia);
+      html += attr && c.clicavel ? `<button class="cal-dia ${c.classe}" ${attr}="${dia}" aria-label="${dt(dia)}: ${esc(c.rotulo || "sem informação")}"><b>${d}</b><span>${esc(c.rotulo)}</span></button>`
+        : `<div class="cal-dia ${c.classe}${attr ? " passado" : ""}"><b>${d}</b><span>${esc(c.rotulo)}</span></div>`;
+    }
+    return html + `</div><div class="cal-legenda"><span class="cal-dia livre">disponível</span><span class="cal-dia ocupado">indisponível</span><span class="cal-dia ev">evento confirmado</span>${attr ? "" : '<span class="cal-dia conflito">conflito</span>'}<span class="cal-dia">sem informação</span></div>${attr ? '<p class="muted" style="font-size:12px">Toque num dia para mudar: sem informação → disponível → indisponível.</p>' : ""}</div>`;
+  }
+  async function carregarDisp() {
+    if (S.dispCarregando) return; S.dispCarregando = true;
+    try { S.disp = await api.disponibilidade(); } catch { S.disp = null; } finally { S.dispCarregando = false; }
+    render();
   }
   // Equipe da casa (dono e equipe) e trilhas (Central): carregados quando a aba abre.
   async function carregarEquipeCasa() {
@@ -1791,6 +1883,25 @@ const TQConta = (() => {
     return false;
   }
   // Ficha da Casa: pedido de atualização, cancelamento e "Copiar respostas" (como no modelo do Gui).
+  async function cliquesDatas(t) {
+    const cm = t.closest("[data-cal-mes]"); if (cm) { S.dispMes = cm.dataset.calMes; render(); return true; }
+    const dd = t.closest("[data-disp-dia]"); if (dd) {
+      const ref = S.conta.perfil.vinculo_nome, dia = dd.dataset.dispDia, atual = (S.disp || []).find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia);
+      const prox = !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
+      try { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); }
+      catch (x) { const e = $("#dispErr"); if (e) e.textContent = traduz(x.message || ""); }
+      return true;
+    }
+    if (t.closest("[data-disp-semana]")) {
+      const ref = S.conta.perfil.vinculo_nome, mes = S.dispMes || hojeIso().slice(0, 7), quer = S.conta.casa?.dados?.dias_semana || [];
+      const nomes = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"], [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate();
+      try { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
+          await api.marcarDisponibilidade(ref, dia, "disponivel"); S.disp.push({ casa_ref: ref, dia, situacao: "disponivel" }); }
+        render(); } catch (x) { const e = $("#dispErr"); if (e) e.textContent = traduz(x.message || ""); }
+      return true;
+    }
+    return false;
+  }
   async function cliquesFicha(t) {
     // Central: responder pedido de atualização e salvar combinados.
     const sr = t.closest("[data-sol-responder]"); if (sr) {
@@ -1827,9 +1938,11 @@ const TQConta = (() => {
   }
   async function cliques(ev) {
     const t = ev.target;
-    const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); S.aba = ir.dataset.ir; render(); scrollTo(0, 0); return; }
+    const sb = t.closest("[data-sub]"); if (sb) { const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
+    const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesEquipe(t)) return;
     if (await cliquesFicha(t)) return;
+    if (await cliquesDatas(t)) return;
     const ent = t.closest("[data-entrada]"); if (ent) {
       ev.preventDefault(); const em = $("#email")?.value || ""; S.entrada = ent.dataset.entrada; render();
       if ($("#email")) $("#email").value = em;
@@ -1877,7 +1990,7 @@ const TQConta = (() => {
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
         err.textContent = "";
-        if (enviar) { S.aba = "passos"; render(); scrollTo(0, 0); } else { render(); $("#ferr").textContent = "Rascunho salvo."; }
+        if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); $("#ferr").textContent = "Rascunho salvo."; }
       } catch (e) { err.textContent = e.message; }
       return;
     }
@@ -2081,6 +2194,8 @@ const TQConta = (() => {
 
   document.addEventListener("change", async (ev) => {
     const t = ev.target;
+    if (t.dataset?.pf) { (S.pf ||= {})[t.dataset.pf] = t.value; render(); return; }
+    if (t.hasAttribute?.("data-ag-casa")) { S.agCasa = t.value; render(); return; }
     if (t.id === "cfArq" && t.files?.[0]) {
       const arq = t.files[0]; S.campAberto = true;
       try {
@@ -2200,5 +2315,5 @@ const TQConta = (() => {
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
-  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

@@ -10,8 +10,11 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
   await ctx.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
   await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
+  // Abre uma aba do menu ou, no portal da casa, a parte de uma das quatro áreas.
+  const abrirAba = async (k) => { if (await p.$(`[data-aba="${k}"]`)) return p.click(`[data-aba="${k}"]`); const a = await p.evaluate((k) => window.TQConta?.areaDe?.(k), k); if (!a) throw new Error('aba inexistente ' + k); await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(150); const sb = await p.$(`[data-sub="${a}|${k}"]`); if (sb) await sb.click(); await p.waitForTimeout(150); };
+  const SUBS = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha'];
   const pular = async () => { try { await p.waitForSelector('.tour-caixa', { timeout: 3000 }); await p.click((await p.$('[data-tour="pular"]')) ? '[data-tour="pular"]' : '[data-tour="avancar"]'); } catch {} };
-  const abas = () => p.$$eval('[data-aba]', (xs) => [...new Set(xs.map((x) => x.dataset.aba))]);
+  const abas = () => p.evaluate((subs) => [...new Set([...document.querySelectorAll('[data-aba]')].map((x) => x.dataset.aba))].concat(subs.filter((k) => window.TQConta?.areaDe?.(k))), SUBS);
   const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')));
   const criar = async (tipo, nome, email) => {
     await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
@@ -25,7 +28,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.evaluate((cod) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); Object.assign(d.usuarios[d.sessao].perfil, { vinculo_nome: 'Casa Teste', codigo_acesso: cod }); localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, COD.casa);
     await p.reload(); await pular(); await p.waitForTimeout(500);
     ok((await abas()).includes('equipe_casa') && !(await abas()).includes('trilha'), 'dono vê a aba Equipe da casa (e ainda não a Trilha)');
-    await p.click('[data-aba="equipe_casa"]'); await p.waitForSelector('#eqcNome');
+    await abrirAba('equipe_casa'); await p.waitForSelector('#eqcNome');
     await p.fill('#eqcNome', 'Ana'); await p.fill('#eqcEmail', 'ana@casa.com');
     await p.click('#eqcOk');
     ok(/Escolha a função/.test(await p.textContent('#eqcErr')), 'sem função escolhida, o site explica e não salva');
@@ -41,12 +44,12 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await sair(); await criar('casa', 'Ana', 'ana@casa.com');
     await p.waitForSelector('.tour-caixa', { timeout: 8000 });
     const tag = await p.textContent('.tour-caixa .tag');
-    const cob = await p.evaluate(() => { const abas = [...new Set([...document.querySelectorAll('[data-aba]')].map((b) => b.dataset.aba))];
+    const cob = await p.evaluate((subs) => { const abas = [...new Set([...document.querySelectorAll('[data-aba]')].map((b) => b.dataset.aba))].concat(subs.filter((k) => window.TQConta?.areaDe?.(k)));
       const ps = TQTour.passosDe('casa_equipe', (a) => abas.includes(a)); const ex = new Set(ps.flatMap((x) => [...(x.cobre || []), ...(x.ir ? [x.ir[0]] : [])]));
-      return { abas, faltam: abas.filter((a) => !ex.has(a)) }; });
+      return { abas, faltam: abas.filter((a) => !ex.has(a)) }; }, SUBS);
     ok(/Equipe da casa/.test(tag) && !cob.faltam.length, `primeiro acesso da equipe abre o tutorial dela, cobrindo as ${cob.abas.length} abas${cob.faltam.length ? ' (faltam ' + cob.faltam.join(', ') + ')' : ''}`);
-    ok(cob.abas[0] === 'minha_funcao' && !cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'porta vê Minha função, sem a equipe, o cadastro e as métricas da casa');
-    await pular(); await p.click('[data-aba="minha_funcao"]');
+    ok(cob.abas[0] === 'operacoes' && cob.abas.includes('minha_funcao') && !cob.abas.includes('ficha') && !cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'porta vê Minha função, sem a equipe, o cadastro e as métricas da casa');
+    await pular(); await abrirAba('minha_funcao');
     ok(/Operador\(a\) de porta/.test(await p.textContent('#app')) && /Lista de entrada e cortesias/.test(await p.textContent('#app')), 'Minha função mostra o que a porta lê, recebe e devolve');
     // 3. A Central começa a trilha.
     await sair(); await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
@@ -58,9 +61,9 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(!!(await db()).tri['Casa Teste'].marcos.nota, 'Central marca a etapa dela (nota de passagem)');
     // 4. A casa vê a trilha e confirma a leitura.
     await sair(); await p.click('#entrar'); await p.fill('#email', 'dono@casa.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await pular();
-    await p.waitForSelector('[data-aba="trilha"]', { timeout: 10000 }).catch(() => {}); await pular();
+    await p.waitForFunction(() => window.TQConta?.areaDe?.('trilha'), null, { timeout: 10000 }).catch(() => {}); await pular();
     ok((await abas()).includes('trilha'), 'com a trilha começada, o dono vê a aba Trilha da nova casa');
-    await p.click('[data-aba="trilha"]'); await p.waitForSelector('[data-trilha-casa="leitura"]');
+    await abrirAba('trilha'); await p.waitForSelector('[data-trilha-casa="leitura"]');
     ok(!/Combinado: piloto/.test(await p.textContent('#app')), 'a casa não vê a nota de passagem');
     await p.click('[data-trilha-casa="leitura"]'); await p.waitForTimeout(400);
     ok(!!(await db()).tri['Casa Teste'].marcos.leitura && !(await p.$('[data-trilha-casa="nota"]')), 'a casa confirma a leitura do Guia e não marca etapa da Central');

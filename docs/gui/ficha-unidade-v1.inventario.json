@@ -1,0 +1,26 @@
+{
+  "_sobre": "Inventário da Parte 2 (Para preencher) da Ficha da unidade, modelo v1 de 30/10/2026 (Gui, Operações). Transcrito do documento original; só nomes de seções, campos, textos de ajuda e opções (sem dados de casa). O teste tests/e2e/portal-casa.cjs confere a tela da Ficha da Casa contra este arquivo.",
+  "fonte": "Modelo da Ficha da Unidade, versão 1, 30/10/2026 (artifact compartilhado pelo Gui em 28/10/2026)",
+  "secoes": [
+    { "titulo": "A casa", "descricao": "Dados da empresa e do espaço. Usamos para o contrato, a página do evento e a divulgação.",
+      "campos": [["Nome da casa"], ["Cidade/UF"], ["Razão social"], ["CNPJ"], ["Inscrição municipal ou estadual"], ["A casa emite nota fiscal?", ["Sim", "Não"]], ["Endereço completo"], ["Complemento e ponto de referência"], ["Instagram da casa"], ["Site"], ["Telefone da casa"], ["Dias e horários de funcionamento"], ["Como chegar"]] },
+    { "titulo": "Dono A (responsável legal)", "descricao": "O franqueado: quem assina pela casa e responde pela unidade.",
+      "campos": [["Nome completo"], ["CPF"], ["RG"], ["Data de nascimento"], ["E-mail"], ["WhatsApp"], ["Endereço residencial"]] },
+    { "titulo": "Dados para repasses", "descricao": "A conta que recebe a parte da casa na bilheteria.",
+      "campos": [["Titular da conta"], ["CPF ou CNPJ do titular"], ["Banco"], ["Tipo de conta", ["Corrente", "Poupança", "Pagamento"]], ["Agência"], ["Conta com dígito"], ["Chave Pix"]] },
+    { "titulo": "O espaço", "descricao": "O formato Tranquilo é com o público sentado no chão.",
+      "campos": [["Capacidade com público sentado no chão"], ["Capacidade em pé"], ["Almofadas, tapetes, cadeiras e mesas disponíveis"], ["Palco (medidas e altura)"], ["Camarim", ["Tem camarim", "Não tem, mas há um espaço reservado", "Não tem"]], ["Acessibilidade", ["Entrada sem degraus ou com rampa", "Banheiro adaptado", "Espaço para cadeira de rodas na plateia", "Acesso ao mezanino por rampa ou elevador", "Vaga de estacionamento acessível", "Nenhuma dessas"]], ["Acessibilidade: outras observações"], ["Menores de idade", ["Permite", "Permite com responsável legal", "Não permite"]]] },
+    { "titulo": "Som, luz e palco", "descricao": "Para montar o rider de cada noite com os artistas.",
+      "campos": [["Já tem o rider técnico da casa? Cole aqui o link ou o texto"], ["Sistema de som"], ["Mesa: marca, modelo e quantos canais"], ["A casa tem microfones?", ["Sim", "Não"]], ["A casa tem pedestais?", ["Sim", "Não"]], ["O que a casa tem para o artista ligar no palco"], ["Luz"]] },
+    { "titulo": "Bar e cozinha", "descricao": "",
+      "campos": [["Como funcionam o bar e a cozinha"], ["Ticket médio por pessoa"], ["Sistema de caixa e maquininha"], ["Exclusividade com marca de bebida"]] },
+    { "titulo": "Ingressos e agenda", "descricao": "",
+      "campos": [["A casa usa alguma ticketeira? Tem exclusividade?"], ["Dias da semana que podem receber o Tranquilo", ["Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado", "Domingo"]]] },
+    { "titulo": "Sua equipe", "descricao": "Precisa estar completa antes do primeiro evento. Cada função é de uma pessoa diferente; a única exceção é o Dono A, que pode ser também o Líder Local. O bar é responsabilidade do Dono A: o Tranquilo não fala com a equipe de bar.",
+      "blocos": [["Líder Local (produtor)", ["Nome", "WhatsApp", "E-mail"]], ["Anfitrião(ã)", ["Nome", "WhatsApp", "Instagram"]], ["Social Media", ["Nome", "WhatsApp", "Instagram"]], ["Técnico(a) de som", ["Nome", "WhatsApp", "Observação"]]] },
+    { "titulo": "Dúvidas sobre o Guia", "descricao": "Leia o Guia do Franqueado e anote aqui o que ficou em dúvida ou o que você quer conversar com a gente. Ao mandar esta Ficha preenchida, você confirma que leu o Guia.",
+      "campos": [["Suas dúvidas"]] }
+  ],
+  "parte1": ["Como vai funcionar", "Divisão das receitas", "Seus contatos no Tranquilo", "Próximos passos"],
+  "rodape": "Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado."
+}

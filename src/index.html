@@ -64,6 +64,24 @@ nav.tabs button svg{width:18px;height:18px;flex:none;opacity:.8}
 nav.tabs button:hover{background:var(--raised);color:var(--ink)}
 nav.tabs button.on{background:var(--violet-soft);color:var(--ink)}
 nav.tabs button.on svg{color:var(--violet);opacity:1}
+.nav-g.nav-rodape{margin-top:auto;border-top:1px solid var(--line);padding-top:10px}
+.nav-g.nav-rodape button{font-size:13px;padding:7px 10px}
+.subnav{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+.subnav button{border:1px solid var(--line-2);background:none;color:var(--ink-3);border-radius:999px;padding:7px 14px;font:inherit;font-size:14px;cursor:pointer}
+.subnav button:hover{color:var(--ink);background:var(--raised)}
+.subnav button.on{background:var(--violet-soft);border-color:var(--violet);color:var(--ink)}
+.cal-grade{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal-cab{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-4);text-align:center;padding:2px 0}
+.cal-dia{border:1px solid var(--line-2);border-radius:10px;min-height:58px;padding:5px 6px;text-align:left;background:var(--surface);color:var(--ink);font:inherit;display:flex;flex-direction:column;gap:2px;overflow:hidden}
+button.cal-dia{cursor:pointer}button.cal-dia:hover{border-color:var(--violet)}
+.cal-dia b{font-size:13px}.cal-dia span{font-size:10.5px;line-height:1.2;color:var(--ink-3);overflow-wrap:anywhere}
+.cal-dia.livre{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
+.cal-dia.ocupado{border-color:var(--line-2);background:var(--raised);opacity:.75}
+.cal-dia.ev{border-color:var(--violet);background:var(--violet-soft)}
+.cal-dia.conflito{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 16%,var(--surface))}
+.cal-dia.passado{opacity:.55}
+.cal-legenda{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}.cal-legenda .cal-dia{min-height:0;padding:3px 8px;font-size:12px;display:inline-block}
+@media (max-width:560px){.cal-dia{min-height:44px;padding:3px}.cal-dia span{display:none}}
 nav.tabs button .n{margin-left:auto;font-size:11.5px;font-weight:700;background:var(--sun);color:#0b0b0b;border-radius:99px;padding:0 7px;line-height:18px}
 .side-pe{display:flex;flex-direction:column;gap:10px;padding:16px 8px 0;border-top:1px solid var(--line);margin-top:16px}
 .side-pe .chip{align-self:flex-start}
@@ -1140,8 +1158,9 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Agora", ["inicio", "minha_funcao", "passos", "trilha", "campanha", "operacao", "agenda", "minhas"]],
-  ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "convites", "prontidao", "documentos", "pessoas"]],
+  ["Sua casa", ["ficha", "operacoes", "datas_casa", "marketing"]],
+  ["Agora", ["inicio", "painel", "minha_funcao", "passos", "trilha", "campanha", "operacao", "agenda", "minhas"]],
+  ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "convites", "prontidao", "documentos", "pessoas"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa", "equipe_casa"]],
   ["Referência", ["materiais", "roteiro", "duvidas", "base", "metodo", "acessos"]],
@@ -1149,6 +1168,12 @@ const GRUPOS = [
 ];
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONES = {
+  ficha: ic('<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>'),
+  operacoes: ic('<path d="M4 6h16M4 12h16M4 18h10"/><circle cx="18" cy="18" r="2"/>'),
+  datas_casa: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  marketing: ic('<path d="M4 10v4h3l6 4V6L7 10z"/><path d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/>'),
+  painel: ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
+  agenda_casas: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M8 14h2M12 14h2M16 14h2"/>'),
   minha_funcao: ic('<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0116 0"/>'),
   equipe_casa: ic('<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2a5 5 0 016 4.8"/>'),
   trilha: ic('<circle cx="5" cy="18" r="2"/><circle cx="19" cy="6" r="2"/><path d="M7 18h6a3 3 0 000-6h-2a3 3 0 010-6h6"/>'),
@@ -1183,6 +1208,8 @@ function navHtml(abas) {
   return GRUPOS.map(([nome, ks]) => {
     const itens = ks.filter((k) => conta.has(k));
     if (!itens.length) return "";
+    // Na casa, o menu tem só as quatro áreas; a conta fica no rodapé, fora delas.
+    if (nome === "Conta" && S.conta?.perfil.tipo === "casa") return `<div class="nav-g nav-rodape">${itens.map((k) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}"${S.aba === k ? ' aria-current="page"' : ""}>${ICONES[k] || ""}<span>Minha conta</span></button>`).join("")}</div>`;
     return `<div class="nav-g"><div class="nav-t">${nome}</div>${itens.map((k) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}"${S.aba === k ? ' aria-current="page"' : ""}>${ICONES[k] || ""}<span>${esc(conta.get(k))}</span></button>`).join("")}</div>`;
   }).join("");
 }
@@ -1198,6 +1225,7 @@ function menu(abrir) {
   $("#menu")?.setAttribute("aria-expanded", String(!!abrir));
   if (abrir) document.querySelector(".side button, .side a")?.focus(); else if (document.activeElement?.closest(".side")) $("#menu")?.focus();
 }
+window.TQ_TELAS = TELAS; window.TQConta = TQConta;   // as áreas da casa (conta.js) mostram também telas do painel (Roteiro, Minhas datas, Dúvidas)
 function render() {
   const P = S.pac, logado = !!(P || S.conta);
   document.body.classList.toggle("logado", logado);
@@ -1210,6 +1238,8 @@ function render() {
   $("#quem").innerHTML = quemHtml();
   const abas = abasAtuais();
   // Link direto ou recarregar numa aba (#/curadoria) abre essa aba, se o perfil tiver acesso a ela.
+  // Na casa, telas de antes (#/passos, #/campanha…) abrem dentro da área a que pertencem agora.
+  for (const k of ["abaDesejada", "aba"]) { const ar = S[k] && TQConta.areaDe?.(S[k]); if (ar) { (S.sub ||= {})[ar] = S[k]; S[k] = ar; } }
   if (S.abaDesejada && abas.some(([k]) => k === S.abaDesejada)) S.aba = S.abaDesejada;
   S.abaDesejada = null;
   if (!abas.some(([k]) => k === S.aba)) S.aba = abas[0][0];

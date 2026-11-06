@@ -13,9 +13,12 @@ async function confere(p, roteiro, rotulo) {
   await p.waitForSelector('.tour-caixa', { timeout: 8000 });
   const r = await p.evaluate((roteiro) => {
     const abas = [...new Set([...document.querySelectorAll('[data-aba]')].map((b) => b.dataset.aba))];
-    const passos = TQTour.passosDe(roteiro, (a) => abas.includes(a));
+    // No portal da casa, as partes das quatro áreas também contam como telas que o tutorial precisa explicar.
+    const tem = (a) => abas.includes(a) || !!window.TQConta?.areaDe?.(a);
+    const passos = TQTour.passosDe(roteiro, tem);
     const explicadas = new Set(passos.flatMap((x) => [...(x.cobre || []), ...(x.ir ? [x.ir[0]] : []), ...(x.soSe ? [x.soSe] : [])]));
-    return { abas, faltam: abas.filter((a) => !explicadas.has(a)), n: passos.length, pontos: document.querySelectorAll('.tour-pontos button').length, tag: document.querySelector('.tour-caixa .tag').textContent };
+    const subs = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha'].filter((k) => !abas.includes(k) && window.TQConta?.areaDe?.(k));
+    return { abas: abas.concat(subs), faltam: abas.concat(subs).filter((a) => !explicadas.has(a)), n: passos.length, pontos: document.querySelectorAll('.tour-pontos button').length, tag: document.querySelector('.tour-caixa .tag').textContent };
   }, roteiro);
   ok(r.faltam.length === 0 && r.abas.length > 1, `${rotulo}: tutorial cobre as ${r.abas.length} abas${r.faltam.length ? ' (faltam: ' + r.faltam.join(', ') + ')' : ''}`);
   ok(r.pontos === r.n && /^Tutorial/.test(r.tag), `${rotulo}: abre sozinho no primeiro acesso com ${r.n} passos`);
@@ -47,7 +50,7 @@ async function confere(p, roteiro, rotulo) {
         await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.tutorial_visto_em = '2026-10-01T10:00:00Z'; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
         await p.reload(); await p.waitForSelector('.tour-caixa', { timeout: 8000 });
         const tag = await p.textContent('.tour-caixa .tag'), n = await p.$$eval('.tour-pontos button', (x) => x.length), tit = await p.textContent('#tourTit');
-        ok(/^Novidades/.test(tag) && n === 5 && /treinamento/i.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
+        ok(/^Novidades/.test(tag) && n === 7 && /painel/i.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
         await p.click('[data-tour="pular"]'); await p.reload(); await p.waitForTimeout(1500);
         ok(!(await p.$('.tour-caixa')), 'conta equipe: depois de ver as novidades, não abre de novo');
       }
