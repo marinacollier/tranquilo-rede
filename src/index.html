@@ -76,7 +76,9 @@ nav.tabs button.on svg{color:var(--violet);opacity:1}
 button.cal-dia{cursor:pointer}button.cal-dia:hover{border-color:var(--violet)}
 .cal-dia b{font-size:13px}.cal-dia span{font-size:10.5px;line-height:1.2;color:var(--ink-3);overflow-wrap:anywhere}
 .cal-dia.livre{border-color:var(--good);background:color-mix(in srgb,var(--good) 14%,var(--surface))}
-.cal-dia.ocupado{border-color:var(--line-2);background:var(--raised);opacity:.75}
+.cal-dia.ocupado{border-color:var(--ink-4);border-style:dashed;background:repeating-linear-gradient(135deg,var(--raised) 0 6px,var(--surface) 6px 12px)}
+.cal-dia.ocupado b{text-decoration:line-through;color:var(--ink-3)}
+.a-validar{display:inline-block;font:700 10.5px/1.6 var(--sans);letter-spacing:.06em;text-transform:uppercase;color:#0b0b0b;background:var(--sun);border-radius:99px;padding:0 7px;vertical-align:middle;white-space:nowrap}
 .cal-dia.cal-ev{border-color:var(--violet);background:var(--violet-soft)}
 .cal-dia.conflito{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 16%,var(--surface))}
 .cal-dia.passado{opacity:.55}
@@ -177,7 +179,7 @@ input::placeholder,textarea::placeholder{color:var(--ink-4)}
 input[type=checkbox],input[type=radio]{accent-color:var(--violet);width:17px;height:17px}
 
 /* tabelas */
-.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface)}
+.tbl{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);background:linear-gradient(to right,var(--surface) 30%,transparent) left/40px 100% no-repeat local,linear-gradient(to left,var(--surface) 30%,transparent) right/40px 100% no-repeat local,radial-gradient(farthest-side at 0 50%,rgba(0,0,0,.45),transparent) left/14px 100% no-repeat scroll,radial-gradient(farthest-side at 100% 50%,rgba(0,0,0,.45),transparent) right/14px 100% no-repeat scroll,var(--surface)}
 table{border-collapse:collapse;width:100%;font-size:14px}
 th,td{text-align:left;padding:13px 16px;border-bottom:1px solid var(--line);vertical-align:middle}
 th{font-size:10.5px;color:var(--ink-4);font-weight:700;letter-spacing:.13em;text-transform:uppercase;white-space:nowrap;background:var(--raised);position:sticky;top:0;cursor:pointer;user-select:none}
@@ -392,7 +394,8 @@ tr.click:focus-visible,.ev:focus-visible,th[data-i]:focus-visible,[data-ev]:focu
 .tour-foco{position:relative;z-index:61;outline:2px solid var(--violet);outline-offset:6px;border-radius:var(--radius);box-shadow:0 0 0 100vmax rgba(0,0,0,.62)}
 /* Com alvo destacado: o escurecimento vem da sombra do alvo e a caixa fica por cima de tudo, embaixo da tela. */
 .tour.com-alvo{background:transparent;backdrop-filter:none;z-index:62;place-items:end center}
-.tour.com-alvo .tour-caixa{max-height:55vh}
+.tour.com-alvo .tour-caixa{max-height:55vh;max-height:55dvh}
+.tour-topo{position:sticky;top:0;z-index:1;background:var(--surface);margin:0 -26px;padding:0 26px}
 @keyframes tourIn{from{opacity:0}to{opacity:1}}
 @keyframes sobe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.tour,.tour-caixa,dialog[open]{animation:none}.side{transition:none}}
@@ -402,7 +405,7 @@ tr.click:focus-visible,.ev:focus-visible,th[data-i]:focus-visible,[data-ev]:focu
   .kpi .v{font-size:34px}.stats .kpi{padding:16px}
   .stats{grid-template-columns:1fr 1fr}
   .tile{min-height:112px}.tile b{font-size:42px}
-  .tour{place-items:end center;padding:0}.tour-caixa{border-radius:24px 24px 0 0;max-height:90vh}
+  .tour{place-items:end center;padding:0}.tour-caixa{border-radius:24px 24px 0 0;max-height:90vh;max-height:90dvh}
   dialog .in{padding:20px}
   .card{padding:16px}
   .ev{gap:12px;padding:12px}.ev .quando{width:48px;padding-right:12px}.ev .quando b{font-size:26px}

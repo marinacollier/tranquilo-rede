@@ -75,9 +75,9 @@
     {
       "publico": "casa",
       "pergunta": "O que a casa precisa para ser habilitada?",
-      "resposta": "Preencher a ficha com o mínimo: responsável local, WhatsApp, endereço e cidade, capacidade de público, como resolve o som e o aceite das responsabilidades da casa. Com isso a equipe analisa e responde aqui. Uma casa habilitada recebe a primeira data como teste real.",
+      "resposta": "Preencher a Ficha da unidade com o mínimo: nome da casa, cidade, endereço completo, nome e WhatsApp do Dono A e a capacidade com público sentado no chão (esse mínimo ainda está a validar com o Gui). Com isso a equipe analisa e responde aqui. Antes do primeiro evento, o Guia pede ainda: contrato assinado, espaço e som homologados, as quatro cadeiras ocupadas (Dono A, Líder Local, Anfitrião e Social Media), operadores de porta treinados, cópias das planilhas e o grupo da unidade criado.",
       "links": [],
-      "fonte": "Método V0.1 e passo a passo do site"
+      "fonte": "Guia do Franqueado v1.5 (Operações)"
     },
     {
       "publico": "casa",
@@ -110,9 +110,9 @@
     {
       "publico": "casa",
       "pergunta": "O que preciso registrar depois do show?",
-      "resposta": "Logo depois do show, use \"Registrar a noite\": público presente e o que aconteceu. No dia seguinte, o fechamento: pagamentos e conferência de Pix, cartão e dinheiro. O público registrado vira a base das métricas da sua casa e da cidade.",
+      "resposta": "Logo depois do show, use \"Registrar a noite\": público presente e intercorrências. Até o D+2 (2 dias depois), a casa envia o relatório oficial do caixa do bar (dinheiro, cartão e Pix), os custos da data com comprovantes, a planilha de estoque preenchida e as intercorrências. Use sempre relatório oficial: foto do caixa ou anotação à mão não fecham a conta.",
       "links": [],
-      "fonte": "Método V0.1 e passo a passo do site"
+      "fonte": "Guia do Franqueado v1.5 (Operações)"
     },
     {
       "publico": "compra",
@@ -390,9 +390,9 @@
     {
       "publico": "casa",
       "pergunta": "Criança paga ingresso?",
-      "resposta": "Até 3 anos não paga. De 3 a 14 anos paga ingresso criança (50%). Menores de 10 só entram com responsável.",
+      "resposta": "Até 3 anos não paga. De 3 a 14 anos paga ingresso infantil (50%). Menores de 10 só entram com responsável. Se a sua casa tiver regra própria para menores, informada na Ficha, vale a regra da casa.",
       "links": [],
-      "fonte": "Manual de operação do Descubra e do Apresenta (Operações), versão de 21/10/2026"
+      "fonte": "Guia do Franqueado v1.5 (Operações)"
     },
     {
       "publico": "casa",
@@ -488,14 +488,14 @@
     {
       "publico": "casa",
       "pergunta": "O que é o treinamento da nova casa?",
-      "resposta": "É a habilitação em 7 dias úteis, em que a casa conversa com todas as áreas do Tranquilo para conhecer os detalhes e orientar o time que vai montar. Dia 1: Thales passa a casa para a Operações. Dias 2 e 3: Gui manda as perguntas sobre o espaço, o Guia e a Ficha da unidade; a casa devolve a Ficha em até 3 dias (isso confirma a leitura do Guia) e faz a conversa de alinhamento. Dias 4 e 5: Isa propõe datas e produto, e a casa aprova por escrito. Dias 6 e 7: Bruno publica a campanha e responde as dúvidas. Depois do treinamento, a primeira coisa é mandar os nomes do tripé (Líder Local, anfitrião e social media) em até 1 semana, para cada um receber o seu briefing. Antes do primeiro evento: contrato assinado, espaço e som homologados, técnico de som, operadores de porta cadastrados na Ingresse, planilhas da cidade e 1 reserva.",
+      "resposta": "É a habilitação em 7 dias úteis, em que a casa conversa com todas as áreas do Tranquilo para conhecer os detalhes e orientar o time que vai montar. Dia 1: Thales passa a casa para a Operações. Dias 2 e 3: Gui manda as perguntas sobre o espaço, o Guia e a Ficha da unidade; a casa devolve a Ficha em até 3 dias (isso confirma a leitura do Guia) e faz a conversa de alinhamento. Dias 4 e 5: Isa propõe datas e produto, e a casa aprova por escrito. Dias 6 e 7: Bruno publica a campanha e responde as dúvidas. Depois do treinamento, a primeira coisa é mandar os nomes do tripé (Líder Local, anfitrião e social media) em até 1 semana (prazo a validar: a Ficha diz até 10 dias após receber), para cada um receber o seu briefing. Antes do primeiro evento: contrato assinado, espaço e som homologados, técnico de som, operadores de porta cadastrados na Ingresse, planilhas da cidade e 1 reserva.",
       "links": [],
       "fonte": "Guia do Franqueado v1.5 e combinados da Operações (30/10/2026)"
     },
     {
       "publico": "casa",
       "pergunta": "O que a casa decide sozinha?",
-      "resposta": "Quem entra na equipe, quanto ganha, escala e reserva; quem é o tripé e o Líder Local; fornecedores, cardápio e marca de bebida; horário de chegada da equipe; layout e cenografia dentro do padrão da noite; e como resolver imprevistos no dia, com o manual na mão. Combina antes, por escrito: datas, horário padrão de portas, preço e cortesias fora do padrão, troca de equipamento do rider, artista indicado pela cidade e peça nova com a marca. Não muda nunca: silêncio no show, público sentado, formato enxuto, som confortável e bar longe do palco.",
+      "resposta": "Quem entra na equipe, quanto ganha, escala e reserva; quem é o tripé e o Líder Local; fornecedores; cardápio do bar e marcas de bebida, respeitando os parceiros do Tranquilo (onde houver bonificação, a cerveja das noites Tranquilo é só Estrella Galicia; a Operações confirma se a sua cidade está nessa região); horário de chegada da equipe; layout e cenografia dentro do padrão da noite; e como resolver imprevistos no dia, com o manual na mão. Combina antes, por escrito: datas, horário padrão de portas, preço e cortesias fora do padrão, troca de equipamento do rider, artista indicado pela cidade e peça nova com a marca. Não muda nunca: silêncio no show, público sentado, formato enxuto, som confortável e bar longe do palco.",
       "links": [],
       "fonte": "Trilha da Nova Casa (Operações), 27/10/2026"
     },

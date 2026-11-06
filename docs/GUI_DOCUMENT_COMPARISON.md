@@ -57,3 +57,20 @@ As regras que o portal aplica foram conferidas com ele.
 | Guia | Com quem falar | Assunto × pessoa | Ficha › Seus contatos (mesmos assuntos) | — | — | CORRESPONDE |
 | Guia | Perguntas frequentes | Respostas | Operações › Dúvidas (FAQ do site) | Respostas do site escritas a partir dos manuais e do Guia | Revisar com o Gui | ADAPTAÇÃO A APROVAR |
 | Guia | Materiais e links | Links oficiais | Operações › Guia e materiais | — | — | FONTE EXTERNA |
+
+## A validar com o Gui (QA de 06/11/2026)
+
+No portal, cada item abaixo aparece com o selo amarelo **a validar** até o Gui confirmar.
+
+| Onde aparece | O que o portal faz hoje | O que dizem os documentos do Gui |
+| --- | --- | --- |
+| Treinamento › "Guia lido e Ficha devolvida" | Dia útil 3 do treinamento | Ficha: "até 3 dias após receber" |
+| Treinamento › tripé | Até 1 semana depois do treinamento (mensagem do Gui) | Ficha: "até 10 dias após receber" |
+| Treinamento › Ingresse | Pelo menos 35 dias até o show | Não está nos documentos |
+| Ficha › "Falta para habilitar" | 6 campos mínimos (nome, cidade, endereço, Dono A nome e WhatsApp, capacidade sentado) | Ficha: "Pode mandar mesmo com campos em branco" |
+| Datas › passos D-28, D-21, D-14, travas, porta, briefing do anfitrião, social media 48 h | Vindos do checklist de operações do Notion | Não estão no Guia v1.5 |
+| Equipe da casa › bar | Bar sem acesso ao portal | Guia: "o Tranquilo não fala com a equipe de bar" |
+| Painel da operação | Sem ranking de alinhamento dos donos, bonificações e contratos | Reunião de 05/11: Gui vai mandar os critérios |
+
+Ajustados ao Guia v1.5 neste QA: estoque e fechamento no D+2; "A semana de cada evento" (mês anterior, D-7, D-5 a D-4, a noite);
+1 reserva para a equipe da noite; parceiros de bebida (Estrella Galicia) e regra de menores nas Dúvidas.

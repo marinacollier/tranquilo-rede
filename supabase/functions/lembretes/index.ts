@@ -27,7 +27,7 @@ const PASSOS: Record<string, [string, number, string][]> = {
     ["handoff", -30, "Receber a data repassada pelo Tranquilo"], ["ficha", -28, "Revisar a ficha da casa para este formato"], ["rider", -28, "Conferir o rider do artista"],
     ["tecnico", -21, "Confirmar técnico de som e setup"], ["roteiro", -21, "Fechar o roteiro do dia"], ["escrito", -14, "Confirmar tudo por escrito"],
     ["travas", -7, "Travas finais"], ["equipe_reserva", -7, "Equipe escalada com reserva"], ["porta_reserva", -7, "Operadores de porta com reserva"],
-    ["briefing_anfitriao", -7, "Briefing do anfitrião"],
+    ["briefing_anfitriao", -7, "Briefing do anfitrião"], ["divulgacao_local", -7, "Divulgação local rodando"],
     ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas"], ["estoque", 2, "Planilha de estoque"],
     ["prontidao", 0, "Prontidão da noite"], ["publico", 0, "Registrar o público e as ocorrências"],
     ["fechamento", 2, "Fechamento (D+2)"], ["material_social", 2, "Material da social media (48 h)"],
@@ -35,7 +35,7 @@ const PASSOS: Record<string, [string, number, string][]> = {
 };
 // Pessoa da equipe da casa (perfis.funcoes) só recebe aviso dos passos da função dela (src/equipe.js, PASSO_FUNCOES).
 // O dono da casa (sem função) e o Líder Local recebem todos.
-const PASSO_FUNCOES: Record<string, string[]> = {"handoff":["lider"],"ficha":["lider"],"rider":["lider","som"],"tecnico":["som","lider"],"roteiro":["lider"],"escrito":["lider"],"travas":["lider","bar"],"equipe_reserva":["lider"],"porta_reserva":["porta","lider"],"briefing_anfitriao":["anfitriao"],"pacote_grupo":["lider"],"estoque":["bar","lider"],"prontidao":["lider","som","bar","porta","anfitriao","social_media"],"publico":["porta","lider"],"fechamento":["lider","bar"],"material_social":["social_media"]};
+const PASSO_FUNCOES: Record<string, string[]> = {"handoff":["lider"],"ficha":["lider"],"rider":["lider","som"],"tecnico":["som","lider"],"roteiro":["lider"],"escrito":["lider"],"travas":["lider","bar"],"equipe_reserva":["lider"],"porta_reserva":["porta","lider"],"briefing_anfitriao":["anfitriao"],"divulgacao_local":["social_media","lider"],"pacote_grupo":["lider"],"estoque":["bar","lider"],"prontidao":["lider","som","bar","porta","anfitriao","social_media"],"publico":["porta","lider"],"fechamento":["lider","bar"],"material_social":["social_media"]};
 const daFuncao = (fs: string[] | null, item: string) => !fs?.length || fs.includes("lider") || (PASSO_FUNCOES[item] || ["lider"]).some((f) => fs.includes(f));
 const chave = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const diaSP = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);

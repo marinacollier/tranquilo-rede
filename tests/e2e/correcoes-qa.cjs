@@ -31,6 +31,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const cap = String((await dados()).capacidade_sentado ?? await p.inputValue('[data-k="capacidade_sentado"]'));
     ok(cap === '80', `capacidade "80 a 100" grava 80 (gravou ${cap})`);
     ok((await p.getAttribute('[data-k="capacidade_sentado"]', 'placeholder')) === 'ex.: 80', 'exemplo da capacidade sentada é de casa pequena, não "ex.: 12.000"');
+    ok(/Falta para habilitar\s*a validar/i.test(await p.textContent('#app')), 'critério de habilitação marcado "a validar" para o Gui');
+    ok(await p.getAttribute('[data-k="dono_email"]', 'type') === 'email' && await p.getAttribute('[data-k="whatsapp"]', 'inputmode') === 'tel', 'e-mail e WhatsApp abrem o teclado certo no celular');
     // 3. "Copiar respostas" leva também "Sua equipe".
     await p.click('#copiarFicha'); await p.waitForTimeout(300);
     const txt = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');

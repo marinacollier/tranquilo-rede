@@ -626,7 +626,11 @@ const TQConta = (() => {
     url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto");
     if (d.estado && !/^[A-Za-z]{2}$/.test(String(d.estado).trim())) e.push("Estado: use a sigla com 2 letras (ex.: PE)");
     if (d.whatsapp) { const n = String(d.whatsapp).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.whatsapp)) e.push("WhatsApp: só números, com DDD (ex.: 81 99999-9999)"); }
-    for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade"]]) {
+    if (d.telefone) { const n = String(d.telefone).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.telefone)) e.push("Telefone da casa: só números, com DDD"); }
+    for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) e.push(`${nome}: confira o endereço (ex.: nome@casa.com.br)`);
+    if (d.dono_nascimento && !/^\d{2}\/\d{2}\/\d{4}$/.test(String(d.dono_nascimento).trim())) e.push("Data de nascimento: use dd/mm/aaaa");
+    for (const [k, nome] of [["dono_cpf", "CPF"], ["cnpj", "CNPJ"]]) if (d[k]) { const n = String(d[k]).replace(/\D/g, "").length; if (n !== (k === "cnpj" ? 14 : 11)) e.push(`${nome}: confira os ${k === "cnpj" ? 14 : 11} números`); }
+    for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"]]) {
       if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) e.push(`${nome}: só números, sem sinal de menos`);
     }
     return e;
@@ -730,6 +734,7 @@ const TQConta = (() => {
   const ROTULO_ANTIGO = { responsavel: "Responsável local", email_contato: "E-mail de contato", cidade: "Cidade", estado: "Estado", dias: "Dias e horários", restricoes: "Restrições de horário e volume", backline: "Backline", aceite_responsabilidades: "Aceite da matriz de responsabilidades" };
   const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
+  const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
   function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
     const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
     const aj = ajuda ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(ajuda)}</div>` : "";
@@ -745,7 +750,7 @@ const TQConta = (() => {
     let inp;
     if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}${v && !opts.some(([ov]) => ov === String(v)) ? `<option value="${esc(v)}" selected>${esc(v)} (resposta anterior)</option>` : ""}</select>`;
     else if (tipo === "textarea") inp = `<textarea data-k="${k}" rows="4"${dis}>${esc(v)}</textarea>`;
-    else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : "text"}" value="${esc(v)}"${tipo === "number" ? ` data-num inputmode="numeric" placeholder="${esc(ph || "ex.: 12.000")}"` : ` maxlength="${k === "release" ? 3000 : 300}"${ph ? ` placeholder="${esc(ph)}"` : ""}`}${dis}>`;
+    else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : /(^|_)email/.test(k) ? "email" : "text"}"${/whatsapp|telefone/.test(k) ? ' inputmode="tel" autocomplete="tel"' : /cpf|cnpj|nascimento|agencia|rep_conta|rep_documento/.test(k) ? ' inputmode="numeric"' : ""} value="${esc(v)}"${tipo === "number" ? ` data-num inputmode="numeric" placeholder="${esc(ph || "ex.: 12.000")}"` : ` maxlength="${k === "release" ? 3000 : 300}"${ph ? ` placeholder="${esc(ph)}"` : ""}`}${dis}>`;
     return `<label class="fcampo"><b>${esc(rot)}${req}</b>${inp}${aj}</label>`;
   }
   const formHtml = (def, d, travado) => def.map(([titulo, cs]) => `<section class="card fsec"><h3>${esc(titulo)}</h3><div class="fgrid">${cs.map((c) => campo(c, d, travado)).join("")}</div></section>`).join("");
@@ -805,8 +810,8 @@ const TQConta = (() => {
     const registro = modelo === "casa" && e.d <= hojeIso() && TQEquipe.vePasso(fs, "publico") ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
-      ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
-      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
+      ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
+      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b>${p.validar ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
@@ -932,6 +937,7 @@ const TQConta = (() => {
       // Ficha enviada ao Tranquilo não muda em silêncio: a casa pede a atualização e a Central confere.
       const enviada = !!c && ["em_analise", "habilitada", "suspensa"].includes(c.status), pedindo = enviada && S.fichaPedido, travado = enviada && !pedindo;
       const sols = S.conta.sol || [], aberto = sols.find((x) => x.status === "pendente");
+      const ultimaRecusa = [...sols].filter((x) => x.status !== "cancelada").sort((x, y) => String(y.criado_em).localeCompare(String(x.criado_em)))[0];
       const pend = c?.pendencias || R.pendenciasCasa(d);
       const rotulo = (k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || ROTULO_ANTIGO[k] || k;
       const mostra = (k, v) => Array.isArray(v) ? v.join(", ") : k === "som" && SOM_ANTIGO[v] ? SOM_ANTIGO[v] : v === "true" ? "Sim" : v === "false" ? "Não" : String(v);
@@ -943,12 +949,14 @@ const TQConta = (() => {
       ${c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
       ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade por Solicitar atualização.</div>` : ""}
       ${aberto ? `<div class="alert warn"><b>Pedido de atualização com a Central desde ${dt(aberto.criado_em.slice(0, 10))}</b>Campos: ${esc(Object.keys(aberto.proposto).map(rotulo).join(", "))}. A ficha muda quando a Central aprovar.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-sol-cancelar="${aberto.id}">Cancelar o pedido</button></div></div>` : ""}
+      ${ultimaRecusa?.status === "recusada" ? `<div class="alert crit"><b>Pedido de atualização recusado em ${dt(String(ultimaRecusa.revisado_em || ultimaRecusa.criado_em).slice(0, 10))}</b>${ultimaRecusa.resposta ? "Resposta da Central: " + esc(ultimaRecusa.resposta) : "A Central não deixou resposta."} A ficha continua como estava.</div>` : ""}
+      ${pedindo ? `<div class="alert warn"><b>Você está pedindo uma atualização</b>Altere os campos abaixo e toque em "Enviar pedido de atualização", no fim da página. A ficha só muda quando a Central aprovar.${aberto ? " Este pedido substitui o que já está com a Central: as mudanças dele já estão nos campos." : ""}</div>` : ""}
       ${parteUmCasa(c)}
       <h2>Parte 2 · Para preencher</h2>
-      <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
+      <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> ${A_VALIDAR_HTML} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
       ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
       ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
-      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(d, travado || c?.status === "suspensa")}</div>
+      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : d, travado || c?.status === "suspensa")}</div>
       ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
       ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`
@@ -977,7 +985,7 @@ const TQConta = (() => {
       const pessoa = (m) => `<div class="card row"><span><b>${esc(m.nome)}</b>${m.reserva ? ' <span class="badge">reserva</span>' : ""} ${(m.funcoes || []).map((f) => `<span class="pill">${esc(TQEquipe.NOME[f] || f)}</span>`).join("")}
         <div class="muted" style="font-size:12px">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}${dono ? ` · <span class="badge ${ACESSO[m.acesso]?.[0] || ""}">${ACESSO[m.acesso]?.[1] || ""}</span>` : ""}</div>
         ${TQEquipe.funcoesAvisos(m.funcoes).map((a) => `<div class="muted" style="font-size:12px">⚠️ ${esc(a)}</div>`).join("")}</span>
-        ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
+        ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${(m.funcoes || []).includes("bar") ? `<span class="muted" style="font-size:12px">Bar sem acesso ao portal ${A_VALIDAR_HTML}</span>` : m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
       return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
       <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} Pelo Guia do Franqueado: as 4 cadeiras (você, o Líder Local, o anfitrião e a social media), o técnico de som e os operadores de porta, cada função com uma pessoa diferente (só você pode ser também o Líder Local), e 1 reserva para a equipe da noite.</p>
       <div class="alert ${cob.completa ? "good" : "warn"}"><b>${cob.completa ? "Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (Líder Local, anfitrião e social media), técnico de som e porta, com reserva." : esc([...cob.pend, ...cob.erros].join(" · "))}</div>
@@ -1010,13 +1018,13 @@ const TQConta = (() => {
       if (S.conta.equipe === undefined && S.conta.perfil.vinculo_nome) carregarEquipeCasa();
       const feitos = Object.fromEntries(Object.entries(T.marcos || {}).map(([k, em]) => [k, { em }]));
       const A = TQEquipe.andamento(T.inicio, feitos, hojeIso()), cob = S.conta.equipe ? TQEquipe.cobertura(S.conta.equipe) : null;
-      const linha = (e) => `<li class="${e.feito ? "feito" : e.atrasado ? "atrasado" : ""}"><label>${e.casa ? `<input type="checkbox" data-trilha-casa="${e.chave}"${e.feito ? " checked" : ""}>` : `<span aria-hidden="true" style="width:16px;display:inline-block">${e.feito ? "✓" : "○"}</span>`} <span><b>${esc(e.titulo)}</b> <span class="muted">· ${e.casa ? "a casa (você marca)" : `${esc(e.quem)}, ${esc(TQEquipe.AREA[e.quem] || "")}`}${e.prazo ? ` · até ${dtc(e.prazo)}` : ""}${e.atrasado ? " · atrasado" : ""}</span>${e.texto ? `<br><span class="muted" style="font-size:13px">${esc(e.texto)}</span>` : ""}</span></label></li>`;
+      const linha = (e) => `<li class="${e.feito ? "feito" : e.atrasado ? "atrasado" : ""}"><label>${e.casa ? `<input type="checkbox" data-trilha-casa="${e.chave}"${e.feito ? " checked" : ""}>` : `<span aria-hidden="true" style="width:16px;display:inline-block">${e.feito ? "✓" : "○"}</span>`} <span><b>${esc(e.titulo)}</b>${TQEquipe.A_VALIDAR.has(e.chave) ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${e.casa ? "a casa (você marca)" : `${esc(e.quem)}, ${esc(TQEquipe.AREA[e.quem] || "")}`}${e.prazo ? ` · até ${dtc(e.prazo)}` : ""}${e.atrasado ? " · atrasado" : ""}</span>${e.texto ? `<br><span class="muted" style="font-size:13px">${esc(e.texto)}</span>` : ""}</span></label></li>`;
       return `<div class="tag">Treinamento da casa</div><h1>${A.fechada ? "Treinamento concluído" : "Seu treinamento em 7 dias úteis"}</h1>
       <p class="sub">Nos 7 dias, a casa conversa com todas as áreas do Tranquilo para conhecer os detalhes e conseguir orientar o time que vai montar. Cada pessoa da Central fala com a casa no máximo dois dias: um para enviar, outro para responder as dúvidas. A casa nunca recebe duas pessoas falando do mesmo assunto. Marque aqui o que é da casa.</p>
       <div class="alert ${A.atrasadas ? "warn" : A.fechada ? "good" : ""}"><b>${A.feitas} de ${A.total} etapas · ${A.fechada ? "a casa conhece as quatro áreas e assume a operação" : `agora com ${A.com === "casa" ? "você" : esc(A.com)}`}</b>${A.proxima ? `${esc(A.proxima.titulo)}, até ${dtc(A.proxima.prazo)}. ` : ""}Treinamento de ${dtc(A.etapas[0].prazo)} a ${dtc(A.fim)}.</div>
       <div class="progress" style="margin:10px 0 14px"><i style="width:${Math.round((A.feitas / A.total) * 100)}%"></i></div>
       ${[...new Set(A.etapas.map((e) => e.dia))].map((d) => `<h3>Dia ${d} · ${dtc(TQEquipe.diaUtil(T.inicio, d))}</h3><ul class="passos">${A.etapas.filter((e) => e.dia === d).map(linha).join("")}</ul>`).join("")}
-      <h2>Depois do treinamento</h2><p class="sub">Primeiro, em até 1 semana, os nomes do tripé: cada um recebe o seu briefing e as funções antes do evento. O resto fica pronto antes do primeiro evento, e a Operações confere uma vez.</p>
+      <h2>Depois do treinamento</h2><p class="sub">Primeiro, em até 1 semana ${A_VALIDAR_HTML}, os nomes do tripé: cada um recebe o seu briefing e as funções antes do evento. O resto fica pronto antes do primeiro evento, e a Operações confere uma vez.</p>
       ${cob ? `<div class="alert ${cob.completa ? "good" : "warn"}" style="margin-bottom:10px"><b>Equipe ${cob.completa ? "completa" : "incompleta"}</b>${cob.completa ? "" : esc(cob.pend.join(" · ")) + " "}<button class="btn sm" data-ir="equipe_casa">Abrir a equipe</button></div>` : ""}
       <ul class="passos">${A.depois.map(linha).join("")}</ul>`;
     },
@@ -1083,6 +1091,7 @@ const TQConta = (() => {
       const sel = (id, rot, val, ops) => `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot}</option>${ops.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
       const n = (fn) => linhas.filter(fn).length;
       return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1>
+      <div class="alert" style="margin-bottom:10px"><b>Ainda falta neste painel ${A_VALIDAR_HTML}</b>Ranking de alinhamento dos donos, bonificações pendentes (Estrella Galicia) e contratos assinados: esperando o Gui definir os critérios de cada um.</div>
       <p class="sub">Todos os próximos eventos, do mais perto para o mais longe, com o que falta em cada um. Vendas: os números vêm do Notion (público e vendidos lançados); a integração com a Ingresse ainda não existe, então datas futuras aparecem sem venda.</p>
       <div class="stats">${kpi(n((l) => l.atencao), "precisam de atenção (14 dias)")}${kpi(n((l) => l.ct[0] !== "b-good"), "sem contrato assinado no site")}${kpi(n((l) => !l.c || l.c.status !== "habilitada"), "casa sem ficha habilitada")}${kpi((E.sol || []).filter((x) => x.status === "pendente").length, "pedidos de atualização de ficha")}</div>
       <div class="filters">${sel("cidade", "Todas as cidades", f.cidade, uniq(todas.map((e) => e.c)))}${sel("casa", "Todas as casas", f.casa, uniq(todas.map((e) => e.h)))}${sel("status", "Todos os status", f.status, uniq(todas.map((e) => e.s)))}
@@ -1925,8 +1934,10 @@ const TQConta = (() => {
     if (t.id === "solPedir") { S.fichaPedido = true; render(); $("#form [data-k]")?.focus(); return true; }
     if (t.id === "solVoltar") { S.fichaPedido = false; render(); return true; }
     if (t.id === "solEnviar") {
-      const err = $("#ferr"); err.textContent = "Enviando…";
-      try { await api.solicitarAtualizacao(lerForm($("#form")), $("#solMsg")?.value || ""); TQDiario.registrar("ficha_pedido", {});
+      const err = $("#ferr"), novo = lerForm($("#form")), erros = conferirFormato(novo);
+      if (erros.length) { err.textContent = `Confira antes de enviar: ${erros.join("; ")}.`; return true; }
+      err.textContent = "Enviando…";
+      try { await api.solicitarAtualizacao(novo, $("#solMsg")?.value || ""); TQDiario.registrar("ficha_pedido", {});
         S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); $("#ferr").textContent = "Pedido enviado. A Central confere e a ficha muda quando for aprovado."; }
       catch (x) { err.textContent = traduz(x.message || ""); }
       return true;
@@ -2000,7 +2011,8 @@ const TQConta = (() => {
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
         err.textContent = "";
-        if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); $("#ferr").textContent = "Rascunho salvo."; }
+        if (enviar && casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { e2.textContent = `A Ficha foi guardada, mas ainda não foi para análise: falta ${f.join(", ")}.`; e2.scrollIntoView({ block: "center" }); } }
+        else if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); $("#ferr").textContent = "Rascunho salvo."; }
       } catch (e) { err.textContent = e.message; }
       return;
     }

@@ -73,24 +73,28 @@
     ["feedback", 3, "Contar como foi", "Casa, som, público e o que melhorar. Isso entra na qualificação da rede."],
   ];
   const PASSOS_CASA = [
-    ["handoff", -30, "Receber a data repassada pelo Tranquilo", "Artista, condição, contatos, rider, logística, materiais de marca e canal de escalonamento."],
+    ["handoff", -30, "Datas e atrações do mês aprovadas por escrito", "No mês anterior. Campanha planejada com o Marketing."],
     ["ficha", -28, "Revisar a ficha da casa para este formato", "Capacidade real, restrições de horário e som, acessos, carga e descarga."],
     ["rider", -28, "Conferir o rider do artista", "Rider técnico recebido e compatível com a casa."],
     ["tecnico", -21, "Confirmar técnico de som e setup", "PA, mesa, monitores, microfones, DI, cabos e luz frontal para o rosto."],
     ["roteiro", -21, "Fechar o roteiro do dia", "Equipe, passagem, portas, início, intervalos, encerramento e desmontagem."],
     ["escrito", -14, "Confirmar tudo por escrito", "Equipamentos e fornecedores, maquininha com plano B (Pix ou link), rádios, plano B/C para som, energia, internet e chuva."],
     ["travas", -7, "Travas finais", "Horários de chegada, compras de camarim, bar e limpeza, briefing do time local e plano de caixa."],
-    ["equipe_reserva", -7, "Equipe escalada com reserva", "Produtor, técnico de som, bar e porta escalados, com uma pessoa reserva por função. Confirme com a Operações."],
+    ["divulgacao_local", -7, "Divulgação local rodando", "Uma semana antes, a divulgação local já está no ar."],
+    ["equipe_reserva", -7, "Equipe escalada, com reserva", "Uma pessoa reserva para a equipe da noite, definida na semana do evento. Se alguém faltar, chame a reserva combinada antes."],
     ["porta_reserva", -7, "Operadores de porta com reserva", "Quem fica na porta e a reserva, com cadastro na Ingresse com o mesmo e-mail. Mande nome e e-mail à Central, que libera as permissões."],
     ["briefing_anfitriao", -7, "Briefing do anfitrião", "O briefing chega no D-7 com as apresentações dos artistas: leia e prepare as três falas da noite."],
-    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas", "Até 5 dias antes (no máximo 4): cronograma com chegada e passagem de som, alimentação e consumação, camarim e lista de entrada e cortesias. Fixe no WhatsApp do grupo."],
-    ["prontidao", 0, "Prontidão da noite", "Marca instalada, casa pronta, artista presente, portas abertas, show iniciado e encerrado."],
-    ["publico", 0, "Registrar o público e as ocorrências", "Use \"Registrar a noite\" logo depois do show."],
+    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas", "De D-5 a D-4: pacote enviado e fixado no grupo com os artistas. Rider, equipe, porta e bebidas confirmados com a Operações."],
+    ["prontidao", 0, "A noite", "Montagem, passagem de som, portas no horário, padrão da noite. O cronograma dos shows não muda no dia."],
+    ["publico", 0, "Registrar o público e as intercorrências", "Anote qualquer intercorrência. Use \"Registrar a noite\" logo depois do show."],
     ["fechamento", 2, "Fechamento (D+2)", "Relatório oficial do caixa do bar (dinheiro, cartão e Pix), custos da data com comprovantes, intercorrências e retorno dos artistas. Registros oficiais, não fotos de caixa."],
     ["estoque", 2, "Planilha de estoque", "Preenchida em até 2 dias depois do evento. Novos pedidos de bebida só saem depois dela."],
     ["material_social", 2, "Material da social media (48 h)", "Pasta crua na manhã seguinte; 3 vídeos editados e fotos em até 48 h depois do show."],
   ];
 
+  // Passos que vieram do checklist de operações do Notion e não estão no Guia do Franqueado v1.5: aparecem com "a validar"
+  // até o Gui confirmar (os outros seguem o Guia, "A semana de cada evento" e "Depois de cada evento").
+  const A_VALIDAR = new Set(["ficha", "rider", "tecnico", "roteiro", "escrito", "travas", "porta_reserva", "briefing_anfitriao", "material_social"]);
   function passosDaData(modelo, dataIso, feitos, hoje) {
     const lista = modelo === "casa" ? PASSOS_CASA : PASSOS_ARTISTA;
     const base = new Date(dataIso + "T12:00:00");
@@ -100,9 +104,9 @@
       // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
       // não "atrasado". Só conta como atraso o que ainda dá para fazer.
       const passou = !feito && dias <= 0 && dataIso < hoje;
-      return { chave, dias, titulo, texto, prazo, feito, passou, atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje };
+      return { chave, dias, titulo, texto, prazo, feito, passou, validar: modelo === "casa" && A_VALIDAR.has(chave), atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje };
     });
   }
 
-  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, passosDaData };
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData };
 })(typeof window !== "undefined" ? window : globalThis);

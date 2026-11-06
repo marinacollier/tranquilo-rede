@@ -46,7 +46,7 @@
   const PASSO_FUNCOES = {
     handoff: ["lider"], ficha: ["lider"], rider: ["lider", "som"], tecnico: ["som", "lider"], roteiro: ["lider"],
     escrito: ["lider"], travas: ["lider", "bar"], equipe_reserva: ["lider"], porta_reserva: ["porta", "lider"],
-    briefing_anfitriao: ["anfitriao"], pacote_grupo: ["lider"], estoque: ["bar", "lider"],
+    briefing_anfitriao: ["anfitriao"], divulgacao_local: ["social_media", "lider"], pacote_grupo: ["lider"], estoque: ["bar", "lider"],
     prontidao: ["lider", "som", "bar", "porta", "anfitriao", "social_media"], publico: ["porta", "lider"],
     fechamento: ["lider", "bar"], material_social: ["social_media"],
   };
@@ -76,6 +76,10 @@
 
   // ---------- treinamento da nova casa (7 dias úteis) ----------
   // [chave, dia útil, quem, título, detalhe]. "casa" = o dono marca pela área dele; os outros, a Central.
+  // Prazos que divergem da Ficha da unidade v1 ou não estão nos documentos do Gui: aparecem com "a validar".
+  // leitura: a Ficha diz "até 3 dias após receber"; tripe: a Ficha diz "até 10 dias após receber" (a mensagem do Gui disse 1 semana);
+  // ingresse: os 35 dias até o show não estão nos documentos.
+  const A_VALIDAR = new Set(["leitura", "tripe", "ingresse"]);
   const TRILHA = [
     ["nota", 1, "Thales", "Nota de passagem ao Gui", "Contato, dono, casa, combinado financeiro e observações (tudo o que foi prometido fora do padrão)."],
     ["msg1", 2, "Gui", "Mensagem 1: perguntas sobre o espaço", ""],
@@ -130,5 +134,5 @@
   }
 
   g.TQEquipe = { FUNCOES, NOME, CHAVES, OBRIGATORIAS, TRIPE, funcoesErro, funcoesAvisos, cobertura, PASSO_FUNCOES, vePasso, veTudo, abasDaFuncao, partesNoite, PERFIL,
-    TRILHA, DEPOIS_TRILHA, ETAPAS_CASA, AREA, diaUtil, andamento };
+    TRILHA, DEPOIS_TRILHA, ETAPAS_CASA, A_VALIDAR, AREA, diaUtil, andamento };
 })(typeof window !== "undefined" ? window : globalThis);
