@@ -1748,6 +1748,7 @@ revoke all on function convidar_equipe_casa(uuid) from public, anon;
 grant execute on function convidar_equipe_casa(uuid) to authenticated;
 
 -- A equipe da casa com a situação do acesso de cada pessoa (sem e-mail, convidada, com acesso).
+drop function if exists equipe_da_casa();
 create or replace function equipe_da_casa() returns table (id uuid, nome text, whatsapp text, email text, funcoes text[], reserva boolean, acesso text)
 language sql stable security definer set search_path = public as $$
   select m.id, m.nome, m.whatsapp, m.email, m.funcoes, m.reserva,
@@ -2043,3 +2044,20 @@ language plpgsql set search_path = public as $$
 begin new.atualizado_por := auth.uid(); new.atualizado_em := now(); return new; end $$;
 drop trigger if exists trg_disp on disponibilidade_casa;
 create trigger trg_disp before insert or update on disponibilidade_casa for each row execute function disponibilidade_carimbo();
+
+-- Sua equipe (Ficha v1): Instagram do anfitrião e da social media, observação do técnico de som.
+alter table equipe_casa add column if not exists instagram text check (instagram is null or length(instagram) <= 80);
+alter table equipe_casa add column if not exists observacao text check (observacao is null or length(observacao) <= 300);
+drop function if exists equipe_da_casa();
+create or replace function equipe_da_casa() returns table (id uuid, nome text, whatsapp text, email text, instagram text, observacao text, funcoes text[], reserva boolean, acesso text)
+language sql stable security definer set search_path = public as $$
+  select m.id, m.nome, m.whatsapp, m.email, m.instagram, m.observacao, m.funcoes, m.reserva,
+    case when m.email is null then 'sem_email'
+         when exists (select 1 from perfis p where lower(p.email) = m.email and p.tipo = 'casa' and p.funcoes is not null and lower(p.vinculo_nome) = lower(m.casa_ref)) then 'ativo'
+         when exists (select 1 from convites c where c.email = m.email and c.aceito_em is null and c.funcoes is not null) then 'convidado'
+         else 'sem_convite' end
+  from equipe_casa m where lower(m.casa_ref) = lower(minha_casa_ref())
+  order by m.reserva, m.criado_em
+$$;
+revoke all on function equipe_da_casa() from public, anon;
+grant execute on function equipe_da_casa() to authenticated;

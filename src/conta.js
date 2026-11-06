@@ -185,7 +185,7 @@ const TQConta = (() => {
       async salvarMembro(m) {
         const e = TQEquipe.funcoesErro(m.funcoes); if (e) throw new Error(e);
         const p = eu(); if (p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome) throw new Error("Só o responsável da casa mexe na equipe.");
-        db.eqc ||= []; const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, funcoes: [...new Set(m.funcoes)].sort(), reserva: !!m.reserva };
+        db.eqc ||= []; const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, instagram: m.instagram || null, observacao: m.observacao || null, funcoes: [...new Set(m.funcoes)].sort(), reserva: !!m.reserva };
         if (m.id) Object.assign(db.eqc.find((x) => x.id === m.id), linha); else db.eqc.push({ ...linha, id: id(), casa_ref: p.vinculo_nome, criado_em: agora() });
         gravar();
       },
@@ -213,6 +213,29 @@ const TQConta = (() => {
       async salvarTrilha(t) { exigeEquipe(); db.tri ||= {}; db.tri[t.casa_ref] = { ...(db.tri[t.casa_ref] || {}), inicio: t.inicio, nota: t.nota || null }; gravar(); },
       async marcarTrilha(ref, etapa, feito) { exigeEquipe(); const t = db.tri[ref]; t.marcos ||= {}; if (feito) t.marcos[etapa] = agora(); else delete t.marcos[etapa]; gravar(); },
       async apagarTrilha(ref) { exigeEquipe(); delete db.tri[ref]; gravar(); },
+      // Ficha da Casa: pedido de atualização (a Central aprova), combinados e disponibilidade de datas (schema v13).
+      async minhasSolicitacoes() { return (db.sol || []).filter((x) => x.user_id === db.sessao).sort((a, b) => b.criado_em.localeCompare(a.criado_em)); },
+      async solicitarAtualizacao(proposto) {
+        const c = db.casas[db.sessao]; if (!c) throw new Error("Cadastre a casa antes de pedir atualização.");
+        const mudou = {}, antes = {}; for (const [k, v] of Object.entries(proposto)) if (JSON.stringify(c.dados[k] ?? "") !== JSON.stringify(v ?? "")) { mudou[k] = v; antes[k] = c.dados[k] ?? null; }
+        if (!Object.keys(mudou).length) throw new Error("Nada mudou em relação à ficha atual.");
+        (db.sol ||= []).forEach((x) => { if (x.casa_id === c.id && x.status === "pendente") x.status = "cancelada"; });
+        db.sol.push({ id: id(), casa_id: c.id, user_id: db.sessao, antes, proposto: mudou, status: "pendente", criado_em: agora() }); gravar();
+      },
+      async cancelarSolicitacao(sid) { const x = (db.sol || []).find((y) => y.id === sid && y.user_id === db.sessao && y.status === "pendente"); if (x) { x.status = "cancelada"; gravar(); } },
+      async solicitacoesTodas() { exigeEquipe(); return db.sol || []; },
+      async responderSolicitacao(sid, aprovar, resposta) {
+        exigeEquipe(); const x = (db.sol || []).find((y) => y.id === sid && y.status === "pendente"); if (!x) throw new Error("Esta solicitação não está mais pendente.");
+        if (aprovar) { const c = Object.values(db.casas).find((y) => y.id === x.casa_id); c.dados = { ...c.dados, ...x.proposto }; c.pendencias = R.pendenciasCasa(c.dados); }
+        Object.assign(x, { status: aprovar ? "aprovada" : "recusada", resposta: resposta || null, revisado_em: agora() }); gravar();
+      },
+      async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
+      async disponibilidade() { const p = eu(); return (db.disp || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.casa_ref === p?.vinculo_nome); },
+      async marcarDisponibilidade(casa_ref, dia, situacao) {
+        const p = eu(); if (p?.tipo !== "casa" || p.funcoes || p.vinculo_nome !== casa_ref) throw new Error("Só o responsável da casa informa a disponibilidade.");
+        db.disp = (db.disp || []).filter((x) => !(x.casa_ref === casa_ref && x.dia === dia));
+        if (situacao) db.disp.push({ casa_ref, dia, situacao, atualizado_em: agora() }); gravar();
+      },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
@@ -459,7 +482,7 @@ const TQConta = (() => {
       // Equipe da casa por função e Trilha da Nova Casa (schema v11).
       async equipeCasa() { return ok(await sb.rpc("equipe_da_casa")); },
       async salvarMembro(m) {
-        const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, funcoes: m.funcoes, reserva: !!m.reserva };
+        const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, instagram: m.instagram || null, observacao: m.observacao || null, funcoes: m.funcoes, reserva: !!m.reserva };
         ok(m.id ? await sb.from("equipe_casa").update(linha).eq("id", m.id) : await sb.from("equipe_casa").insert({ ...linha, casa_ref: m.casa_ref }));
       },
       async removerMembro(mid) { ok(await sb.from("equipe_casa").delete().eq("id", mid)); },
@@ -478,6 +501,17 @@ const TQConta = (() => {
       async salvarTrilha(t) { ok(await sb.from("trilhas").upsert({ casa_ref: t.casa_ref, inicio: t.inicio, nota_passagem: t.nota || null })); },
       async marcarTrilha(ref, etapa, feito) { ok(feito ? await sb.from("trilha_marcos").upsert({ casa_ref: ref, etapa }) : await sb.from("trilha_marcos").delete().match({ casa_ref: ref, etapa })); },
       async apagarTrilha(ref) { ok(await sb.from("trilhas").delete().eq("casa_ref", ref)); },
+      // Ficha da Casa: pedido de atualização, combinados e disponibilidade de datas (schema v13).
+      async minhasSolicitacoes() { return ok(await sb.from("solicitacoes_ficha").select("*").eq("user_id", await uid()).order("criado_em", { ascending: false }).limit(20)); },
+      async solicitarAtualizacao(proposto, mensagem) { return ok(await sb.rpc("solicitar_atualizacao_ficha", { proposto, mensagem })); },
+      async cancelarSolicitacao(sid) { ok(await sb.rpc("cancelar_solicitacao_ficha", { sid })); },
+      async solicitacoesTodas() { return ok(await sb.from("solicitacoes_ficha").select("*").order("criado_em", { ascending: false }).limit(300)); },
+      async responderSolicitacao(sid, aprovar, resposta) { ok(await sb.rpc("responder_solicitacao_ficha", { sid, aprovar, resposta_: resposta || null })); },
+      async definirCombinados(cid, c) { ok(await sb.rpc("definir_combinados", { cid, c })); },
+      async disponibilidade() { return ok(await sb.from("disponibilidade_casa").select("casa_ref,dia,situacao,nota,atualizado_em").order("dia")); },
+      async marcarDisponibilidade(casa_ref, dia, situacao) {
+        ok(situacao ? await sb.from("disponibilidade_casa").upsert({ casa_ref, dia, situacao }) : await sb.from("disponibilidade_casa").delete().match({ casa_ref, dia }));
+      },
     };
   }
   function traduz(m) {
@@ -507,7 +541,7 @@ const TQConta = (() => {
     // Monta tudo antes de trocar a tela: se uma leitura falhar, a pessoa continua deslogada e vê a mensagem.
     const conta = { perfil, insc: null, casa: null, chk: [], reg: [] };
     if (perfil.tipo === "artista") conta.insc = await api.minhaInscricao();
-    if (perfil.tipo === "casa") { conta.casa = await api.minhaCasa(); conta.reg = await api.meusRegistros(); }
+    if (perfil.tipo === "casa") { conta.casa = await api.minhaCasa(); conta.reg = await api.meusRegistros(); conta.sol = perfil.funcoes ? [] : await api.minhasSolicitacoes().catch(() => []); }
     if (perfil.tipo === "artista" || perfil.tipo === "casa") {
       conta.chk = perfil.tipo === "casa" ? await api.checklistCasa() : await api.meuChecklist();
       // Trilha da nova casa: só o dono da casa acompanha (a equipe da casa não vê).
@@ -620,38 +654,86 @@ const TQConta = (() => {
       ["aceite", "Autorizo o Tranquilo a usar estes dados para curadoria e operação da rede.", "check", null, 1],
     ]],
   ];
+  // Ficha da unidade, modelo v1 (Gui, Operações, 30/10/2026), Parte 2 "Para preencher": mesmas seções, ordem, títulos,
+  // textos de ajuda e opções do documento original (docs/GUI_DOCUMENT_COMPARISON.md). "Sua equipe" vem da Equipe da casa.
+  // [título, descrição, campos]; campo = [chave, rótulo, tipo, opções, obrigatório, ajuda, placeholder]
+  const SIM_NAO = [["sim", "Sim"], ["nao", "Não"]];
   const F_CASA = [
-    ["A casa", [
-      ["nome", "Nome da casa", "text", null, 1], ["cidade", "Cidade", "text", null, 1], ["estado", "Estado (UF)", "text", null, 1],
-      ["endereco", "Endereço", "text", null, 1], ["instagram", "Instagram", "text"],
-      ["capacidade", "Capacidade de público em formato de show (pessoas)", "number", null, 1], ["capacidade_sentado", "Capacidade com o público sentado (pessoas)", "number", null, 1, "Regra do Tranquilo: o público assiste sentado (cadeiras, cangas, almofadas e pufes)."],
-      ["dias", "Dias e horários possíveis para shows", "text"],
+    ["A casa", "Dados da empresa e do espaço. Usamos para o contrato, a página do evento e a divulgação.", [
+      ["nome", "Nome da casa", "text", null, 1], ["cidade_uf", "Cidade/UF", "text", null, 1], ["razao_social", "Razão social", "text"], ["cnpj", "CNPJ", "text"],
+      ["inscricao", "Inscrição municipal ou estadual", "text"], ["emite_nf", "A casa emite nota fiscal?", "select", SIM_NAO],
+      ["endereco", "Endereço completo", "text", null, 1, "Rua, número, bairro e CEP."], ["complemento", "Complemento e ponto de referência", "text"],
+      ["instagram", "Instagram da casa", "text", null, 0, null, "@"], ["site", "Site", "text"], ["telefone", "Telefone da casa", "text"],
+      ["funcionamento", "Dias e horários de funcionamento", "text"],
+      ["como_chegar", "Como chegar", "textarea", null, 0, "Estacionamento próximo, transporte público e cuidados na rua à noite. Vai na página de cada evento."],
     ]],
-    ["Responsável", [["responsavel", "Responsável local", "text", null, 1], ["whatsapp", "WhatsApp", "text", null, 1], ["email_contato", "E-mail de contato", "text"]]],
-    ["Estrutura técnica", [
-      ["som", "Como a casa resolve o som", "select", [["pa_proprio", "PA e mesa próprios"], ["parceiro", "Parceiro técnico contratado"], ["nao_tem", "Ainda não tenho"]], 1],
-      ["palco", "Palco (medidas)", "text"], ["microfones", "Microfones e DIs", "text"], ["luz", "Luz: tem luz frontal para o rosto?", "text"],
-      ["backline", "Backline (instrumentos e amplificadores)", "text"], ["camarim", "Camarim", "text"],
+    ["Dono A (responsável legal)", "O franqueado: quem assina pela casa e responde pela unidade.", [
+      ["dono_nome", "Nome completo", "text", null, 1], ["dono_cpf", "CPF", "text"], ["dono_rg", "RG", "text"], ["dono_nascimento", "Data de nascimento", "text", null, 0, null, "dd/mm/aaaa"],
+      ["dono_email", "E-mail", "text"], ["whatsapp", "WhatsApp", "text", null, 1], ["dono_endereco", "Endereço residencial", "text", null, 0, "Usado só no contrato."],
+    ], "sensivel"],
+    ["Dados para repasses", "A conta que recebe a parte da casa na bilheteria.", [
+      ["rep_titular", "Titular da conta", "text"], ["rep_documento", "CPF ou CNPJ do titular", "text"], ["rep_banco", "Banco", "text"],
+      ["rep_tipo", "Tipo de conta", "select", [["corrente", "Corrente"], ["poupanca", "Poupança"], ["pagamento", "Pagamento"]]],
+      ["rep_agencia", "Agência", "text"], ["rep_conta", "Conta com dígito", "text"], ["rep_pix", "Chave Pix", "text"],
+    ], "sensivel"],
+    ["O espaço", "O formato Tranquilo é com o público sentado no chão.", [
+      ["capacidade_sentado", "Capacidade com público sentado no chão", "number", null, 1, "Pode ser aproximado."], ["capacidade", "Capacidade em pé", "number"],
+      ["conforto", "Almofadas, tapetes, cadeiras e mesas disponíveis", "text"], ["palco", "Palco (medidas e altura)", "text", null, 0, "Pode ser aproximado."],
+      ["camarim", "Camarim", "select", [["tem", "Tem camarim"], ["espaco", "Não tem, mas há um espaço reservado"], ["nao", "Não tem"]]],
+      ["acessibilidade", "Acessibilidade", "multi", [["rampa", "Entrada sem degraus ou com rampa"], ["banheiro", "Banheiro adaptado"], ["cadeirante", "Espaço para cadeira de rodas na plateia"], ["mezanino", "Acesso ao mezanino por rampa ou elevador"], ["vaga", "Vaga de estacionamento acessível"], ["nenhuma", "Nenhuma dessas"]]],
+      ["acessibilidade_obs", "Acessibilidade: outras observações", "text", null, 0, null, "Outras observações"],
+      ["menores", "Menores de idade", "select", [["permite", "Permite"], ["responsavel", "Permite com responsável legal"], ["nao", "Não permite"]]],
     ]],
-    ["Operação", [["restricoes", "Restrições de horário e volume", "text"], ["acessibilidade", "Acessibilidade", "text"], ["como_chegar", "Como chegar (transporte e estacionamento)", "textarea"]]],
-    ["Responsabilidades", [["aceite_responsabilidades", "A casa assume a produção local: equipe, técnica, estrutura, horários, segurança, licenças e ECAD, recepção do público, problemas comuns da noite, registro de ocorrências e prestação de contas (método V0.1, seção 11).", "check", null, 1]]],
+    ["Som, luz e palco", "Para montar o rider de cada noite com os artistas.", [
+      ["rider", "Já tem o rider técnico da casa? Cole aqui o link ou o texto", "textarea", null, 0, "Se colar o rider, não precisa preencher o resto desta seção."],
+      ["som", "Sistema de som", "text", null, 0, "Se puder, marca e modelo das caixas."], ["mesa", "Mesa: marca, modelo e quantos canais", "text", null, 0, null, "Ex.: Yamaha MG16, 16 canais"],
+      ["microfones", "A casa tem microfones?", "select", SIM_NAO], ["pedestais", "A casa tem pedestais?", "select", SIM_NAO],
+      ["ligar_palco", "O que a casa tem para o artista ligar no palco", "textarea", null, 0, "Cabos, direct box (DI), retornos, amplificadores, banquetas. Conte o que tem e o que falta."],
+      ["luz", "Luz", "text", null, 0, "Tem luz de palco? Dá para deixar a plateia em penumbra?"],
+    ]],
+    ["Bar e cozinha", "", [
+      ["bar_cozinha", "Como funcionam o bar e a cozinha", "textarea", null, 0, "O que serve, horário da cozinha, atendimento no balcão ou na mesa."],
+      ["ticket_medio", "Ticket médio por pessoa", "text"], ["caixa_sistema", "Sistema de caixa e maquininha", "text", null, 0, "Precisa gerar relatório oficial por noite."],
+      ["exclusividade_bebida", "Exclusividade com marca de bebida", "text", null, 0, "Se tiver, qual marca e o que o contrato pede."],
+    ]],
+    ["Ingressos e agenda", "", [
+      ["ticketeira", "A casa usa alguma ticketeira? Tem exclusividade?", "text"],
+      ["dias_semana", "Dias da semana que podem receber o Tranquilo", "multi", [["segunda", "Segunda"], ["terca", "Terça"], ["quarta", "Quarta"], ["quinta", "Quinta"], ["sexta", "Sexta"], ["sabado", "Sábado"], ["domingo", "Domingo"]], 0, "As datas exatas são combinadas com a Isa."],
+    ]],
+    ["Dúvidas sobre o Guia", "Leia o Guia do Franqueado e anote aqui o que ficou em dúvida ou o que você quer conversar com a gente. Ao mandar esta Ficha preenchida, você confirma que leu o Guia.", [
+      ["duvidas_guia", "Suas dúvidas", "textarea"],
+    ]],
   ];
+  // Fichas antigas (antes do modelo v1) usavam outros nomes: o valor aparece no campo novo e nada se perde.
+  const F_CASA_ANTIGO = { dono_nome: "responsavel", dono_email: "email_contato", funcionamento: "dias" };
+  const valorCasa = (d, k) => { const v = d[k]; if (v != null && v !== "" && !(Array.isArray(v) && !v.length)) return v;
+    if (k === "cidade_uf" && d.cidade) return d.estado ? `${d.cidade}/${d.estado}` : d.cidade;
+    return F_CASA_ANTIGO[k] ? d[F_CASA_ANTIGO[k]] : v; };
+  const CHAVES_FICHA = new Set(F_CASA.flatMap(([, , cs]) => cs.map((c) => c[0])));
+  const ROTULO_ANTIGO = { responsavel: "Responsável local", email_contato: "E-mail de contato", cidade: "Cidade", estado: "Estado", dias: "Dias e horários", restricoes: "Restrições de horário e volume", backline: "Backline", aceite_responsabilidades: "Aceite da matriz de responsabilidades" };
+  const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
-  function campo([k, rot, tipo, opts, obrig, ajuda], d, travado) {
+  function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
     const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
     const aj = ajuda ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(ajuda)}</div>` : "";
     if (tipo === "check") return `<label class="fcheck"><input type="checkbox" data-k="${k}"${String(v) === "true" ? " checked" : ""}${dis}> <span>${esc(rot)}${req}</span></label>`;
+    if (tipo === "multi") {
+      const sel = new Set(Array.isArray(v) ? v : []);
+      return `<div class="fcampo"><b>${esc(rot)}${req}</b><div class="fcidades">${opts.map(([ov, ot]) => `<label><input type="checkbox" data-multi="${k}" value="${ov}"${sel.has(ov) ? " checked" : ""}${dis}> ${esc(ot)}</label>`).join("")}</div>${!Array.isArray(v) && v ? `<div class="muted" style="font-size:12px;margin-top:3px">Resposta anterior: ${esc(v)}</div>` : ""}${aj}</div>`;
+    }
     if (tipo === "cidades") {
       const sel = new Set(d[k] || []);
       return `<div class="fcampo"><b>${esc(rot)}${req}</b><div class="fcidades">${R.CIDADES_REDE.map((c) => `<label><input type="checkbox" data-cidade="${esc(c)}"${sel.has(c) ? " checked" : ""}${dis}> ${esc(c)}</label>`).join("")}</div>${aj}</div>`;
     }
     let inp;
-    if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}</select>`;
+    if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}${v && !opts.some(([ov]) => ov === String(v)) ? `<option value="${esc(v)}" selected>${esc(v)} (resposta anterior)</option>` : ""}</select>`;
     else if (tipo === "textarea") inp = `<textarea data-k="${k}" rows="4"${dis}>${esc(v)}</textarea>`;
-    else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : "text"}" value="${esc(v)}"${tipo === "number" ? ' data-num inputmode="numeric" placeholder="ex.: 12.000"' : ` maxlength="${k === "release" ? 3000 : 300}"`}${dis}>`;
+    else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : "text"}" value="${esc(v)}"${tipo === "number" ? ` data-num inputmode="numeric" placeholder="${esc(ph || "ex.: 12.000")}"` : ` maxlength="${k === "release" ? 3000 : 300}"${ph ? ` placeholder="${esc(ph)}"` : ""}`}${dis}>`;
     return `<label class="fcampo"><b>${esc(rot)}${req}</b>${inp}${aj}</label>`;
   }
   const formHtml = (def, d, travado) => def.map(([titulo, cs]) => `<section class="card fsec"><h3>${esc(titulo)}</h3><div class="fgrid">${cs.map((c) => campo(c, d, travado)).join("")}</div></section>`).join("");
+  // Ficha da casa: seções com descrição; campo vazio continua visível (vazio).
+  const formCasa = (d, travado) => F_CASA.map(([titulo, desc, cs]) => (titulo === "Dúvidas sobre o Guia" && S.conta?.perfil.tipo === "casa" ? equipeNaFicha() : "") + `<section class="card fsec"><h3>${esc(titulo)}</h3>${desc ? `<p class="muted" style="margin:-4px 0 10px;font-size:14px">${esc(desc)}</p>` : ""}<div class="fgrid">${cs.map((c) => campo(c, Object.fromEntries([[c[0], valorCasa(d, c[0])]]), travado)).join("")}</div></section>`).join("");
   // Número como as pessoas escrevem no Brasil: "50.000" e "50 mil" são cinquenta mil; "1.200,5" é 1200.
   // Sinal de menos é mantido para o aviso de valor inválido aparecer. Corta em 999.999.999.
   function inteiroBR(v) {
@@ -672,11 +754,12 @@ const TQConta = (() => {
     // Campos numéricos viram inteiros (12000.5 → 12000; acima de 999.999.999 é cortado): o banco calcula a
     // pré-curadoria com números inteiros e recusaria a inscrição inteira por causa de um valor quebrado.
     raiz.querySelectorAll("[data-k]").forEach((el) => { d[el.dataset.k] = el.type === "checkbox" ? String(el.checked) : el.hasAttribute("data-num") ? inteiroBR(el.value) : el.value.trim(); });
+    for (const el of raiz.querySelectorAll("[data-multi]")) { const k = el.dataset.multi; d[k] ||= []; if (el.checked) d[k].push(el.value); }
     const cs = [...raiz.querySelectorAll("[data-cidade]")].filter((el) => el.checked).map((el) => el.dataset.cidade);
     if (raiz.querySelector("[data-cidade]")) d.cidades_interesse = cs;
     return d;
   }
-  const faltando = (def, d) => def.flatMap(([, cs]) => cs).filter(([k, , tipo, , obrig]) => obrig && (tipo === "check" ? d[k] !== "true" : tipo === "cidades" ? !(d[k] || []).length : !d[k])).map(([, rot]) => rot);
+  const faltando = (def, d) => def.flatMap((sec) => sec[sec.length > 2 && typeof sec[1] === "string" ? 2 : 1]).filter(([k, , tipo, , obrig]) => obrig && (tipo === "check" ? d[k] !== "true" : tipo === "cidades" ? !(d[k] || []).length : !d[k])).map(([, rot]) => rot);
 
   // ---------- telas: artista ----------
   const STATUS_INSC = { rascunho: ["", "Rascunho"], em_curadoria: ["b-warn", "Com a curadoria"], ajustes: ["b-serious", "Ajustes pedidos"], aprovada: ["b-good", "Aprovada"], reprovada_pre: ["b-crit", "Não seguiu na pré-curadoria"], reprovada: ["b-crit", "Não seguiu na curadoria"] };
@@ -825,13 +908,33 @@ const TQConta = (() => {
       const c = S.conta.casa, d = c?.dados || {}, parceira = S.casaParceira ?? !!c?.ja_parceira;
       // Só casas com nome real; quem não se acha usa "Minha casa não aparece".
       const casasConhecidas = (S.pub.casas || []).filter((x) => !/^Casa (em|da rede)\b/.test(x.nome)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-      return `<div class="tag">Cadastro da casa</div><h1>${c ? "Ficha da casa" : "Cadastre sua casa"}</h1>
-      <p class="sub">A ficha tem três partes: primeiro o que falta para a casa ser habilitada, depois o que falta para receber alguns tipos de show, por fim o que só deixa a ficha mais completa. Você pode atualizar a ficha a qualquer momento.</p>
+      // Ficha enviada ao Tranquilo não muda em silêncio: a casa pede a atualização e a Central confere.
+      const enviada = !!c && ["em_analise", "habilitada", "suspensa"].includes(c.status), pedindo = enviada && S.fichaPedido, travado = enviada && !pedindo;
+      const sols = S.conta.sol || [], aberto = sols.find((x) => x.status === "pendente");
+      const pend = c?.pendencias || R.pendenciasCasa(d);
+      const rotulo = (k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || ROTULO_ANTIGO[k] || k;
+      const mostra = (k, v) => Array.isArray(v) ? v.join(", ") : k === "som" && SOM_ANTIGO[v] ? SOM_ANTIGO[v] : v === "true" ? "Sim" : v === "false" ? "Não" : String(v);
+      const usadosNaFicha = new Set(Object.entries(F_CASA_ANTIGO).filter(([novo]) => !d[novo]).map(([, ant]) => ant).concat(d.cidade_uf ? [] : ["cidade", "estado"]));
+      const extras = Object.entries(d).filter(([k, v]) => !CHAVES_FICHA.has(k) && !usadosNaFicha.has(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length));
+      return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da unidade")}</h1>
+      <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo: para mudar algo, toque em Solicitar atualização." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
+      <div class="row" style="margin-bottom:10px"><span>${c ? badge(STATUS_CASA, c.status) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ir="materiais">Abrir o Guia do Franqueado ↗</button></div>
       ${c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
-      <div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
-      ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>
-      <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_CASA, d, c?.status === "suspensa")}</div>
-      <div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">${c && ["habilitada"].includes(c.status) ? "Atualizar ficha" : "Enviar para habilitação"}</button></div>`;
+      ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade por Solicitar atualização.</div>` : ""}
+      ${aberto ? `<div class="alert warn"><b>Pedido de atualização com a Central desde ${dt(aberto.criado_em.slice(0, 10))}</b>Campos: ${esc(Object.keys(aberto.proposto).map(rotulo).join(", "))}. A ficha muda quando a Central aprovar.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-sol-cancelar="${aberto.id}">Cancelar o pedido</button></div></div>` : ""}
+      ${parteUmCasa(c)}
+      <h2>Parte 2 · Para preencher</h2>
+      <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
+      ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
+      ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
+      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(d, travado || c?.status === "suspensa")}</div>
+      ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
+      <div class="err" role="status" aria-live="polite" id="ferr"></div>
+      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`
+        : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou (opcional)</b><textarea id="solMsg" rows="2" maxlength="1000"></textarea></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
+        : c.status === "suspensa" ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`}
+      ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
+      <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
     },
     conta() {
       const p = S.conta.perfil;
@@ -862,7 +965,9 @@ const TQConta = (() => {
       <h2>Pessoas (${L.length})</h2>${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.</p>`}
       ${dono ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : "Adicionar pessoa"}</h3>
         <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="eqcNome" maxlength="120" value="${esc(ed?.nome || "")}"></label><label class="fcampo"><b>WhatsApp</b><input id="eqcWa" inputmode="tel" maxlength="30" value="${esc(ed?.whatsapp || "")}"></label>
-        <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label></div>
+        <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label>
+        <label class="fcampo"><b>Instagram (anfitrião e social media)</b><input id="eqcInsta" maxlength="80" placeholder="@" value="${esc(ed?.instagram || "")}"></label>
+        <label class="fcampo"><b>Observação</b><input id="eqcObs" maxlength="300" value="${esc(ed?.observacao || "")}"></label></div>
         <b style="font-size:14px">Função</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${ed?.funcoes?.includes(k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
         <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
@@ -978,6 +1083,7 @@ const TQConta = (() => {
         { t: "Capacidade", n: 1, v: (c) => +c.dados.capacidade || null, h: (c) => fmt(+c.dados.capacidade || null) },
         { t: "Bloqueia habilitação", n: 1, v: (c) => c.pendencias?.habilitacao?.length ?? 0 },
         { t: "Bloqueia match", n: 1, v: (c) => c.pendencias?.match?.length ?? 0 },
+        { t: "Pedidos de atualização", n: 1, v: (c) => (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente").length, h: (c) => { const n = (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente").length; return n ? `<span class="badge b-warn">${n}</span>` : "0"; } },
         { t: "Status", v: (c) => c.status, h: (c) => badge(STATUS_CASA, c.status) },
         { t: "Classificação", v: (c) => c.classificacao, h: (c) => CLASSE[c.classificacao] || "–" },
       ], L.map((c) => ({ ...c, _click: "casacad:" + c.id })), { i: 4, dir: 1 }, vazio("Nenhuma casa cadastrada ainda", "As casas que criarem conta e enviarem a ficha aparecem aqui para habilitação.", `<button class="btn" data-ir="convites">Convidar uma casa</button>`, "casas_cad"))}`;
@@ -1204,6 +1310,39 @@ const TQConta = (() => {
     ${linhaTempo(etapas, etapa)}${agora}${comoFunciona}
     ${evs.length ? `<h2>Suas datas</h2><p class="sub">Passo a passo de cada show, com prazo contado a partir da data. Marque o que já fez: a equipe acompanha por aqui.</p><div class="list">${evs.map((e) => blocoPassos(e, "artista")).join("")}</div>` : ""}`;
   }
+  // Parte 1 da Ficha (Sua unidade): textos do modelo v1 e os combinados desta casa, registrados pela Central.
+  // Combinado ainda não registrado aparece vazio (nunca um valor de exemplo ou de outra casa).
+  const CONTATOS_FICHA = [["gui", "Operação, implantação, receitas e repasses", "Gui · Operações"], ["isa", "Datas, artistas e line-up", "Isa · Comercial e Artístico"], ["bruno", "Divulgação e materiais", "Bruno · Marketing"], ["zerrinha", "Comunidade e tripé social", "Zerrinha · Comunidade"]];
+  function parteUmCasa(c) {
+    const cb = c?.combinados || {}, nada = '<span class="muted">Ainda não registrado pela Operações</span>';
+    const pct = (o, ks) => o && ks.every(([k]) => o[k] != null && o[k] !== "") ? ks.map(([k, t]) => `${esc(o[k])}% ${t}`).join(" · ") : nada;
+    const eq = S.conta.equipe ? TQEquipe.cobertura(S.conta.equipe) : null;
+    return `<section class="card fsec"><h3>Parte 1 · Sua unidade</h3><h4 style="margin:0 0 6px">Como vai funcionar</h4>
+      <dl class="kv"><dt>Produtos</dt><dd>Tranquilo Descubra e Tranquilo Apresenta</dd><dt>Ingressos</dt><dd>Vendidos pela Ingresse, parceira do Tranquilo. As vendas são acompanhadas em conjunto pelo Tranquilo e pela casa.</dd><dt>Datas e artistas</dt><dd>Definidos com a Isa (Comercial e Artístico)</dd></dl>
+      <h4 style="margin:12px 0 6px">Divisão das receitas</h4>
+      <dl class="kv"><dt>Bilheteria</dt><dd>${pct(cb.bilheteria, [["artista", "Artista"], ["casa", "Casa"], ["tranquilo", "Tranquilo"]])}</dd><dt>Alimentos e bebidas</dt><dd>${pct(cb.aeb, [["casa", "Casa"], ["tranquilo", "Tranquilo"]])}</dd></dl>
+      <p class="muted" style="font-size:13px">Custos logísticos apresentados e aprovados antes são descontados da bilheteria antes da divisão. O Tranquilo fecha cada data e faz os repasses nos prazos do contrato. Sem aluguel do espaço e sem promessa de lotação.</p>
+      <h4 style="margin:12px 0 6px">Seus contatos no Tranquilo</h4>
+      <div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Assunto</th><th>Quem</th><th>Contato</th></tr></thead><tbody>${CONTATOS_FICHA.map(([k, a, q]) => `<tr><td>${esc(a)}</td><td>${esc(q)}</td><td>${cb.contatos?.[k] ? `WhatsApp ${esc(cb.contatos[k])}` : nada}</td></tr>`).join("")}</tbody></table></div>
+      <h4 style="margin:12px 0 6px">Próximos passos</h4>
+      <ul class="passos"><li class="${c ? "feito" : ""}"><b>Primeiras informações da casa</b> <span class="muted">· ${c ? "feito" : "a fazer"}</span></li>
+      <li class="${c?.enviado_em ? "feito" : ""}"><b>Ler o Guia e devolver esta Ficha preenchida</b> <span class="muted">· até 3 dias após receber${c?.enviado_em ? " · feito" : ""}</span></li>
+      <li><b>Conversa de alinhamento com a Operações, a partir das suas dúvidas</b> <span class="muted">· logo depois</span></li>
+      <li class="${eq?.tripe ? "feito" : ""}"><b>Líder Local, anfitrião e social media definidos</b> <span class="muted">· até 10 dias após receber${eq?.tripe ? " · feito" : ""}</span></li>
+      <li><b>Primeiras datas com a Isa</b> <span class="muted">· com a equipe definida</span></li></ul></section>`;
+  }
+  // "Sua equipe" da Ficha: mostra a Equipe da casa (a fonte é uma só; edita-se lá).
+  function equipeNaFicha() {
+    const L = S.conta.equipe; if (L === undefined) carregarEquipeCasa();
+    const de = (f) => (L || []).filter((m) => !m.reserva && (m.funcoes || []).includes(f));
+    const bloco = (f, titulo, desc, campos) => `<div class="card"><b>${esc(titulo)}</b> <span class="muted" style="font-size:13px">${esc(desc)}</span>${(de(f).length ? de(f) : [{}]).map((m) => `<dl class="kv" style="margin-top:6px">${campos.map(([k, t]) => `<dt>${t}</dt><dd>${m[k] ? esc(m[k]) : ""}</dd>`).join("")}</dl>`).join("")}</div>`;
+    return `<section class="card fsec"><h3>Sua equipe</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Precisa estar completa antes do primeiro evento. Cada função é de uma pessoa diferente; a única exceção é o Dono A, que pode ser também o Líder Local. O bar é responsabilidade do Dono A: o Tranquilo não fala com a equipe de bar.</p>
+      <div class="grid g2">${bloco("lider", "Líder Local (produtor)", "Tripé · conduz o dia do evento e fala com os artistas. Pode ser o próprio Dono A.", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["email", "E-mail"]])}
+      ${bloco("anfitriao", "Anfitrião(ã)", "Tripé · conduz o público durante o evento", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]])}
+      ${bloco("social_media", "Social Media", "Tripé · registra o evento de acordo com o briefing", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]])}
+      ${bloco("som", "Técnico(a) de som", "", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["observacao", "Observação"]])}</div>
+      <div class="barra-acoes"><button class="btn sm" data-ir="equipe_casa">Editar a equipe</button></div></section>`;
+  }
   function passosCasa() {
     const p = S.conta.perfil, c = S.conta.casa, evs = eventosDaConta();
     if (funcoesDe()) return `<div class="tag">${esc(nomesFuncoes(funcoesDe()))}</div><h1>${esc(p.vinculo_nome || "Sua casa")}</h1>
@@ -1363,9 +1502,9 @@ const TQConta = (() => {
       const quem = S.conta?.perfil.id;
       // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
       const novo = (pr) => pr.catch(() => null);
-      const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato())]);
+      const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol, disp] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato()), novo(api.solicitacoesTodas()), novo(api.disponibilidade())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [] };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);
@@ -1399,10 +1538,24 @@ const TQConta = (() => {
   function fichaCasa(id) {
     const c = S.eq.casas.find((x) => x.id === id); if (!c) return;
     const d = c.dados, adm = S.conta.perfil.tipo === "adm", pend = c.pendencias || R.pendenciasCasa(d);
-    const resp = F_CASA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "check") v = v === "true" ? "Sim" : "Não"; return `<dt>${esc(rot.length > 60 ? rot.slice(0, 60) + "…" : rot)}</dt><dd>${esc(v || "–")}</dd>`; }).join("")}</dl>`).join("");
+    // Dados pessoais do Dono A e dados bancários: só a administração vê (a equipe vê que existem).
+    const resp = F_CASA.map(([t, , cs, sens]) => `<h3>${esc(t)}</h3>${sens && !adm ? `<p class="muted" style="font-size:13px">Dados pessoais e bancários: só a administração vê. ${cs.filter((x) => valorCasa(d, x[0])).length} de ${cs.length} campos preenchidos.</p>` : `<dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `<dt>${esc(rot.length > 60 ? rot.slice(0, 60) + "…" : rot)}</dt><dd>${esc(v || "")}</dd>`; }).join("")}</dl>`}`).join("");
+    const cb = c.combinados || {}, sols = (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente");
+    const rotulo = (k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || k;
+    const pedidos = sols.map((x) => `<div class="card" style="margin-bottom:8px"><b>Pedido de atualização de ${dt(x.criado_em.slice(0, 10))}</b>${x.mensagem ? `<div class="muted" style="font-size:13px">${esc(x.mensagem)}</div>` : ""}
+      <div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Campo</th><th>Antes</th><th>Proposto</th></tr></thead><tbody>${Object.keys(x.proposto).map((k) => `<tr><td>${esc(rotulo(k))}</td><td>${esc(JSON.stringify(x.antes?.[k] ?? "").replace(/^"|"$/g, ""))}</td><td><b>${esc(JSON.stringify(x.proposto[k] ?? "").replace(/^"|"$/g, ""))}</b></td></tr>`).join("")}</tbody></table></div>
+      <label class="fcampo"><b>Resposta para a casa (opcional)</b><input data-sol-resp="${x.id}" maxlength="1000"></label>
+      <div class="barra-acoes"><button class="btn pri sm" data-sol-responder="${x.id}|1">Aprovar e atualizar a ficha</button><button class="btn sm" data-sol-responder="${x.id}|0">Recusar</button></div></div>`).join("");
+    const combinados = `<h3>Combinados da parceria (Parte 1 da Ficha)</h3><p class="muted" style="font-size:13px">A casa vê estes valores na Ficha. Em branco, aparece "Ainda não registrado pela Operações".</p>
+      <div class="grid g3"><label class="fcampo"><b>Bilheteria: artista %</b><input data-cb="bilheteria.artista" inputmode="numeric" value="${esc(cb.bilheteria?.artista ?? "")}"></label><label class="fcampo"><b>Bilheteria: casa %</b><input data-cb="bilheteria.casa" inputmode="numeric" value="${esc(cb.bilheteria?.casa ?? "")}"></label><label class="fcampo"><b>Bilheteria: Tranquilo %</b><input data-cb="bilheteria.tranquilo" inputmode="numeric" value="${esc(cb.bilheteria?.tranquilo ?? "")}"></label>
+      <label class="fcampo"><b>Alimentos e bebidas: casa %</b><input data-cb="aeb.casa" inputmode="numeric" value="${esc(cb.aeb?.casa ?? "")}"></label><label class="fcampo"><b>Alimentos e bebidas: Tranquilo %</b><input data-cb="aeb.tranquilo" inputmode="numeric" value="${esc(cb.aeb?.tranquilo ?? "")}"></label></div>
+      <div class="grid g2">${CONTATOS_FICHA.map(([k, , q]) => `<label class="fcampo"><b>WhatsApp de ${esc(q)}</b><input data-cb="contatos.${k}" maxlength="30" value="${esc(cb.contatos?.[k] ?? "")}"></label>`).join("")}</div>
+      <div class="barra-acoes"><button class="btn sm" data-cb-salvar="${c.id}">Salvar combinados</button></div>`;
     $("#dlgIn").innerHTML = `<div class="tag">Casa · ${badge(STATUS_CASA, c.status)}</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2><p class="muted">${esc(c.perfil?.email || "")} · ${c.ja_parceira ? "já parceira" + (c.notion_casa_id && c.notion_casa_id !== "outra" ? ` · <a href="https://www.notion.so/${esc(c.notion_casa_id)}" target="_blank" rel="noopener">ficha no Notion</a>` : "") : "casa nova"}</p>
     <div class="grid g3">${[["habilitacao", "Bloqueia habilitação"], ["match", "Bloqueia match"], ["enriquecimento", "Enriquecimento"]].map(([k, t]) => `<div class="card"><b>${t}</b> (${pend[k].length})<div style="font-size:13px">${pend[k].map(esc).join(" · ") || "ok"}</div></div>`).join("")}</div>
+    ${pedidos}
     ${resp}
+    ${combinados}
     <h3>Decisão</h3><label class="fcampo"><b>Classificação</b><select id="classe"><option value="">Sem classificação (antes da 1ª data)</option>${Object.entries(CLASSE).map(([k, t]) => `<option value="${k}"${c.classificacao === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
@@ -1580,7 +1733,7 @@ const TQConta = (() => {
     const ed = t.closest("[data-eqc-editar]"); if (ed) { S.eqcEd = ed.dataset.eqcEditar || null; render(); $("#eqcForm")?.scrollIntoView({ block: "center" }); return true; }
     if (t.id === "eqcOk") {
       const err = $("#eqcErr"), funcoes = [...document.querySelectorAll("[data-eqc-funcao]")].filter((x) => x.checked).map((x) => x.dataset.eqcFuncao);
-      const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), funcoes, reserva: $("#eqcReserva").checked };
+      const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), instagram: $("#eqcInsta").value.trim(), observacao: $("#eqcObs").value.trim(), funcoes, reserva: $("#eqcReserva").checked };
       if (!m.nome) { err.textContent = "Coloque o nome da pessoa."; return true; }
       if (m.email && !EMAIL_OK.test(m.email)) { err.textContent = "Esse e-mail não parece válido. Confira se está escrito certo."; return true; }
       const e = TQEquipe.funcoesErro(funcoes); if (e) { err.textContent = e; return true; }
@@ -1637,10 +1790,46 @@ const TQConta = (() => {
     }
     return false;
   }
+  // Ficha da Casa: pedido de atualização, cancelamento e "Copiar respostas" (como no modelo do Gui).
+  async function cliquesFicha(t) {
+    // Central: responder pedido de atualização e salvar combinados.
+    const sr = t.closest("[data-sol-responder]"); if (sr) {
+      const [sid, ap] = sr.dataset.solResponder.split("|"), resp = document.querySelector(`[data-sol-resp="${sid}"]`)?.value || "";
+      try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      return true;
+    }
+    const cs = t.closest("[data-cb-salvar]"); if (cs) {
+      const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && a !== "contatos" ? Number(v.replace(",", ".")) : v; }
+      try { await api.definirCombinados(cs.dataset.cbSalvar, cb); $("#derr").textContent = "Combinados salvos."; const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      return true;
+    }
+    if (t.id === "solPedir") { S.fichaPedido = true; render(); $("#form [data-k]")?.focus(); return true; }
+    if (t.id === "solVoltar") { S.fichaPedido = false; render(); return true; }
+    if (t.id === "solEnviar") {
+      const err = $("#ferr"); err.textContent = "Enviando…";
+      try { await api.solicitarAtualizacao(lerForm($("#form")), $("#solMsg")?.value || ""); TQDiario.registrar("ficha_pedido", {});
+        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); $("#ferr").textContent = "Pedido enviado. A Central confere e a ficha muda quando for aprovado."; }
+      catch (x) { err.textContent = traduz(x.message || ""); }
+      return true;
+    }
+    const sc = t.closest("[data-sol-cancelar]"); if (sc) {
+      if (!confirm("Cancelar o pedido de atualização?")) return true;
+      try { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); } catch (x) { alert(traduz(x.message || "")); }
+      return true;
+    }
+    if (t.id === "copiarFicha") {
+      const d = { ...(S.conta.casa?.dados || {}), ...lerForm($("#form")) };
+      const txt = F_CASA.map(([titulo, , cs]) => `*${titulo}*\n` + cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `${rot}: ${v || ""}`; }).join("\n")).join("\n\n");
+      try { await navigator.clipboard.writeText(txt); $("#ferr").textContent = "Respostas copiadas."; } catch { $("#ferr").textContent = "O navegador não deixou copiar."; }
+      return true;
+    }
+    return false;
+  }
   async function cliques(ev) {
     const t = ev.target;
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); S.aba = ir.dataset.ir; render(); scrollTo(0, 0); return; }
     if (await cliquesEquipe(t)) return;
+    if (await cliquesFicha(t)) return;
     const ent = t.closest("[data-entrada]"); if (ent) {
       ev.preventDefault(); const em = $("#email")?.value || ""; S.entrada = ent.dataset.entrada; render();
       if ($("#email")) $("#email").value = em;
@@ -1674,8 +1863,9 @@ const TQConta = (() => {
       return;
     }
     if (t.id === "salvar" || t.id === "enviar") {
-      const enviar = t.id === "enviar", raiz = $("#form"), d = lerForm(raiz), err = $("#ferr");
       const casa = S.conta.perfil.tipo === "casa";
+      // Na casa, guarda também o que veio de versões anteriores da ficha (nenhum dado preenchido some).
+      const enviar = t.id === "enviar", raiz = $("#form"), d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) }, err = $("#ferr");
       const falta = faltando(casa ? F_CASA : F_ARTISTA, d);
       if (enviar && falta.length && !casa) { err.textContent = `Faltam: ${falta.join(", ").replace(/\.+$/, "")}. Os campos com * são obrigatórios.`; return; }
       const erros = enviar ? conferirFormato(d) : [];
@@ -1910,7 +2100,7 @@ const TQConta = (() => {
       document.querySelector(`input[name="tipoNovo"][value="${t.value}"]`)?.focus();
       return;
     }
-    if (t.name === "parceira") { S.casaParceira = t.value === "sim"; const d = lerForm($("#form")); render(); $("#form").innerHTML = formHtml(F_CASA, d, false); return; }
+    if (t.name === "parceira") { S.casaParceira = t.value === "sim"; const d = lerForm($("#form")); render(); $("#form").innerHTML = formCasa(d, false); return; }
     if (t.id === "casaNotion" && t.value && t.value !== "outra") {
       const c = (S.pub.casas || []).find((x) => x.id === t.value);
       if (c) { const n = document.querySelector('[data-k="nome"]'), ci = document.querySelector('[data-k="cidade"]'); if (n && !n.value) n.value = /^Casa em/.test(c.nome) ? "" : c.nome; if (ci && !ci.value) ci.value = c.cidade; }
@@ -1963,7 +2153,9 @@ const TQConta = (() => {
   function salvarPendente() {
     clearTimeout(S.tauto); S.tauto = null;
     const raiz = $("#form"); if (!raiz || !S.conta || !raiz.querySelector("[data-k]:not(:disabled)")) return Promise.resolve();
-    const d = lerForm(raiz), casa = S.conta.perfil.tipo === "casa";
+    const casa = S.conta.perfil.tipo === "casa";
+    if (casa && raiz.dataset.modo !== "edicao") return Promise.resolve();   // ficha enviada: muda só por pedido
+    const d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) };
     const msg = (t) => { const e = $("#ferr"); if (e) e.textContent = t; };
     let p;
     if (casa) {
