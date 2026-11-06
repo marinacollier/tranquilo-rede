@@ -4,6 +4,10 @@ Lista do que ficou para depois. Atualizada em 23/10/2026.
 
 ## Com a Marina
 
+- [ ] **Autorizar o banco v13 e a publicação das 4 áreas** (06/11). Ver `docs/SESSION_STATE.md`.
+- [ ] **Gui:** aprovar as adaptações da Ficha (`docs/GUI_DOCUMENT_COMPARISON.md`) e responder `docs/GUI_REQUIREMENTS.md` (seção "A confirmar").
+- [ ] **Central:** cadastrar o Guia do Franqueado em Materiais com o link oficial e pedir "Li e estou ciente".
+
 - [ ] **SMTP no Supabase (P0 para abrir a quem é de fora).** O servidor de e-mail padrão só entrega para a equipe do projeto: convites, confirmação e troca de senha não chegam para artistas e casas. Onde configurar: Supabase → Authentication → Emails → SMTP Settings (Resend, Brevo, Postmark ou o e-mail do domínio).
 - [ ] **Ao fim da rodada do time:** apagar as contas teste-* (linha no início de `.privado/contas-teste.sql`).
 - [ ] **SITE_SECRET no GitHub.** O valor antigo não foi achado. Opções:
