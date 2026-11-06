@@ -28,7 +28,7 @@ const PASSOS: Record<string, [string, number, string][]> = {
     ["tecnico", -21, "Confirmar técnico de som e setup"], ["roteiro", -21, "Fechar o roteiro do dia"], ["escrito", -14, "Confirmar tudo por escrito"],
     ["travas", -7, "Travas finais"], ["equipe_reserva", -7, "Equipe escalada com reserva"], ["porta_reserva", -7, "Operadores de porta com reserva"],
     ["briefing_anfitriao", -7, "Briefing do anfitrião"],
-    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas"], ["estoque", -1, "Planilha de estoque"],
+    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas"], ["estoque", 2, "Planilha de estoque"],
     ["prontidao", 0, "Prontidão da noite"], ["publico", 0, "Registrar o público e as ocorrências"],
     ["fechamento", 2, "Fechamento (D+2)"], ["material_social", 2, "Material da social media (48 h)"],
   ],

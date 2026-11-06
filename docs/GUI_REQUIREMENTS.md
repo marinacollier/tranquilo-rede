@@ -21,5 +21,5 @@ Prioridade: **P0** portal da casa · **P1** visão da equipe interna (a Isa em p
 2. As 7 adaptações de `docs/GUI_DOCUMENT_COMPARISON.md`.
 3. Disponibilidade: quem pode bloquear, reservar e confirmar uma data, por quanto tempo vale a reserva e como avisar. (Hoje: a casa informa disponível ou indisponível; a confirmação continua com a Isa, fora do portal.)
 4. A proposta escrita dele para os nomes dos botões.
-5. Fechamento: D+2 ou D+22? Caixa de produção no D-2 sai do Guia?
+5. Fechamento no D+2 (confirmado no Guia, com a planilha de estoque). Caixa de produção no D-2 sai do Guia?
 6. Bonificações (como Estrella Galicia): fonte, regra de elegibilidade e responsável.

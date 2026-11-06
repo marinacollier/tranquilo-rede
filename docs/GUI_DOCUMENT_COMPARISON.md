@@ -49,7 +49,7 @@ As regras que o portal aplica foram conferidas com ele.
 | Guia | O Tranquilo em 1 minuto | Noite, produtos | Operações › Como é a noite (manuais de 21/10) | — | — | FONTE EXTERNA |
 | Guia | Quem faz o quê | Central × casa; as 4 cadeiras | Equipe da casa: Dono A, Líder Local (produtor), Anfitrião, Social Media + som e porta | — | — | CORRESPONDE |
 | Guia | Quem faz o quê | Só o Dono A acumula Líder Local; Anfitrião e Social Media não acumulam | Uma função por pessoa (banco e site) | — | — | CORRESPONDE |
-| Guia | Seus 10 compromissos | Compromisso 9: dados até D+2 | Passo "Fechamento (D+2)" | Na seção de fechamento o Guia diz "até D+22 dias" | Confirmar com o Gui | ADAPTAÇÃO A APROVAR |
+| Guia | Seus 10 compromissos | Compromisso 9: dados até D+2 | Passo "Fechamento (D+2)" | O Guia diz D+2 em três lugares ("D+22" era sobra da extração do texto: "Até D+2" seguido de "2 dias depois") | Estoque também no D+2 | IGUAL |
 | Guia | O que você decide | Decide / combina por escrito / regras fixas | Dúvidas frequentes e "O que não muda em nenhuma casa" | — | — | CORRESPONDE |
 | Guia | Como funciona o fechamento | Quem cuida de cada dinheiro | Não há tela de fechamento no MVP | — | Fase seguinte | PENDENTE |
 | Guia | Seus primeiros 90 dias | Antes do primeiro evento: contrato, homologação, 4 cadeiras, porta, planilhas, grupo, Ficha | Treinamento › Depois do treinamento (mesmos itens) | — | — | CORRESPONDE |

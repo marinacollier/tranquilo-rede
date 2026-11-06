@@ -585,7 +585,7 @@ const TQConta = (() => {
     const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
     if (area === "operacoes") return [...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
-      ["materiais", "Guia e materiais"], ...(pacAbas.includes("roteiro") ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
+      ["materiais", "Guia e materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
     if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", fs ? "Datas e passos" : "Datas confirmadas"],
       ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
     if (area === "marketing") return !fs || A.campanha ? [["campanha", "Campanhas"]] : [];
@@ -694,7 +694,7 @@ const TQConta = (() => {
       ["rep_agencia", "Agência", "text"], ["rep_conta", "Conta com dígito", "text"], ["rep_pix", "Chave Pix", "text"],
     ], "sensivel"],
     ["O espaço", "O formato Tranquilo é com o público sentado no chão.", [
-      ["capacidade_sentado", "Capacidade com público sentado no chão", "number", null, 1, "Pode ser aproximado."], ["capacidade", "Capacidade em pé", "number"],
+      ["capacidade_sentado", "Capacidade com público sentado no chão", "number", null, 1, "Pode ser aproximado.", "ex.: 80"], ["capacidade", "Capacidade em pé", "number", null, 0, null, "ex.: 120"],
       ["conforto", "Almofadas, tapetes, cadeiras e mesas disponíveis", "text"], ["palco", "Palco (medidas e altura)", "text", null, 0, "Pode ser aproximado."],
       ["camarim", "Camarim", "select", [["tem", "Tem camarim"], ["espaco", "Não tem, mas há um espaço reservado"], ["nao", "Não tem"]]],
       ["acessibilidade", "Acessibilidade", "multi", [["rampa", "Entrada sem degraus ou com rampa"], ["banheiro", "Banheiro adaptado"], ["cadeirante", "Espaço para cadeira de rodas na plateia"], ["mezanino", "Acesso ao mezanino por rampa ou elevador"], ["vaga", "Vaga de estacionamento acessível"], ["nenhuma", "Nenhuma dessas"]]],
@@ -754,7 +754,10 @@ const TQConta = (() => {
   // Número como as pessoas escrevem no Brasil: "50.000" e "50 mil" são cinquenta mil; "1.200,5" é 1200.
   // Sinal de menos é mantido para o aviso de valor inválido aparecer. Corta em 999.999.999.
   function inteiroBR(v) {
-    let t = String(v || "").trim().toLowerCase().replace(/\s+/g, "");
+    let t = String(v || "").trim().toLowerCase();
+    // Faixa ou valor aproximado ("80 a 100", "uns 80", "80-100"): vale o primeiro número.
+    if (!/^-?[\d.,\s]+(mil)?$/.test(t)) { const m = t.match(/-?\d[\d.,]*(\s*mil)?/); t = m ? m[0] : ""; }
+    t = t.replace(/\s+/g, "");
     if (!t) return "";
     const mil = /mil$/.test(t); t = t.replace(/mil$/, "");
     const neg = t.startsWith("-");
@@ -1057,7 +1060,7 @@ const TQConta = (() => {
       return `<div class="tag">Datas</div><h1>Disponibilidade da casa</h1>
       <p class="sub">Marque os dias em que a casa pode receber o Tranquilo e os dias em que não pode. A Isa consulta este calendário para montar a agenda. Disponível não é reserva: a data só vale quando a Isa confirma com a casa.</p>
       ${calendarioMes(mes, (dia) => { const r = S.disp.find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia), e = evs.filter((x) => x.d === dia);
-        return { classe: e.length ? "ev" : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: dia >= hojeIso() }; }, "data-disp-dia")}
+        return { classe: e.length ? "cal-ev" : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-disp-dia")}
       ${fichaDias.length ? `<p class="muted" style="font-size:13px">Na Ficha, a casa disse que recebe: ${esc(fichaDias.map((d) => ({ segunda: "segunda", terca: "terça", quarta: "quarta", quinta: "quinta", sexta: "sexta", sabado: "sábado", domingo: "domingo" }[d] || d)).join(", "))}. <button class="btn sm" data-disp-semana>Marcar esses dias deste mês como disponíveis</button></p>` : ""}
       <div class="err" role="status" aria-live="polite" id="dispErr"></div>`;
     },
@@ -1107,7 +1110,7 @@ const TQConta = (() => {
       <p class="sub">O que cada casa informou na área Datas, junto com os eventos já confirmados. Disponível não é reserva: confirme com a casa antes de fechar a data. Só a casa altera a disponibilidade dela.</p>
       ${casas.length ? `<div class="filters"><select data-ag-casa aria-label="Casa">${casas.map((c) => `<option${c === casa ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
       ${calendarioMes(mes, (dia) => { const r = (E.disp || []).find((x) => k(x.casa_ref) === k(casa) && x.dia === dia), e = evs.filter((x) => x.d === dia && k(x.h) === k(casa));
-        return { classe: e.length ? (r?.situacao === "indisponivel" ? "conflito" : "ev") : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: false }; })}
+        return { classe: e.length ? (r?.situacao === "indisponivel" ? "conflito" : "cal-ev") : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: false }; })}
       <h2>Casas com dias livres neste mês</h2>${tabela("agmes", [
         { t: "Casa", v: (r) => r.casa, h: (r) => `<b>${esc(r.casa)}</b>` },
         { t: "Dias disponíveis", n: 1, v: (r) => r.livres.length, h: (r) => r.livres.length ? r.livres.map((d) => dtc(d)).join(", ") : "–" },
@@ -1895,7 +1898,7 @@ const TQConta = (() => {
     if (t.closest("[data-disp-semana]")) {
       const ref = S.conta.perfil.vinculo_nome, mes = S.dispMes || hojeIso().slice(0, 7), quer = S.conta.casa?.dados?.dias_semana || [];
       const nomes = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"], [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate();
-      try { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
+      try { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || (S.pac?.eventos || []).some((e) => !e.z && e.d === dia) || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
           await api.marcarDisponibilidade(ref, dia, "disponivel"); S.disp.push({ casa_ref: ref, dia, situacao: "disponivel" }); }
         render(); } catch (x) { const e = $("#dispErr"); if (e) e.textContent = traduz(x.message || ""); }
       return true;
@@ -1911,6 +1914,11 @@ const TQConta = (() => {
     }
     const cs = t.closest("[data-cb-salvar]"); if (cs) {
       const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && a !== "contatos" ? Number(v.replace(",", ".")) : v; }
+      for (const [g, nome] of [["bilheteria", "Bilheteria"], ["aeb", "Alimentos e bebidas"]]) {
+        const vs = Object.values(cb[g] || {}); if (!vs.length) continue;
+        if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { $("#derr").textContent = `${nome}: use só números de 0 a 100.`; return true; }
+        const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { $("#derr").textContent = `${nome}: os percentuais somam ${soma}%, precisam somar 100%.`; return true; }
+      }
       try { await api.definirCombinados(cs.dataset.cbSalvar, cb); $("#derr").textContent = "Combinados salvos."; const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
       return true;
     }
@@ -1930,7 +1938,9 @@ const TQConta = (() => {
     }
     if (t.id === "copiarFicha") {
       const d = { ...(S.conta.casa?.dados || {}), ...lerForm($("#form")) };
-      const txt = F_CASA.map(([titulo, , cs]) => `*${titulo}*\n` + cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `${rot}: ${v || ""}`; }).join("\n")).join("\n\n");
+      const txt = F_CASA.map(([titulo, , cs]) => `*${titulo}*\n` + cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `${rot}: ${v || ""}`; }).join("\n")).join("\n\n")
+        + "\n\n*Sua equipe*\n" + [["lider", "Líder Local (produtor)", ["nome", "whatsapp", "email"]], ["anfitriao", "Anfitrião(ã)", ["nome", "whatsapp", "instagram"]], ["social_media", "Social Media", ["nome", "whatsapp", "instagram"]], ["som", "Técnico(a) de som", ["nome", "whatsapp", "observacao"]]]
+          .map(([f, t, ks]) => { const m = (S.conta.equipe || []).find((x) => !x.reserva && (x.funcoes || []).includes(f)) || {}; return `${t}: ${ks.map((k) => m[k] || "").filter(Boolean).join(" · ")}`; }).join("\n");
       try { await navigator.clipboard.writeText(txt); $("#ferr").textContent = "Respostas copiadas."; } catch { $("#ferr").textContent = "O navegador não deixou copiar."; }
       return true;
     }
@@ -1938,7 +1948,7 @@ const TQConta = (() => {
   }
   async function cliques(ev) {
     const t = ev.target;
-    const sb = t.closest("[data-sub]"); if (sb) { const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
+    const sb = t.closest("[data-sub]"); if (sb) { await salvarPendente(); const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesEquipe(t)) return;
     if (await cliquesFicha(t)) return;
@@ -2259,7 +2269,7 @@ const TQConta = (() => {
   document.addEventListener("input", (ev) => {
     const t = ev.target;
     if (t.closest("#form") && S.aba === "inscricao") { const m = $("#medidor"); if (m) m.innerHTML = medidor(R.preCuradoria(lerForm($("#form")))); }
-    if (t.closest("#form") && ["inscricao", "cadastro_casa"].includes(S.aba)) { clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200); }
+    if (t.closest("#form") && (S.aba === "inscricao" || (S.aba === "ficha" && (S.sub?.ficha || "cadastro_casa") === "cadastro_casa"))) { clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200); }
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
 
