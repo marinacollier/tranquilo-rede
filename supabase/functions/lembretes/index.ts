@@ -24,12 +24,12 @@ const PASSOS: Record<string, [string, number, string][]> = {
     ["pagamento", 1, "Enviar nota fiscal ou recibo"], ["feedback", 3, "Contar como foi"],
   ],
   casa: [
-    ["handoff", -30, "Receber a data repassada pelo Tranquilo"], ["ficha", -28, "Revisar a ficha da casa para este formato"], ["rider", -28, "Conferir o rider do artista"],
+    ["handoff", -30, "Datas e atrações do mês aprovadas por escrito"], ["ficha", -28, "Revisar a ficha da casa para este formato"], ["rider", -28, "Conferir o rider do artista"],
     ["tecnico", -21, "Confirmar técnico de som e setup"], ["roteiro", -21, "Fechar o roteiro do dia"], ["escrito", -14, "Confirmar tudo por escrito"],
-    ["travas", -7, "Travas finais"], ["equipe_reserva", -7, "Equipe escalada com reserva"], ["porta_reserva", -7, "Operadores de porta com reserva"],
+    ["travas", -7, "Travas finais"], ["equipe_reserva", -7, "Equipe escalada, com reserva"], ["porta_reserva", -7, "Operadores de porta com reserva"],
     ["briefing_anfitriao", -7, "Briefing do anfitrião"], ["divulgacao_local", -7, "Divulgação local rodando"],
     ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas"], ["estoque", 2, "Planilha de estoque"],
-    ["prontidao", 0, "Prontidão da noite"], ["publico", 0, "Registrar o público e as ocorrências"],
+    ["prontidao", 0, "A noite"], ["publico", 0, "Registrar o público e as intercorrências"],
     ["fechamento", 2, "Fechamento (D+2)"], ["material_social", 2, "Material da social media (48 h)"],
   ],
 };
