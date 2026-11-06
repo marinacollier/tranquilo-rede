@@ -13,5 +13,7 @@ Atualizado em 06/11/2026.
   `portal-casa`), todos passando no fim da rodada.
 - **Commits desta rodada**: ddaf64a (mapa Notion), b562b6d (banco v13), c94c6af (Ficha), 375ee0c (4 áreas, Datas,
   painel), 7fd8bfa (testes), 841ea71 (documentos do Gui), mais o commit desta documentação.
-- **Próximos passos**: Gui revisar as adaptações; cadastrar o Guia em Materiais;
-  "Copiar Ficha para a Tranks" na ficha da Central; pré-preenchimento a partir da base Casas do Notion (com aprovação).
+- **Feito em 06/11 (pedido da Marina)**: Guia do Franqueado v1.5 em Materiais (banco); "Copiar Ficha para a Tranks" na ficha
+  da Central; pré-preenchimento da Ficha com campos públicos da base Casas do Notion (data/casas-ficha.json, 32 casas, vai só
+  no pacote cifrado de cada casa; a casa confere e grava ao salvar).
+- **Próximos passos**: Gui revisar as adaptações e os itens "a validar"; senha de app do Google para os lembretes.

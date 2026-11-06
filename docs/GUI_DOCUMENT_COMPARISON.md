@@ -14,7 +14,7 @@ Status: `CORRESPONDE` · `ADAPTAÇÃO A APROVAR` (diferença consciente, aguarda
 | Ficha | Cabeçalho | "Em implantação" · "Acompanhamento: Gui, Operações" | Selo com o status da ficha (rascunho, em análise, habilitada…) | Status vem do fluxo de habilitação, não do texto fixo | — | ADAPTAÇÃO A APROVAR |
 | Ficha | Introdução | "Esta Ficha é só da sua casa…" | Mesmo texto, adaptado ao portal ("O que você preenche fica salvo") | Doc fala em "Copiar respostas e colar no WhatsApp do Gui"; no portal o envio é pelo botão | — | ADAPTAÇÃO A APROVAR |
 | Ficha | Introdução | "Abrir o Guia do Franqueado ↗" | Botão "Abrir o Guia do Franqueado ↗" (leva a Operações › Guia e materiais) | — | — | CORRESPONDE |
-| Ficha | Introdução | "Já deixamos preenchido o que você nos contou" | Não há pré-preenchimento pela Central | A Central não edita os dados da casa no portal | Importar da base Casas do Notion, com aprovação | PENDENTE |
+| Ficha | Introdução | "Já deixamos preenchido o que você nos contou" | Ficha ainda não enviada vem com o que a base Casas do Notion tem do espaço (endereço, como chegar, capacidade, menores, rider, site, Instagram); a casa confere e só grava ao salvar | Dados pessoais e fiscais do Notion não entram | IGUAL |
 | Ficha | Parte 1 · Como vai funcionar | Produtos; Ingressos (Ingresse); Datas e artistas (Isa) | Parte 1 › Como vai funcionar, mesmos textos | — | — | CORRESPONDE |
 | Ficha | Parte 1 · Divisão das receitas | Bilheteria 70/15/15; A&B 90/10 (ajustável por casa) | Valores da casa, registrados pela Central em "Combinados" | Sem valor registrado aparece "Ainda não registrado pela Operações" (o portal não mostra o padrão como se fosse o combinado) | — | ADAPTAÇÃO A APROVAR |
 | Ficha | Parte 1 · Divisão das receitas | Texto dos custos logísticos e repasses | Mesmo texto | — | — | CORRESPONDE |
@@ -32,7 +32,7 @@ Status: `CORRESPONDE` · `ADAPTAÇÃO A APROVAR` (diferença consciente, aguarda
 | Ficha | Enviar para o Tranquilo | "Copiar respostas" + "Abrir WhatsApp do Gui" | "Enviar a Ficha ao Tranquilo" + "Copiar respostas" | Sem o botão do WhatsApp: o envio vai para a Central pelo portal | — | ADAPTAÇÃO A APROVAR |
 | Ficha | Rodapé | "Esta Ficha resume as condições… vale o contrato assinado." | Mesmo texto | — | — | CORRESPONDE |
 | Ficha | Índice | Índice das seções | Não há índice | Página rola; as seções seguem a ordem do documento | Avaliar com o Gui | ADAPTAÇÃO A APROVAR |
-| Ficha | Para a equipe Tranquilo | "Copiar Ficha para a Tranks" | Não há | — | Implementar na ficha da Central | PENDENTE |
+| Ficha | Para a equipe Tranquilo | "Copiar Ficha para a Tranks" | Botão na ficha da casa (Central): pergunta + todos os dados, combinados e pendências | Dono A e repasses só para a administração | IGUAL |
 
 Respostas de fichas antigas que não existem no modelo v1 (ex.: restrições de horário, backline) continuam guardadas e
 aparecem em "Outras informações já enviadas". Campos renomeados no v1 (responsável → nome do Dono A, cidade → Cidade/UF)

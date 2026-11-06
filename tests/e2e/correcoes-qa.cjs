@@ -41,6 +41,25 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const subsOp = await p.evaluate(() => [...document.querySelectorAll('[data-aba]')].length && ['roteiro'].filter((k) => window.TQConta.areaDe(k)));
     const vazios = subsOp.length ? await (async () => { await p.click('[data-aba="operacoes"]'); await p.click('[data-sub="operacoes|roteiro"]'); return p.$$eval('.card.md', (xs) => xs.filter((x) => !x.textContent.trim()).length); })() : 0;
     ok(vazios === 0, `"Como é a noite" sem cartões vazios (${subsOp.length ? 'aparece' : 'oculto sem conteúdo'})`);
+    // 5. Pré-preenchimento pela base Casas do Notion: conta ligada a uma casa da rede (código do pacote dela).
+    const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acessos.tsv', 'utf8').trim().split('\n').map((l) => l.split('\t'))) COD[t] ||= c;
+    await p.click('[data-aba="conta"]'); await p.click('#sairConta'); await p.waitForTimeout(400);
+    await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
+    await p.click('label:has(input[name="tipoNovo"][value="casa"])'); await p.fill('#enome', 'Dono Rede'); await p.fill('#email', 'dono@rede.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await pular();
+    await p.evaluate((cod) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); Object.assign(d.usuarios[d.sessao].perfil, { vinculo_nome: 'Casa da Rede', codigo_acesso: cod }); localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, COD.casa);
+    await p.reload(); await pular(); await p.click('[data-aba="ficha"]'); await p.waitForSelector('#form');
+    const nomePac = await p.evaluate(() => window.TQConta && document.querySelector('[data-k="nome"]').value);
+    ok(!!nomePac && /Já deixamos preenchido o que temos da sua casa/.test(await p.textContent('#app')), `Ficha nova já vem com o que o Notion tem da casa (nome: ${nomePac})`);
+    await p.fill('[data-k="whatsapp"]', '11 99999-0000'); await p.waitForTimeout(1800);
+    const casasDb = Object.values((await db()).casas || {});
+    ok(casasDb.some((c) => c.dados?.nome === nomePac && c.dados?.whatsapp), `a sugestão fica na Ficha quando a casa salva (${casasDb.length} fichas no modo demonstração)`);
+    // 6. Central: "Copiar Ficha para a Tranks" (pergunta + todos os dados).
+    await p.click('[data-aba="conta"]'); await p.click('#sairConta'); await p.waitForTimeout(400);
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
+    await p.click('[data-aba="casas_cad"]'); await p.waitForSelector('[data-click^="casacad:"]'); await p.click('[data-click^="casacad:"]');
+    await p.waitForSelector('[data-tranks]'); await p.click('[data-tranks]'); await p.waitForTimeout(300);
+    const tk = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
+    ok(/^Tranks, esta é a Ficha da unidade/.test(tk) && /\?/.test(tk.split('\n')[0]) && /\*O espaço\*/.test(tk) && /Pendências calculadas/.test(tk) && !/\*Dados para repasses\*/.test(tk), 'Copiar Ficha para a Tranks: pergunta + dados da Ficha, sem dados bancários para a equipe');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

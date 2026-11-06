@@ -936,6 +936,8 @@ const TQConta = (() => {
       const casasConhecidas = (S.pub.casas || []).filter((x) => !/^Casa (em|da rede)\b/.test(x.nome)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
       // Ficha enviada ao Tranquilo não muda em silêncio: a casa pede a atualização e a Central confere.
       const enviada = !!c && ["em_analise", "habilitada", "suspensa"].includes(c.status), pedindo = enviada && S.fichaPedido, travado = enviada && !pedindo;
+      // "Já deixamos preenchido o que você nos contou" (Ficha v1): o que a base Casas do Notion tem e a ficha ainda não.
+      const sug = enviada ? {} : Object.fromEntries(Object.entries(S.pac?.ficha_notion || {}).filter(([k, v]) => CHAVES_FICHA.has(k) && v != null && v !== "" && [null, undefined, ""].includes(valorCasa(d, k))));
       const sols = S.conta.sol || [], aberto = sols.find((x) => x.status === "pendente");
       const ultimaRecusa = [...sols].filter((x) => x.status !== "cancelada").sort((x, y) => String(y.criado_em).localeCompare(String(x.criado_em)))[0];
       const pend = c?.pendencias || R.pendenciasCasa(d);
@@ -953,10 +955,11 @@ const TQConta = (() => {
       ${pedindo ? `<div class="alert warn"><b>Você está pedindo uma atualização</b>Altere os campos abaixo e toque em "Enviar pedido de atualização", no fim da página. A ficha só muda quando a Central aprovar.${aberto ? " Este pedido substitui o que já está com a Central: as mudanças dele já estão nos campos." : ""}</div>` : ""}
       ${parteUmCasa(c)}
       <h2>Parte 2 · Para preencher</h2>
+      ${Object.keys(sug).length ? `<div class="alert"><b>Já deixamos preenchido o que temos da sua casa</b>Confira e corrija se precisar: ${esc(Object.keys(sug).map((k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || k).join(", "))}. Só fica salvo na sua Ficha quando você salvar ou enviar.</div>` : ""}
       <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b> ${A_VALIDAR_HTML} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
       ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
       ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
-      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : d, travado || c?.status === "suspensa")}</div>
+      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, travado || c?.status === "suspensa")}</div>
       ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
       ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`
@@ -1432,6 +1435,12 @@ const TQConta = (() => {
       <li><b>Primeiras datas com a Isa</b> <span class="muted">· com a equipe definida</span></li></ul></section>`;
   }
   // "Sua equipe" da Ficha: mostra a Equipe da casa (a fonte é uma só; edita-se lá).
+  // Respostas da Ficha em texto (WhatsApp/Tranks), na ordem do modelo do Gui. sensivel=false deixa de fora Dono A e repasses.
+  function textoFicha(d, sensivel, equipe) {
+    return F_CASA.filter(([, , , sens]) => sensivel || !sens).map(([titulo, , cs]) => `*${titulo}*\n` + cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `${rot}: ${v || ""}`; }).join("\n")).join("\n\n")
+      + (equipe ? "\n\n*Sua equipe*\n" + [["lider", "Líder Local (produtor)", ["nome", "whatsapp", "email"]], ["anfitriao", "Anfitrião(ã)", ["nome", "whatsapp", "instagram"]], ["social_media", "Social Media", ["nome", "whatsapp", "instagram"]], ["som", "Técnico(a) de som", ["nome", "whatsapp", "observacao"]]]
+        .map(([f, t, ks]) => { const m = equipe.find((x) => !x.reserva && (x.funcoes || []).includes(f)) || {}; return `${t}: ${ks.map((k) => m[k] || "").filter(Boolean).join(" · ")}`; }).join("\n") : "");
+  }
   function equipeNaFicha() {
     const L = S.conta.equipe; if (L === undefined) carregarEquipeCasa();
     const de = (f) => (L || []).filter((m) => !m.reserva && (m.funcoes || []).includes(f));
@@ -1640,6 +1649,7 @@ const TQConta = (() => {
     <div class="grid g3">${[["habilitacao", "Bloqueia habilitação"], ["match", "Bloqueia match"], ["enriquecimento", "Enriquecimento"]].map(([k, t]) => `<div class="card"><b>${t}</b> (${pend[k].length})<div style="font-size:13px">${pend[k].map(esc).join(" · ") || "ok"}</div></div>`).join("")}</div>
     ${pedidos}
     ${resp}
+    <div class="barra-acoes" style="margin:8px 0"><button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
     ${combinados}
     <h3>Decisão</h3><label class="fcampo"><b>Classificação</b><select id="classe"><option value="">Sem classificação (antes da 1ª data)</option>${Object.entries(CLASSE).map(([k, t]) => `<option value="${k}"${c.classificacao === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
@@ -1921,6 +1931,17 @@ const TQConta = (() => {
       try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
       return true;
     }
+    const tk = t.closest("[data-tranks]"); if (tk) {
+      const c = S.eq.casas.find((x) => x.id === tk.dataset.tranks); if (!c) return true;
+      const adm = S.conta.perfil.tipo === "adm", d = c.dados || {}, pend = c.pendencias || R.pendenciasCasa(d), cb = c.combinados || {};
+      const txt = `Tranks, esta é a Ficha da unidade da casa ${d.nome || "(sem nome)"} (${valorCasa(d, "cidade_uf") || "cidade não informada"}), situação: ${STATUS_CASA[c.status]?.[1] || c.status}. `
+        + `Com base nela: o que ainda falta para a casa receber o primeiro evento, o que precisa ser confirmado com a casa e o que merece atenção da Operações?${adm ? "" : " (Dados pessoais do Dono A e dados bancários ficaram de fora: só a administração vê.)"}\n\n`
+        + textoFicha(d, adm, null)
+        + `\n\n*Combinados da parceria*\nBilheteria: artista ${cb.bilheteria?.artista ?? "?"}% · casa ${cb.bilheteria?.casa ?? "?"}% · Tranquilo ${cb.bilheteria?.tranquilo ?? "?"}%\nAlimentos e bebidas: casa ${cb.aeb?.casa ?? "?"}% · Tranquilo ${cb.aeb?.tranquilo ?? "?"}%`
+        + `\n\n*Pendências calculadas pelo portal*\nPara habilitar: ${pend.habilitacao.join(", ") || "nada"}\nPara montar a noite: ${pend.match.join(", ") || "nada"}\nPara completar: ${pend.enriquecimento.join(", ") || "nada"}`;
+      try { await navigator.clipboard.writeText(txt); $("#tranksOk").textContent = "Copiado. Cole na conversa com a Tranks."; } catch { $("#tranksOk").textContent = "O navegador não deixou copiar."; }
+      return true;
+    }
     const cs = t.closest("[data-cb-salvar]"); if (cs) {
       const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && a !== "contatos" ? Number(v.replace(",", ".")) : v; }
       for (const [g, nome] of [["bilheteria", "Bilheteria"], ["aeb", "Alimentos e bebidas"]]) {
@@ -1949,9 +1970,7 @@ const TQConta = (() => {
     }
     if (t.id === "copiarFicha") {
       const d = { ...(S.conta.casa?.dados || {}), ...lerForm($("#form")) };
-      const txt = F_CASA.map(([titulo, , cs]) => `*${titulo}*\n` + cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `${rot}: ${v || ""}`; }).join("\n")).join("\n\n")
-        + "\n\n*Sua equipe*\n" + [["lider", "Líder Local (produtor)", ["nome", "whatsapp", "email"]], ["anfitriao", "Anfitrião(ã)", ["nome", "whatsapp", "instagram"]], ["social_media", "Social Media", ["nome", "whatsapp", "instagram"]], ["som", "Técnico(a) de som", ["nome", "whatsapp", "observacao"]]]
-          .map(([f, t, ks]) => { const m = (S.conta.equipe || []).find((x) => !x.reserva && (x.funcoes || []).includes(f)) || {}; return `${t}: ${ks.map((k) => m[k] || "").filter(Boolean).join(" · ")}`; }).join("\n");
+      const txt = textoFicha(d, true, S.conta.equipe);
       try { await navigator.clipboard.writeText(txt); $("#ferr").textContent = "Respostas copiadas."; } catch { $("#ferr").textContent = "O navegador não deixou copiar."; }
       return true;
     }

@@ -146,11 +146,14 @@ const baseOk = base.map((b) => ({ id: b.id, q: b.pergunta, s: b.status }));
 for (const a of artistasAtivos.sort((x, y) => x.nome.localeCompare(y.nome))) {
   await pacote('artista', a.chave, a.nome, { eventos: a.eventos.map(compacto) }, { cidades: [...new Set(a.eventos.map((e) => e.cidade))].join(', ') });
 }
+// Sugestões para a Ficha da Casa vindas da base Casas do Notion (só campos públicos do espaço): vão no pacote cifrado da casa.
+const fichaNotion = JSON.parse(await readFile(path.join(RAIZ, 'data/casas-ficha.json'), 'utf8')).casas;
 for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))) {
   const rede = eventos.filter((e) => e.realizado && e.publico != null && e.data >= umAnoAtras).map((e) => e.publico);
   await pacote('casa', c.id, c.nome, {
     cidade: c.cidade, eventos: c.eventos.map(compacto),
     rede: rede.length ? { noites: rede.length, mediana: quantil(rede, 0.5) } : null,
+    ficha_notion: { nome: c.nome, ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
   }, { cidades: c.cidade });
 }
 await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo });
