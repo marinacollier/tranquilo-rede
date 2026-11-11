@@ -1644,6 +1644,11 @@ begin
   if c.tipo in ('equipe', 'adm') and not caixa_provada then return false; end if;  -- convite continua pendente
   select * into atual from perfis where id = uid;
   do_adm := exists (select 1 from perfis where id = c.criado_por and tipo = 'adm');
+  -- Convite de artista ou casa nunca rebaixa conta da equipe ou da administração (nem convite feito pela própria adm).
+  if atual.tipo in ('equipe', 'adm') and c.tipo not in ('equipe', 'adm') then
+    update convites set aceito_em = now() where email = c.email;
+    return false;
+  end if;
   if not do_adm and (atual.tipo in ('equipe', 'adm') or atual.codigo_acesso is not null
       or (atual.tipo is distinct from c.tipo and (exists (select 1 from inscricoes_artistas where user_id = uid)
                                                   or exists (select 1 from cadastros_casas where user_id = uid)))) then

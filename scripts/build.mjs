@@ -143,11 +143,12 @@ async function pacote(tipo, id, nome, conteudo, extra = {}) {
 const todos = eventos.map(compacto);
 const baseOk = base.map((b) => ({ id: b.id, q: b.pergunta, s: b.status }));
 
-for (const a of artistasAtivos.sort((x, y) => x.nome.localeCompare(y.nome))) {
-  await pacote('artista', a.chave, a.nome, { eventos: a.eventos.map(compacto) }, { cidades: [...new Set(a.eventos.map((e) => e.cidade))].join(', ') });
-}
-// Sugestões para a Ficha da Casa vindas da base Casas do Notion (só campos públicos do espaço): vão no pacote cifrado da casa.
+// Dados públicos do espaço (base Casas do Notion): sugestões na Ficha da casa e endereço clicável para artista e equipe.
 const fichaNotion = JSON.parse(await readFile(path.join(RAIZ, 'data/casas-ficha.json'), 'utf8')).casas;
+const enderecosDe = (evs) => Object.fromEntries(evs.map((e) => [e.casaId, fichaNotion[String(e.casaId || '').replace(/-/g, '')]?.endereco]).filter(([k, v]) => k && v));
+for (const a of artistasAtivos.sort((x, y) => x.nome.localeCompare(y.nome))) {
+  await pacote('artista', a.chave, a.nome, { eventos: a.eventos.map(compacto), enderecos: enderecosDe(a.eventos) }, { cidades: [...new Set(a.eventos.map((e) => e.cidade))].join(', ') });
+}
 for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))) {
   const rede = eventos.filter((e) => e.realizado && e.publico != null && e.data >= umAnoAtras).map((e) => e.publico);
   await pacote('casa', c.id, c.nome, {
@@ -156,11 +157,11 @@ for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))
     ficha_notion: { ...(/^Casa (em|da rede)\b/.test(c.nome) ? {} : { nome: c.nome }), ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
   }, { cidades: c.cidade });
 }
-await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo });
+await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos) });
 // O pacote de adm leva a lista de todos os códigos, para distribuir.
 const codAdm = await codigo('adm', 'adm');
 pacotes.push([codAdm, {
-  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo,
+  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos),
   acessos: [...acessos, { tipo: 'adm', nome: 'Administração', codigo: codAdm }],
 }]);
 acessos.push({ tipo: 'adm', nome: 'Administração', codigo: codAdm });

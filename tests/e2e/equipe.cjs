@@ -12,7 +12,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
   // Abre uma aba do menu ou, no portal da casa, a parte de uma das quatro áreas.
   const abrirAba = async (k) => { if (await p.$(`[data-aba="${k}"]`)) return p.click(`[data-aba="${k}"]`); const a = await p.evaluate((k) => window.TQConta?.areaDe?.(k), k); if (!a) throw new Error('aba inexistente ' + k); await p.click(`[data-aba="${a}"]`); await p.waitForTimeout(150); const sb = await p.$(`[data-sub="${a}|${k}"]`); if (sb) await sb.click(); await p.waitForTimeout(150); };
-  const SUBS = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha'];
+  const SUBS = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha', 'guia', 'cronograma', 'mkt_produtor', 'mkt_anfitriao', 'mkt_social', 'bonificacao'];
   const pular = async () => { try { await p.waitForSelector('.tour-caixa', { timeout: 3000 }); await p.click((await p.$('[data-tour="pular"]')) ? '[data-tour="pular"]' : '[data-tour="avancar"]'); } catch {} };
   const abas = () => p.evaluate((subs) => [...new Set([...document.querySelectorAll('[data-aba]')].map((x) => x.dataset.aba))].concat(subs.filter((k) => window.TQConta?.areaDe?.(k))), SUBS);
   const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')));

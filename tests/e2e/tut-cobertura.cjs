@@ -17,7 +17,7 @@ async function confere(p, roteiro, rotulo) {
     const tem = (a) => abas.includes(a) || !!window.TQConta?.areaDe?.(a);
     const passos = TQTour.passosDe(roteiro, tem);
     const explicadas = new Set(passos.flatMap((x) => [...(x.cobre || []), ...(x.ir ? [x.ir[0]] : []), ...(x.soSe ? [x.soSe] : [])]));
-    const subs = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha'].filter((k) => !abas.includes(k) && window.TQConta?.areaDe?.(k));
+    const subs = ['cadastro_casa', 'equipe_casa', 'trilha', 'minha_funcao', 'materiais', 'roteiro', 'duvidas', 'agenda_casa', 'passos', 'minhas', 'campanha', 'guia', 'cronograma', 'mkt_produtor', 'mkt_anfitriao', 'mkt_social', 'bonificacao'].filter((k) => !abas.includes(k) && window.TQConta?.areaDe?.(k));
     return { abas: abas.concat(subs), faltam: abas.concat(subs).filter((a) => !explicadas.has(a)), n: passos.length, pontos: document.querySelectorAll('.tour-pontos button').length, tag: document.querySelector('.tour-caixa .tag').textContent };
   }, roteiro);
   ok(r.faltam.length === 0 && r.abas.length > 1, `${rotulo}: tutorial cobre as ${r.abas.length} abas${r.faltam.length ? ' (faltam: ' + r.faltam.join(', ') + ')' : ''}`);
@@ -50,7 +50,7 @@ async function confere(p, roteiro, rotulo) {
         await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.tutorial_visto_em = '2026-10-01T10:00:00Z'; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
         await p.reload(); await p.waitForSelector('.tour-caixa', { timeout: 8000 });
         const tag = await p.textContent('.tour-caixa .tag'), n = await p.$$eval('.tour-pontos button', (x) => x.length), tit = await p.textContent('#tourTit');
-        ok(/^Novidades/.test(tag) && n === 7 && /painel/i.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
+        ok(/^Novidades/.test(tag) && n === 8 && /artista e casa/i.test(tit), `conta equipe: quem já tinha visto recebe só as novidades (${n} passos, começa em "${tit}")`);
         await p.click('[data-tour="pular"]'); await p.reload(); await p.waitForTimeout(1500);
         ok(!(await p.$('.tour-caixa')), 'conta equipe: depois de ver as novidades, não abre de novo');
       }

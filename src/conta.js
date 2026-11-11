@@ -560,6 +560,7 @@ const TQConta = (() => {
       catch { /* código antigo ou inválido: segue sem métricas */ }
     }
     S.aba = ordenarAbas(abas())[0][0];
+    if (perfil.tipo === "casa" && !funcoesDe() && !["em_analise", "habilitada", "suspensa"].includes(conta.casa?.status)) S.aba = "ficha";
   }
   async function iniciar() {
     if (CONFIGURADO) {
@@ -578,17 +579,22 @@ const TQConta = (() => {
   // ---------- portal da casa: quatro áreas ----------
   // Ficha da Casa (dados cadastrais e equipe), Operações (como fazer), Datas (disponibilidade e datas confirmadas) e
   // Marketing (campanhas). Cada informação tem uma tela dona (docs/INFORMATION_OWNERSHIP.md); as outras só apontam para ela.
-  const AREAS_CASA = [["ficha", "Ficha da Casa"], ["operacoes", "Operações"], ["datas_casa", "Datas"], ["marketing", "Marketing"]];
+  // Documento do Gui de 11/11/2026: Operações (Guia primeiro), Datas, Cronogramas, Marketing (por função) e Bonificações.
+  // A Ficha é a porta de entrada: fica por último no menu e abre primeiro enquanto não foi enviada.
+  const AREAS_CASA = [["operacoes", "Operações"], ["datas_casa", "Datas"], ["cronogramas", "Cronogramas"], ["marketing", "Marketing"], ["bonificacoes", "Bonificações"], ["ficha", "Ficha da Casa"]];
+  const MKT_FUNCOES = [["mkt_produtor", "lider", "Produtor local"], ["mkt_anfitriao", "anfitriao", "Anfitrião"], ["mkt_social", "social_media", "Social media"]];
   function subsDaArea(area) {
     if (S.conta?.perfil.tipo !== "casa") return [];
     const fs = funcoesDe(), A = fs ? TQEquipe.abasDaFuncao(fs) : null;
     const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
-    if (area === "operacoes") return [...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
-      ["materiais", "Guia e materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
-    if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", fs ? "Datas e passos" : "Datas confirmadas"],
+    if (area === "operacoes") return [["guia", "Guia do franqueado"], ...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
+      ["materiais", "Materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
+    if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", "Passo a passo das datas"],
       ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
-    if (area === "marketing") return !fs || A.campanha ? [["campanha", "Campanhas"]] : [];
+    if (area === "cronogramas") return !fs || fs.includes("lider") ? [["cronograma", "Cronogramas"]] : [];
+    if (area === "marketing") return [...MKT_FUNCOES.filter(([, f]) => !fs || fs.includes(f)).map(([k, , t]) => [k, t]), ...(!fs || A.campanha ? [["campanha", "Campanhas"]] : [])];
+    if (area === "bonificacoes") return fs ? [] : [["bonificacao", "Bonificações"]];
     return [];
   }
   /** Área do portal da casa que contém a tela k (ou null). */
@@ -612,7 +618,7 @@ const TQConta = (() => {
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
-    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
+    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
@@ -801,6 +807,31 @@ const TQConta = (() => {
     const limite = new Date(Date.now() - 5 * 864e5).toISOString().slice(0, 10);
     return S.pac.eventos.filter((e) => !e.z && e.d >= limite).sort((a, b) => a.d.localeCompare(b.d));
   }
+  // Marketing por função (documento do Gui): o que cada um faz no marketing, a partir do que a Operações já combinou por função.
+  function telaMarketing(f) {
+    const F = TQEquipe.FUNCOES.find((x) => x[0] === f) || [f, f, ""], d = TQEquipe.PERFIL[f] || { le: [], show: [], devolve: [] };
+    const H = S.hub; if (!H && S.conta) carregarHub();
+    const slugs = { lider: ["semana-lideranca-local-sp", "plano-acao-rooftap"], anfitriao: ["plano-acao-rooftap"], social_media: ["semana-social-media-sp", "playbook-descubra", "playbook-apresenta"] }[f] || [];
+    const mats = (H?.materiais || []).filter((m) => slugs.includes(m.slug) || m.funcao === f);
+    const nome = { lider: "Produtor local (Líder Local)", anfitriao: "Anfitrião(ã)", social_media: "Social media" }[f] || F[1];
+    return `<div class="tag">Marketing</div><h1>${esc(nome)}</h1>
+      <p class="sub">${esc(F[2])}</p>
+      <div class="alert warn" style="margin-bottom:12px"><b>Obrigações de marketing ${A_VALIDAR_HTML}</b>A lista abaixo vem do que a Operações combinou para cada função. O texto final das obrigações de marketing vem do Gui e do Bruno.</div>
+      <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div class="card"><b>${t}</b><ul class="passos">${(xs || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
+      ${mats.length ? `<h2>Materiais</h2><div class="list">${mats.map((m) => `<div class="card"><div class="row"><b>${esc(m.titulo)}</b><a class="btn sm" href="${esc(m.fonte_url)}" target="_blank" rel="noopener">Abrir ↗</a></div></div>`).join("")}</div>` : ""}
+      <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`;
+  }
+  // Endereço que abre no aplicativo de mapa do celular (Google Maps, Apple Maps ou outro, pelo link universal).
+  const linkMapa = (end) => end ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(end)}" target="_blank" rel="noopener">${esc(end)} ↗</a>` : `<span class="muted">endereço a confirmar com a casa</span>`;
+  const HORARIOS_NOITE = [["Passagem de som (estimada)", "passagem"], ["Portas", "portas"], ["Show", "show"]];
+  // O que o artista (e a casa, nos Cronogramas) precisa para tocar: data, local, ordem da noite, horários e contatos.
+  function infoNoite(e, end) {
+    const ordem = (e.a || []).length ? (e.a || []).map((n, i) => `${i + 1}. ${esc(n)}`).join(" · ") : '<span class="muted">line-up a definir</span>';
+    return `<dl class="kv" style="margin:10px 0 0"><dt>Local</dt><dd>${esc(nomeCasa(e.h))} · ${linkMapa(end)}</dd>
+      <dt>Ordem da noite ${A_VALIDAR_HTML}</dt><dd>${ordem}</dd>
+      ${HORARIOS_NOITE.map(([t]) => `<dt>${t}</dt><dd><span class="muted">a confirmar</span> ${A_VALIDAR_HTML}</dd>`).join("")}
+      <dt>Contatos ${A_VALIDAR_HTML}</dt><dd>Isa · Comercial e Artístico (datas, artistas e line-up). Contato da casa a confirmar.</dd></dl>`;
+  }
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     const fs = funcoesDe();
@@ -808,8 +839,10 @@ const TQConta = (() => {
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
     const proximo = ps.find((p) => !p.feito && !p.passou);
     const registro = modelo === "casa" && e.d <= hojeIso() && TQEquipe.vePasso(fs, "publico") ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
+    const local = modelo === "artista" ? infoNoite(e, S.pac?.enderecos?.[e.k]) : "";
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
+      ${local}
       ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
       <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b>${p.validar ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
@@ -914,7 +947,7 @@ const TQConta = (() => {
   }
 
   const TELAS = {
-    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"),
+    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), cronogramas: () => telaArea("cronogramas"), bonificacoes: () => telaArea("bonificacoes"),
     passos() {
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
@@ -1004,6 +1037,63 @@ const TQConta = (() => {
         <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
         <div class="err" role="status" aria-live="polite" id="eqcErr"></div><div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button>${ed ? `<button class="btn" data-eqc-editar="">Cancelar</button>` : ""}</div></div>` : ""}`;
+    },
+    // ---------- casa: telas do documento do Gui (11/11/2026) ----------
+    guia() {
+      const H = S.hub; if (!H) { carregarHub(); return carregando("o Guia"); }
+      const pega = (slug) => (H.materiais || []).find((m) => m.slug === slug);
+      const doc = (m, titulo, desc) => { const v = m && (H.versoes || []).find((x) => x.material_id === m.id), url = v?.url || m?.fonte_url;
+        return `<div class="card"><div class="row"><div><b>${esc(titulo)}</b><div class="muted" style="font-size:13px">${esc(desc)}${v?.versao ? ` · versão ${esc(v.versao)}` : ""}</div></div>${url ? `<a class="btn pri sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>'}</div></div>`; };
+      return `<div class="tag">Operações</div><h1>Guia do franqueado</h1>
+      <p class="sub">O escopo todo do Tranquilo e o fio condutor do modelo. Comece por aqui; os manuais de cada produto vêm logo abaixo.</p>
+      <div class="list">${doc(pega("guia-do-franqueado"), "Guia do Franqueado", "Como a unidade funciona, os compromissos, a semana de cada evento e o fechamento")}
+      ${doc(pega("manual-apresenta-operacao"), "Manual do Tranquilo Apresenta", "Cronograma hora a hora, rider, camarim e funções da equipe")}
+      ${doc(pega("manual-descubra-operacao"), "Manual do Tranquilo Descubra", "Cronograma hora a hora, rider, camarim e funções da equipe")}</div>
+      <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="materiais">Ver todos os materiais</button><button class="btn sm" data-ir="duvidas">Dúvidas frequentes</button></div>`;
+    },
+    cronograma() {
+      const evs = eventosDaConta().filter((e) => e.d >= hojeIso()), d = S.conta.casa?.dados || {};
+      const end = valorCasa(d, "endereco") || S.pac?.ficha_notion?.endereco || "", casa = d.nome || S.conta.perfil.vinculo_nome || "a casa";
+      const msg = (e) => [`Oi! Aqui é da ${casa}. Tudo certo para o Tranquilo ${e.m || ""} em ${dt(e.d)}.`, `Endereço: ${end || "a confirmar"}`,
+        ...HORARIOS_NOITE.map(([t]) => `${t}: a confirmar`), (e.a || []).length ? `Ordem da noite: ${(e.a || []).join(", ")}` : "", "Qualquer coisa, fala com a gente por aqui!"].filter(Boolean).join("\n");
+      return `<div class="tag">Cronogramas</div><h1>Datas fechadas</h1>
+      <p class="sub">Cada data fechada com o cronograma da noite, a mensagem pronta para mandar ao artista e quem vai tocar. O contato direto entre casa e artista é bem-vindo.</p>
+      ${evs.length ? `<div class="list">${evs.map((e) => `<div class="card"><b>${dt(e.d)} · ${esc(e.m || "")}</b>${infoNoite(e, end)}
+        <label class="fcampo" style="margin-top:10px"><b>Mensagem pronta para o artista ${A_VALIDAR_HTML}</b><textarea id="crmsg-${esc(e.id)}" rows="6" readonly>${esc(msg(e))}</textarea></label>
+        <div class="barra-acoes"><button class="btn sm" data-copiar-msg="crmsg-${esc(e.id)}">Copiar mensagem</button><span class="muted" style="font-size:12px"></span></div>
+        <div class="muted" style="font-size:13px;margin-top:8px"><b>Contato e ficha dos artistas</b> ${A_VALIDAR_HTML} O Gui define quais campos da ficha do artista a casa vê.</div></div>`).join("")}</div>`
+        : vazio("Nenhuma data fechada ainda", "Quando o Tranquilo fechar uma data com a sua casa, o cronograma e a mensagem para o artista aparecem aqui.", "", "cronograma")}`;
+    },
+    mkt_produtor() { return telaMarketing("lider"); },
+    mkt_anfitriao() { return telaMarketing("anfitriao"); },
+    mkt_social() { return telaMarketing("social_media"); },
+    bonificacao() {
+      const b = S.conta.casa?.combinados?.bonificacao || {}, nada = '<span class="muted">Ainda não registrado pela Operações</span>';
+      return `<div class="tag">Bonificações</div><h1>Bonificação da casa</h1>
+      <p class="sub">Se a sua casa tem bonificação, de qual marca, por quanto tempo enviaremos e o que foi combinado. Quem registra é a Operações ${A_VALIDAR_HTML}.</p>
+      <div class="card"><dl class="kv"><dt>Tem bonificação?</dt><dd>${b.tem === "sim" ? "Sim" : b.tem === "nao" ? "Não" : nada}</dd><dt>Marca</dt><dd>${b.marca ? esc(b.marca) : nada}</dd>
+        <dt>Por quanto tempo enviaremos</dt><dd>${b.periodo ? esc(b.periodo) : nada}</dd><dt>Combinados</dt><dd>${b.combinados ? esc(b.combinados) : nada}</dd></dl></div>
+      <div class="alert" style="margin-top:12px"><b>Parceiros de bebida (Guia do Franqueado)</b>O Tranquilo tem parceria com a Estrella Galicia (cerveja) e a Lambe Lambe (drinks alcoólicos). Se a sua casa estiver numa região com bonificação, a cerveja do bar nas noites Tranquilo é só Estrella Galicia. A Operações confirma se a sua cidade está nessa região.</div>`;
+    },
+    // ---------- equipe: artista e casa lado a lado ----------
+    lado_a_lado() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("as datas"); }
+      const P = S.pac; if (!P) return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver as datas.</div>`;
+      const hoje = hojeIso(), evs = P.eventos.filter((e) => !e.z && e.d >= hoje).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 40);
+      const k = (x) => String(x || "").toLowerCase();
+      const cadDe = (e) => (E.casas || []).find((c) => (c.notion_casa_id && c.notion_casa_id === e.k) || (c.dados?.nome && k(c.dados.nome) === k(e.h)) || (c.perfil?.vinculo_nome && k(c.perfil.vinculo_nome) === k(e.h)));
+      const dispDe = (e) => (E.disp || []).find((x) => k(x.casa_ref) === k(e.h) && x.dia === e.d);
+      const lado = (e) => { const c = cadDe(e), b = c?.combinados?.bonificacao, di = dispDe(e);
+        return `<div class="card"><div class="row"><b>${dt(e.d)} · ${esc(e.c)}</b><span class="muted">${esc(e.m || "")}</span></div>
+        <div class="grid g2" style="margin-top:8px"><div><div class="tag" style="margin:0">Artista</div>${infoNoite(e, P.enderecos?.[e.k])}</div>
+        <div><div class="tag" style="margin:0">Casa</div><dl class="kv" style="margin:10px 0 0"><dt>Casa</dt><dd>${esc(e.h || "a definir")}</dd>
+          <dt>Ficha</dt><dd>${c ? badge(STATUS_CASA, c.status) : '<span class="muted">sem cadastro no portal</span>'}</dd>
+          <dt>Disponibilidade</dt><dd>${di ? (di.situacao === "indisponivel" ? '<span class="badge b-crit">marcou indisponível</span>' : "marcou disponível") : '<span class="muted">sem marcação</span>'}</dd>
+          <dt>Bonificação</dt><dd>${b?.tem === "sim" ? esc(b.marca || "sim") : b?.tem === "nao" ? "não" : '<span class="muted">a definir</span>'}</dd>
+          ${c ? `<dt></dt><dd><button class="btn sm" data-click="casacad:${c.id}">Abrir a ficha</button></dd>` : ""}</dl></div></div></div>`; };
+      return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa lado a lado</h1>
+      <p class="sub">Tudo o que circula entre o artista e a casa em cada data: ordem da noite, horários, endereço, ficha e disponibilidade da casa, bonificação. Próximas ${evs.length} datas.</p>
+      ${evs.length ? `<div class="list">${evs.map(lado).join("")}</div>` : vazio("Nenhuma data futura", "Quando houver datas futuras na agenda, elas aparecem aqui.", "", "lado_a_lado")}`;
     },
     minha_funcao() {
       const fs = funcoesDe() || [];
@@ -1644,6 +1734,11 @@ const TQConta = (() => {
       <div class="grid g3"><label class="fcampo"><b>Bilheteria: artista %</b><input data-cb="bilheteria.artista" inputmode="numeric" value="${esc(cb.bilheteria?.artista ?? "")}"></label><label class="fcampo"><b>Bilheteria: casa %</b><input data-cb="bilheteria.casa" inputmode="numeric" value="${esc(cb.bilheteria?.casa ?? "")}"></label><label class="fcampo"><b>Bilheteria: Tranquilo %</b><input data-cb="bilheteria.tranquilo" inputmode="numeric" value="${esc(cb.bilheteria?.tranquilo ?? "")}"></label>
       <label class="fcampo"><b>Alimentos e bebidas: casa %</b><input data-cb="aeb.casa" inputmode="numeric" value="${esc(cb.aeb?.casa ?? "")}"></label><label class="fcampo"><b>Alimentos e bebidas: Tranquilo %</b><input data-cb="aeb.tranquilo" inputmode="numeric" value="${esc(cb.aeb?.tranquilo ?? "")}"></label></div>
       <div class="grid g2">${CONTATOS_FICHA.map(([k, , q]) => `<label class="fcampo"><b>WhatsApp de ${esc(q)}</b><input data-cb="contatos.${k}" maxlength="30" value="${esc(cb.contatos?.[k] ?? "")}"></label>`).join("")}</div>
+      <h4 style="margin:12px 0 4px">Bonificação ${A_VALIDAR_HTML}</h4><p class="muted" style="font-size:13px;margin:0 0 6px">A casa vê em Bonificações. Quem preenche cada casa ainda está a validar com o Gui.</p>
+      <div class="grid g2"><label class="fcampo"><b>A casa tem bonificação?</b><select data-cb="bonificacao.tem"><option value="">A definir</option>${[["sim", "Sim"], ["nao", "Não"]].map(([v, t]) => `<option value="${v}"${cb.bonificacao?.tem === v ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label class="fcampo"><b>Marca</b><input data-cb="bonificacao.marca" maxlength="80" placeholder="Ex.: Estrella Galicia" value="${esc(cb.bonificacao?.marca ?? "")}"></label>
+      <label class="fcampo"><b>Por quanto tempo enviaremos</b><input data-cb="bonificacao.periodo" maxlength="80" placeholder="Ex.: até 31/03/2027" value="${esc(cb.bonificacao?.periodo ?? "")}"></label>
+      <label class="fcampo"><b>Combinados</b><textarea data-cb="bonificacao.combinados" rows="2" maxlength="600">${esc(cb.bonificacao?.combinados ?? "")}</textarea></label></div>
       <div class="barra-acoes"><button class="btn sm" data-cb-salvar="${c.id}">Salvar combinados</button></div>`;
     $("#dlgIn").innerHTML = `<div class="tag">Casa · ${badge(STATUS_CASA, c.status)}</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2><p class="muted">${esc(c.perfil?.email || "")} · ${c.ja_parceira ? "já parceira" + (c.notion_casa_id && c.notion_casa_id !== "outra" ? ` · <a href="https://www.notion.so/${esc(c.notion_casa_id)}" target="_blank" rel="noopener">ficha no Notion</a>` : "") : "casa nova"}</p>
     <div class="grid g3">${[["habilitacao", "Bloqueia habilitação"], ["match", "Bloqueia match"], ["enriquecimento", "Enriquecimento"]].map(([k, t]) => `<div class="card"><b>${t}</b> (${pend[k].length})<div style="font-size:13px">${pend[k].map(esc).join(" · ") || "ok"}</div></div>`).join("")}</div>
@@ -1931,6 +2026,11 @@ const TQConta = (() => {
       try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
       return true;
     }
+    const cpm = t.closest("[data-copiar-msg]"); if (cpm) {
+      const ta = document.getElementById(cpm.dataset.copiarMsg), ok = cpm.nextElementSibling;
+      try { await navigator.clipboard.writeText(ta.value); if (ok) ok.textContent = "Copiada."; } catch { ta.select(); if (ok) ok.textContent = "Selecione e copie."; }
+      return true;
+    }
     const tk = t.closest("[data-tranks]"); if (tk) {
       const c = S.eq.casas.find((x) => x.id === tk.dataset.tranks); if (!c) return true;
       const adm = S.conta.perfil.tipo === "adm", d = c.dados || {}, pend = c.pendencias || R.pendenciasCasa(d), cb = c.combinados || {};
@@ -1943,7 +2043,7 @@ const TQConta = (() => {
       return true;
     }
     const cs = t.closest("[data-cb-salvar]"); if (cs) {
-      const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && a !== "contatos" ? Number(v.replace(",", ".")) : v; }
+      const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && !["contatos", "bonificacao"].includes(a) ? Number(v.replace(",", ".")) : v; }
       for (const [g, nome] of [["bilheteria", "Bilheteria"], ["aeb", "Alimentos e bebidas"]]) {
         const vs = Object.values(cb[g] || {}); if (!vs.length) continue;
         if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { $("#derr").textContent = `${nome}: use só números de 0 a 100.`; return true; }
