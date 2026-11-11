@@ -586,6 +586,7 @@ const TQConta = (() => {
   function subsDaArea(area) {
     if (S.conta?.perfil.tipo !== "casa") return [];
     const fs = funcoesDe(), A = fs ? TQEquipe.abasDaFuncao(fs) : null;
+    if (!fs && S.conta.casa?.status === "encerrada") return area === "ficha" ? [["cadastro_casa", "Ficha da unidade"]] : [];
     const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
     if (area === "operacoes") return [["guia", "Guia do franqueado"], ...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
@@ -793,8 +794,8 @@ const TQConta = (() => {
   const faltando = (def, d) => def.flatMap((sec) => sec[sec.length > 2 && typeof sec[1] === "string" ? 2 : 1]).filter(([k, , tipo, , obrig]) => obrig && (tipo === "check" ? d[k] !== "true" : tipo === "cidades" ? !(d[k] || []).length : !d[k])).map(([, rot]) => rot);
 
   // ---------- telas: artista ----------
-  const STATUS_INSC = { rascunho: ["", "Rascunho"], em_curadoria: ["b-warn", "Com a curadoria"], ajustes: ["b-serious", "Ajustes pedidos"], aprovada: ["b-good", "Aprovada"], reprovada_pre: ["b-crit", "Não seguiu na pré-curadoria"], reprovada: ["b-crit", "Não seguiu na curadoria"] };
-  const STATUS_CASA = { rascunho: ["", "Rascunho"], incompleto: ["b-serious", "Faltam dados mínimos"], em_analise: ["b-warn", "Em análise pela equipe"], ajustes: ["b-serious", "Ajustes pedidos"], habilitada: ["b-good", "Habilitada"], suspensa: ["b-crit", "Suspensa"] };
+  const STATUS_INSC = { rascunho: ["", "Rascunho"], em_curadoria: ["b-warn", "Com a curadoria"], ajustes: ["b-serious", "Ajustes pedidos"], aprovada: ["b-good", "Aprovada"], reprovada_pre: ["b-crit", "Não seguiu na pré-curadoria"], reprovada: ["b-crit", "Não seguiu na curadoria"], encerrada: ["b-crit", "Participação encerrada"] };
+  const STATUS_CASA = { rascunho: ["", "Rascunho"], incompleto: ["b-serious", "Faltam dados mínimos"], em_analise: ["b-warn", "Em análise pela equipe"], ajustes: ["b-serious", "Ajustes pedidos"], habilitada: ["b-good", "Habilitada"], suspensa: ["b-crit", "Suspensa"], encerrada: ["b-crit", "Parceria encerrada"] };
   const badge = (m, s) => `<span class="badge ${m[s]?.[0] || ""}">${esc(m[s]?.[1] || s)}</span>`;
   const linhaTempo = (etapas, atual) => `<ol class="tempo">${etapas.map((e, i) => `<li class="${i < atual ? "ok" : i === atual ? "agora" : ""}"><i>${i < atual ? "✓" : i + 1}</i><span>${esc(e)}</span></li>`).join("")}</ol>`;
   const medidor = (pc) => `<div class="card"><div class="row"><b>Força da inscrição</b><span><b style="font-size:22px">${+pc.score || 0}</b><span class="muted">/100</span> <span class="badge ${pc.faixa === "Prioridade" ? "b-good" : pc.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(pc.faixa)}</span></span></div>
@@ -981,7 +982,8 @@ const TQConta = (() => {
       return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da unidade")}</h1>
       <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo: para mudar algo, toque em Solicitar atualização." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
       <div class="row" style="margin-bottom:10px"><span>${c ? badge(STATUS_CASA, c.status) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ir="materiais">Abrir o Guia do Franqueado ↗</button></div>
-      ${c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
+      ${c?.status === "encerrada" ? `<div class="alert crit"><b>Parceria encerrada ${A_VALIDAR_HTML}</b>${esc(c.parecer || "")} A Ficha e o histórico ficam guardados. Dúvidas: fale com a Operações.</div>`
+        : c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
       ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade por Solicitar atualização.</div>` : ""}
       ${aberto ? `<div class="alert warn"><b>Pedido de atualização com a Central desde ${dt(aberto.criado_em.slice(0, 10))}</b>Campos: ${esc(Object.keys(aberto.proposto).map(rotulo).join(", "))}. A ficha muda quando a Central aprovar.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-sol-cancelar="${aberto.id}">Cancelar o pedido</button></div></div>` : ""}
       ${ultimaRecusa?.status === "recusada" ? `<div class="alert crit"><b>Pedido de atualização recusado em ${dt(String(ultimaRecusa.revisado_em || ultimaRecusa.criado_em).slice(0, 10))}</b>${ultimaRecusa.resposta ? "Resposta da Central: " + esc(ultimaRecusa.resposta) : "A Central não deixou resposta."} A ficha continua como estava.</div>` : ""}
@@ -997,7 +999,7 @@ const TQConta = (() => {
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
       ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`
         : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou (opcional)</b><textarea id="solMsg" rows="2" maxlength="1000"></textarea></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
-        : c.status === "suspensa" ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`}
+        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
       <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
     },
@@ -1709,14 +1711,16 @@ const TQConta = (() => {
   function fichaInscricao(id) {
     const i = S.eq.insc.find((x) => x.id === id); if (!i) return;
     const d = i.dados, adm = S.conta.perfil.tipo === "adm";
+    const futurasArt = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hojeIso() && (e.a || []).some((n) => n.toLowerCase() === String(d.nome_artistico || "").toLowerCase()));
     const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("");
     $("#dlgIn").innerHTML = `<div class="tag">Inscrição · ${badge(STATUS_INSC, i.status)}</div><h2 style="margin-top:4px">${esc(d.nome_artistico || "(sem nome)")}</h2><p class="muted">${esc(i.perfil?.email || "")}${i.enviado_em ? ` · enviada em ${dt(i.enviado_em.slice(0, 10))}` : ""}</p>
     ${medidor({ score: i.score ?? 0, faixa: i.faixa || "–", detalhe: i.score_detalhe || { completude: 0, tracao: 0, tecnica: 0, circulacao: 0, condicoes: 0 }, alertas: i.alertas || [] })}
+    ${futurasArt.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasArt.length} data${futurasArt.length > 1 ? "s" : ""} futura${futurasArt.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasArt.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
     ${resp}
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button><button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>${i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : ""}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "insc:" + id; $("#dlg").showModal();
   }
   function fichaCasa(id) {
@@ -1724,6 +1728,7 @@ const TQConta = (() => {
     const d = c.dados, adm = S.conta.perfil.tipo === "adm", pend = c.pendencias || R.pendenciasCasa(d);
     // Dados pessoais do Dono A e dados bancários: só a administração vê (a equipe vê que existem).
     const resp = F_CASA.map(([t, , cs, sens]) => `<h3>${esc(t)}</h3>${sens && !adm ? `<p class="muted" style="font-size:13px">Dados pessoais e bancários: só a administração vê. ${cs.filter((x) => valorCasa(d, x[0])).length} de ${cs.length} campos preenchidos.</p>` : `<dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `<dt>${esc(rot.length > 60 ? rot.slice(0, 60) + "…" : rot)}</dt><dd>${esc(v || "")}</dd>`; }).join("")}</dl>`}`).join("");
+    const futurasCasa = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hojeIso() && ((c.notion_casa_id && e.k === c.notion_casa_id) || (d.nome && String(e.h || "").toLowerCase() === String(d.nome).toLowerCase())));
     const cb = c.combinados || {}, sols = (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente");
     const rotulo = (k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || k;
     const pedidos = sols.map((x) => `<div class="card" style="margin-bottom:8px"><b>Pedido de atualização de ${dt(x.criado_em.slice(0, 10))}</b>${x.mensagem ? `<div class="muted" style="font-size:13px">${esc(x.mensagem)}</div>` : ""}
@@ -1743,6 +1748,7 @@ const TQConta = (() => {
     $("#dlgIn").innerHTML = `<div class="tag">Casa · ${badge(STATUS_CASA, c.status)}</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2><p class="muted">${esc(c.perfil?.email || "")} · ${c.ja_parceira ? "já parceira" + (c.notion_casa_id && c.notion_casa_id !== "outra" ? ` · <a href="https://www.notion.so/${esc(c.notion_casa_id)}" target="_blank" rel="noopener">ficha no Notion</a>` : "") : "casa nova"}</p>
     <div class="grid g3">${[["habilitacao", "Bloqueia habilitação"], ["match", "Bloqueia match"], ["enriquecimento", "Enriquecimento"]].map(([k, t]) => `<div class="card"><b>${t}</b> (${pend[k].length})<div style="font-size:13px">${pend[k].map(esc).join(" · ") || "ok"}</div></div>`).join("")}</div>
     ${pedidos}
+    ${futurasCasa.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasCasa.length} data${futurasCasa.length > 1 ? "s" : ""} futura${futurasCasa.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasCasa.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
     ${resp}
     <div class="barra-acoes" style="margin:8px 0"><button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
     ${combinados}
@@ -1750,7 +1756,7 @@ const TQConta = (() => {
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
     ${adm && c.perfil ? `<label class="fcampo"><b>Vincular à casa da rede (libera métricas)</b>${seletorVinculo(c.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>${c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "casa:" + id; $("#dlg").showModal();
   }
   function fichaRegistro(eventoId) {
@@ -2256,6 +2262,10 @@ const TQConta = (() => {
       // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
       if (status === "reprovada" && !campos.parecer) { $("#derr").textContent = "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."; $("#parecer").focus(); return; }
       if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;
+      if (status === "encerrada" && !campos.parecer) { $("#derr").textContent = "Escreva na mensagem o motivo do encerramento: é o que a pessoa vai ler."; $("#parecer").focus(); return; }
+      if (status === "encerrada" && !confirm(tipo === "casa"
+        ? "Encerrar a parceria com esta casa? A equipe da casa perde o acesso, o dono vê só a sua mensagem e a Ficha. Nada é apagado. As datas futuras precisam ser canceladas no Notion."
+        : "Encerrar a participação desta artista? Ela perde o acesso às datas e vê a sua mensagem. Nada é apagado. As datas futuras precisam ser canceladas no Notion (Line-up).")) return;
       try {
         if (tipo === "insc") await api.avaliarInscricao(id, campos); else await api.avaliarCasa(id, campos);
         const v = $("#dlg").querySelector("[data-vinculo]");

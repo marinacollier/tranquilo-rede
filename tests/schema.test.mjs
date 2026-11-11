@@ -231,5 +231,19 @@ await como(eq, async () => {
 ok((await q(`select nota_interna from inscricoes_artistas where id = $1`, [inscId])).rows[0].nota_interna === null, 'nota interna nunca fica na linha que a artista lê');
 await como(art, async () => { ok((await q(`select * from notas_internas`)).rows.length === 0, 'artista não lê notas internas'); });
 await como(casa, async () => { ok(!!(await tenta(() => q(`insert into notas_internas (alvo, alvo_id, nota) values ('casa', gen_random_uuid(), 'x')`))), 'casa não grava nota interna'); });
+// ---------- v15: encerrar parceria da casa e participação da artista (nada é apagado) ----------
+await q(`update perfis set codigo_acesso = 'AAAA-BBBB-CCCC', vinculo_nome = 'Artista Teste' where id = $1`, [art]);
+await como(eq, async () => {
+  await q(`update inscricoes_artistas set status = 'encerrada', parecer = 'Encerramos a participação nesta temporada.' where user_id = $1`, [art]);
+  await q(`update cadastros_casas set status = 'encerrada', parecer = 'Parceria encerrada em comum acordo.' where user_id = $1`, [casa]);
+});
+const pArt = (await q(`select codigo_acesso, vinculo_nome from perfis where id = $1`, [art])).rows[0];
+ok(pArt.codigo_acesso === null && pArt.vinculo_nome === null, 'artista encerrada perde o vínculo com as datas');
+ok((await q(`select count(*)::int n from inscricoes_artistas where user_id = $1`, [art])).rows[0].n === 1, 'encerrar não apaga a inscrição (histórico fica)');
+await como(casa, async () => {
+  ok(/Solicitar atualização/.test((await tenta(() => q(`update cadastros_casas set dados = dados || '{"luz":"x"}' where user_id = $1`, [casa]))) || ''), 'casa encerrada não muda a ficha');
+  await q(`update cadastros_casas set status = 'rascunho' where user_id = $1`, [casa]);
+});
+ok((await q(`select status::text s from cadastros_casas where user_id = $1`, [casa])).rows[0].s === 'encerrada', 'casa encerrada não se reabre sozinha');
 await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
 ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

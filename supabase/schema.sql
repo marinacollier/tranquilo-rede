@@ -2066,3 +2066,76 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function equipe_da_casa() from public, anon;
 grant execute on function equipe_da_casa() to authenticated;
+
+-- =====================================================================
+-- v15: encerrar a parceria de uma casa ou a participação de uma artista (regra a validar com o Gui, 11/2026).
+-- Nada é apagado: a ficha, as datas e o histórico ficam. A Central muda o status para "encerrada" com uma mensagem;
+-- a equipe da casa perde o acesso (o dono continua entrando para ver a mensagem) e a artista perde o vínculo com as datas.
+-- As datas futuras são canceladas no Notion (Eventos e Line-up), que continua sendo a fonte da agenda.
+-- =====================================================================
+alter type status_casa add value if not exists 'encerrada';
+alter type status_inscricao add value if not exists 'encerrada';
+
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- A equipe não edita os dados da casa; só aplica um pedido aprovado (responder_solicitacao_ficha liga "aplicando").
+    if not exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto) then
+      new.dados := old.dados;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status::text in ('em_analise', 'habilitada', 'suspensa', 'encerrada') and new.dados is distinct from old.dados then
+      raise exception 'A ficha já foi enviada ao Tranquilo: use "Solicitar atualização".' using errcode = '42501';
+    end if;
+    if old.status::text in ('habilitada', 'suspensa', 'encerrada') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+
+create or replace function apos_encerrar() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare ref text;
+begin
+  if new.status::text <> 'encerrada' or old.status::text = 'encerrada' then return new; end if;
+  if tg_table_name = 'cadastros_casas' then
+    select vinculo_nome into ref from perfis where id = new.user_id;
+    ref := coalesce(nullif(ref, ''), new.dados ->> 'nome');
+    if ref is not null then
+      update perfis set codigo_acesso = null, vinculo_nome = null, funcoes = null
+        where funcoes is not null and lower(vinculo_nome) = lower(ref) and id <> new.user_id;
+      update convites set aceito_em = now() where aceito_em is null and lower(vinculo_nome) = lower(ref);
+    end if;
+  else
+    update perfis set codigo_acesso = null, vinculo_nome = null where id = new.user_id;
+  end if;
+  return new;
+end $$;
+revoke all on function apos_encerrar() from public, anon, authenticated;
+drop trigger if exists trg_encerrar_casa on cadastros_casas;
+create trigger trg_encerrar_casa after update of status on cadastros_casas for each row execute function apos_encerrar();
+drop trigger if exists trg_encerrar_insc on inscricoes_artistas;
+create trigger trg_encerrar_insc after update of status on inscricoes_artistas for each row execute function apos_encerrar();
