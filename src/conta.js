@@ -741,6 +741,8 @@ const TQConta = (() => {
   const ROTULO_ANTIGO = { responsavel: "Responsável local", email_contato: "E-mail de contato", cidade: "Cidade", estado: "Estado", dias: "Dias e horários", restricoes: "Restrições de horário e volume", backline: "Backline", aceite_responsabilidades: "Aceite da matriz de responsabilidades" };
   const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
+  // Botões de encerrar ficam escondidos até a regra do banco (v15b) estar aplicada em produção.
+  const ENCERRAR_ATIVO = false;
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
   function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
     const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
@@ -1720,7 +1722,7 @@ const TQConta = (() => {
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>${i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : ""}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="aprovada">Aprovar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>${ENCERRAR_ATIVO && i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : ""}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "insc:" + id; $("#dlg").showModal();
   }
   function fichaCasa(id) {
@@ -1756,7 +1758,7 @@ const TQConta = (() => {
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
     ${adm && c.perfil ? `<label class="fcampo"><b>Vincular à casa da rede (libera métricas)</b>${seletorVinculo(c.perfil)}</label>` : ""}
-    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>${c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes"><button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="suspensa">Suspender</button><button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>${ENCERRAR_ATIVO && c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "casa:" + id; $("#dlg").showModal();
   }
   function fichaRegistro(eventoId) {
