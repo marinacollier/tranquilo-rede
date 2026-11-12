@@ -728,6 +728,30 @@ function filtrarPeriodo(evs, periodo, hoje) {
   if (periodo === "90d") { const lim = new Date(new Date(hoje).getTime() - 90*864e5).toISOString().slice(0,10); return evs.filter((e) => e.d >= lim); }
   return evs.filter((e) => e.d.startsWith(periodo));
 }
+// Réguas do painel (conceitos) e qualidade dos dados. Definições a validar com o Thales (11/2026); ver docs/ESTRATEGIA_DADOS.md.
+function blocoReguas(evs, rede) {
+  const AV = '<span class="a-validar" title="Definição ainda não fechada com o Thales">a validar</span>';
+  const real = evs.filter((e) => e.r), n = real.length || 1, pctN = (x) => `${Math.round((x / n) * 100)}%`;
+  const semP = real.filter((e) => e.p == null), semCasa = real.filter((e) => !e.h || /^Casa (em|da rede)\b/.test(e.h)), semForm = real.filter((e) => e.m === "Sem modelo");
+  const diverge = real.filter((e) => e.p != null && e.v != null && Math.abs(e.p - e.v) > 5);
+  const pag = real.filter((e) => e.v != null).map((e) => e.v), mediaPag = pag.length ? pag.reduce((a, b) => a + b, 0) / pag.length : null;
+  const completas = real.filter((e) => e.p != null && e.h && !/^Casa (em|da rede)\b/.test(e.h) && e.m !== "Sem modelo").length;
+  const linha = (t, def, val) => `<tr><td><b>${t}</b> ${AV}</td><td>${def}</td><td class="n">${val}</td></tr>`;
+  return `<div class="grid g2" style="margin-top:12px">
+    <div class="card"><h3 style="margin-top:0">Réguas do painel ${AV}</h3><p class="muted" style="margin-top:0;font-size:13px">Proposta de definição até o Thales fechar os conceitos. Hoje o "público" do painel é o Geral público do Notion, ou antecipada + porta quando não há geral.</p>
+      <div class="tbl"><table><thead><tr><th>Conceito</th><th>Definição proposta</th><th class="n">No recorte</th></tr></thead><tbody>
+      ${linha("Público pagante", "Ingressos vendidos: antecipada + porta (sem cortesia). Fonte: Ingresse.", mediaPag == null ? "–" : `${fmt(mediaPag)} por noite`)}
+      ${linha("Público presente", "Pessoas na noite. Fonte daqui pra frente: \"Registrar a noite\" da casa; no legado, o Geral público do Notion.", `${fmt(rede.media)} por noite`)}
+      ${linha("Cortesias", "Lista VIP e convidados dos artistas. Fonte: lista da portaria.", "–")}
+      ${linha("Ticket médio", "Receita de bilheteria ÷ público pagante. Fonte: Ingresse e fechamento D+2.", "sem dado de receita")}
+      ${linha("Ocupação", "Público presente ÷ capacidade trabalhada da casa.", rede.ocupacao == null ? "–" : `${Math.round(rede.ocupacao * 100)}%`)}
+      </tbody></table></div></div>
+    <div class="card"><h3 style="margin-top:0">Qualidade dos dados</h3><p class="muted" style="margin-top:0;font-size:13px">Noites realizadas no recorte. Enquanto a base antiga não for completada, compare com cuidado: o painel só é tão bom quanto o que está lançado.</p>
+      <div class="progress" style="margin:6px 0 4px"><i style="width:${Math.round((completas / n) * 100)}%"></i></div><div class="muted" style="font-size:13px;margin-bottom:8px">${fmt(completas)} de ${fmt(real.length)} noites completas (${pctN(completas)})</div>
+      <dl class="kv"><dt>Sem público lançado</dt><dd>${fmt(semP.length)} (${pctN(semP.length)})</dd><dt>Sem casa</dt><dd>${fmt(semCasa.length)} (${pctN(semCasa.length)})</dd>
+      <dt>Sem formato</dt><dd>${fmt(semForm.length)} (${pctN(semForm.length)})</dd><dt>Público geral ≠ antecipada + porta</dt><dd>${fmt(diverge.length)} noites ${AV}</dd></dl></div>
+  </div>`;
+}
 function metricas(evs) {
   const real = evs.filter((e) => e.r), comP = real.filter((e) => e.p != null);
   const ps = comP.map((e) => e.p);
@@ -983,6 +1007,7 @@ const TELAS = {
     <div class="filters"><select id="fPer" aria-label="Período">${[["2026","2026"],["12m","Últimos 12 meses"],["90d","Últimos 90 dias"],["2025","2025"],["2024","2024"],["tudo","Desde 2023"]].map(([v, t]) => `<option value="${v}"${f.periodo === v ? " selected" : ""}>${t}</option>`).join("")}</select>
     <select id="fMod" aria-label="Modelo">${modelos.map((m) => `<option${f.modelo === m ? " selected" : ""}>${esc(m)}</option>`).join("")}</select></div>
     <div class="stats">${kpi(fmt(rede.noites), "noites realizadas", `${rede.cidades} cidades`)}${kpi(fmt(rede.media), "público médio por noite", `mediana ${fmt(rede.mediana)}`)}${kpi(fmt(rede.total), "pessoas nas noites com público lançado")}${kpi(rede.registro == null ? "–" : Math.round(rede.registro * 100) + "%", "noites com público lançado", `${rede.noites - rede.comPublico} sem número no Notion`)}${kpi(rede.cancel == null ? "–" : Math.round(rede.cancel * 100) + "%", "canceladas ou adiadas", `${rede.cancelados} datas`)}${kpi(fmt(rede.futuras), "datas futuras neste recorte")}</div>
+    ${blocoReguas(evs, rede)}
     <div class="grid g2" style="margin-top:12px">
       <div class="card"><h3 style="margin-top:0">Escalar</h3><p class="muted" style="margin-top:0;font-size:13px">Pelo menos 10% acima da média de noites do mesmo formato, em 3 ou mais noites, sem queda recente e com menos de 20% de cancelamentos.</p><div class="list">${destaques.map((d) => `<div class="alert good"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite (${d.media && d.esperado ? "+" + Math.round((d.media / d.esperado - 1) * 100) + "% vs. " + (d.k === "modelo" ? "rede" : "mesmo formato") : ""}) em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}</div>`).join("") || `<p class="muted">Nenhum item com base suficiente neste recorte.</p>`}</div></div>
       <div class="card"><h3 style="margin-top:0">Atenção</h3><p class="muted" style="margin-top:0;font-size:13px">Abaixo de 70% da média do mesmo formato, queda de mais de 25% ou 30%+ de cancelamentos (mínimo de 3 noites).</p><div class="list">${atencao.map((d) => `<div class="alert crit"><b>${NOMEK[d.k]}: ${esc(d.nome)}</b>${fmt(d.media)} pessoas por noite em ${d.comPublico} noites${d.tendencia != null ? ` · tendência ${pct(d.tendencia)}` : ""}${d.cancel ? ` · ${Math.round(d.cancel * 100)}% canceladas/adiadas` : ""}</div>`).join("") || `<p class="muted">Nada em atenção neste recorte.</p>`}</div></div>

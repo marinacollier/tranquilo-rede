@@ -63,6 +63,11 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await p.click('[data-aba="lado_a_lado"]'); await p.waitForTimeout(800);
     const ll = await app();
     ok(/artista e casa lado a lado/i.test(ll) && /Ordem da noite/.test(ll) && /Disponibilidade/.test(ll) && (await p.$$eval('a[href^="https://www.google.com/maps/search/"]', (xs) => xs.length)) > 0, 'equipe: cada data com artista e casa lado a lado, com endereço clicável');
+    // 4. Painel estratégico (adm): réguas a validar e qualidade dos dados.
+    const codAdm = linhas.find(([t]) => t === 'adm')[1];
+    await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); S.aba = 'estrategia'; render(); }, codAdm); await p.waitForTimeout(600);
+    const est = await app();
+    ok(/Réguas do painel\s*a validar/i.test(est) && /Público pagante/.test(est) && /Qualidade dos dados/.test(est) && /noites completas/.test(est), 'painel estratégico: réguas "a validar" e qualidade dos dados');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();
