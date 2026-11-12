@@ -80,6 +80,7 @@ const TQConta = (() => {
         Object.assign(i, campos, campos.status && campos.status !== i.status ? { avaliado_por: db.sessao, avaliado_em: agora() } : {}); gravar();
       },
       async casas() { exigeEquipe(); return Object.values(db.casas).map((c) => ({ ...c, perfil: db.usuarios[c.user_id]?.perfil })); },
+      async historico() { exigeEquipe(); return []; },
       async editarFichaCasa(cid, dados) { exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid); if (c) { c.dados = dados; gravar(); } },
       async avaliarCasa(cid, campos) {
         exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid);
@@ -373,6 +374,7 @@ const TQConta = (() => {
       async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
       async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
       // Administração edita a Ficha direto (Gui, 11/2026); o banco só deixa a adm.
+      async historico() { return ok(await sb.from("auditoria").select("id,quando,quem_email,tabela,registro,operacao,antes,depois").order("id", { ascending: false }).limit(400)); },
       async editarFichaCasa(cid, dados) { const r = ok(await sb.from("cadastros_casas").update({ dados }).eq("id", cid).select("dados")); if (!r?.length || JSON.stringify(r[0].dados) !== JSON.stringify(dados)) throw new Error("Só a administração edita a Ficha direto."); },
       async perfis() { return lerPerfis((x) => x.order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
@@ -623,7 +625,7 @@ const TQConta = (() => {
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
-    if (t === "adm") base.push(["pessoas", "Pessoas"]);
+    if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
     return [...base, ...doPac, ["conta", "Conta"]];
   }
   const rotuloQuem = () => `${ROTULO[S.conta.perfil.tipo]} · ${S.conta.perfil.vinculo_nome || S.conta.perfil.nome || S.conta.perfil.email}`;
@@ -745,7 +747,7 @@ const TQConta = (() => {
   const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
   // Botões de encerrar ficam escondidos até a regra do banco (v15b) estar aplicada em produção.
-  const ENCERRAR_ATIVO = false;
+  const ENCERRAR_ATIVO = false;  // liga quando o banco v15b estiver em produção
   // Edição da Ficha pela administração: liga quando a regra v16 do banco estiver em produção.
   const EDITAR_FICHA_ATIVO = false;
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
@@ -1099,6 +1101,21 @@ const TQConta = (() => {
         <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
         <div class="err" role="status" aria-live="polite" id="eqcErr"></div><div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button>${ed ? `<button class="btn" data-eqc-editar="">Cancelar</button>` : ""}</div></div>` : ""}`;
+    },
+    // ---------- administração: histórico de alterações (v17) ----------
+    historico() {
+      if (S.hist === undefined) { S.hist = null; api.historico().then((h) => { S.hist = h; render(); }).catch((e) => { S.hist = { erro: traduz(e.message || "") }; render(); }); }
+      if (!S.hist) return carregando("o histórico");
+      if (S.hist.erro) return `<div class="tag">Histórico</div><h1>Histórico de alterações</h1><div class="alert warn"><b>O histórico ainda não está no banco</b>${esc(S.hist.erro)}</div>`;
+      const NOMES = { cadastros_casas: "Ficha da casa", inscricoes_artistas: "Inscrição de artista", perfis: "Conta", equipe_casa: "Equipe da casa", disponibilidade_casa: "Disponibilidade", convites: "Convite", solicitacoes_ficha: "Pedido de atualização", materiais: "Material", campanhas: "Campanha", campanha_itens: "Campanha (dia)", checklist: "Passo a passo", registros_noite: "Registro da noite", contratos: "Contrato", documentos: "Documento", trilhas: "Treinamento", trilha_marcos: "Treinamento (etapa)", notas_internas: "Nota interna" };
+      const f = S.histFiltro || "", lista = S.hist.filter((h) => !f || (NOMES[h.tabela] || h.tabela) === f);
+      const val = (v) => v == null ? "–" : typeof v === "object" ? JSON.stringify(v) : String(v);
+      const campos = (h) => { const ks = Object.keys(h.depois || h.antes || {}).filter((k) => !["id", "atualizado_em", "criado_em", "pendencias"].includes(k)).slice(0, 12);
+        return ks.map((k) => `<div style="font-size:13px"><b>${esc(k)}</b>: ${h.operacao === "INSERT" ? "" : `<s class="muted">${esc(val(h.antes?.[k]).slice(0, 160))}</s> → `}${esc(val(h.depois?.[k]).slice(0, 160))}</div>`).join(""); };
+      return `<div class="tag">Administração</div><h1>Histórico de alterações</h1>
+      <p class="sub">Toda alteração feita no portal, por qualquer pessoa: quem, quando, o que era antes e o que ficou. Só a administração vê. Últimas ${S.hist.length}.</p>
+      <div class="filters"><select id="histFiltro" aria-label="Filtrar por tipo"><option value="">Tudo</option>${[...new Set(S.hist.map((h) => NOMES[h.tabela] || h.tabela))].sort().map((n) => `<option${n === f ? " selected" : ""}>${esc(n)}</option>`).join("")}</select> <button class="btn sm" data-hist-recarregar>Atualizar</button></div>
+      <div class="list">${lista.map((h) => `<div class="card"><div class="row"><b>${esc(NOMES[h.tabela] || h.tabela)} · ${{ INSERT: "criou", UPDATE: "alterou", DELETE: "apagou" }[h.operacao] || h.operacao}</b><span class="muted" style="font-size:13px">${new Date(h.quando).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · ${esc(h.quem_email || "sistema")}</span></div>${campos(h)}</div>`).join("") || vazio("Nenhuma alteração ainda", "Quando alguém mudar algo no portal, aparece aqui.", "", "historico")}</div>`;
     },
     // ---------- casa: telas do documento do Gui (11/11/2026) ----------
     guia() {
@@ -2098,6 +2115,7 @@ const TQConta = (() => {
       try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
       return true;
     }
+    if (t.closest("[data-hist-recarregar]")) { S.hist = undefined; render(); return true; }
     const ef = t.closest("[data-editar-ficha]"); if (ef) { const id = ef.dataset.editarFicha || S.fichaEdit; S.fichaEdit = ef.dataset.editarFicha || null; fichaCasa(id); return true; }
     const sf = t.closest("[data-salvar-ficha]"); if (sf) {
       const c = S.eq.casas.find((x) => x.id === sf.dataset.salvarFicha); if (!c) return true;
@@ -2477,6 +2495,7 @@ const TQConta = (() => {
       try { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); } catch (e) { alert(e.message); }
       return;
     }
+    if (t.id === "histFiltro") { S.histFiltro = t.value; render(); return; }
     if (t.id === "eqStatus" || t.id === "eqFaixa") { S.eqf[t.id === "eqStatus" ? "status" : "faixa"] = t.value; render(); }
     if (t.id === "cvTipo") { S.convTipo = t.value; S.convPre = null; render(); return; }
     if (t.id === "cvVinc") { const nome = t.value.split("|")[1] || "", n = $("#cvNome"); if (n && !n.value) n.value = nome; return; }

@@ -250,5 +250,14 @@ await como(eq, async () => { await q(`update cadastros_casas set dados = dados |
 ok((await q(`select dados->>'luz' l from cadastros_casas where user_id = $1`, [casa])).rows[0].l !== 'pela equipe', 'equipe não edita a Ficha da casa direto');
 await como(adm, async () => { await q(`update cadastros_casas set dados = dados || '{"luz":"pela adm"}' where user_id = $1`, [casa]); });
 ok((await q(`select dados->>'luz' l from cadastros_casas where user_id = $1`, [casa])).rows[0].l === 'pela adm', 'administração edita a Ficha da casa direto');
+// ---------- v17: a administração edita tudo e toda alteração fica no histórico ----------
+const nAud = async () => (await q(`select count(*)::int n from auditoria`)).rows[0].n;
+const aud0 = await nAud();
+await como(adm, async () => { await q(`update inscricoes_artistas set dados = dados || '{"cidade":"Recife"}' where user_id = $1`, [art2]); });
+ok((await q(`select dados->>'cidade' c from inscricoes_artistas where user_id = $1`, [art2])).rows[0]?.c === 'Recife', 'administração edita a inscrição direto');
+const ult = (await q(`select tabela, operacao, quem, antes, depois from auditoria order by id desc limit 1`)).rows[0];
+ok((await nAud()) > aud0 && ult.tabela === 'inscricoes_artistas' && ult.operacao === 'UPDATE' && ult.quem === adm && !!ult.depois?.dados, 'alteração da adm fica no histórico: quem, tabela, antes e depois');
+await como(eq, async () => { ok((await q(`select * from auditoria`).catch(() => ({ rows: [] }))).rows.length === 0, 'só a administração lê o histórico'); });
+await como(adm, async () => { ok((await q(`select count(*)::int n from auditoria`)).rows[0].n > 0, 'administração lê o histórico'); });
 await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
 ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

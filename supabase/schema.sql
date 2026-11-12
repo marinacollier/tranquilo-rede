@@ -2183,3 +2183,95 @@ begin
   end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v17: a administração edita tudo, e toda alteração fica registrada (pedido da Marina, 12/11/2026).
+-- auditoria: quem, quando, tabela, registro, operação, antes e depois (só os campos que mudaram).
+-- Só a administração lê. Não guarda as tabelas de registro do próprio sistema (diario, diario_servidor, lembretes).
+-- =====================================================================
+create table if not exists auditoria (
+  id bigint generated always as identity primary key,
+  quando timestamptz not null default now(),
+  quem uuid,
+  quem_email text,
+  tabela text not null,
+  registro text,
+  operacao text not null,
+  antes jsonb,
+  depois jsonb
+);
+create index if not exists auditoria_quando on auditoria (quando desc);
+create index if not exists auditoria_registro on auditoria (tabela, registro);
+alter table auditoria enable row level security;
+drop policy if exists aud_ler on auditoria;
+create policy aud_ler on auditoria for select using (eh_adm());
+revoke all on auditoria from anon, authenticated;
+grant select on auditoria to authenticated;
+
+create or replace function registrar_auditoria() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare a jsonb; d jsonb; rid text; uid uuid := auth.uid();
+begin
+  a := case when tg_op in ('UPDATE', 'DELETE') then to_jsonb(old) end;
+  d := case when tg_op in ('INSERT', 'UPDATE') then to_jsonb(new) end;
+  if tg_op = 'UPDATE' then
+    select jsonb_object_agg(k, a -> k), jsonb_object_agg(k, d -> k) into a, d
+      from jsonb_object_keys(d) k where (a -> k) is distinct from (d -> k) and k not in ('atualizado_em', 'pendencias');
+    if a is null then return null; end if;
+  end if;
+  rid := coalesce(to_jsonb(coalesce(new, old)) ->> 'id', to_jsonb(coalesce(new, old)) ->> 'casa_ref', to_jsonb(coalesce(new, old)) ->> 'email');
+  insert into auditoria (quem, quem_email, tabela, registro, operacao, antes, depois)
+  values (uid, (select email from perfis where id = uid), tg_table_name, rid, tg_op, a, d);
+  return null;
+end $$;
+revoke all on function registrar_auditoria() from public, anon, authenticated;
+
+do $$
+declare t text;
+begin
+  for t in select tablename from pg_tables where schemaname = 'public'
+           and tablename not in ('auditoria', 'diario', 'diario_servidor', 'lembretes', 'chaves_internas', 'config_interna') loop
+    execute format('drop trigger if exists trg_auditoria on %I', t);
+    execute format('create trigger trg_auditoria after insert or update or delete on %I for each row execute function registrar_auditoria()', t);
+  end loop;
+end $$;
+
+create or replace function antes_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  new.atualizado_em := now();
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    new.user_id := old.user_id; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    if eh_adm() and new.dados is distinct from old.dados then
+      -- A administração corrige a inscrição direto; a pré-curadoria é recalculada.
+      r := pre_curadoria(new.dados);
+      new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    else
+      new.dados := old.dados;
+      new.score := old.score; new.faixa := old.faixa; new.score_detalhe := old.score_detalhe; new.alertas := old.alertas;
+    end if;
+    if new.status is distinct from old.status then new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if old.status not in ('rascunho', 'ajustes') then
+      raise exception 'Inscrição em análise: aguarde o retorno da curadoria.';
+    end if;
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+  else
+    new.parecer := null; new.nota_interna := null; new.avaliado_por := null; new.avaliado_em := null;
+    new.criado_em := now(); new.enviado_em := null;
+  end if;
+  if new.status not in ('rascunho', 'em_curadoria') then
+    new.status := coalesce(old.status, 'rascunho');
+  end if;
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
+  return new;
+end $$;
