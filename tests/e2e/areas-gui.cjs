@@ -31,7 +31,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     ok(/Guia do franqueado/.test(await app()) && /Manual do Tranquilo Apresenta/.test(await app()) && /Manual do Tranquilo Descubra/.test(await app()), 'Operações abre no Guia do franqueado, com os manuais do Apresenta e do Descubra');
     await p.click('[data-aba="cronogramas"]'); await p.waitForTimeout(300);
     const cr = await app();
-    ok(/Datas fechadas/.test(cr) && (/Nenhuma data fechada/.test(cr) || (/Mensagem pronta para o artista/.test(cr) && /a validar/i.test(cr))), 'Cronogramas: datas fechadas com mensagem pronta (texto a validar)');
+    ok(/Datas fechadas/.test(cr) && (/Nenhuma data fechada/.test(cr) || /Mensagem de alinhamento do cronograma/.test(cr)), 'Cronogramas: datas fechadas com mensagem pronta (texto a validar)');
     const mk = await p.evaluate(() => [...document.querySelectorAll('[data-aba="marketing"]')].length);
     await p.click('[data-aba="marketing"]'); await p.waitForTimeout(300);
     const subsMk = await p.$$eval('[data-sub^="marketing|"]', (xs) => xs.map((x) => x.textContent.trim()));
@@ -52,7 +52,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await conta('artista', 'Artista Áreas', 'art@areas.com', art[1], art[2]);
     await p.click('[data-aba="passos"]').catch(() => {}); await p.waitForTimeout(400);
     const temData = await p.$('.passos');
-    ok(!temData || (/Passagem de som \(estimada\)/.test(await app()) && /Ordem da noite/.test(await app())), 'artista: cada data mostra local, ordem da noite e horários (a validar)');
+    ok(!temData || (/Passagem de som/.test(await app()) && /Ordem da noite/.test(await app())), 'artista: cada data mostra local, ordem da noite e horários (a validar)');
     const mapas = await p.$$eval('a[href^="https://www.google.com/maps/search/"]', (xs) => xs.length);
     ok(!!temData && mapas > 0, `artista com data futura (${art[2]}): endereço clicável abre no mapa (${mapas} links)`);
     await p.click('[data-aba="conta"]'); await p.click('#sairConta'); await p.waitForTimeout(400);
@@ -62,6 +62,9 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); render(); }, codEq); await p.waitForTimeout(400);
     await p.click('[data-aba="lado_a_lado"]'); await p.waitForTimeout(800);
     const ll = await app();
+    ok(/20h10 às 20h40: Eddu Porto/.test(ll) && /15h30 às 16h30: passagem de som de Lamparina/.test(ll), 'mensagem do Apresenta: abertura Eddu Porto, Lamparina passa o som primeiro (quem toca por último)');
+    ok(/16h10 às 16h40: passagem de som de LuizGa/.test(ll) && /21h30 às 21h50: olho no olho/.test(ll), 'mensagem do Descubra com 3 artistas: ordem do line-up e olho no olho');
+    ok(/Ordem de apresentação não definida no line-up: pedir à Isa/.test(ll), 'sem ordem no line-up, a mensagem não sai e pede à Isa');
     ok(/artista e casa lado a lado/i.test(ll) && /Ordem da noite/.test(ll) && /Disponibilidade/.test(ll) && (await p.$$eval('a[href^="https://www.google.com/maps/search/"]', (xs) => xs.length)) > 0, 'equipe: cada data com artista e casa lado a lado, com endereço clicável');
     // 4. Painel estratégico (adm): réguas a validar e qualidade dos dados.
     const codAdm = linhas.find(([t]) => t === 'adm')[1];

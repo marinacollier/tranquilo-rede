@@ -245,5 +245,10 @@ await como(casa, async () => {
   await q(`update cadastros_casas set status = 'rascunho' where user_id = $1`, [casa]);
 });
 ok((await q(`select status::text s from cadastros_casas where user_id = $1`, [casa])).rows[0].s === 'encerrada', 'casa encerrada não se reabre sozinha');
+// ---------- v16: a administração edita a Ficha direto; a equipe não ----------
+await como(eq, async () => { await q(`update cadastros_casas set dados = dados || '{"luz":"pela equipe"}' where user_id = $1`, [casa]); });
+ok((await q(`select dados->>'luz' l from cadastros_casas where user_id = $1`, [casa])).rows[0].l !== 'pela equipe', 'equipe não edita a Ficha da casa direto');
+await como(adm, async () => { await q(`update cadastros_casas set dados = dados || '{"luz":"pela adm"}' where user_id = $1`, [casa]); });
+ok((await q(`select dados->>'luz' l from cadastros_casas where user_id = $1`, [casa])).rows[0].l === 'pela adm', 'administração edita a Ficha da casa direto');
 await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
 ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

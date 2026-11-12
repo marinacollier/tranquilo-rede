@@ -61,7 +61,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   await p.fill('#cvNome', 'Casa Convidada'); await p.fill('#cvEmail', 'casa.convidada@teste.com'); await p.fill('#cvWa', '31 98888-7777'); await p.click('#cvOk');
   await p.waitForSelector('#envTxt'); const msg = await p.inputValue('#envTxt');
   ok(/casa\.convidada%40teste\.com|casa.convidada@teste.com/.test(msg) && /#criar&email=/.test(msg), 'equipe: convite gera mensagem com link de criar senha');
-  ok((await p.getAttribute('[data-envio]', 'href')).startsWith('https://wa.me/31988887777'), 'equipe: WhatsApp já vai para o número da casa');
+  ok((await p.getAttribute('[data-envio]', 'href')).startsWith('https://wa.me/5531988887777'), 'equipe: WhatsApp já vai para o número da casa (com +55)');
   await p.screenshot({ path: `${out}/4-convite.png` });
   await p.click('#dlg button:has-text("Fechar")');
   ok(/Casa Convidada/.test(await p.textContent('#app')) && /aguardando/.test(await p.textContent('#app')), 'equipe: convite aparece na lista como aguardando');

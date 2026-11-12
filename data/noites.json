@@ -1,0 +1,559 @@
+{
+  "_sobre": "Line-up das noites futuras (banco Line-up do Notion, 12/11/2026): ordem de apresentação, status e se o artista tem produção. inicio = horário do evento em São Paulo (null = só a data no Notion). Sem telefones nem nomes de produção (dados pessoais).",
+  "geradoEm": "2026-11-12",
+  "eventos": {
+    "95369eca82744ba2bf0fc8f792edc804": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Eddu Porto",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Lamparina",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        },
+        {
+          "nome": "Gui Monteiro (teste)",
+          "ordem": 3,
+          "status": "Aguardando dados de artista",
+          "producao": false
+        }
+      ]
+    },
+    "33d64c38da394ad58ee311129161dbc7": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "1085befacaa3446b9214441d98304ab8": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Tata Alves",
+          "ordem": 1,
+          "status": "Aguardando dados de artista",
+          "producao": false
+        },
+        {
+          "nome": "Badi Assad",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "99e3d816edfd46e58f7ce5368b41eafc": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Eddu Porto",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Lamparina",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "f1b5fb8b168c4af5ada7e7015aaa5047": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Pietra Gabriela",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "f801ad2673994cf9a3b1ea34ddcec61e": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Marília Corrêa",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Mariana Volker",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "92cd1d1beca14bdab0a2ee13a990ae87": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Amanda & Manu",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "fc7966252647431885b3db4460f882a4": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Ieda Cruz",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Badi Assad",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "94f861bd4aa744f08ead8751c9519b12": {
+      "inicio": "16:00",
+      "artistas": [
+        {
+          "nome": "Mariana Volker",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "83afe41bd70e4574907f8a28300bcd3b": {
+      "inicio": "16:00",
+      "artistas": [
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "a526f4a100cd467f9179919052376d9c": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Aramá",
+          "ordem": null,
+          "status": "Cancelado",
+          "producao": true
+        },
+        {
+          "nome": "Bruna Lucchesi",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        },
+        {
+          "nome": "UNNA X",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "8f73c6d0c7114512876ddb79d91509ab": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Thay Santos",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "YOÙN",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "c68dab5afdfe4cc3b8429f81b5d5337b": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Joyce Alane",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "0aee138e157c4644b57fd41b0aca8a8d": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "3ff2987cc39e4172908e48076688ffcb": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Joyce Alane",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "4f95cb60ed4a42908eb8853b7a41c56c": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "209bfea13b814cd7a829a393ab96dc4e": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Joyce Alane",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "f9cbe75422c74d2ab4b44878deb03460": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Aydan",
+          "ordem": 1,
+          "status": "Aguardando dados de artista",
+          "producao": false
+        },
+        {
+          "nome": "YOÙN",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "e642d8f909984e9d9fc906464ebf77ef": {
+      "inicio": "16:00",
+      "artistas": [
+        {
+          "nome": "Joyce Alane",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "64e5e7655fd7489cae0afe209547eda1": {
+      "inicio": "16:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "ac4723358e074c3697e9bebe6ab9dc8b": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Bemti",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Cruvinel",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "a667738a970549edaa193b0630e8b82a": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Joyce Alane",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "3ff82832aaeb49769f26250ff065cd92": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Thales Ferreira",
+          "ordem": 1,
+          "status": "sem status",
+          "producao": false
+        },
+        {
+          "nome": "Coladera",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "34518fc3b6d24da9bc94a57ebda4c13e": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "105c1ac97e904f3f8582d15713407d71": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "703008ee24524c108bf9a9f8cd36b12b": {
+      "inicio": "16:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "f9b2dc1d4dde405ebad244523fa519ac": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "DUDA IN THE SKY",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "nina fernandes",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "4e2ad54974224c7d8447035d9b0b2ea8": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "3d6c9c5ffad14ae1bf8b8b9a52c394fa": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "Jônatas Belgrande",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "facf9385a1cf469a998d08f11ec56265": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "0c93640628004fb996e376f98f9ef25d": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Analu Sampaio",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "7ebe6dbf614549349cd9cec496fdc2c1": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Analu Sampaio",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "69e59612c0764dceb864ccbfff7ed55b": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Gustavito",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "Nanan",
+          "ordem": 2,
+          "status": "Confirmado",
+          "producao": false
+        },
+        {
+          "nome": "LuizGa",
+          "ordem": 3,
+          "status": "Confirmado",
+          "producao": false
+        }
+      ]
+    },
+    "3c4fbbe210f94329a2f093c971261f2c": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "3dd607cc6cba44d19d3db90e3c9f8f68": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Analu Sampaio",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "8bae6b1849a5489f94f7a839140a02af": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "f3128b352bb845319550e1415d602b46": {
+      "inicio": "19:00",
+      "artistas": [
+        {
+          "nome": "YOÙN",
+          "ordem": 1,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "bbe142213ba84c6891d8b66060452a6a": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "8c84a8690d4b4436932edcd4605e490d": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "61564d6d42fd42a9b7ac8da21afb4c50": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    },
+    "6a8b05bbb5ee4329ab0b9ecb0c6fbf28": {
+      "inicio": null,
+      "artistas": [
+        {
+          "nome": "Medulla",
+          "ordem": null,
+          "status": "Confirmado",
+          "producao": true
+        }
+      ]
+    }
+  }
+}

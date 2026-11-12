@@ -34,9 +34,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/Falta para habilitar\s*a validar/i.test(await p.textContent('#app')), 'critério de habilitação marcado "a validar" para o Gui');
     ok(await p.getAttribute('[data-k="dono_email"]', 'type') === 'email' && await p.getAttribute('[data-k="whatsapp"]', 'inputmode') === 'tel', 'e-mail e WhatsApp abrem o teclado certo no celular');
     // 3. "Copiar respostas" leva também "Sua equipe".
-    await p.click('#copiarFicha'); await p.waitForTimeout(300);
-    const txt = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
-    ok(/\*Sua equipe\*/.test(txt) && /Líder Local \(produtor\)/.test(txt) && /Técnico\(a\) de som/.test(txt), '"Copiar respostas" inclui Sua equipe, como no modelo do Gui');
+    await p.click('#copiarFicha'); await p.waitForSelector('#envTxt');
+    const txt = await p.inputValue('#envTxt');
+    const links = await p.$$eval('#dlg [data-envio]', (xs) => xs.map((x) => x.getAttribute('href')));
+    ok(/\*Sua equipe\*/.test(txt) && /Líder Local \(produtor\)/.test(txt) && /Técnico\(a\) de som/.test(txt), '"Enviar respostas" inclui Sua equipe, como no modelo do Gui');
+    ok(links.some((h) => /^https:\/\/wa\.me\/5511996253334|^https:\/\/wa\.me\/11996253334/.test(h)) && links.some((h) => /^mailto:/.test(h)) && !!(await p.$('#dlg [data-copiar-envio]')), 'respostas da Ficha saem por WhatsApp do Gui, e-mail ou cópia');
+    await p.evaluate(() => document.querySelector('#dlg').close());
     // 4. "Como é a noite" não aparece para a casa enquanto o pacote não traz o conteúdo.
     const subsOp = await p.evaluate(() => [...document.querySelectorAll('[data-aba]')].length && ['roteiro'].filter((k) => window.TQConta.areaDe(k)));
     const vazios = subsOp.length ? await (async () => { await p.click('[data-aba="operacoes"]'); await p.click('[data-sub="operacoes|roteiro"]'); return p.$$eval('.card.md', (xs) => xs.filter((x) => !x.textContent.trim()).length); })() : 0;

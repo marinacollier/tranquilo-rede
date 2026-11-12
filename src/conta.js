@@ -80,6 +80,7 @@ const TQConta = (() => {
         Object.assign(i, campos, campos.status && campos.status !== i.status ? { avaliado_por: db.sessao, avaliado_em: agora() } : {}); gravar();
       },
       async casas() { exigeEquipe(); return Object.values(db.casas).map((c) => ({ ...c, perfil: db.usuarios[c.user_id]?.perfil })); },
+      async editarFichaCasa(cid, dados) { exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid); if (c) { c.dados = dados; gravar(); } },
       async avaliarCasa(cid, campos) {
         exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid);
         Object.assign(c, campos, { avaliado_por: db.sessao, avaliado_em: agora() }); gravar();
@@ -371,6 +372,8 @@ const TQConta = (() => {
       async avaliarInscricao(iid, campos) { campos = await guardarNota("insc", iid, campos); ok(await sb.from("inscricoes_artistas").update(campos).eq("id", iid)); },
       async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
       async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
+      // Administração edita a Ficha direto (Gui, 11/2026); o banco só deixa a adm.
+      async editarFichaCasa(cid, dados) { const r = ok(await sb.from("cadastros_casas").update({ dados }).eq("id", cid).select("dados")); if (!r?.length || JSON.stringify(r[0].dados) !== JSON.stringify(dados)) throw new Error("Só a administração edita a Ficha direto."); },
       async perfis() { return lerPerfis((x) => x.order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
@@ -743,6 +746,8 @@ const TQConta = (() => {
 
   // Botões de encerrar ficam escondidos até a regra do banco (v15b) estar aplicada em produção.
   const ENCERRAR_ATIVO = false;
+  // Edição da Ficha pela administração: liga quando a regra v16 do banco estiver em produção.
+  const EDITAR_FICHA_ATIVO = false;
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
   function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
     const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
@@ -824,15 +829,68 @@ const TQConta = (() => {
       ${mats.length ? `<h2>Materiais</h2><div class="list">${mats.map((m) => `<div class="card"><div class="row"><b>${esc(m.titulo)}</b><a class="btn sm" href="${esc(m.fonte_url)}" target="_blank" rel="noopener">Abrir ↗</a></div></div>`).join("")}</div>` : ""}
       <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`;
   }
+  // Mensagem de alinhamento de cronograma (modelo da Operações, 12/11/2026). Quem recebe: o contato da casa.
+  // Regras: ordem do line-up ("Ordem de apresentação"); quem toca por último passa o som primeiro; olho no olho só no
+  // Descubra; artista não confirmado fica fora (avisar Operações); sem telefone sai [telefone]; horários partem das 19h.
+  const DIAS_SEM = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  const hm = (min) => { const h = Math.floor(min / 60), m = min % 60; return `${h}h${m ? String(m).padStart(2, "0") : ""}`; };
+  const BLOCOS_CRONO = {
+    apresenta: (A, B) => [["Montagem e passagem", [[-270, 0, "chegada da equipe e início da montagem técnica"], [-210, -150, `passagem de som de ${B}`], [-150, -140, "troca de palco"], [-140, -110, `passagem de som de ${A}`], [null, -60, "ajustes finais", "até"], [-60, 0, "chegada da equipe operacional"]]],
+      ["Noite", [[0, 0, "abertura da casa"], [50, 0, "aviso de 10 minutos"], [60, 0, "anfitriã (abertura da noite)"], [70, 100, A], [100, 120, "intervalo"], [120, 180, B], [180, 210, "playlist"], [210, 0, "início da desmontagem"]]]],
+    descubra3: (A, B, C) => [["Montagem e passagem", [[-240, 0, "chegada da equipe e início da montagem técnica"], [-170, -140, `passagem de som de ${C}`], [-130, -100, `passagem de som de ${B}`], [-90, -60, `passagem de som de ${A}`], [-60, 0, "chegada da equipe operacional e da portaria"]]],
+      ["Noite", [[0, 0, "abertura das portas"], [40, 0, "aviso de 10 minutos"], [50, 0, "anfitriã (abertura da noite)"], [60, 90, A], [90, 105, "intervalo"], [105, 135, B], [135, 150, "intervalo"], [150, 170, "olho no olho"], [170, 200, C], [200, 0, "início da desmontagem"]]]],
+    descubra2: (A, B) => [["Montagem e passagem", [[-240, 0, "chegada da equipe e início da montagem técnica"], [-170, -140, `passagem de som de ${B}`], [-130, -100, `passagem de som de ${A}`], [-100, -80, "checagem do olho no olho (os dois juntos)"], [-60, 0, "chegada da equipe operacional e da portaria"]]],
+      ["Noite", [[0, 0, "abertura das portas"], [40, 0, "aviso de 10 minutos"], [50, 0, "anfitriã (abertura da noite)"], [60, 90, A], [90, 105, "intervalo"], [105, 125, `olho no olho especial, ${A} e ${B}`], [125, 140, "intervalo"], [140, 170, B], [170, 0, "início da desmontagem"]]]],
+  };
+  function mensagemCronograma(e, { contato, casaNome, endereco, tecnico }) {
+    const N = S.pac?.noites?.[e.id], avisos = [];
+    if (!N) return { bloqueada: true, avisos: ["O line-up desta noite ainda não chegou do Notion: pedir à Isa."], texto: "" };
+    const conf = N.artistas.filter((a) => a.status === "Confirmado"), fora = N.artistas.filter((a) => a.status !== "Confirmado" && a.status !== "Cancelado");
+    fora.forEach((a) => avisos.push(`${a.nome} está com status "${a.status}" e ficou fora da lista: avisar Operações antes de enviar.`));
+    if (!conf.length || conf.some((a) => a.ordem == null)) return { bloqueada: true, avisos: [...avisos, "Ordem de apresentação não definida no line-up: pedir à Isa."], texto: "" };
+    const produto = /descubra/i.test(e.n || "") ? "Descubra" : /apresenta/i.test(e.n || "") ? "Apresenta" : e.m;
+    const ord = [...conf].sort((a, b) => a.ordem - b.ordem), nomes = ord.map((a) => a.nome), apres = produto === "Apresenta";
+    const tipo = apres ? (nomes.length === 2 ? "apresenta" : null) : nomes.length === 3 ? "descubra3" : nomes.length === 2 ? "descubra2" : null;
+    if (!tipo) return { bloqueada: true, avisos: [...avisos, `Formato sem modelo: ${produto || "sem formato"} com ${nomes.length} artista(s). Falar com a Operações.`], texto: "" };
+    const ini = N.inicio ? +N.inicio.slice(0, 2) * 60 + +N.inicio.slice(3, 5) : 19 * 60;
+    if (!N.inicio) avisos.push("Horário de início não está no Notion: considerei abertura às 19h (a validar).");
+    const blocos = BLOCOS_CRONO[tipo](...nomes);
+    const linhaHora = ([a, b, t, pre]) => `${pre === "até" ? `até ${hm(ini + b)}` : b ? `${hm(ini + a)} às ${hm(ini + b)}` : hm(ini + a)}: ${t}`;
+    const d = new Date(e.d + "T12:00:00"), dia = DIAS_SEM[d.getDay()], dataBr = e.d.slice(8, 10) + "/" + e.d.slice(5, 7);
+    const principal = apres ? nomes[1] : null;
+    const contatos = ord.map((a, i) => `• ${a.nome}${apres && i === 0 ? " (abertura)" : ""}: ${a.producao ? "[nome da produção] (produção), " : ""}[telefone]`);
+    if (ord.some((a) => a.producao)) avisos.push("Nome da produção e telefones ficam no Notion: a Operações completa os campos entre colchetes (a validar).");
+    else avisos.push("Telefones ficam no Notion: a Operações completa os [telefone] (a validar).");
+    const texto = [`Oi, ${contato || "[contato da casa]"}! Tudo bem? 🌿`, "",
+      `Pra ${dia} (${dataBr}), no *Tranquilo ${produto}${principal ? ` com ${principal}` : ""}*, cria por favor um grupo no WhatsApp pra alinhar os horários com os artistas e o técnico de som.`, "",
+      "*Quem entra no grupo:*", ...contatos, tecnico ? `• *Técnico de som:* ${tecnico}` : "• *Técnico de som:* coloca quem vai operar o som da noite", "",
+      "Depois cola esse cronograma no grupo:", "",
+      `*Tranquilo ${produto}${principal ? ` · ${principal}` : ""}*`, `📍 ${casaNome || "[casa]"}, ${endereco || "[endereço]"}`, `📅 ${dia[0].toUpperCase() + dia.slice(1)}, ${dataBr}`, "",
+      ...blocos.flatMap(([t, ls], i) => [`*${t}*`, ...ls.map(linhaHora), ...(i < blocos.length - 1 ? [""] : [])]), "",
+      "Quem toca por último passa o som primeiro. Qualquer atraso, avisa aqui no grupo 🙏"].join("\n");
+    return { bloqueada: false, avisos, texto };
+  }
+  // Toda mensagem do portal sai por WhatsApp, e-mail ou cópia (para mandar por outro canal).
+  const acoesEnvio = (texto, { whatsapp, email, assunto, idTexto }) => {
+    const wa = `https://wa.me/${soDigitos(whatsapp || "")}?text=${encodeURIComponent(texto)}`;
+    const mail = `mailto:${encodeURIComponent(email || "")}?subject=${encodeURIComponent(assunto || "Tranquilo")}&body=${encodeURIComponent(texto)}`;
+    return `<div class="barra-acoes"><a class="btn pri sm" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn sm" href="${esc(mail)}">E-mail</a><button class="btn sm" data-copiar-msg="${esc(idTexto)}">Copiar</button><span class="muted" style="font-size:12px"></span></div>`;
+  };
+  const blocoMensagem = (e, opts) => { const M = mensagemCronograma(e, opts), id = "crmsg-" + e.id;
+    return `<div style="margin-top:10px"><b>Mensagem de alinhamento do cronograma</b> <span class="muted" style="font-size:12px">para o contato da casa criar o grupo com os artistas e o técnico de som</span>
+      ${M.avisos.length ? `<div class="alert ${M.bloqueada ? "crit" : "warn"}" style="margin:6px 0">${M.avisos.map(esc).join("<br>")}</div>` : ""}
+      ${M.bloqueada ? "" : `<textarea id="${esc(id)}" rows="12" readonly style="width:100%;font-size:13px">${esc(M.texto)}</textarea>${acoesEnvio(M.texto, { whatsapp: opts.whatsapp, email: opts.email, assunto: `Cronograma do Tranquilo · ${dt(e.d)}`, idTexto: id })}`}</div>`; };
   // Endereço que abre no aplicativo de mapa do celular (Google Maps, Apple Maps ou outro, pelo link universal).
   const linkMapa = (end) => end ? `<a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(end)}" target="_blank" rel="noopener">${esc(end)} ↗</a>` : `<span class="muted">endereço a confirmar com a casa</span>`;
   const HORARIOS_NOITE = [["Passagem de som (estimada)", "passagem"], ["Portas", "portas"], ["Show", "show"]];
   // O que o artista (e a casa, nos Cronogramas) precisa para tocar: data, local, ordem da noite, horários e contatos.
   function infoNoite(e, end) {
-    const ordem = (e.a || []).length ? (e.a || []).map((n, i) => `${i + 1}. ${esc(n)}`).join(" · ") : '<span class="muted">line-up a definir</span>';
+    const N = S.pac?.noites?.[e.id], conf = N ? N.artistas.filter((a) => a.status === "Confirmado" && a.ordem != null).sort((a, b) => a.ordem - b.ordem) : [];
+    const ordem = conf.length ? conf.map((a) => `${a.ordem}. ${esc(a.nome)}`).join(" · ") : (e.a || []).length ? (e.a || []).map((n) => esc(n)).join(" · ") + ' <span class="muted">(ordem a definir)</span>' : '<span class="muted">line-up a definir</span>';
     return `<dl class="kv" style="margin:10px 0 0"><dt>Local</dt><dd>${esc(nomeCasa(e.h))} · ${linkMapa(end)}</dd>
-      <dt>Ordem da noite ${A_VALIDAR_HTML}</dt><dd>${ordem}</dd>
-      ${HORARIOS_NOITE.map(([t]) => `<dt>${t}</dt><dd><span class="muted">a confirmar</span> ${A_VALIDAR_HTML}</dd>`).join("")}
+      <dt>Ordem da noite</dt><dd>${ordem}</dd>
+      <dt>Abertura da casa</dt><dd>${N?.inicio ? N.inicio.replace(":", "h").replace("h00", "h") : '<span class="muted">19h (a confirmar)</span>'}</dd>
+      <dt>Passagem de som</dt><dd>Quem toca por último passa o som primeiro. Horário no cronograma da noite.</dd>
       <dt>Contatos ${A_VALIDAR_HTML}</dt><dd>Isa · Comercial e Artístico (datas, artistas e line-up). Contato da casa a confirmar.</dd></dl>`;
   }
   function blocoPassos(e, modelo) {
@@ -999,9 +1057,9 @@ const TQConta = (() => {
       <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, travado || c?.status === "suspensa")}</div>
       ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
-      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`
+      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
         : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou (opcional)</b><textarea id="solMsg" rows="2" maxlength="1000"></textarea></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
-        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Copiar respostas</button></div>`}
+        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
       <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
     },
@@ -1058,13 +1116,10 @@ const TQConta = (() => {
     cronograma() {
       const evs = eventosDaConta().filter((e) => e.d >= hojeIso()), d = S.conta.casa?.dados || {};
       const end = valorCasa(d, "endereco") || S.pac?.ficha_notion?.endereco || "", casa = d.nome || S.conta.perfil.vinculo_nome || "a casa";
-      const msg = (e) => [`Oi! Aqui é da ${casa}. Tudo certo para o Tranquilo ${e.m || ""} em ${dt(e.d)}.`, `Endereço: ${end || "a confirmar"}`,
-        ...HORARIOS_NOITE.map(([t]) => `${t}: a confirmar`), (e.a || []).length ? `Ordem da noite: ${(e.a || []).join(", ")}` : "", "Qualquer coisa, fala com a gente por aqui!"].filter(Boolean).join("\n");
       return `<div class="tag">Cronogramas</div><h1>Datas fechadas</h1>
       <p class="sub">Cada data fechada com o cronograma da noite, a mensagem pronta para mandar ao artista e quem vai tocar. O contato direto entre casa e artista é bem-vindo.</p>
       ${evs.length ? `<div class="list">${evs.map((e) => `<div class="card"><b>${dt(e.d)} · ${esc(e.m || "")}</b>${infoNoite(e, end)}
-        <label class="fcampo" style="margin-top:10px"><b>Mensagem pronta para o artista ${A_VALIDAR_HTML}</b><textarea id="crmsg-${esc(e.id)}" rows="6" readonly>${esc(msg(e))}</textarea></label>
-        <div class="barra-acoes"><button class="btn sm" data-copiar-msg="crmsg-${esc(e.id)}">Copiar mensagem</button><span class="muted" style="font-size:12px"></span></div>
+        ${blocoMensagem(e, { contato: String(valorCasa(d, "dono_nome") || "").split(" ")[0], casaNome: casa, endereco: end, tecnico: (() => { const t = (S.conta.equipe || []).find((m) => !m.reserva && (m.funcoes || []).includes("som")); return t ? `${t.nome}, ${t.whatsapp || "[telefone]"}` : ""; })() })}
         <div class="muted" style="font-size:13px;margin-top:8px"><b>Contato e ficha dos artistas</b> ${A_VALIDAR_HTML} O Gui define quais campos da ficha do artista a casa vê.</div></div>`).join("")}</div>`
         : vazio("Nenhuma data fechada ainda", "Quando o Tranquilo fechar uma data com a sua casa, o cronograma e a mensagem para o artista aparecem aqui.", "", "cronograma")}`;
     },
@@ -1083,7 +1138,7 @@ const TQConta = (() => {
     lado_a_lado() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("as datas"); }
       const P = S.pac; if (!P) return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver as datas.</div>`;
-      const hoje = hojeIso(), evs = P.eventos.filter((e) => !e.z && e.d >= hoje).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 40);
+      const hoje = hojeIso(), evs = P.eventos.filter((e) => !e.z && e.d >= hoje).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 70);
       const k = (x) => String(x || "").toLowerCase();
       const cadDe = (e) => (E.casas || []).find((c) => (c.notion_casa_id && c.notion_casa_id === e.k) || (c.dados?.nome && k(c.dados.nome) === k(e.h)) || (c.perfil?.vinculo_nome && k(c.perfil.vinculo_nome) === k(e.h)));
       const dispDe = (e) => (E.disp || []).find((x) => k(x.casa_ref) === k(e.h) && x.dia === e.d);
@@ -1094,7 +1149,8 @@ const TQConta = (() => {
           <dt>Ficha</dt><dd>${c ? badge(STATUS_CASA, c.status) : '<span class="muted">sem cadastro no portal</span>'}</dd>
           <dt>Disponibilidade</dt><dd>${di ? (di.situacao === "indisponivel" ? '<span class="badge b-crit">marcou indisponível</span>' : "marcou disponível") : '<span class="muted">sem marcação</span>'}</dd>
           <dt>Bonificação</dt><dd>${b?.tem === "sim" ? esc(b.marca || "sim") : b?.tem === "nao" ? "não" : '<span class="muted">a definir</span>'}</dd>
-          ${c ? `<dt></dt><dd><button class="btn sm" data-click="casacad:${c.id}">Abrir a ficha</button></dd>` : ""}</dl></div></div></div>`; };
+          ${c ? `<dt></dt><dd><button class="btn sm" data-click="casacad:${c.id}">Abrir a ficha</button></dd>` : ""}</dl></div></div>
+        ${blocoMensagem(e, { contato: String(c?.dados?.dono_nome || "").split(" ")[0], casaNome: c?.dados?.nome || e.h, endereco: c?.dados?.endereco || P.enderecos?.[e.k], whatsapp: c?.dados?.whatsapp, email: c?.dados?.dono_email })}</div>`; };
       return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa lado a lado</h1>
       <p class="sub">Tudo o que circula entre o artista e a casa em cada data: ordem da noite, horários, endereço, ficha e disponibilidade da casa, bonificação. Próximas ${evs.length} datas.</p>
       ${evs.length ? `<div class="list">${evs.map(lado).join("")}</div>` : vazio("Nenhuma data futura", "Quando houver datas futuras na agenda, elas aparecem aqui.", "", "lado_a_lado")}`;
@@ -1729,6 +1785,13 @@ const TQConta = (() => {
     const c = S.eq.casas.find((x) => x.id === id); if (!c) return;
     const d = c.dados, adm = S.conta.perfil.tipo === "adm", pend = c.pendencias || R.pendenciasCasa(d);
     // Dados pessoais do Dono A e dados bancários: só a administração vê (a equipe vê que existem).
+    if (adm && S.fichaEdit === id) {
+      $("#dlgIn").innerHTML = `<div class="tag">Editar a Ficha · administração</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2>
+        <p class="muted" style="font-size:13px">A edição vale na hora e a casa vê a Ficha atualizada. Use para importar a Ficha que a casa mandou por outro canal.</p>
+        <div id="formCentral" style="display:flex;flex-direction:column;gap:12px">${formCasa(d, false)}</div>
+        <div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-salvar-ficha="${c.id}">Salvar a Ficha</button><button class="btn" data-editar-ficha="">Voltar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+      $("#dlg").dataset.alvo = "casa:" + id; if (!$("#dlg").open) $("#dlg").showModal(); return;
+    }
     const resp = F_CASA.map(([t, , cs, sens]) => `<h3>${esc(t)}</h3>${sens && !adm ? `<p class="muted" style="font-size:13px">Dados pessoais e bancários: só a administração vê. ${cs.filter((x) => valorCasa(d, x[0])).length} de ${cs.length} campos preenchidos.</p>` : `<dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = valorCasa(d, k); if (Array.isArray(v)) v = v.map((x) => (opts || []).find(([o]) => o === x)?.[1] || x).join(", "); else if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; return `<dt>${esc(rot.length > 60 ? rot.slice(0, 60) + "…" : rot)}</dt><dd>${esc(v || "")}</dd>`; }).join("")}</dl>`}`).join("");
     const futurasCasa = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hojeIso() && ((c.notion_casa_id && e.k === c.notion_casa_id) || (d.nome && String(e.h || "").toLowerCase() === String(d.nome).toLowerCase())));
     const cb = c.combinados || {}, sols = (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente");
@@ -1752,7 +1815,7 @@ const TQConta = (() => {
     ${pedidos}
     ${futurasCasa.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasCasa.length} data${futurasCasa.length > 1 ? "s" : ""} futura${futurasCasa.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasCasa.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
     ${resp}
-    <div class="barra-acoes" style="margin:8px 0"><button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
+    <div class="barra-acoes" style="margin:8px 0">${adm && EDITAR_FICHA_ATIVO ? `<button class="btn sm" data-editar-ficha="${c.id}">Editar a Ficha</button>` : ""}<button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
     ${combinados}
     <h3>Decisão</h3><label class="fcampo"><b>Classificação</b><select id="classe"><option value="">Sem classificação (antes da 1ª data)</option>${Object.entries(CLASSE).map(([k, t]) => `<option value="${k}"${c.classificacao === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
@@ -1826,7 +1889,8 @@ const TQConta = (() => {
 
   // ---------- envio de acesso e tutorial ----------
   const site = () => location.origin + location.pathname;
-  const soDigitos = (w) => (w || "").replace(/\D/g, "");
+  // Número para o wa.me: só dígitos e com o código do Brasil (55) quando vier só com DDD.
+  const soDigitos = (w) => { const d = (w || "").replace(/\D/g, ""); return d.length === 10 || d.length === 11 ? "55" + d : d; };
   function mensagemTutorial(tipo, nome) {
     return `Oi${nome ? ", " + nome : ""}! Este é o passo a passo da sua área na Rede Tranquilo (${ROTULO[tipo].toLowerCase()}): ${TQTour.linkDe(tipo)}\n\nQuando você entrar pela primeira vez, ele também abre sozinho.`;
   }
@@ -2034,6 +2098,14 @@ const TQConta = (() => {
       try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
       return true;
     }
+    const ef = t.closest("[data-editar-ficha]"); if (ef) { const id = ef.dataset.editarFicha || S.fichaEdit; S.fichaEdit = ef.dataset.editarFicha || null; fichaCasa(id); return true; }
+    const sf = t.closest("[data-salvar-ficha]"); if (sf) {
+      const c = S.eq.casas.find((x) => x.id === sf.dataset.salvarFicha); if (!c) return true;
+      const dados = { ...(c.dados || {}), ...lerForm($("#formCentral")) }, erros = conferirFormato(dados);
+      if (erros.length) { $("#derr").textContent = `Confira: ${erros.join("; ")}.`; return true; }
+      try { await api.editarFichaCasa(c.id, dados); c.dados = dados; c.pendencias = R.pendenciasCasa(dados); S.fichaEdit = null; fichaCasa(c.id); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      return true;
+    }
     const cpm = t.closest("[data-copiar-msg]"); if (cpm) {
       const ta = document.getElementById(cpm.dataset.copiarMsg), ok = cpm.nextElementSibling;
       try { await navigator.clipboard.writeText(ta.value); if (ok) ok.textContent = "Copiada."; } catch { ta.select(); if (ok) ok.textContent = "Selecione e copie."; }
@@ -2079,7 +2151,8 @@ const TQConta = (() => {
     if (t.id === "copiarFicha") {
       const d = { ...(S.conta.casa?.dados || {}), ...lerForm($("#form")) };
       const txt = textoFicha(d, true, S.conta.equipe);
-      try { await navigator.clipboard.writeText(txt); $("#ferr").textContent = "Respostas copiadas."; } catch { $("#ferr").textContent = "O navegador não deixou copiar."; }
+      // Como no modelo do Gui: as respostas vão para o WhatsApp dele; também por e-mail ou cópia (e-mail a validar).
+      dialogoEnvio({ titulo: "Enviar as respostas da Ficha", texto: txt, whatsapp: S.conta.casa?.combinados?.contatos?.gui || "(11) 99625-3334", email: "gui.monteiro@tranquilomusica.com.br", assunto: `Ficha da unidade · ${d.nome || S.conta.perfil.vinculo_nome || ""}` });
       return true;
     }
     return false;
