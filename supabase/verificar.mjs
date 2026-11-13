@@ -77,10 +77,11 @@ if (tok && ref) {
   const e = await q(`begin;\n${schema}\n;rollback;`);
   // Diagnóstico do segredo sem expor o valor: só o formato (token pessoal começa com sbp_ e tem 44 caracteres).
   if (e.status === 401) console.log(`DICA  SUPABASE_ACCESS_TOKEN salvo: começa com sbp_ = ${tok.startsWith('sbp_')}, ${tok.length} caracteres, espaço ou quebra de linha = ${/\s/.test(tok)}`);
-  reg('schema.sql roda sem erro (ensaio desfeito)', e.status < 300, e.status < 300 ? 'todas as seções rodaram' : `HTTP ${e.status} ${e.corpo.slice(0, 600)}`);
+  const soLeitura = /read-only transaction/.test(e.corpo);
+  reg('schema.sql roda sem erro (ensaio desfeito)', e.status < 300, e.status < 300 ? 'todas as seções rodaram' : soLeitura ? 'o token salvo é só de leitura: não ensaia nem aplica o banco (crie um com escrita no banco)' : `HTTP ${e.status} ${e.corpo.slice(0, 600)}`);
 
   // 7. Versões do banco em produção: cada uma deixa uma marca (tabela, gatilho ou trecho de função).
-  if (e.status < 300) {
+  if (e.status !== 401) {
     const v = await q(`select
       exists (select 1 from pg_proc where proname = 'aplicar_convite_interno' and prosrc like '%atual.tipo in (''equipe'', ''adm'') and c.tipo not in%') as v14,
       exists (select 1 from pg_trigger where tgname = 'trg_encerrar_casa') as v15,
