@@ -1282,7 +1282,9 @@ function render() {
   if (location.hash !== alvo) history[/^#\//.test(location.hash) ? "pushState" : "replaceState"](null, "", location.pathname + alvo);
   $("#tabs").innerHTML = navHtml(abas);
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
-  $("#app").innerHTML = (TQConta.telas[S.aba] || TELAS[S.aba])();
+  // Documento aberto dentro da página (Guia, manuais, documentos do marketing): some ao trocar de aba ou de parte.
+  if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
+  $("#app").innerHTML = (S.lendo && TQConta.leitor()) || (TQConta.telas[S.aba] || TELAS[S.aba])();
   ligar();
 }
 function ligar() {

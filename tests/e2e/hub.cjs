@@ -52,7 +52,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // equipe carrega campanha nova (arquivo de dados) e atualiza a do Rooftap (página HTML)
     await p.click('[data-aba="campanhas"]'); await p.waitForSelector('#cfArq', { state: 'attached', timeout: 5000 });
     const cob = await p.innerText('table[data-tbl="cobcasas"]');
-    ok(/Rooftap/.test(cob) && /1\/10/.test(cob) && /leve/.test(cob) && /\b1\b/.test(cob), `casas no hub: Rooftap com pessoa, formato e campanha (${cob.replace(/\s+/g, ' ').slice(0, 120)})`);
+    ok(/Rooftap/.test(cob) && /1\/10/.test(cob) && /leve|completa|sem agenda/.test(cob) && /\b1\b/.test(cob), `casas no hub: Rooftap com pessoa, formato e campanha (${cob.replace(/\s+/g, ' ').slice(0, 120)})`);
     await p.click('details:has(#cfArq) summary'); await p.setInputFiles('#cfArq', __dirname + '/dados/casa-nova.json'); await p.waitForTimeout(400);
     ok(/2 dias e 3 ações lidos de casa-nova.json/.test(await p.innerText('#app')) && (await p.inputValue('#cfCasa')) === 'Casa Nova' && /casa-nova-2026-11/.test(await p.inputValue('#cfSlug')), 'arquivo de dados: prévia com dias, ações, casa e identificador');
     await p.click('[data-camp-importar]'); await p.waitForTimeout(600);

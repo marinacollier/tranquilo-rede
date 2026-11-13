@@ -150,6 +150,17 @@ const TQConta = (() => {
           pendentes: vig.filter((v) => v.exige_ciencia && !minhas.some((c) => c.versao_id === v.id)).map((v) => ({ versao_id: v.id })) };
       },
       async darCiencia(versaoId) { (db.ciencias ||= []).push({ versao_id: versaoId, user_id: db.sessao, registrada_em: agora() }); gravar(); },
+      async conteudoVersao(vid) { return (hubDemo().versoes || []).find((v) => v.id === vid)?.conteudo_html || null; },
+      async publicarDoc(d) {
+        exigeEquipe(); const h = hubDemo();
+        let m = (h.materiais || []).find((x) => x.slug === d.slug);
+        if (!m) { m = { id: id(), slug: d.slug, titulo: d.titulo, area: d.area, funcao: d.funcao || null, tipo_material: d.tipo, publico: d.publico, fonte_url: d.fonte_url, ativo: true }; (h.materiais ||= []).push(m); }
+        else { m.ativo = true; m.titulo = d.titulo; }
+        const versao = (h.versoes || []).some((x) => x.material_id === m.id && x.versao === d.versao) ? `${d.versao} (${new Date().toISOString().slice(11, 16)})` : d.versao;
+        (h.versoes ||= []).push({ id: id(), material_id: m.id, versao, resumo: d.resumo || null, url: null, exige_ciencia: false, conteudo_html: d.html, tem_conteudo: true, publicada_em: agora() });
+        for (const r of d.aposentar || []) { const x = h.materiais.find((y) => y.slug === r); if (x) x.ativo = false; }
+        localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+      },
       async publicarVersao(v) {
         exigeEquipe(); const h = hubDemo();
         if ((h.versoes || []).some((x) => x.material_id === v.material_id && x.versao === v.versao)) throw new Error("duplicate key value violates unique constraint");
@@ -292,6 +303,7 @@ const TQConta = (() => {
     let recuperacao = /type=recovery/.test(location.hash);
     sb.auth.onAuthStateChange((evento) => { if (evento === "PASSWORD_RECOVERY") recuperacao = true; });
     const base = () => location.origin + location.pathname;
+    let TEM_CONTEUDO = true;   // banco com a v18 (documento dentro da página)
     const ok = ({ data, error }) => { if (error) throw new Error(traduz(error.message)); return data; };
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     // O código de acesso não sai na leitura de perfis (só por meu_acesso, e o de todos só para a adm: schema v8).
@@ -485,14 +497,27 @@ const TQConta = (() => {
         const u = await uid();
         const [materiais, versoes, minhas, pendentes, todas] = await Promise.all([
           sb.from("materiais").select("*").eq("ativo", true).order("titulo"),
-          sb.from("material_versoes").select("id,material_id,versao,resumo,url,exige_ciencia,publicada_em").order("publicada_em", { ascending: false }),
+          sb.from("material_versoes").select(TEM_CONTEUDO ? "id,material_id,versao,resumo,url,exige_ciencia,publicada_em,tem_conteudo" : "id,material_id,versao,resumo,url,exige_ciencia,publicada_em").order("publicada_em", { ascending: false }),
           sb.from("ciencias").select("versao_id,registrada_em").eq("user_id", u),
           sb.rpc("minhas_ciencias_pendentes"),
           sb.from("ciencias").select("versao_id,user_id,registrada_em"),
         ]);
+        // Banco ainda sem a v18 (documento dentro da página): lê como antes, e os documentos abrem pelo link.
+        if (versoes.error && /tem_conteudo/.test(versoes.error.message || "")) { TEM_CONTEUDO = false; return this.hubMateriais(); }
         return { materiais: ok(materiais), versoes: ok(versoes), minhas: ok(minhas), pendentes: ok(pendentes), todas: ok(todas) };
       },
       async darCiencia(versaoId) { ok(await sb.from("ciencias").insert({ versao_id: versaoId })); },
+      async conteudoVersao(vid) { const [v] = ok(await sb.from("material_versoes").select("conteudo_html").eq("id", vid)); return v?.conteudo_html || null; },
+      // Equipe: publica um documento para abrir dentro do portal (cria o material na primeira vez) e aposenta os que ele substitui.
+      async publicarDoc(d) {
+        let [m] = ok(await sb.from("materiais").select("id").eq("slug", d.slug));
+        if (!m) [m] = ok(await sb.from("materiais").insert({ slug: d.slug, titulo: d.titulo, area: d.area, funcao: d.funcao || null, tipo_material: d.tipo, publico: d.publico, fonte_url: d.fonte_url }).select("id"));
+        else ok(await sb.from("materiais").update({ ativo: true, titulo: d.titulo }).eq("id", m.id));
+        const { error } = await sb.from("material_versoes").insert({ material_id: m.id, versao: d.versao, resumo: d.resumo || null, conteudo_html: d.html });
+        if (error && /duplicate|unique/i.test(error.message)) ok(await sb.from("material_versoes").insert({ material_id: m.id, versao: `${d.versao} (${new Date().toISOString().slice(11, 16)})`, resumo: d.resumo || null, conteudo_html: d.html }));
+        else if (error) ok({ error });
+        if (d.aposentar?.length) ok(await sb.from("materiais").update({ ativo: false }).in("slug", d.aposentar));
+      },
       // Equipe: carrega ou atualiza a campanha de uma casa. Reimportar não apaga o que a casa já marcou.
       async importarCampanha(dados) { return ok(await sb.rpc("importar_campanha", { dados })); },
       // Equipe: nova versão de um material (quem publica e quando são carimbados pelo banco).
@@ -846,14 +871,15 @@ const TQConta = (() => {
   function telaMarketing(f) {
     const F = TQEquipe.FUNCOES.find((x) => x[0] === f) || [f, f, ""], d = TQEquipe.PERFIL[f] || { le: [], show: [], devolve: [] };
     const H = S.hub; if (!H && S.conta) carregarHub();
-    const slugs = { lider: ["semana-lideranca-local-sp", "plano-acao-rooftap"], anfitriao: ["plano-acao-rooftap"], social_media: ["semana-social-media-sp", "playbook-descubra", "playbook-apresenta"] }[f] || [];
-    const mats = (H?.materiais || []).filter((m) => slugs.includes(m.slug) || m.funcao === f);
+    const slugs = DOCS_DA_FUNCAO[f] || [];
+    const mats = slugs.map((sl) => (H?.materiais || []).find((m) => m.slug === sl)).filter(Boolean)
+      .concat((H?.materiais || []).filter((m) => m.funcao === f && !slugs.includes(m.slug) && !DOCS_APOSENTADOS.includes(m.slug)));
     const nome = { lider: "Produtor local (Líder Local)", anfitriao: "Anfitrião(ã)", social_media: "Social media" }[f] || F[1];
     return `<div class="tag">Marketing</div><h1>${esc(nome)}</h1>
       <p class="sub">${esc(F[2])}</p>
       <div class="alert warn" style="margin-bottom:12px"><b>Obrigações de marketing ${A_VALIDAR_HTML}</b>A lista abaixo vem do que a Operações combinou para cada função. O texto final das obrigações de marketing vem do Gui e do Bruno.</div>
       <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div class="card"><b>${t}</b><ul class="passos">${(xs || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
-      ${mats.length ? `<h2>Materiais</h2><div class="list">${mats.map((m) => `<div class="card"><div class="row"><b>${esc(m.titulo)}</b><a class="btn sm" href="${esc(m.fonte_url)}" target="_blank" rel="noopener">Abrir ↗</a></div></div>`).join("")}</div>` : ""}
+      ${mats.length ? `<h2>Documentos</h2><div class="list">${mats.map((m) => `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b>${DOCS[m.slug]?.desc ? `<div class="muted" style="font-size:13px">${esc(DOCS[m.slug].desc)}</div>` : ""}</div>${botaoLer(H, m)}</div></div>`).join("")}</div>` : H ? `<div class="alert warn" style="margin-top:12px"><b>⚠ Atenção: os documentos desta função ainda não foram publicados no portal.</b>A equipe do Tranquilo publica em Materiais.</div>` : ""}
       <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`;
   }
   // Mensagem de alinhamento de cronograma (modelo da Operações, 12/11/2026). Quem recebe: o contato da casa.
@@ -1034,6 +1060,125 @@ const TQConta = (() => {
     if (!w) alert("O navegador bloqueou a janela. Permita janelas deste site e tente de novo.");
   }
 
+  /** Central: publicar documentos para abrir dentro do portal, vários de uma vez (o nome do arquivo diz qual é). */
+  function formDocsPagina() {
+    return `<details class="card" style="margin:12px 0"${S.docsAberto ? " open" : ""}><summary><b>Publicar documentos para abrir na página</b> <span class="muted" style="font-size:13px">(.html do Gui e do Bruno)</span></summary>
+      <p class="muted" style="font-size:13px;margin:8px 0">Selecione um ou vários arquivos .html de uma vez. O nome do arquivo diz qual documento é:
+      ${Object.entries(DOCS).map(([k, d]) => `<code>${esc(k)}.html</code> (${esc(d.titulo)})`).join(", ")}.
+      Cada envio vira uma versão nova; as antigas ficam guardadas. Os documentos antigos do marketing (Plano de Ação e Playbooks) saem do portal quando os novos entram.</p>
+      <label class="fcampo"><b>Versão</b> <span class="muted" style="font-size:12px">(opcional: em branco, vale a versão escrita no documento ou a data de hoje)</span><input id="dpVer" placeholder="ex.: 1.9" value="${esc(S.dpVer || "")}"></label>
+      <label class="fcampo"><b>Arquivos</b><input type="file" id="dpArq" multiple accept=".html,.htm,text/html"></label>
+      <div class="err" role="status" aria-live="polite" id="dperr"></div></details>`;
+  }
+  async function publicarDocsPagina(files) {
+    const err = $("#dperr"), fixa = ($("#dpVer")?.value || "").trim(), hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10).split("-").reverse().join("/");
+    // Sem versão escrita: usa a que o próprio documento diz ("Versão 1.9"); se não disser, a data de hoje.
+    const versaoDe = (html) => fixa || html.match(/Vers[ãa]o\s+(\d+(?:\.\d+)+)/i)?.[1] || hoje;
+    const lista = [...files].map((f) => ({ f, slug: f.name.toLowerCase().replace(/\.html?$/, "").replace(/[^a-z0-9-]/g, "") }));
+    const desconhecidos = lista.filter((x) => !DOCS[x.slug]).map((x) => x.f.name);
+    if (desconhecidos.length) return diz(err, `Não reconheci ${desconhecidos.join(", ")}. Renomeie com um dos nomes da lista acima (ex.: briefing-anfitriao.html) e envie de novo. Nada foi publicado.`);
+    const grandes = lista.filter((x) => x.f.size > 3900000).map((x) => x.f.name);
+    if (grandes.length) return diz(err, `${grandes.join(", ")} passa de 3,9 MB, o limite do portal. Nada foi publicado.`);
+    S.docsAberto = true; S.dpVer = fixa;
+    const base = location.origin + location.pathname, feitos = [];
+    try {
+      for (const [i, x] of lista.entries()) {
+        diz(err, `Publicando ${i + 1} de ${lista.length}: ${DOCS[x.slug].titulo}…`);
+        const d = DOCS[x.slug], html = await x.f.text(), versao = versaoDe(html);
+        await api.publicarDoc({ slug: x.slug, titulo: d.titulo, area: d.area, funcao: d.funcao, tipo: d.tipo, publico: ["casa"], fonte_url: base + "#/materiais",
+          versao, resumo: "Abre dentro do portal", html, aposentar: d.area === "marketing" ? DOCS_APOSENTADOS : [] });
+        feitos.push(`${d.titulo} (versão ${versao})`);
+      }
+      TQDiario.registrar("docs_publicados", { n: feitos.length });
+      S.hub = null; await carregarHub(); render();
+      diz($("#dperr"), `✓ ${feitos.length} ${feitos.length === 1 ? "documento publicado" : "documentos publicados"}: ${feitos.join("; ")}. Já abrem dentro do portal.`);
+    } catch (e) {
+      S.hub = null; await carregarHub().catch(() => {}); render();
+      diz($("#dperr"), `Parou no documento ${feitos.length + 1} de ${lista.length}. ${feitos.length ? `Publicados: ${feitos.join("; ")}. ` : "Nada foi publicado. "}${traduz(e.message || "")}`);
+    }
+  }
+  // ---------- documentos que abrem dentro do portal (pedido do Gui, 13/11/2026) ----------
+  // Catálogo dos documentos que a Central publica pelo envio de .html (nome do arquivo = slug). O conteúdo fica no banco
+  // (material_versoes.conteudo_html), nunca no repositório. Marketing: Bruno; Operações: Gui.
+  const DOCS = {
+    "guia-do-franqueado": { titulo: "Guia do Franqueado", area: "operacoes", tipo: "guia", desc: "Como a unidade funciona, os compromissos, a semana de cada evento e o fechamento" },
+    "comece-por-aqui": { titulo: "Comece por aqui · O que é o Tranquilo", area: "marketing", tipo: "guia", desc: "O release, como é uma noite e a diferença entre o Apresenta e o #Descubra." },
+    "semana-social-media": { titulo: "#Descubra · A semana do social media", area: "marketing", funcao: "social_media", tipo: "playbook", desc: "Dia a dia, do show à véspera do próximo, com os posts reais do perfil de São Paulo." },
+    "semana-lideranca-local": { titulo: "#Descubra · A semana da liderança local", area: "marketing", funcao: "lider", tipo: "playbook", desc: "Dia a dia: comunidade, tripé e artistas, com a pergunta de cada dia." },
+    "briefing-anfitriao": { titulo: "Briefing · Anfitrião da noite", area: "marketing", funcao: "anfitriao", tipo: "briefing", desc: "O roteiro, as falas e a conversa. No fim, o que muda entre o Apresenta e o #Descubra." },
+    "briefing-fotografo": { titulo: "Briefing · Fotógrafo da noite", area: "marketing", tipo: "briefing", desc: "Os 3 vídeos, as fotos e a entrega. No fim, o que muda no #Descubra." },
+    "modelos-marketing": { titulo: "Modelos · artes, briefings e mensagens prontas", area: "marketing", tipo: "template", desc: "Templates do Canva e do CapCut, briefings dos artistas e mensagens de WhatsApp pra copiar." },
+    "como-briefar-artistas": { titulo: "Artistas · como briefar cada um", area: "marketing", tipo: "guia", desc: "Quando cada um recebe, a campanha do artista no Descubra e no Apresenta e o que volta pra você." },
+  };
+  // Documentos do marketing que saíram (Bruno, 11/2026): ficam inativos quando os novos são publicados.
+  const DOCS_APOSENTADOS = ["plano-acao-rooftap", "playbook-descubra", "playbook-apresenta", "semana-lideranca-local-sp", "semana-social-media-sp"];
+  // O que cada função lê no Marketing (o dono da casa vê todos).
+  const DOCS_DA_FUNCAO = {
+    lider: ["semana-lideranca-local", "como-briefar-artistas", "briefing-anfitriao", "briefing-fotografo", "modelos-marketing", "comece-por-aqui"],
+    anfitriao: ["briefing-anfitriao", "comece-por-aqui"],
+    social_media: ["semana-social-media", "modelos-marketing", "briefing-fotografo", "comece-por-aqui"],
+  };
+  // Versão mais recente com conteúdo (o documento abre na página) e a vigente (para link e ciência).
+  const versaoComConteudo = (H, m) => m && (H?.versoes || []).find((v) => v.material_id === m.id && v.tem_conteudo);
+  const MANUAIS = { "manual-apresenta-operacao": "Apresenta", "manual-descubra-operacao": "Descubra" };
+  const MANUAIS_SLUG = { "Manual do Tranquilo Apresenta": "manual-apresenta-operacao", "Manual do Tranquilo Descubra": "manual-descubra-operacao" };
+  /** Botão para ler um material: dentro da página quando há conteúdo; senão, pelo link (em outra aba). */
+  function botaoLer(H, m, rotulo = "Ler") {
+    if (!m) return '<span class="muted" style="font-size:13px">ainda não publicado</span>';
+    if (MANUAIS[m.slug]) return `<button class="btn pri sm" data-manual="${esc(MANUAIS[m.slug])}">${esc(rotulo)}</button>`;
+    if (versaoComConteudo(H, m)) return `<button class="btn pri sm" data-ler="${esc(m.slug)}">${esc(rotulo)}</button>`;
+    const v = (H?.versoes || []).find((x) => x.material_id === m.id), url = v?.url || m.fonte_url;
+    return url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>';
+  }
+  function abrirLeitor(alvo) {
+    S.lendo = { ...alvo, aba: S.aba, sub: S.sub?.[S.aba], y: scrollY };
+    TQDiario.registrar("leu_documento", { doc: alvo.slug || alvo.manual });
+    render(); scrollTo(0, 0);
+  }
+  function fecharLeitor() { const y = S.lendo?.y || 0; S.lendo = null; render(); scrollTo(0, y); }
+  // Página do documento: script pequeno que informa a altura (a página do portal rola, não o quadro), leva os
+  // links internos (#seção) para a rolagem da página e abre outro documento do catálogo (#tq:slug) no mesmo leitor.
+  function paginaDoc(html, chave) {
+    const ajuda = `<base target="_blank"><script>(function(){var K=${JSON.stringify(chave)};function alt(){parent.postMessage({tqDoc:K,altura:Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0)},"*")}
+addEventListener("load",alt);setTimeout(alt,400);setTimeout(alt,1500);if(window.ResizeObserver)new ResizeObserver(alt).observe(document.documentElement);
+document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button.copiar[data-copiar]");if(b){e.preventDefault();e.stopImmediatePropagation();parent.postMessage({tqDoc:K,copiar:b.getAttribute("data-copiar")},"*");var o=b.textContent;b.textContent="copiado";setTimeout(function(){b.textContent=o},1400);return}
+var a=e.target.closest&&e.target.closest("a");if(!a)return;var h=a.getAttribute("href")||"";
+if(h.indexOf("#tq:")===0){e.preventDefault();parent.postMessage({tqDoc:K,abrir:h.slice(4)},"*");return}
+if(h==="#"){e.preventDefault();return}
+if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),el=document.getElementById(id)||document.getElementsByName(id)[0];if(el)parent.postMessage({tqDoc:K,rolar:el.getBoundingClientRect().top+(window.scrollY||0)},"*")}},true)})();<\/script>`;
+    return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (h) => h + ajuda) : ajuda + html;
+  }
+  addEventListener("message", (ev) => {
+    const d = ev.data, L = S.lendo, f = document.getElementById("leitorDoc");
+    if (!d || !L || !f || d.tqDoc !== L.slug || ev.source !== f.contentWindow) return;
+    if (d.altura) f.style.height = Math.max(400, Math.min(d.altura + 24, 200000)) + "px";
+    if (d.rolar != null) scrollTo({ top: f.getBoundingClientRect().top + scrollY + d.rolar - 70, behavior: "smooth" });
+    if (d.abrir && DOCS[d.abrir]) { S.lendo = null; abrirLeitor({ slug: d.abrir }); }
+    if (typeof d.copiar === "string") navigator.clipboard?.writeText(d.copiar).catch(() => {});
+  });
+  /** Tela do leitor: o documento inteiro dentro da página, com Voltar. */
+  function leitor() {
+    const L = S.lendo, H = S.hub;
+    const voltar = `<button class="btn sm" data-ler-voltar>← Voltar</button>`;
+    if (L.manual) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="tag">Operações</div><h1>Manual do Tranquilo ${esc(L.manual)}</h1>
+      <p class="sub">Cronograma hora a hora, rider, camarim e funções da equipe.</p><div class="list">${TQOperacao.manual(L.manual)}</div><div class="barra-acoes" style="margin-top:16px">${voltar}</div>`;
+    if (!H) { carregarHub(); return carregando("o documento"); }
+    const m = (H.materiais || []).find((x) => x.slug === L.slug), v = versaoComConteudo(H, m), cat = DOCS[L.slug] || {};
+    if (!m || !v) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="alert warn"><b>⚠ Atenção: este documento ainda não foi publicado no portal.</b>Avise a equipe do Tranquilo pelo grupo da unidade.</div>`;
+    if (L.html === undefined) {
+      if (!L.carregando) { L.carregando = true; api.conteudoVersao(v.id).then((h) => { if (S.lendo === L) { L.html = h || ""; render(); } })
+        .catch((e) => { if (S.lendo === L) { L.html = ""; L.erro = traduz(e.message || ""); render(); } }); }
+      return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div>${carregando(m.titulo)}`;
+    }
+    if (!L.html) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="alert crit"><b>✕ Erro: o documento não abriu.</b>${esc(L.erro || "O conteúdo veio vazio.")} Tente de novo em instantes.</div>`;
+    const vig = (H.versoes || []).find((x) => x.material_id === m.id), pend = vig?.exige_ciencia && (H.pendentes || []).some((p) => p.versao_id === vig.id);
+    queueMicrotask(() => { const f = document.getElementById("leitorDoc"); if (f && !f.dataset.pronto) { f.dataset.pronto = "1"; f.srcdoc = paginaDoc(L.html, L.slug); } });
+    return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}<span class="muted" style="font-size:13px">${esc(m.titulo)} · versão ${esc(v.versao)}</span></div>
+      <iframe id="leitorDoc" title="${esc(m.titulo)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="display:block;width:100%;height:80vh;border:0;border-radius:16px;background:#000201"></iframe>
+      ${pend ? `<div class="alert warn" style="margin-top:12px"><b>Leia e confirme</b>Esta versão muda o que a casa faz.<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-ciencia="${vig.id}">Li e estou ciente</button></div></div>` : ""}
+      <div class="barra-acoes" style="margin-top:16px">${voltar}${cat.desc ? "" : ""}</div>`;
+  }
+
   const TELAS = {
     ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), cronogramas: () => telaArea("cronogramas"), bonificacoes: () => telaArea("bonificacoes"),
     passos() {
@@ -1146,8 +1291,8 @@ const TQConta = (() => {
     guia() {
       const H = S.hub; if (!H) { carregarHub(); return carregando("o Guia"); }
       const pega = (slug) => (H.materiais || []).find((m) => m.slug === slug);
-      const doc = (m, titulo, desc) => { const v = m && (H.versoes || []).find((x) => x.material_id === m.id), url = v?.url || m?.fonte_url;
-        return `<div class="card"><div class="row"><div><b>${esc(titulo)}</b><div class="muted" style="font-size:13px">${esc(desc)}${v?.versao ? ` · versão ${esc(v.versao)}` : ""}</div></div>${url ? `<a class="btn pri sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>'}</div></div>`; };
+      const doc = (m, titulo, desc) => { const v = versaoComConteudo(H, m) || (m && (H.versoes || []).find((x) => x.material_id === m.id));
+        return `<div class="card"><div class="row"><div><b>${esc(titulo)}</b><div class="muted" style="font-size:13px">${esc(desc)}${v?.versao ? ` · versão ${esc(v.versao)}` : ""}</div></div>${botaoLer(H, m || (MANUAIS_SLUG[titulo] && { slug: MANUAIS_SLUG[titulo] }))}</div></div>`; };
       return `<div class="tag">Operações</div><h1>Guia do franqueado</h1>
       <p class="sub">O escopo todo do Tranquilo e o fio condutor do modelo. Comece por aqui; os manuais de cada produto vêm logo abaixo.</p>
       <div class="list">${doc(pega("guia-do-franqueado"), "Guia do Franqueado", "Como a unidade funciona, os compromissos, a semana de cada evento e o fechamento")}
@@ -1497,12 +1642,12 @@ const TQConta = (() => {
           : minha[v.id] ? `<div class="muted" style="font-size:13px;margin-top:8px">✓ Você confirmou a leitura da versão ${esc(v.versao)} em ${dt(String(minha[v.id]).slice(0, 10))}.</div>` : "";
         const copia = url && urlCopia(url);
         const quem = equipe ? `<div class="muted" style="font-size:12px">Para ${(m.publico || []).join(" e ")}${m.casa_ref ? " · só " + esc(m.casa_ref) : ""}</div>` : "";
-        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div>${quem}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir</a>` : ""}${copia ? `<a class="btn sm" href="${esc(copia)}" target="_blank" rel="noopener" title="Cria uma cópia no seu Google Drive para você editar. O original não muda.">Fazer minha cópia</a>` : ""}</div></div>${ciencia}</div>`;
+        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div>${quem}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${versaoComConteudo(H, m) || MANUAIS[m.slug] ? botaoLer(H, m) : url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : ""}${copia ? `<a class="btn sm" href="${esc(copia)}" target="_blank" rel="noopener" title="Cria uma cópia no seu Google Drive para você editar. O original não muda.">Fazer minha cópia</a>` : ""}</div></div>${ciencia}</div>`;
       });
       const nPend = H.pendentes?.length || 0;
       return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem só para leitura: para usar, toque em \"Fazer minha cópia\" (ou Arquivo › Fazer uma cópia)."}</p>
       ${!equipe && nPend ? `<div class="alert warn" style="margin-bottom:12px"><b>${nPend} ${nPend === 1 ? "material pede" : "materiais pedem"} sua confirmação de leitura</b>Eles aparecem abaixo com o botão "Li e estou ciente".</div>` : ""}
-      ${equipe ? formMateriais(H) : ""}
+      ${equipe ? formMateriais(H) + formDocsPagina() : ""}
       <div class="list">${cards.join("") || vazio("Nenhum material publicado ainda", "Quando a equipe publicar guias e modelos, eles aparecem aqui.", "", "materiais")}</div>`;
     },
     documentos() {
@@ -1737,13 +1882,15 @@ const TQConta = (() => {
       const pessoas = g.conv.filter((c) => c.aceito_em).map((c) => (E.perfis || []).find((p) => k(p.email) === k(c.email))).filter(Boolean);
       const faltam = pessoas.reduce((n, p) => n + pedem.filter((v) => !(H.todas || []).some((c) => c.versao_id === v.id && c.user_id === p.id)).length, 0);
       const and = (H.andamento || []).find((a) => k(a.casa_ref) === k(g.nome));
-      return { nome: g.nome, pessoas: pessoas.length, convPend: g.conv.filter((c) => !c.aceito_em).length, formato: proprios.length ? "completa" : "leve", proprios: proprios.length, and, faltam };
+      // Completa = a casa tem o Tranquilo Descubra; leve = não tem (definição do Bruno, 13/11/2026). Vem da agenda do Notion.
+      const descubra = (S.pac?.eventos || []).some((e) => k(e.h) === k(g.nome) && /descubra/i.test(`${e.m || ""} ${e.n || ""}`));
+      return { nome: g.nome, pessoas: pessoas.length, convPend: g.conv.filter((c) => !c.aceito_em).length, formato: S.pac ? (descubra ? "completa" : "leve") : "?", proprios: proprios.length, and, faltam };
     });
-    return `<h2>Casas no hub</h2><p class="sub">Formato <b>completa</b>: a casa tem materiais feitos para ela (como o Rooftap). <b>Leve</b>: só os materiais padrão. Leituras pendentes = confirmações que ainda faltam das pessoas da casa.</p>
+    return `<h2>Casas no hub</h2><p class="sub">Formato <b>completa</b>: a casa tem o Tranquilo Descubra. <b>Leve</b>: só o Apresenta.${S.pac ? "" : " (Para ver o formato, cole o código interno da equipe em Conta.)"} Leituras pendentes = confirmações que ainda faltam das pessoas da casa.</p>
       ${tabela("cobcasas", [
         { t: "Casa", v: (r) => r.nome, h: (r) => `<b>${esc(r.nome)}</b>` },
         { t: "Pessoas", n: 1, v: (r) => r.pessoas, h: (r) => `${r.pessoas}${r.convPend ? ` <span class="muted">+${r.convPend} convite${r.convPend > 1 ? "s" : ""} aberto${r.convPend > 1 ? "s" : ""}</span>` : ""}` },
-        { t: "Formato", v: (r) => r.formato, h: (r) => r.formato === "completa" ? `completa <span class="muted">(${r.proprios} doc${r.proprios > 1 ? "s" : ""})</span>` : "leve" },
+        { t: "Formato", v: (r) => r.formato, h: (r) => r.formato === "?" ? '<span class="muted">sem agenda</span>' : esc(r.formato) },
         { t: "Campanha", v: (r) => r.and ? r.and.feitos / (r.and.dias || 1) : -1, h: (r) => r.and ? `${r.and.feitos}/${r.and.dias}${r.and.atrasados ? ` <span class="badge b-crit">${r.and.atrasados} atrasado${r.and.atrasados > 1 ? "s" : ""}</span>` : ""}` : `<span class="muted">sem campanha</span>` },
         { t: "Leituras pendentes", n: 1, v: (r) => r.faltam, h: (r) => r.faltam ? `<span class="badge b-warn">${r.faltam}</span>` : "0" },
       ], linhas, { i: 0, dir: 1 }, "")}`;
@@ -2202,6 +2349,9 @@ const TQConta = (() => {
   }
   async function cliques(ev) {
     const t = ev.target;
+    const ler = t.closest("[data-ler]"); if (ler) { ev.preventDefault(); abrirLeitor({ slug: ler.dataset.ler }); return; }
+    const man = t.closest("[data-manual]"); if (man) { ev.preventDefault(); abrirLeitor({ manual: man.dataset.manual }); return; }
+    if (t.closest("[data-ler-voltar]")) { fecharLeitor(); return; }
     const sb = t.closest("[data-sub]"); if (sb) { await salvarPendente(); const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesEquipe(t)) return;
@@ -2462,6 +2612,7 @@ const TQConta = (() => {
   }, true);
 
   document.addEventListener("change", async (ev) => {
+    if (ev.target.id === "dpArq" && ev.target.files?.length) { const fs = ev.target.files; await publicarDocsPagina(fs); return; }
     const t = ev.target;
     if (t.dataset?.pf) { (S.pf ||= {})[t.dataset.pf] = t.value; render(); return; }
     if (t.hasAttribute?.("data-ag-casa")) { S.agCasa = t.value; render(); return; }
@@ -2585,5 +2736,5 @@ const TQConta = (() => {
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
-  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, rotuloQuem, telas: TELAS, formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

@@ -2275,3 +2275,14 @@ begin
   if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v18: documentos que abrem dentro do portal (pedido do Gui, 13/11/2026). Idempotente.
+-- O conteúdo do documento (HTML) fica na própria versão do material, no banco, e não no repositório:
+-- quem lê é quem já lê o material (mesmas regras). Versão continua só de inclusão (nunca reescrita).
+-- =====================================================================
+alter table material_versoes add column if not exists conteudo_html text;
+do $$ begin
+  alter table material_versoes add constraint conteudo_html_tamanho check (conteudo_html is null or length(conteudo_html) <= 4000000);
+exception when duplicate_object then null; end $$;
+alter table material_versoes add column if not exists tem_conteudo boolean generated always as (conteudo_html is not null) stored;

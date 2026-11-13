@@ -103,6 +103,22 @@ const TQOperacao = (() => {
       </div>`;
   }
 
-  return { VERSAO, CRONOGRAMA, CAMARIM, CORTESIAS, RIDER_TECNICO, PADRAO_NOITE, CHECKLIST_SEMANA, DEPOIS, cronograma, bloco, resumo, fimDeSemana };
+  /** Manual completo de um produto ("Apresenta" ou "Descubra"), para ler dentro do portal (sem abrir outro link). */
+  function manual(p) {
+    const crono = p === "Descubra"
+      ? `<p class="muted" style="font-size:13px">${esc(CRONOGRAMA.Descubra.nota)}</p>${tabela(CRONOGRAMA.Descubra.linhas, ["Horário", "O que acontece"])}`
+      : `<h4 style="margin:12px 0 4px">Segunda a sexta</h4><p class="muted" style="font-size:13px">${esc(CRONOGRAMA["Apresenta:semana"].nota)}</p>${tabela(CRONOGRAMA["Apresenta:semana"].linhas, ["Horário", "O que acontece"])}
+        <h4 style="margin:12px 0 4px">Sábado e domingo</h4><p class="muted" style="font-size:13px">${esc(CRONOGRAMA["Apresenta:fim"].nota)}</p>${tabela(CRONOGRAMA["Apresenta:fim"].linhas, ["Horário", "O que acontece"])}`;
+    return `<div class="card"><h2 style="margin-top:0">Cronograma da noite</h2>${crono}</div>
+      <div class="card"><h2 style="margin-top:0">Padrão da noite</h2>${lista(p === "Apresenta" ? PADRAO_NOITE.concat(PADRAO_APRESENTA) : PADRAO_NOITE)}</div>
+      <div class="card"><h2 style="margin-top:0">Cortesias</h2><p style="margin:0">${esc(CORTESIAS)}</p></div>
+      <div class="card"><h2 style="margin-top:0">Camarim</h2>${lista(CAMARIM[p])}</div>
+      <div class="card"><h2 style="margin-top:0">Rider técnico</h2>${tabela(RIDER_TECNICO, ["Item", "Padrão"])}</div>
+      <div class="card"><h2 style="margin-top:0">Até 4 a 5 dias antes: fixar no grupo com os artistas</h2>${lista(CHECKLIST_SEMANA.artistas)}<h4 style="margin:12px 0 4px">E confirmar com a Operações</h4>${lista(CHECKLIST_SEMANA.operacoes)}</div>
+      <div class="card"><h2 style="margin-top:0">Depois do evento</h2>${lista(DEPOIS)}</div>
+      <p class="muted" style="font-size:12px">${esc(FONTE)}, versão de ${esc(VERSAO)}.</p>`;
+  }
+
+  return { VERSAO, CRONOGRAMA, manual, CAMARIM, CORTESIAS, RIDER_TECNICO, PADRAO_NOITE, CHECKLIST_SEMANA, DEPOIS, cronograma, bloco, resumo, fimDeSemana };
 })();
 if (typeof window !== "undefined") window.TQOperacao = TQOperacao; else globalThis.TQOperacao = TQOperacao;
