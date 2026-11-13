@@ -76,6 +76,25 @@ if (tok && ref) {
   const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
   const e = await q(`begin;\n${schema}\n;rollback;`);
   reg('schema.sql roda sem erro (ensaio desfeito)', e.status < 300, e.status < 300 ? 'todas as seções rodaram' : `HTTP ${e.status} ${e.corpo.slice(0, 600)}`);
+
+  // 7. Versões do banco em produção: cada uma deixa uma marca (tabela, gatilho ou trecho de função).
+  if (e.status < 300) {
+    const v = await q(`select
+      exists (select 1 from pg_proc where proname = 'aplicar_convite_interno' and prosrc like '%atual.tipo in (''equipe'', ''adm'') and c.tipo not in%') as v14,
+      exists (select 1 from pg_trigger where tgname = 'trg_encerrar_casa') as v15,
+      exists (select 1 from pg_proc where proname = 'antes_casa' and prosrc like '%if not eh_adm() and not exists%') as v16,
+      to_regclass('public.auditoria') is not null as v17`);
+    let linha = {}; try { linha = JSON.parse(v.corpo)[0] || {}; } catch {}
+    for (const k of ['v14', 'v15', 'v16', 'v17']) reg(`banco ${k} em produção`, linha[k] === true, v.status < 300 ? (linha[k] ? 'aplicado' : 'ainda não aplicado') : `HTTP ${v.status}`);
+  }
+
+  // 8. E-mail próprio (SMTP): sem ele, convite, confirmação e troca de senha não chegam a quem é de fora da equipe.
+  // Mostra só servidor e porta; usuário, senha e remetente ficam fora do log público.
+  const ra = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, { headers: { Authorization: `Bearer ${tok}` } });
+  const cfg = ra.status < 300 ? await ra.json() : {};
+  const smtp = !!(cfg.smtp_host && cfg.smtp_port && cfg.smtp_user && cfg.smtp_admin_email);
+  reg('e-mail próprio (SMTP) configurado', smtp, ra.status >= 300 ? `HTTP ${ra.status}` : smtp ? `${cfg.smtp_host}:${cfg.smtp_port}, remetente definido` : 'não configurado: só a equipe do projeto recebe e-mail');
+  if (smtp) reg('limite de e-mails por hora', Number(cfg.rate_limit_email_sent) >= 30, `${cfg.rate_limit_email_sent} por hora`);
 }
 
 await writeFile('verificacao.json', JSON.stringify({ quando: new Date().toISOString(), url, resultados: res }, null, 2));
