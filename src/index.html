@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
 <title>Tranquilo · Rede</title>
+<script>
+// Portal servido dentro do site do Tranquilo (tranquilomusica.com.br/rede, sem a barra no fim): os arquivos
+// (conta.js, public.json, img/…) continuam sendo lidos da pasta do portal, e não da raiz do site.
+(function () { var p = location.pathname; if (p.slice(-1) !== "/" && !/\.[a-z0-9]+$/i.test(p)) document.write('<base href="' + p.replace(/["<>]/g, "") + '/">'); })();
+</script>
 <link rel="icon" href="img/favicon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lexend+Deca:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,700;0,900;1,700;1,900&display=swap" rel="stylesheet">
