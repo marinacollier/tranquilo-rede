@@ -75,6 +75,8 @@ if (tok && ref) {
   const q = async (query) => { const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) }); return { status: r.status, corpo: await r.text() }; };
   const schema = await readFile(new URL('./schema.sql', import.meta.url), 'utf8');
   const e = await q(`begin;\n${schema}\n;rollback;`);
+  // Diagnóstico do segredo sem expor o valor: só o formato (token pessoal começa com sbp_ e tem 44 caracteres).
+  if (e.status === 401) console.log(`DICA  SUPABASE_ACCESS_TOKEN salvo: começa com sbp_ = ${tok.startsWith('sbp_')}, ${tok.length} caracteres, espaço ou quebra de linha = ${/\s/.test(tok)}`);
   reg('schema.sql roda sem erro (ensaio desfeito)', e.status < 300, e.status < 300 ? 'todas as seções rodaram' : `HTTP ${e.status} ${e.corpo.slice(0, 600)}`);
 
   // 7. Versões do banco em produção: cada uma deixa uma marca (tabela, gatilho ou trecho de função).
