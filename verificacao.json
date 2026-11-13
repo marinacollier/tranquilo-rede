@@ -1,0 +1,186 @@
+{
+  "quando": "2026-11-13T12:05:38.967Z",
+  "url": "https://edespqdbxhthzcmygake.supabase.co",
+  "resultados": [
+    {
+      "nome": "API REST e chave publicável",
+      "ok": true,
+      "detalhe": "HTTP 401 chave aceita"
+    },
+    {
+      "nome": "tabela perfis",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela inscricoes_artistas",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela cadastros_casas",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela checklist",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela registros_noite",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela chaves_internas",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela admins_iniciais",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela convites",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela avisos_cidade",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela diario",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela diario_servidor",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela notas_internas",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela documentos",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "tabela lembretes",
+      "ok": true,
+      "detalhe": "existe e está protegida (HTTP 401)"
+    },
+    {
+      "nome": "função pre_curadoria",
+      "ok": true,
+      "detalhe": "existe (HTTP 200)"
+    },
+    {
+      "nome": "função pendencias_casa",
+      "ok": true,
+      "detalhe": "existe (HTTP 200)"
+    },
+    {
+      "nome": "função eh_equipe",
+      "ok": true,
+      "detalhe": "existe (HTTP 200)"
+    },
+    {
+      "nome": "função eh_adm",
+      "ok": true,
+      "detalhe": "existe (HTTP 200)"
+    },
+    {
+      "nome": "função meu_acesso",
+      "ok": true,
+      "detalhe": "existe (HTTP 401)"
+    },
+    {
+      "nome": "função codigos_acesso",
+      "ok": true,
+      "detalhe": "existe (HTTP 401)"
+    },
+    {
+      "nome": "pré-curadoria no banco real = site",
+      "ok": true,
+      "detalhe": "banco 85 (Prioridade) · site 85 (Prioridade)"
+    },
+    {
+      "nome": "habilitação de casa no banco real = site",
+      "ok": true,
+      "detalhe": "banco 4 pendências · site 4"
+    },
+    {
+      "nome": "visitante sem login não é adm",
+      "ok": true,
+      "detalhe": "eh_adm() = false"
+    },
+    {
+      "nome": "login por e-mail habilitado",
+      "ok": true,
+      "detalhe": "email=true cadastro_aberto=true confirmacao_por_email=true"
+    },
+    {
+      "nome": "confirmação de e-mail ligada",
+      "ok": true,
+      "detalhe": "confirmacao_por_email=true"
+    },
+    {
+      "nome": "site publicado aponta para este Supabase",
+      "ok": true,
+      "detalhe": "config.js do site confere"
+    },
+    {
+      "nome": "biblioteca supabase-js (CDN)",
+      "ok": true,
+      "detalhe": "HTTP 200"
+    },
+    {
+      "nome": "schema.sql roda sem erro (ensaio desfeito)",
+      "ok": true,
+      "detalhe": "todas as seções rodaram"
+    },
+    {
+      "nome": "documentos dentro do portal publicados",
+      "ok": true,
+      "detalhe": "guia-do-franqueado 1.9 · comece-por-aqui 11/11/2026 · semana-social-media 11/11/2026 · semana-lideranca-local 11/11/2026 · briefing-anfitriao 11/11/2026 · briefing-fotografo 11/11/2026 · modelos-marketing 11/11/2026 · como-briefar-artistas 11/11/2026"
+    },
+    {
+      "nome": "banco v14 em produção",
+      "ok": true,
+      "detalhe": "aplicado"
+    },
+    {
+      "nome": "banco v15 em produção",
+      "ok": true,
+      "detalhe": "aplicado"
+    },
+    {
+      "nome": "banco v16 em produção",
+      "ok": true,
+      "detalhe": "aplicado"
+    },
+    {
+      "nome": "banco v17 em produção",
+      "ok": true,
+      "detalhe": "aplicado"
+    },
+    {
+      "nome": "e-mail próprio (SMTP) configurado",
+      "ok": true,
+      "detalhe": "smtp.gmail.com:465, remetente definido"
+    },
+    {
+      "nome": "limite de e-mails por hora",
+      "ok": true,
+      "detalhe": "500 por hora"
+    }
+  ]
+}
