@@ -1,0 +1,18 @@
+name: Aplicar e-mails em português
+
+# Só roda à mão. Troca os e-mails do Supabase (confirmação, link de acesso, convite, troca de senha e de e-mail)
+# pelos modelos de supabase/emails, em português e no tom do Tranquilo.
+on:
+  workflow_dispatch:
+
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/aplicar-emails.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
