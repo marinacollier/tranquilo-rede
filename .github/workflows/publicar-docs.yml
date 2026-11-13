@@ -1,0 +1,54 @@
+name: Publicar documentos no portal
+
+# Só roda à mão. Publica os documentos internos (Guia do Gui, marketing do Bruno) sem que o conteúdo apareça no repositório:
+# 1. cria uma chave só desta execução e publica a parte pública na branch docs-chave;
+# 2. espera os arquivos cifrados com essa chave chegarem na branch docs-cifrados;
+# 3. decifra na memória do runner, grava no banco e descarta a chave (quem lê o repositório vê só texto cifrado).
+on:
+  workflow_dispatch:
+    inputs:
+      versao_padrao:
+        description: Versão para documentos que não dizem a sua (ex. 11/11/2026)
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Chave só desta execução
+        run: |
+          K=$(mktemp -d); echo "K=$K" >> "$GITHUB_ENV"
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:4096 -out "$K/priv.pem" 2>/dev/null
+          openssl pkey -in "$K/priv.pem" -pubout -out "$K/pub.pem"
+          mkdir -p /tmp/ch && cp "$K/pub.pem" /tmp/ch/ && echo "$GITHUB_RUN_ID" > /tmp/ch/execucao.txt && cd /tmp/ch
+          git init -q -b docs-chave && git add -A
+          git -c user.name="Rede Tranquilo (robô)" -c user.email="robo@tranquilo.invalid" commit -q -m "Chave pública da execução $GITHUB_RUN_ID"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" docs-chave
+      - name: Esperar os arquivos cifrados (até 25 min)
+        run: |
+          for i in $(seq 1 100); do
+            if git fetch -q origin docs-cifrados 2>/dev/null && git show origin/docs-cifrados:execucao.txt 2>/dev/null | grep -qx "$GITHUB_RUN_ID"; then echo "chegaram"; exit 0; fi
+            sleep 15
+          done
+          echo "::error::Os arquivos cifrados não chegaram."; exit 1
+      - name: Decifrar e publicar
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          VERSAO_PADRAO: ${{ inputs.versao_padrao }}
+        run: |
+          D=$(mktemp -d); git worktree add -q /tmp/cif origin/docs-cifrados
+          for e in /tmp/cif/*.chave; do
+            n=$(basename "$e" .chave)
+            openssl pkeyutl -decrypt -inkey "$K/priv.pem" -pkeyopt rsa_padding_mode:oaep -pkeyopt rsa_oaep_md:sha256 -in "$e" -out "$K/$n.k"
+            openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -pass "file:$K/$n.k" -in "/tmp/cif/$n.cif" -out "$D/$n.html"
+          done
+          node scripts/publicar-docs.mjs "$D"
+          rm -rf "$D" "$K"
