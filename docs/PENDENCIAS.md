@@ -1,6 +1,20 @@
 # Pendências
 
-Lista do que ficou para depois. Atualizada em 23/10/2026.
+Lista do que ficou para depois. Atualizada em 13/11/2026.
+
+
+## Decisões de 13/11/2026 (Marina, sobre o pedido do Bruno)
+
+- [x] A "Área do Franqueado" do Bruno entra no portal, dentro de Marketing (não fica uma área separada da casa).
+- [x] Documentos do marketing trocados pelos novos do Bruno (Comece por aqui, Semana do social media, Semana da liderança local,
+      Briefing do anfitrião, Briefing do fotógrafo, Modelos, Artistas). Plano de Ação e Playbooks saem. Todos abrem dentro da página.
+- [x] Guia do Franqueado (versão 1.9 do Gui) abre dentro da página; manuais do Apresenta e do Descubra também.
+- [ ] **Marina:** publicar os 8 documentos em Materiais › "Publicar documentos para abrir na página" (arquivos em `.privado/docs`).
+- [ ] Material do artista como bloqueio (sem foto e release a campanha não sai): **a validar com o Thales**.
+- [ ] OK do artista na campanha (Apresenta: 35 dias antes; Descubra: 20), só na conta do próprio artista: aprovado, a fazer.
+- [x] "Completa" = a casa tem o Descubra; "leve" = não tem (sentido do Bruno).
+- [ ] Integração com a Ingresse: depois do piloto. Antes, perguntar à Ingresse se há API para produtores e como pedir acesso.
+- [ ] Pasta da casa no Drive e relatórios de cada evento: falta decidir se entram no piloto.
 
 ## Com a Marina
 
