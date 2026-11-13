@@ -88,6 +88,12 @@ if (tok && ref) {
       exists (select 1 from pg_proc where proname = 'antes_casa' and prosrc like '%if not eh_adm() and not exists%') as v16,
       to_regclass('public.auditoria') is not null as v17`);
     let linha = {}; try { linha = JSON.parse(v.corpo)[0] || {}; } catch {}
+    // Documentos que abrem dentro do portal (v18): quais já têm conteúdo publicado.
+    const docs = await q(`select m.slug, max(v.versao) filter (where v.tem_conteudo) versao from materiais m left join material_versoes v on v.material_id = m.id where m.ativo group by m.slug`);
+    let ds = []; try { ds = JSON.parse(docs.corpo); } catch {}
+    const ESPERADOS = ['guia-do-franqueado', 'comece-por-aqui', 'semana-social-media', 'semana-lideranca-local', 'briefing-anfitriao', 'briefing-fotografo', 'modelos-marketing', 'como-briefar-artistas'];
+    const faltam = ESPERADOS.filter((sl) => !ds.some((d) => d.slug === sl && d.versao));
+    reg('documentos dentro do portal publicados', docs.status < 300 && !faltam.length, docs.status >= 300 ? `HTTP ${docs.status}` : faltam.length ? `faltam ${faltam.length}: ${faltam.join(', ')}` : ESPERADOS.map((sl) => `${sl} ${ds.find((d) => d.slug === sl).versao}`).join(' · '));
     for (const k of ['v14', 'v15', 'v16', 'v17']) reg(`banco ${k} em produção`, linha[k] === true, v.status < 300 ? (linha[k] ? 'aplicado' : 'ainda não aplicado') : `HTTP ${v.status}`);
   }
 
