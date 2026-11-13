@@ -15,8 +15,10 @@ for (const [arq, nome] of Object.entries(MODELOS)) {
   corpo[`mailer_subjects_${nome}`] = assuntos[arq];
   corpo[`mailer_templates_${nome}_content`] = await readFile(new URL(`${arq}.html`, dir), 'utf8');
 }
+// Limite de e-mails por hora do Supabase (o padrão de 30 trava convites em lote). O teto real passa a ser o do Gmail.
+corpo.rate_limit_email_sent = Number(process.env.LIMITE_EMAILS_HORA || 500);
 const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
   method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
 });
 if (!r.ok) { console.error(`::error::O Supabase recusou (HTTP ${r.status}): ${(await r.text()).slice(0, 300)}`); process.exit(1); }
-console.log(`OK: ${Object.keys(MODELOS).length} e-mails em português aplicados (${Object.values(assuntos).join(' · ')}).`);
+console.log(`OK: limite de ${corpo.rate_limit_email_sent} e-mails por hora; ${Object.keys(MODELOS).length} e-mails em português aplicados (${Object.values(assuntos).join(' · ')}).`);
