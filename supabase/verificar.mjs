@@ -103,7 +103,7 @@ if (tok && ref) {
   const cfg = ra.status < 300 ? await ra.json() : {};
   const smtp = !!(cfg.smtp_host && cfg.smtp_port && cfg.smtp_user && cfg.smtp_admin_email);
   reg('e-mail próprio (SMTP) configurado', smtp, ra.status >= 300 ? `HTTP ${ra.status}` : smtp ? `${cfg.smtp_host}:${cfg.smtp_port}, remetente definido` : 'não configurado: só a equipe do projeto recebe e-mail');
-  if (smtp) reg('limite de e-mails por hora', Number(cfg.rate_limit_email_sent) >= 30, `${cfg.rate_limit_email_sent} por hora`);
+  if (smtp) reg('limite de e-mails por hora', Number(cfg.rate_limit_email_sent) >= 200, `${cfg.rate_limit_email_sent} por hora`);
 }
 
 await writeFile('verificacao.json', JSON.stringify({ quando: new Date().toISOString(), url, resultados: res }, null, 2));
