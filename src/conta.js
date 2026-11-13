@@ -797,9 +797,9 @@ const TQConta = (() => {
   const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
   // Botões de encerrar ficam escondidos até a regra do banco (v15b) estar aplicada em produção.
-  const ENCERRAR_ATIVO = false;  // liga quando o banco v15b estiver em produção
+  const ENCERRAR_ATIVO = true;  // banco v15b em produção (conferido em 13/11)
   // Edição da Ficha pela administração: liga quando a regra v16 do banco estiver em produção.
-  const EDITAR_FICHA_ATIVO = false;
+  const EDITAR_FICHA_ATIVO = true;  // banco v16 e v17 em produção (conferido em 13/11)
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
   function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
     const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
