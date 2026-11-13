@@ -1062,14 +1062,21 @@ const TQConta = (() => {
 
   /** Central: publicar documentos para abrir dentro do portal, vários de uma vez (o nome do arquivo diz qual é). */
   function formDocsPagina() {
-    return `<details class="card" style="margin:12px 0"${S.docsAberto ? " open" : ""}><summary><b>Publicar documentos para abrir na página</b> <span class="muted" style="font-size:13px">(.html do Gui e do Bruno)</span></summary>
-      <p class="muted" style="font-size:13px;margin:8px 0">Selecione um ou vários arquivos .html de uma vez. O nome do arquivo diz qual documento é:
-      ${Object.entries(DOCS).map(([k, d]) => `<code>${esc(k)}.html</code> (${esc(d.titulo)})`).join(", ")}.
-      Cada envio vira uma versão nova; as antigas ficam guardadas. Os documentos antigos do marketing (Plano de Ação e Playbooks) saem do portal quando os novos entram.</p>
-      <label class="fcampo"><b>Versão</b> <span class="muted" style="font-size:12px">(opcional: em branco, vale a versão escrita no documento ou a data de hoje)</span><input id="dpVer" placeholder="ex.: 1.9" value="${esc(S.dpVer || "")}"></label>
-      <label class="fcampo"><b>Arquivos</b><input type="file" id="dpArq" multiple accept=".html,.htm,text/html"></label>
-      <div class="err" role="status" aria-live="polite" id="dperr"></div></details>`;
+    return `<div class="card" style="margin:12px 0"><h2 style="margin-top:0">Publicar documentos para abrir na página</h2>
+      <p class="muted" style="font-size:14px;margin:0 0 10px">Arraste aqui os arquivos .html do Gui e do Bruno (pode ser vários de uma vez) ou clique para escolher. Não troque o nome dos arquivos: é por ele que o portal sabe qual documento é. A versão é lida do próprio documento.</p>
+      <label class="dp-zona" id="dpZona" for="dpArq"><span style="font-size:28px">⬆</span><b>Arraste os arquivos aqui</b><span class="muted" style="font-size:13px">ou clique para escolher no computador</span>
+        <input type="file" id="dpArq" multiple accept=".html,.htm,text/html" style="position:absolute;width:1px;height:1px;opacity:0"></label>
+      <div class="err" role="status" aria-live="polite" id="dperr"></div>
+      <details style="margin-top:8px"><summary class="muted" style="font-size:13px">Nomes que o portal reconhece e versão manual</summary>
+        <p class="muted" style="font-size:13px">${Object.entries(DOCS).map(([k, d]) => `<code>${esc(k)}.html</code> = ${esc(d.titulo)}`).join("<br>")}</p>
+        <label class="fcampo"><b>Versão (opcional)</b><input id="dpVer" placeholder="em branco = a versão escrita no documento" value="${esc(S.dpVer || "")}"></label>
+        <p class="muted" style="font-size:13px">Cada envio vira uma versão nova; as antigas ficam guardadas. O Plano de Ação e os Playbooks saem do portal quando os documentos novos do marketing entram.</p></details></div>`;
   }
+
+  // Arrastar e soltar os .html na área de envio.
+  for (const ev of ["dragover", "dragenter"]) document.addEventListener(ev, (e) => { const z = e.target.closest?.("#dpZona"); if (z) { e.preventDefault(); z.classList.add("sobre"); } });
+  document.addEventListener("dragleave", (e) => { const z = e.target.closest?.("#dpZona"); if (z) z.classList.remove("sobre"); });
+  document.addEventListener("drop", (e) => { const z = e.target.closest?.("#dpZona"); if (!z) return; e.preventDefault(); z.classList.remove("sobre"); if (e.dataTransfer?.files?.length) publicarDocsPagina(e.dataTransfer.files); });
   async function publicarDocsPagina(files) {
     const err = $("#dperr"), fixa = ($("#dpVer")?.value || "").trim(), hoje = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10).split("-").reverse().join("/");
     // Sem versão escrita: usa a que o próprio documento diz ("Versão 1.9"); se não disser, a data de hoje.
@@ -1647,7 +1654,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const nPend = H.pendentes?.length || 0;
       return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem só para leitura: para usar, toque em \"Fazer minha cópia\" (ou Arquivo › Fazer uma cópia)."}</p>
       ${!equipe && nPend ? `<div class="alert warn" style="margin-bottom:12px"><b>${nPend} ${nPend === 1 ? "material pede" : "materiais pedem"} sua confirmação de leitura</b>Eles aparecem abaixo com o botão "Li e estou ciente".</div>` : ""}
-      ${equipe ? formMateriais(H) + formDocsPagina() : ""}
+      ${equipe ? formDocsPagina() + formMateriais(H) : ""}
       <div class="list">${cards.join("") || vazio("Nenhum material publicado ainda", "Quando a equipe publicar guias e modelos, eles aparecem aqui.", "", "materiais")}</div>`;
     },
     documentos() {
@@ -1832,19 +1839,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ops = H.materiais.map((m) => `<option value="${m.id}">${esc(m.titulo)}${m.casa_ref ? " · " + esc(m.casa_ref) : ""}</option>`).join("");
     const casas = [...new Set([...(H.campanhas || []).map((c) => c.casa_ref), ...H.materiais.map((m) => m.casa_ref)].filter(Boolean))];
     const tipos = ["guia", "playbook", "template", "briefing", "checklist", "politica", "termo", "outro"];
-    return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><b>Publicar nova versão ou material novo</b></summary>
+    return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><b>Outras opções: material por link</b> <span class="muted" style="font-size:13px">(Google Docs, Notion, Canva: abre em outra aba)</span></summary>
       <p class="muted" style="font-size:13px">Peça nova confirmação de leitura só quando a mudança altera o que a casa faz (campanha, playbook do Apresenta, funções de anfitrião e social media). Ajuste de texto ou visual: publique sem pedir.</p>
       <h3>Nova versão</h3>
-      ${ops ? `<div class="grid g2"><label>Material<select id="mvMat">${ops}</select></label><label>Versão<input id="mvVer" maxlength="20" placeholder="ex.: 2 ou 2026-11"></label></div>
-      <label>O que mudou<input id="mvRes" maxlength="200" placeholder="ex.: novo roteiro do anfitrião"></label>
-      <label>Link desta versão (opcional)<input id="mvUrl" type="url" placeholder="https://… (vazio = mesmo link de sempre)"></label>
+      ${ops ? `<div class="grid g2"><label class="fcampo"><b>Material</b><select id="mvMat">${ops}</select></label><label class="fcampo"><b>Versão</b><input id="mvVer" maxlength="20" placeholder="ex.: 2 ou 2026-11"></label></div>
+      <label class="fcampo"><b>O que mudou</b><input id="mvRes" maxlength="200" placeholder="ex.: novo roteiro do anfitrião"></label>
+      <label class="fcampo"><b>Link desta versão (opcional)</b><input id="mvUrl" type="url" placeholder="https://… (vazio = mesmo link de sempre)"></label>
       <label class="fcheck"><input type="checkbox" id="mvCie"> <span>Muda o que a casa faz: pedir "Li e estou ciente" de novo</span></label>
       <div class="barra-acoes"><button class="btn pri" data-mat-versao>Publicar versão</button></div>` : `<p class="muted">Cadastre um material primeiro.</p>`}
       <h3>Material novo</h3>
-      <div class="grid g2"><label>Título<input id="mnTit" maxlength="160" placeholder="ex.: Função do anfitrião"></label><label>Tipo<select id="mnTipo">${tipos.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
-      <label>Link (Google Docs, Notion, Canva…)<input id="mnUrl" type="url" placeholder="https://"></label>
+      <div class="grid g2"><label class="fcampo"><b>Título</b><input id="mnTit" maxlength="160" placeholder="ex.: Função do anfitrião"></label><label class="fcampo"><b>Tipo</b><select id="mnTipo">${tipos.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
+      <label class="fcampo"><b>Link (Google Docs, Notion, Canva…)</b><input id="mnUrl" type="url" placeholder="https://"></label>
       <div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="checkbox" id="mnCasa" checked> Casas</label><label class="fcheck"><input type="checkbox" id="mnArt"> Artistas</label></div>
-      <label>Só para uma casa (opcional)<input id="mnRef" list="mnRefs" placeholder="vazio = todas as casas"><datalist id="mnRefs">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
+      <label class="fcampo"><b>Só para uma casa (opcional)</b><input id="mnRef" list="mnRefs" placeholder="vazio = todas as casas"><datalist id="mnRefs">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
       <label class="fcheck"><input type="checkbox" id="mnCie"> <span>Pedir "Li e estou ciente"</span></label>
       <div class="barra-acoes"><button class="btn pri" data-mat-novo>Cadastrar material</button></div>
       <div class="err" id="materr" role="alert"></div></details>`;

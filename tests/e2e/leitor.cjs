@@ -15,7 +15,7 @@ const D = __dirname + '/dados/';
     // equipe publica dois documentos de uma vez
     await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
     await abrirAba('materiais'); await p.waitForSelector('#dpArq', { state: 'attached', timeout: 5000 });
-    await p.click('details:has(#dpArq) summary'); await p.fill('#dpVer', '1.9');
+    ok(await p.isVisible('#dpZona'), 'área de envio aparece aberta, em primeiro lugar'); await p.click('details:has(#dpVer) summary'); await p.fill('#dpVer', '1.9');
     await p.setInputFiles('#dpArq', [D + 'guia-do-franqueado.html', D + 'briefing-anfitriao.html']);
     await p.waitForFunction(() => /Feito/.test(document.querySelector('#dperr')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
     const msg = await p.textContent('#dperr');
