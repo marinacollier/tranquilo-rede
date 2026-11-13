@@ -400,7 +400,9 @@ const TQConta = (() => {
       },
       precisaSenha() { return recuperacao; },
       async definirSenha(senha) {
-        ok(await sb.auth.updateUser({ password: senha }));
+        const r = await sb.auth.updateUser({ password: senha });
+        // Senha igual à que já estava na conta: o Supabase recusa (422), mas a pessoa já tem essa senha; segue.
+        if (r.error && !/different from the old password|same_password/i.test(r.error.message + " " + (r.error.code || ""))) ok(r);
         recuperacao = false;
         ok(await sb.from("perfis").update({ senha_definida: true }).eq("id", await uid()));
       },
@@ -523,6 +525,8 @@ const TQConta = (() => {
     if (/Invalid login credentials/i.test(m)) return "E-mail ou senha incorretos.";
     if (/Email not confirmed/i.test(m)) return "Confirme o e-mail pelo link que enviamos antes de entrar.";
     if (/already registered/i.test(m)) return "Já existe uma conta com este e-mail.";
+    if (/different from the old password/i.test(m)) return "A nova senha precisa ser diferente da atual.";
+    if (/reauthenticat/i.test(m)) return "Por segurança, peça um novo link em \"Esqueci minha senha\" e troque a senha por ele.";
     if (/Password should be at least/i.test(m)) return "A senha precisa de pelo menos 8 caracteres.";
     if (/rate limit|too many|security purposes/i.test(m)) return "Limite de envio de e-mails do Supabase atingido. Tente de novo em alguns minutos ou mande pelo WhatsApp.";
     if (/not allowed|not authorized|Signups not allowed/i.test(m)) return "O Supabase recusou o envio para este e-mail. Confira a configuração de e-mail do projeto.";
@@ -534,7 +538,7 @@ const TQConta = (() => {
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "Sem conexão com a internet agora. Confira a rede e tente de novo.";
     if (/upstream|Bad Gateway|Service Unavailable|Gateway|timeout|statement timeout|5\d\d/i.test(m)) return "O servidor teve um problema agora. Tente de novo em instantes.";
     if (/row-level security|permission denied/i.test(m)) return "Sua conta não tem permissão para fazer isso.";
-    if (/^[\x00-\x7F]+$/.test(m) && m.length > 0) { console.warn("Mensagem do servidor:", m); return "Algo deu errado do nosso lado. Tente de novo; se continuar, fale com a equipe."; }
+    if (/^[\x00-\x7F]+$/.test(m) && m.length > 0) { console.warn("Mensagem do servidor:", m); try { TQDiario.registrar("erro_servidor", { msg: m.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[e-mail]").slice(0, 200) }); } catch { /* diário fora do ar */ } return "Algo deu errado do nosso lado. Tente de novo; se continuar, fale com a equipe."; }
     return m;
   }
 
