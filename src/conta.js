@@ -9,6 +9,22 @@ const TQConta = (() => {
   let FORA = false;   // banco configurado, mas fora do ar: nunca cair no modo demonstração nesse caso
   const R = window.TQRegras;
   const hojeIso = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
+  // Mensagem de resultado num formulário, sempre com o desfecho na frente:
+  // "✓ Feito: …" (verde), "✕ Erro: …" (vermelho, com o motivo e o que fazer), "⚠ Atenção: …" (amarelo) e "…" (cinza, esperando).
+  // Texto vazio limpa. Texto terminado em "…" é espera; começando com ✓ ou ⚠ mantém o tipo; o resto é erro.
+  function diz(el, texto) {
+    if (!el) return;
+    const t = String(texto ?? "").trim();
+    el.classList.remove("feito", "espera", "atencao");
+    if (!t) { el.textContent = ""; return; }
+    if (/…$/.test(t) && !/^[✓✕⚠]/.test(t)) { el.classList.add("espera"); el.textContent = t; return; }
+    if (/^✓/.test(t)) { el.classList.add("feito"); el.textContent = "✓ Feito: " + t.replace(/^✓\s*/, ""); return; }
+    if (/^⚠/.test(t)) { el.classList.add("atencao"); el.textContent = "⚠ Atenção: " + t.replace(/^⚠\s*/, ""); return; }
+    const r = t.replace(/^✕\s*(Erro:\s*)?/, "");
+    el.textContent = "✕ Erro: " + r.charAt(0).toUpperCase() + r.slice(1);
+  }
+  const comErro = (t) => { const r = String(t ?? "").trim(); return "✕ Erro: " + r.charAt(0).toUpperCase() + r.slice(1); };
+  window.TQDiz = diz;
   let api = null;
 
   const hubDemo = () => { try { return JSON.parse(localStorage.getItem("tq-demo-hub") || "{}"); } catch { return {}; } };
@@ -521,24 +537,29 @@ const TQConta = (() => {
       },
     };
   }
+  // Traduz a resposta do servidor para o que a pessoa precisa saber: o que aconteceu e o que fazer agora.
+  // (O "✕ Erro:" na frente quem coloca é o diz().)
   function traduz(m) {
-    if (/Invalid login credentials/i.test(m)) return "E-mail ou senha incorretos.";
-    if (/Email not confirmed/i.test(m)) return "Confirme o e-mail pelo link que enviamos antes de entrar.";
-    if (/already registered/i.test(m)) return "Já existe uma conta com este e-mail.";
-    if (/different from the old password/i.test(m)) return "A nova senha precisa ser diferente da atual.";
-    if (/reauthenticat/i.test(m)) return "Por segurança, peça um novo link em \"Esqueci minha senha\" e troque a senha por ele.";
-    if (/Password should be at least/i.test(m)) return "A senha precisa de pelo menos 8 caracteres.";
-    if (/rate limit|too many|security purposes/i.test(m)) return "Limite de envio de e-mails do Supabase atingido. Tente de novo em alguns minutos ou mande pelo WhatsApp.";
-    if (/not allowed|not authorized|Signups not allowed/i.test(m)) return "O Supabase recusou o envio para este e-mail. Confira a configuração de e-mail do projeto.";
-    if (/Email address .* is invalid|email_address_invalid|invalid email/i.test(m)) return "Esse e-mail não parece válido. Confira se está escrito certo.";
-    if (/weak|easy to guess|pwned|leaked/i.test(m)) return "Essa senha é fácil de adivinhar ou já vazou em outro site. Escolha outra, com pelo menos 8 caracteres.";
-    if (/JWT expired|invalid JWT|session.*(missing|expired)|refresh token/i.test(m)) return "Sua sessão expirou. Saia e entre de novo.";
-    if (/duplicate key/i.test(m)) return "Isso já foi salvo. Recarregue a página para ver.";
-    if (/invalid input syntax|out of range|violates check constraint/i.test(m)) return "Algum campo tem um valor que não dá para salvar (confira os números). Se continuar, fale com a equipe.";
-    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "Sem conexão com a internet agora. Confira a rede e tente de novo.";
-    if (/upstream|Bad Gateway|Service Unavailable|Gateway|timeout|statement timeout|5\d\d/i.test(m)) return "O servidor teve um problema agora. Tente de novo em instantes.";
-    if (/row-level security|permission denied/i.test(m)) return "Sua conta não tem permissão para fazer isso.";
-    if (/^[\x00-\x7F]+$/.test(m) && m.length > 0) { console.warn("Mensagem do servidor:", m); try { TQDiario.registrar("erro_servidor", { msg: m.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[e-mail]").slice(0, 200) }); } catch { /* diário fora do ar */ } return "Algo deu errado do nosso lado. Tente de novo; se continuar, fale com a equipe."; }
+    m = String(m || "");
+    if (/Invalid login credentials/i.test(m)) return "e-mail ou senha não conferem. Confira os dois ou use \"Esqueci minha senha\".";
+    if (/Email not confirmed/i.test(m)) return "seu e-mail ainda não foi confirmado. Abra o e-mail \"Confirme sua conta\" da Rede Tranquilo (olhe também o spam) e clique no link.";
+    if (/already registered|already been registered|user_already_exists/i.test(m)) return "já existe uma conta com este e-mail. Clique em \"Entrar\" ou use \"Esqueci minha senha\".";
+    if (/different from the old password|same_password/i.test(m)) return "a senha nova precisa ser diferente da que você já usa.";
+    if (/reauthenticat/i.test(m)) return "por segurança, peça um novo link em \"Esqueci minha senha\" e troque a senha por ele.";
+    if (/Password should be at least/i.test(m)) return "a senha precisa ter pelo menos 8 caracteres.";
+    if (/weak|easy to guess|pwned|leaked/i.test(m)) return "essa senha é fácil de adivinhar ou já vazou em outro site. Escolha outra, com pelo menos 8 caracteres.";
+    if (/rate limit|too many|security purposes/i.test(m)) return "muitos e-mails enviados em pouco tempo. Espere uns minutos e tente de novo, ou mande o convite pelo WhatsApp.";
+    if (/Error sending|sending (confirmation|recovery|magic link|invite)|smtp/i.test(m)) return "o e-mail não saiu do nosso servidor. Nada foi enviado. Tente de novo em instantes ou mande pelo WhatsApp.";
+    if (/Signups not allowed|not allowed|not authorized/i.test(m)) return "o servidor não deixou enviar para este e-mail. Confira o endereço ou fale com a equipe.";
+    if (/Email address .* is invalid|email_address_invalid|invalid email/i.test(m)) return "esse e-mail não parece válido. Confira se está escrito certo (ex.: nome@gmail.com).";
+    if (/otp_expired|expired|invalid.*(link|token)|Token has expired/i.test(m)) return "esse link já venceu ou já foi usado. Peça um novo e use o mais recente.";
+    if (/JWT expired|invalid JWT|session.*(missing|expired)|refresh token/i.test(m)) return "sua sessão expirou. Saia e entre de novo; o que estava salvo continua lá.";
+    if (/duplicate key/i.test(m)) return "isso já estava salvo. Recarregue a página para ver.";
+    if (/invalid input syntax|out of range|violates check constraint/i.test(m)) return "algum campo tem um valor que não dá para salvar (confira números e datas). Nada foi salvo.";
+    if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "sem conexão com a internet agora. Nada foi salvo. Confira a rede e tente de novo.";
+    if (/upstream|Bad Gateway|Service Unavailable|Gateway|timeout|statement timeout|5\d\d/i.test(m)) return "o servidor ficou instável. Nada foi salvo. Tente de novo em instantes.";
+    if (/row-level security|permission denied/i.test(m)) return "sua conta não tem permissão para fazer isso. Se acha que deveria ter, fale com a equipe.";
+    if (/^[\x00-\x7F]+$/.test(m) && m.length > 0) { console.warn("Mensagem do servidor:", m); try { TQDiario.registrar("erro_servidor", { msg: m.replace(/[^\s@]+@[^\s@]+\.[^\s@]+/g, "[e-mail]").slice(0, 200) }); } catch { /* diário fora do ar */ } return "o servidor recusou e nada foi salvo. Tente de novo; se continuar, toque em \"Algo deu errado?\" no rodapé que a equipe vê o que aconteceu."; }
     return m;
   }
 
@@ -987,7 +1008,7 @@ const TQConta = (() => {
         <div class="barra-acoes"><button class="btn${completo ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><p class="muted" style="font-size:13px;margin:4px 0 0">Os dados entram no texto do contrato logo abaixo.</p></div>` : ""}
       <div class="card"><h3 style="margin-top:0">${assinado ? "Texto assinado" : `${c.campos.length ? "2" : "1"}. Leia o contrato inteiro`}</h3>
         <div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(mostra)}</div>
-        ${assinado ? "" : `<p class="muted" id="ctLido" style="font-size:13px;margin:8px 0 0">${!completo ? "Complete e salve os seus dados para liberar a leitura." : c.lido_fim_em ? "✓ Você leu até o fim." : "Role o texto até o fim para liberar a assinatura."}</p>`}</div>
+        ${assinado ? "" : `<p class="muted" id="ctLido" style="font-size:13px;margin:8px 0 0">${!completo ? "Complete e salve os seus dados para liberar a leitura." : c.lido_fim_em ? "✓ Você leu até o fim. Agora dá para assinar." : "Role o texto até o fim para liberar a assinatura."}</p>`}</div>
       ${assinado ? "" : `<div class="card"><h3 style="margin-top:0">${c.campos.length ? "3" : "2"}. Assinar</h3>
         <label class="fcampo"><b>Seu nome completo</b><input id="ctNome" autocomplete="name" maxlength="160" value="${esc(S.conta.perfil.nome || "")}"></label>
         <label class="fcheck"><input type="checkbox" id="ctConcordo"> <span>Li o contrato inteiro e concordo com os termos. Entendo que digitar o meu nome aqui vale como a minha assinatura.</span></label>
@@ -1003,8 +1024,8 @@ const TQConta = (() => {
       if (el.scrollTop + el.clientHeight < el.scrollHeight - 8 || el.dataset.lido) return;
       el.dataset.lido = "1"; el.removeEventListener("scroll", fim);
       try { await api.contratoLido(c.id); c.lido_fim_em = new Date().toISOString(); TQDiario.registrar("contrato_lido", { contrato: c.id });
-        const m = $("#ctLido"); if (m) m.textContent = "✓ Você leu até o fim."; const b = $("#ctAssinar"); if (b) b.disabled = false; }
-      catch (e) { delete el.dataset.lido; const m = $("#ctErr"); if (m) m.textContent = traduz(e.message); }
+        const m = $("#ctLido"); if (m) diz(m, "✓ Você leu até o fim. Agora dá para assinar."); const b = $("#ctAssinar"); if (b) b.disabled = false; }
+      catch (e) { delete el.dataset.lido; const m = $("#ctErr"); if (m) diz(m, traduz(e.message)); }
     };
     el.addEventListener("scroll", fim, { passive: true }); fim();
   }
@@ -1772,7 +1793,7 @@ const TQConta = (() => {
       S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [] };
     } catch (e) {
       if (!S.conta) return;
-      S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("Não foi possível carregar: " + e.message);
+      S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("✕ Erro: não foi possível carregar os dados da equipe. " + e.message + " Recarregue a página.");
     } finally { S.eqCarregando = false; }
     render();
   }
@@ -1937,15 +1958,15 @@ const TQConta = (() => {
 
   // ---------- eventos ----------
   async function cliquesContrato(t) {
-    const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) e.textContent = m; };
+    const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) diz(e, m); };
     const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; irPara("passos"); render(); scrollTo(0, 0); return true; }
     if (t.closest("[data-ct-voltar]")) { S.contrAberto = null; render(); scrollTo(0, 0); return true; }
     const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c); return true; }
     const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
     if (t.id === "mcOk") {
       const nome = $("#mcNome").value.trim(), texto = $("#mcTexto").value.trim(), em = $("#mcErr");
-      if (nome.length < 2) { em.textContent = "Dê um nome ao modelo."; return true; }
-      if (texto.length < 50) { em.textContent = "Cole o texto completo do modelo."; return true; }
+      if (nome.length < 2) { diz(em, "Dê um nome ao modelo."); return true; }
+      if (texto.length < 50) { diz(em, "Cole o texto completo do modelo."); return true; }
       await api.salvarModeloContrato({ id: S.cModEd || undefined, nome, texto }); S.cModEd = null; S.cModAberto = true; S.eq = null; render(); return true;
     }
     if (t.id === "ctPrep") {
@@ -2036,18 +2057,18 @@ const TQConta = (() => {
     if (t.id === "eqcOk") {
       const err = $("#eqcErr"), funcoes = [...document.querySelectorAll("[data-eqc-funcao]")].filter((x) => x.checked).map((x) => x.dataset.eqcFuncao);
       const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), instagram: $("#eqcInsta").value.trim(), observacao: $("#eqcObs").value.trim(), funcoes, reserva: $("#eqcReserva").checked };
-      if (!m.nome) { err.textContent = "Coloque o nome da pessoa."; return true; }
-      if (m.email && !EMAIL_OK.test(m.email)) { err.textContent = "Esse e-mail não parece válido. Confira se está escrito certo."; return true; }
-      const e = TQEquipe.funcoesErro(funcoes); if (e) { err.textContent = e; return true; }
-      err.textContent = "Salvando…";
+      if (!m.nome) { diz(err, "Coloque o nome da pessoa."); return true; }
+      if (m.email && !EMAIL_OK.test(m.email)) { diz(err, "Esse e-mail não parece válido. Confira se está escrito certo."); return true; }
+      const e = TQEquipe.funcoesErro(funcoes); if (e) { diz(err, e); return true; }
+      diz(err, "Salvando…");
       try { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.conta.equipe = undefined; await carregarEquipeCasa(); }
-      catch (x) { err.textContent = /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || ""); }
+      catch (x) { diz(err, /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "")); }
       return true;
     }
     const rm = t.closest("[data-eqc-remover]"); if (rm) {
       const m = (S.conta.equipe || []).find((x) => x.id === rm.dataset.eqcRemover);
       if (!m || !confirm(`Tirar ${m.nome} da equipe?${m.acesso === "ativo" ? " A conta dessa pessoa deixa de ver a casa." : ""}`)) return true;
-      try { await api.removerMembro(m.id); TQDiario.registrar("equipe_casa", { acao: "tirou" }); S.conta.equipe = undefined; await carregarEquipeCasa(); } catch (x) { alert(traduz(x.message || "")); }
+      try { await api.removerMembro(m.id); TQDiario.registrar("equipe_casa", { acao: "tirou" }); S.conta.equipe = undefined; await carregarEquipeCasa(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
       return true;
     }
     const cv = t.closest("[data-eqc-convidar]"); if (cv) {
@@ -2059,35 +2080,35 @@ const TQConta = (() => {
         if (r.ja) alert(`${m.nome} já tem acesso.`);
         else { navigator.clipboard?.writeText(zap).catch(() => {}); alert(`${r.enviado ? `Link de acesso enviado para ${m.email}.` : `O e-mail não saiu${r.erro ? ` (${r.erro})` : ""}.`} A mensagem para o WhatsApp foi copiada:\n\n${zap}`); }
         S.conta.equipe = undefined; await carregarEquipeCasa();
-      } catch (x) { alert(traduz(x.message || "")); }
+      } catch (x) { alert(comErro(traduz(x.message || ""))); }
       return true;
     }
     if (t.dataset?.trilhaCasa) {
       const etapa = t.dataset.trilhaCasa;
       try { await api.trilhaMarcarCasa(etapa, t.checked); TQDiario.registrar("trilha_casa", { etapa, feito: t.checked }); S.conta.trilha = await api.minhaTrilha(); const y = scrollY; render(); scrollTo(0, y); }
-      catch (x) { alert(traduz(x.message || "")); t.checked = !t.checked; }
+      catch (x) { alert(comErro(traduz(x.message || ""))); t.checked = !t.checked; }
       return true;
     }
     // Central: trilhas das casas novas.
     if (t.dataset?.triMarco) {
       const v = t.dataset.triMarco, i = v.lastIndexOf("|"), ref = v.slice(0, i), etapa = v.slice(i + 1); S.triAberta = ref;
       try { await api.marcarTrilha(ref, etapa, t.checked); TQDiario.registrar("trilha_marco", { etapa, feito: t.checked }); const y = scrollY; S.tri = null; await carregarTrilhas(); scrollTo(0, y); }
-      catch (x) { alert(traduz(x.message || "")); t.checked = !t.checked; }
+      catch (x) { alert(comErro(traduz(x.message || ""))); t.checked = !t.checked; }
       return true;
     }
     const te = t.closest("[data-tri-editar]"); if (te) { S.triEd = te.dataset.triEditar || null; render(); $("#triForm")?.scrollIntoView({ block: "center" }); return true; }
     if (t.id === "triOk") {
       const err = $("#triErr"), casa_ref = $("#triCasa").value.trim(), inicio = $("#triInicio").value, nota = $("#triNota").value.trim();
-      if (!casa_ref || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)) { err.textContent = "Escolha a casa e o dia 1."; return true; }
-      if (!S.triEd && S.tri.trilhas.some((x) => x.casa_ref.toLowerCase() === casa_ref.toLowerCase())) { err.textContent = "Esta casa já tem trilha: use \"Editar dia 1 e nota\"."; return true; }
-      err.textContent = "Salvando…";
+      if (!casa_ref || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)) { diz(err, "Escolha a casa e o dia 1."); return true; }
+      if (!S.triEd && S.tri.trilhas.some((x) => x.casa_ref.toLowerCase() === casa_ref.toLowerCase())) { diz(err, "Esta casa já tem trilha: use \"Editar dia 1 e nota\"."); return true; }
+      diz(err, "Salvando…");
       try { await api.salvarTrilha({ casa_ref, inicio, nota }); TQDiario.registrar("trilha", { acao: S.triEd ? "editou" : "comecou" }); S.triEd = null; S.triAberta = casa_ref; S.tri = null; await carregarTrilhas(); }
-      catch (x) { err.textContent = traduz(x.message || ""); }
+      catch (x) { diz(err, traduz(x.message || "")); }
       return true;
     }
     const ta = t.closest("[data-tri-apagar]"); if (ta) {
       if (!confirm(`Apagar a trilha de ${ta.dataset.triApagar}? As etapas marcadas também saem.`)) return true;
-      try { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); } catch (x) { alert(traduz(x.message || "")); }
+      try { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
       return true;
     }
     return false;
@@ -2099,7 +2120,7 @@ const TQConta = (() => {
       const ref = S.conta.perfil.vinculo_nome, dia = dd.dataset.dispDia, atual = (S.disp || []).find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia);
       const prox = !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
       try { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); }
-      catch (x) { const e = $("#dispErr"); if (e) e.textContent = traduz(x.message || ""); }
+      catch (x) { const e = $("#dispErr"); if (e) diz(e, traduz(x.message || "")); }
       return true;
     }
     if (t.closest("[data-disp-semana]")) {
@@ -2107,7 +2128,7 @@ const TQConta = (() => {
       const nomes = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"], [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate();
       try { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || (S.pac?.eventos || []).some((e) => !e.z && e.d === dia) || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
           await api.marcarDisponibilidade(ref, dia, "disponivel"); S.disp.push({ casa_ref: ref, dia, situacao: "disponivel" }); }
-        render(); } catch (x) { const e = $("#dispErr"); if (e) e.textContent = traduz(x.message || ""); }
+        render(); } catch (x) { const e = $("#dispErr"); if (e) diz(e, traduz(x.message || "")); }
       return true;
     }
     return false;
@@ -2116,7 +2137,7 @@ const TQConta = (() => {
     // Central: responder pedido de atualização e salvar combinados.
     const sr = t.closest("[data-sol-responder]"); if (sr) {
       const [sid, ap] = sr.dataset.solResponder.split("|"), resp = document.querySelector(`[data-sol-resp="${sid}"]`)?.value || "";
-      try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { diz($("#derr"), traduz(x.message || "")); }
       return true;
     }
     if (t.closest("[data-hist-recarregar]")) { S.hist = undefined; render(); return true; }
@@ -2124,13 +2145,13 @@ const TQConta = (() => {
     const sf = t.closest("[data-salvar-ficha]"); if (sf) {
       const c = S.eq.casas.find((x) => x.id === sf.dataset.salvarFicha); if (!c) return true;
       const dados = { ...(c.dados || {}), ...lerForm($("#formCentral")) }, erros = conferirFormato(dados);
-      if (erros.length) { $("#derr").textContent = `Confira: ${erros.join("; ")}.`; return true; }
-      try { await api.editarFichaCasa(c.id, dados); c.dados = dados; c.pendencias = R.pendenciasCasa(dados); S.fichaEdit = null; fichaCasa(c.id); } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      if (erros.length) { diz($("#derr"), `Confira: ${erros.join("; ")}.`); return true; }
+      try { await api.editarFichaCasa(c.id, dados); c.dados = dados; c.pendencias = R.pendenciasCasa(dados); S.fichaEdit = null; fichaCasa(c.id); } catch (x) { diz($("#derr"), traduz(x.message || "")); }
       return true;
     }
     const cpm = t.closest("[data-copiar-msg]"); if (cpm) {
       const ta = document.getElementById(cpm.dataset.copiarMsg), ok = cpm.nextElementSibling;
-      try { await navigator.clipboard.writeText(ta.value); if (ok) ok.textContent = "Copiada."; } catch { ta.select(); if (ok) ok.textContent = "Selecione e copie."; }
+      try { await navigator.clipboard.writeText(ta.value); if (ok) ok.textContent = "✓ Copiada."; } catch { ta.select(); if (ok) ok.textContent = "✕ O navegador não deixou copiar. O texto ficou selecionado: copie com Ctrl+C."; }
       return true;
     }
     const tk = t.closest("[data-tranks]"); if (tk) {
@@ -2141,33 +2162,33 @@ const TQConta = (() => {
         + textoFicha(d, adm, null)
         + `\n\n*Combinados da parceria*\nBilheteria: artista ${cb.bilheteria?.artista ?? "?"}% · casa ${cb.bilheteria?.casa ?? "?"}% · Tranquilo ${cb.bilheteria?.tranquilo ?? "?"}%\nAlimentos e bebidas: casa ${cb.aeb?.casa ?? "?"}% · Tranquilo ${cb.aeb?.tranquilo ?? "?"}%`
         + `\n\n*Pendências calculadas pelo portal*\nPara habilitar: ${pend.habilitacao.join(", ") || "nada"}\nPara montar a noite: ${pend.match.join(", ") || "nada"}\nPara completar: ${pend.enriquecimento.join(", ") || "nada"}`;
-      try { await navigator.clipboard.writeText(txt); $("#tranksOk").textContent = "Copiado. Cole na conversa com a Tranks."; } catch { $("#tranksOk").textContent = "O navegador não deixou copiar."; }
+      try { await navigator.clipboard.writeText(txt); diz($("#tranksOk"), "✓ Copiado. Cole na conversa com a Tranks."); } catch { diz($("#tranksOk"), "O navegador não deixou copiar. Selecione o texto e copie com Ctrl+C."); }
       return true;
     }
     const cs = t.closest("[data-cb-salvar]"); if (cs) {
       const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && !["contatos", "bonificacao"].includes(a) ? Number(v.replace(",", ".")) : v; }
       for (const [g, nome] of [["bilheteria", "Bilheteria"], ["aeb", "Alimentos e bebidas"]]) {
         const vs = Object.values(cb[g] || {}); if (!vs.length) continue;
-        if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { $("#derr").textContent = `${nome}: use só números de 0 a 100.`; return true; }
-        const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { $("#derr").textContent = `${nome}: os percentuais somam ${soma}%, precisam somar 100%.`; return true; }
+        if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { diz($("#derr"), `${nome}: use só números de 0 a 100.`); return true; }
+        const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { diz($("#derr"), `${nome}: os percentuais somam ${soma}%, precisam somar 100%.`); return true; }
       }
-      try { await api.definirCombinados(cs.dataset.cbSalvar, cb); $("#derr").textContent = "Combinados salvos."; const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; } catch (x) { $("#derr").textContent = traduz(x.message || ""); }
+      try { await api.definirCombinados(cs.dataset.cbSalvar, cb); diz($("#derr"), "✓ Combinados salvos."); const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; } catch (x) { diz($("#derr"), traduz(x.message || "")); }
       return true;
     }
     if (t.id === "solPedir") { S.fichaPedido = true; render(); $("#form [data-k]")?.focus(); return true; }
     if (t.id === "solVoltar") { S.fichaPedido = false; render(); return true; }
     if (t.id === "solEnviar") {
       const err = $("#ferr"), novo = lerForm($("#form")), erros = conferirFormato(novo);
-      if (erros.length) { err.textContent = `Confira antes de enviar: ${erros.join("; ")}.`; return true; }
-      err.textContent = "Enviando…";
+      if (erros.length) { diz(err, `Confira antes de enviar: ${erros.join("; ")}.`); return true; }
+      diz(err, "Enviando…");
       try { await api.solicitarAtualizacao(novo, $("#solMsg")?.value || ""); TQDiario.registrar("ficha_pedido", {});
-        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); $("#ferr").textContent = "Pedido enviado. A Central confere e a ficha muda quando for aprovado."; }
-      catch (x) { err.textContent = traduz(x.message || ""); }
+        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); diz($("#ferr"), "✓ Pedido enviado. A Central confere e a Ficha muda quando for aprovado."); }
+      catch (x) { diz(err, traduz(x.message || "")); }
       return true;
     }
     const sc = t.closest("[data-sol-cancelar]"); if (sc) {
       if (!confirm("Cancelar o pedido de atualização?")) return true;
-      try { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); } catch (x) { alert(traduz(x.message || "")); }
+      try { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
       return true;
     }
     if (t.id === "copiarFicha") {
@@ -2198,24 +2219,24 @@ const TQConta = (() => {
     }
     if (t.id === "eok") {
       const email = $("#email").value.trim(), senha = $("#esenha").value, err = $("#eerr");
-      err.textContent = "Aguarde…";
+      diz(err, "Entrando…");
       try {
         if ((S.entrada || "entrar") === "criar") {
           const nome = $("#enome").value.trim();
-          if (!nome || !email || senha.length < 8) { err.textContent = "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres."; return; }
-          if (!EMAIL_OK.test(email)) { err.textContent = "Esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)."; $("#email").focus(); return; }
+          if (!nome || !email || senha.length < 8) { diz(err, "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres."); return; }
+          if (!EMAIL_OK.test(email)) { diz(err, "Esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)."); $("#email").focus(); return; }
           const r = await api.cadastrar({ email, senha, nome, tipo: S.tipoNovo || "artista" });
-          if (r.confirmar) { err.textContent = ""; $("#eok").outerHTML = `<div class="alert good"><b>Confira seu e-mail</b>Enviamos um link de confirmação para ${esc(email)}. Depois de confirmar, entre com e-mail e senha.</div>`; return; }
+          if (r.confirmar) { diz(err, ""); $("#eok").outerHTML = `<div class="alert good"><b>Confira seu e-mail</b>Enviamos um link de confirmação para ${esc(email)}. Depois de confirmar, entre com e-mail e senha.</div>`; return; }
           return aposEntrar(r.perfil);
         }
         return aposEntrar(await api.entrar(email, senha));
-      } catch (e) { err.textContent = e.message; }
+      } catch (e) { diz(err, e.message); }
       return;
     }
     if (t.id === "esqueci") {
       ev.preventDefault(); const email = $("#email").value.trim();
-      if (!email) { $("#eerr").textContent = "Escreva seu e-mail acima e clique de novo."; return; }
-      await api.recuperar(email); $("#eerr").textContent = REAL ? "Se houver conta, enviamos um link para trocar a senha." : "No modo demonstração não há envio de e-mail.";
+      if (!email) { diz($("#eerr"), "Escreva seu e-mail acima e clique de novo."); return; }
+      await api.recuperar(email); diz($("#eerr"), REAL ? "✓ Se existir conta com esse e-mail, o link para trocar a senha chega em até 2 minutos. Olhe também o spam." : "⚠ No modo demonstração não há envio de e-mail.");
       return;
     }
     if (t.id === "salvar" || t.id === "enviar") {
@@ -2223,42 +2244,42 @@ const TQConta = (() => {
       // Na casa, guarda também o que veio de versões anteriores da ficha (nenhum dado preenchido some).
       const enviar = t.id === "enviar", raiz = $("#form"), d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) }, err = $("#ferr");
       const falta = faltando(casa ? F_CASA : F_ARTISTA, d);
-      if (enviar && falta.length && !casa) { err.textContent = `Faltam: ${falta.join(", ").replace(/\.+$/, "")}. Os campos com * são obrigatórios.`; return; }
+      if (enviar && falta.length && !casa) { diz(err, `Faltam: ${falta.join(", ").replace(/\.+$/, "")}. Os campos com * são obrigatórios.`); return; }
       const erros = enviar ? conferirFormato(d) : [];
-      if (erros.length) { err.textContent = `Confira antes de enviar: ${erros.join("; ")}.`; return; }
-      err.textContent = "Salvando…";
+      if (erros.length) { diz(err, `Confira antes de enviar: ${erros.join("; ")}.`); return; }
+      diz(err, "Salvando…");
       try {
         if (casa) {
           const parceira = document.querySelector('input[name="parceira"]:checked')?.value === "sim";
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
-        err.textContent = "";
-        if (enviar && casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { e2.textContent = `A Ficha foi guardada, mas ainda não foi para análise: falta ${f.join(", ")}.`; e2.scrollIntoView({ block: "center" }); } }
-        else if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); $("#ferr").textContent = "Rascunho salvo."; }
-      } catch (e) { err.textContent = e.message; }
+        diz(err, "");
+        if (enviar && casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
+        else if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); diz($("#ferr"), "✓ Rascunho salvo. Você pode continuar depois."); }
+      } catch (e) { diz(err, e.message); }
       return;
     }
     if (t.id === "vok") {
-      const cod = $("#vcod").value, err = $("#verr"); err.textContent = "Conferindo…";
+      const cod = $("#vcod").value, err = $("#verr"); diz(err, "Conferindo…");
       try {
         const pac = await abrirPacote(cod);
-        if (pac.perfil !== S.conta.perfil.tipo) { err.textContent = `Este código é de ${PERFIS[pac.perfil].rotulo.toLowerCase()}, e a conta é de ${ROTULO[S.conta.perfil.tipo].toLowerCase()}.`; return; }
+        if (pac.perfil !== S.conta.perfil.tipo) { diz(err, `Este código é de ${PERFIS[pac.perfil].rotulo.toLowerCase()}, e a conta é de ${ROTULO[S.conta.perfil.tipo].toLowerCase()}.`); return; }
         await api.vincularCodigo(normCod(cod).replace(/(.{4})(.{4})(.{4})/, "$1-$2-$3"), pac.nome);
         return recarregar();
-      } catch (e) { err.textContent = e.message; }
+      } catch (e) { diz(err, e.message); }
       return;
     }
     if (t.id === "sairConta") { await sairDeTudo(); return; }
     const reg = t.closest("[data-registrar]"); if (reg) return fichaRegistro(reg.dataset.registrar);
     if (t.id === "rsalvar") {
       const eventoId = $("#dlg").dataset.alvo.slice(4), pub = inteiroBR($("#rpub").value);
-      if (pub !== "" && (+pub < 0 || +pub > 20000)) { $("#derr").textContent = "Confira o público: um número entre 0 e 20.000 pessoas."; $("#rpub").focus(); return; }
+      if (pub !== "" && (+pub < 0 || +pub > 20000)) { diz($("#derr"), "Confira o público: um número entre 0 e 20.000 pessoas."); $("#rpub").focus(); return; }
       try {
         await api.registrar(eventoId, { publico: pub === "" ? null : +pub, ocorrencia: $("#rocc").value.trim() || null, gravidade: $("#rgrav").value, como_resolveu: $("#rres").value.trim() || null });
         S.conta.reg = await api.meusRegistros();
         const chk = S.conta.chk; if (!chk.some((c) => c.evento_id === eventoId && c.item === "publico")) { await api.marcar(eventoId, "publico", true); S.conta.chk = await lerChecklist(); }
         $("#dlg").close(); render();
-      } catch (e) { $("#derr").textContent = e.message; }
+      } catch (e) { diz($("#derr"), e.message); }
       return;
     }
     if (t.closest("[data-hub-recarregar]")) { S.hub = null; render(); return; }
@@ -2272,11 +2293,11 @@ const TQConta = (() => {
     }
     if (t.closest("[data-camp-limpar]")) { S.campPrevia = null; render(); return; }
     if (t.closest("[data-camp-importar]") && S.campPrevia) {
-      const err = $("#camperr"); err.textContent = "";
+      const err = $("#camperr"); diz(err, "");
       const casa = $("#cfCasa").value.trim(), slug = slugDe($("#cfSlug").value), titulo = $("#cfTit").value.trim() || "Campanha", fonte = $("#cfFonte").value.trim();
-      if (!casa) { err.textContent = "Escreva o nome da casa exatamente como no convite (é assim que a casa passa a ver a campanha)."; $("#cfCasa").focus(); return; }
-      if (slug.length < 3) { err.textContent = "Dê um identificador curto, por exemplo rooftap-nov26."; $("#cfSlug").focus(); return; }
-      if (fonte && !/^https:\/\//i.test(fonte)) { err.textContent = "O link da página precisa começar com https://"; $("#cfFonte").focus(); return; }
+      if (!casa) { diz(err, "Escreva o nome da casa exatamente como no convite (é assim que a casa passa a ver a campanha)."); $("#cfCasa").focus(); return; }
+      if (slug.length < 3) { diz(err, "Dê um identificador curto, por exemplo rooftap-nov26."); $("#cfSlug").focus(); return; }
+      if (fonte && !/^https:\/\//i.test(fonte)) { diz(err, "O link da página precisa começar com https://"); $("#cfFonte").focus(); return; }
       const semConvite = !(S.eq?.conv || []).some((c) => c.tipo === "casa" && (c.vinculo_nome || "").toLowerCase() === casa.toLowerCase());
       if (semConvite && !confirm(`Nenhum convite de casa está ligado a "${casa}". A campanha fica carregada, mas ninguém da casa vê até receber um convite com esse nome. Continuar?`)) return;
       const d = { slug, titulo, casa, fonte_url: fonte || null, itens: S.campPrevia.itens.map(({ chave, dia, rotulo, acoes }) => ({ chave, dia, rotulo, acoes })) };
@@ -2287,25 +2308,25 @@ const TQConta = (() => {
         TQDiario.registrar("campanha_importada", { dias: d.itens.length });
         S.campPrevia = null; S.hub = null; await carregarHub();
         alert(`Campanha de ${casa} carregada: ${d.itens.length} dias.${cie ? " A casa vai ver o pedido de confirmação de leitura em Materiais." : ""}`);
-      } catch (e) { err.textContent = traduz(e.message || ""); }
+      } catch (e) { diz(err, traduz(e.message || "")); }
       return;
     }
     if (t.closest("[data-mat-versao], [data-mat-novo]")) {
-      const err = $("#materr"); err.textContent = ""; S.matAberto = true;
+      const err = $("#materr"); diz(err, ""); S.matAberto = true;
       const url = (s) => s.trim();
       try {
         if (t.closest("[data-mat-versao]")) {
           const versao = $("#mvVer").value.trim(), u = url($("#mvUrl").value);
-          if (!versao) { err.textContent = "Dê um nome à versão (ex.: 2)."; $("#mvVer").focus(); return; }
-          if (u && !/^https:\/\//i.test(u)) { err.textContent = "O link precisa começar com https://"; $("#mvUrl").focus(); return; }
+          if (!versao) { diz(err, "Dê um nome à versão (ex.: 2)."); $("#mvVer").focus(); return; }
+          if (u && !/^https:\/\//i.test(u)) { diz(err, "O link precisa começar com https://"); $("#mvUrl").focus(); return; }
           const pede = $("#mvCie").checked;
           if (!confirm(pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?")) return;
           await api.publicarVersao({ material_id: $("#mvMat").value, versao, resumo: $("#mvRes").value.trim() || null, url: u || null, exige_ciencia: pede });
         } else {
           const titulo = $("#mnTit").value.trim(), u = url($("#mnUrl").value), publico = [$("#mnCasa").checked && "casa", $("#mnArt").checked && "artista"].filter(Boolean);
-          if (titulo.length < 3) { err.textContent = "Escreva o título do material."; $("#mnTit").focus(); return; }
-          if (!/^https:\/\//i.test(u)) { err.textContent = "Cole o link do material (começando com https://)."; $("#mnUrl").focus(); return; }
-          if (!publico.length) { err.textContent = "Escolha quem vê: casas, artistas ou os dois."; return; }
+          if (titulo.length < 3) { diz(err, "Escreva o título do material."); $("#mnTit").focus(); return; }
+          if (!/^https:\/\//i.test(u)) { diz(err, "Cole o link do material (começando com https://)."); $("#mnUrl").focus(); return; }
+          if (!publico.length) { diz(err, "Escolha quem vê: casas, artistas ou os dois."); return; }
           const ref = $("#mnRef").value.trim();
           const slug = (titulo + (ref ? "-" + ref : "")).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
           await api.novoMaterial({ slug, titulo, tipo_material: $("#mnTipo").value, publico, fonte_url: u, casa_ref: ref || null, fonte_tipo: "link" },
@@ -2313,19 +2334,19 @@ const TQConta = (() => {
         }
         TQDiario.registrar("material_publicado", {});
         S.hub = null; await carregarHub();
-      } catch (e) { err.textContent = /duplicate|unique|já foi salvo/i.test(e.message) ? "Já existe uma versão (ou um material) com esse nome. Use outro." : traduz(e.message || ""); }
+      } catch (e) { diz(err, /duplicate|unique|já foi salvo/i.test(e.message) ? "Já existe uma versão (ou um material) com esse nome. Use outro." : traduz(e.message || "")); }
       return;
     }
     const cie = t.closest("[data-ciencia]"); if (cie) {
       if (!confirm("Confirmar que você leu esta versão do material? A confirmação fica registrada com data e hora.")) return;
       try { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
-      catch (e) { alert(traduz(e.message || "")); }
+      catch (e) { alert(comErro(traduz(e.message || ""))); }
       return;
     }
     const arq = t.closest("[data-arquivo]"); if (arq) {
       ev.preventDefault();
       const url = await api.linkArquivo(arq.dataset.arquivo);
-      if (url) window.open(url, "_blank", "noopener"); else alert("Não foi possível abrir o arquivo agora.");
+      if (url) window.open(url, "_blank", "noopener"); else alert("✕ Erro: não foi possível abrir o arquivo agora. Tente de novo em instantes.");
       return;
     }
     if (await cliquesContrato(t)) return;
@@ -2337,17 +2358,17 @@ const TQConta = (() => {
     }
     const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
       if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
-      try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(e.message); }
+      try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
       return;
     }
     if (t.id === "docOk") {
       const err = $("#docErr"), url = $("#docUrl").value.trim(), titulo = $("#docTit").value.trim(), tipo = $("#docTipo").value;
       const [user_id, evento_id] = [$("#docConta").value || null, $("#docEv").value || null];
-      if (!/^https:\/\//i.test(url)) { err.textContent = "Cole o link completo, começando com https:// (Drive, Dropbox, DocuSign…)."; return; }
-      if (titulo.length < 2) { err.textContent = "Dê um nome curto ao documento."; return; }
-      if (tipo === "contrato" && (!user_id || !evento_id)) { err.textContent = "Contrato precisa da conta e da data."; return; }
+      if (!/^https:\/\//i.test(url)) { diz(err, "Cole o link completo, começando com https:// (Drive, Dropbox, DocuSign…)."); return; }
+      if (titulo.length < 2) { diz(err, "Dê um nome curto ao documento."); return; }
+      if (tipo === "contrato" && (!user_id || !evento_id)) { diz(err, "Contrato precisa da conta e da data."); return; }
       try { await api.criarDocumento({ tipo, titulo, url, user_id: tipo === "modelo" ? null : user_id, evento_id: tipo === "modelo" ? null : evento_id }); S.eq = null; render(); }
-      catch (e) { err.textContent = e.message; }
+      catch (e) { diz(err, e.message); }
       return;
     }
     const dec = t.closest("[data-decisao]"); if (dec) {
@@ -2355,11 +2376,11 @@ const TQConta = (() => {
       const campos = { parecer: $("#parecer").value.trim() || null, nota_interna: $("#nota").value.trim() || null };
       if (status) campos.status = status;
       if (tipo === "casa") campos.classificacao = $("#classe").value || null;
-      if (status === "ajustes" && !campos.parecer) { $("#derr").textContent = "Escreva na mensagem o que precisa ser ajustado."; return; }
+      if (status === "ajustes" && !campos.parecer) { diz($("#derr"), "Escreva na mensagem o que precisa ser ajustado."); return; }
       // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
-      if (status === "reprovada" && !campos.parecer) { $("#derr").textContent = "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."; $("#parecer").focus(); return; }
+      if (status === "reprovada" && !campos.parecer) { diz($("#derr"), "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."); $("#parecer").focus(); return; }
       if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;
-      if (status === "encerrada" && !campos.parecer) { $("#derr").textContent = "Escreva na mensagem o motivo do encerramento: é o que a pessoa vai ler."; $("#parecer").focus(); return; }
+      if (status === "encerrada" && !campos.parecer) { diz($("#derr"), "Escreva na mensagem o motivo do encerramento: é o que a pessoa vai ler."); $("#parecer").focus(); return; }
       if (status === "encerrada" && !confirm(tipo === "casa"
         ? "Encerrar a parceria com esta casa? A equipe da casa perde o acesso, o dono vê só a sua mensagem e a Ficha. Nada é apagado. As datas futuras precisam ser canceladas no Notion."
         : "Encerrar a participação desta artista? Ela perde o acesso às datas e vê a sua mensagem. Nada é apagado. As datas futuras precisam ser canceladas no Notion (Line-up).")) return;
@@ -2368,57 +2389,57 @@ const TQConta = (() => {
         const v = $("#dlg").querySelector("[data-vinculo]");
         if (v) { const [codigo, nome] = v.value ? v.value.split("|") : [null, null]; const p = (S.eq.perfis || []).find((x) => x.id === v.dataset.vinculo); if (p && p.codigo_acesso !== codigo) await api.atualizarPerfil(p.id, { codigo_acesso: codigo, vinculo_nome: nome }); }
         $("#dlg").close(); S.eq = null; render();
-      } catch (e) { $("#derr").textContent = e.message; }
+      } catch (e) { diz($("#derr"), e.message); }
       return;
     }
     if (t.closest("[data-copiar-ficha]")) {
       const i = S.eq.insc.find((x) => "insc:" + x.id === $("#dlg").dataset.alvo), d = i.dados;
       const txt = [`Nome artístico: ${d.nome_artistico}`, `Cidade: ${d.cidade_base}/${d.estado}`, `Gêneros: ${d.generos}`, `Instagram: ${d.instagram}`, `Spotify: ${d.spotify}`, `Contato: ${d.whatsapp} ${d.contato_producao || ""}`, `Rider: ${d.rider_tipo} ${d.rider_link || ""}`, `Cidades: ${(d.cidades_interesse || []).join(", ")}`, `Pré-curadoria: ${i.score}/100 (${i.faixa})`, `Mini release: ${d.release}`].join("\n");
-      navigator.clipboard?.writeText(txt); t.textContent = "Copiada"; return;
+      navigator.clipboard?.writeText(txt); t.textContent = "✓ Copiada"; return;
     }
     // ---------- primeiro acesso, convites e avisos ----------
     if (t.closest("[data-rever-tutorial]")) { abrirTutorial(roteiroConta(), false); return; }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
-      if (a.length < 8) { err.textContent = "Use pelo menos 8 caracteres."; return; }
-      if (a !== b) { err.textContent = "As duas senhas não são iguais."; return; }
-      err.textContent = "Salvando…";
-      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; $("#dlg").close(); primeiroAcesso(); } catch (e) { err.textContent = e.message; }
+      if (a.length < 8) { diz(err, "Use pelo menos 8 caracteres."); return; }
+      if (a !== b) { diz(err, "As duas senhas não são iguais."); return; }
+      diz(err, "Salvando…");
+      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; $("#dlg").close(); primeiroAcesso(); } catch (e) { diz(err, e.message); }
       return;
     }
     if (t.id === "cvOk") {
       const err = $("#cverr"), email = $("#cvEmail").value.trim().toLowerCase(), nome = $("#cvNome").value.trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { err.textContent = "Escreva um e-mail válido."; return; }
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { diz(err, "Escreva um e-mail válido."); return; }
       const [codigo_acesso, vinculo_nome] = ($("#cvVinc")?.value || "").split("|");
       const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null };
-      err.textContent = "Enviando…";
+      diz(err, "Enviando…");
       try {
-        const r = await api.convidar(c); err.textContent = ""; S.convPre = null; S.eq = null; render();
+        const r = await api.convidar(c); diz(err, ""); S.convPre = null; S.eq = null; render();
         dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Convite") });
-      } catch (e) { err.textContent = e.message; }
+      } catch (e) { diz(err, e.message); }
       return;
     }
     const rc = t.closest("[data-reconvidar]"); if (rc) {
       const c = (S.eq?.conv || []).find((x) => x.email === rc.dataset.reconvidar); if (!c) return;
       rc.textContent = "Enviando…";
       try { const r = await api.convidar(c); dialogoEnvio({ titulo: `Acesso de ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Link de acesso") }); }
-      catch (e) { alert(e.message); }
+      catch (e) { alert(comErro(e.message)); }
       S.eq = null; render(); return;
     }
     const cc = t.closest("[data-cancelar-convite]"); if (cc) {
       if (!confirm(`Cancelar o convite de ${cc.dataset.cancelarConvite}?`)) return;
-      try { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); } catch (e) { alert(e.message); }
+      try { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
       return;
     }
     const et = t.closest("[data-enviar-tutorial]"); if (et) { const [tipo, email, nome, wa] = et.dataset.enviarTutorial.split("|"); enviarTutorial(tipo, nome, email, wa); return; }
     const ls = t.closest("[data-link-senha]"); if (ls) {
       ls.textContent = "Enviando…";
-      try { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); ls.textContent = r.enviado ? "Link enviado" : "Não enviado"; if (!r.enviado) alert(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); }
-      catch (e) { ls.textContent = "Erro"; alert(e.message); }
+      try { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); ls.textContent = r.enviado ? "✓ Link enviado" : "✕ Não enviado"; if (!r.enviado) alert(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); }
+      catch (e) { ls.textContent = "✕ Não enviado"; alert("✕ Erro: o link não foi enviado. " + e.message); }
       return;
     }
     if (t.closest("[data-envio]")) { try { S.aoEnviar?.(); } catch { /* registro opcional */ } return; }
-    if (t.closest("[data-copiar-envio]")) { navigator.clipboard?.writeText($("#envTxt").value).then(() => { t.textContent = "Copiada"; }); return; }
+    if (t.closest("[data-copiar-envio]")) { navigator.clipboard?.writeText($("#envTxt").value).then(() => { t.textContent = "✓ Copiada"; }); return; }
     if (t.id === "avOk") { await avisarCidade(); return; }
     const cl = t.closest("[data-click]");
     if (cl && /^camp:/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); S.campAberta = cl.dataset.click.slice(5); render(); return; }
@@ -2431,12 +2452,12 @@ const TQConta = (() => {
     if (b?.dataset.ocupado) { ev.preventDefault(); ev.stopImmediatePropagation(); return; }
     if (!api && ev.target.closest("#eok, #esqueci, [data-demo], #avOk, #salvar, #enviar")) {
       ev.preventDefault(); ev.stopImmediatePropagation();
-      const e = $("#eerr") || $("#averr") || $("#ferr"); if (e) e.textContent = "Conectando às contas… tente de novo em alguns segundos.";
+      const e = $("#eerr") || $("#averr") || $("#ferr"); if (e) diz(e, "⚠ Ainda conectando ao servidor. Espere alguns segundos e clique de novo.");
       return;
     }
     if (b) b.dataset.ocupado = "1";
     try { await cliques(ev); }
-    catch (e) { console.error(e); const m = $("#ctErr") || $("#mcErr") || $("#eerr") || $("#ferr") || $("#derr") || $("#averr"); if (m) m.textContent = traduz(e.message || ""); }
+    catch (e) { console.error(e); const m = $("#ctErr") || $("#mcErr") || $("#eerr") || $("#ferr") || $("#derr") || $("#averr"); if (m) diz(m, traduz(e.message || "")); }
     finally { if (b) delete b.dataset.ocupado; }
   }, true);
 
@@ -2453,7 +2474,7 @@ const TQConta = (() => {
         const slug = r.slug || anterior?.slug || slugDe(`${r.casa || "casa"}-${r.itens[0].dia.slice(0, 7)}`);
         S.campPrevia = { ...r, arquivo: arq.name, slug, fonte_url: r.fonte_url || anterior?.fonte_url || "" };
         render();
-      } catch (e) { S.campPrevia = null; render(); $("#camperr").textContent = e.message; }
+      } catch (e) { S.campPrevia = null; render(); diz($("#camperr"), e.message); }
       return;
     }
     if (t.name === "tipoNovo") {
@@ -2471,32 +2492,32 @@ const TQConta = (() => {
     }
     if (t.dataset?.enviarArquivo && t.files?.[0]) {
       const ev = t.dataset.enviarArquivo, msg = $(`#arqErr-${CSS.escape(ev)}`);
-      if (msg) msg.textContent = "Enviando…";
-      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos(); TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) m2.textContent = "Arquivo enviado. A equipe do Tranquilo já consegue ver."; }
-      catch (e) { if (msg) msg.textContent = e.message; t.value = ""; }
+      if (msg) diz(msg, "Enviando…");
+      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos(); TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
+      catch (e) { if (msg) diz(msg, e.message); t.value = ""; }
       return;
     }
     if (t.dataset?.campFeito) {
       try { await api.marcarCampanha(t.dataset.campFeito, t.checked); TQDiario.registrar("campanha_feito", { item: t.dataset.campFeito, feito: t.checked }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
-      catch (e) { alert(traduz(e.message || "")); t.checked = !t.checked; }
+      catch (e) { alert(comErro(traduz(e.message || ""))); t.checked = !t.checked; }
       return;
     }
     const ps = t.dataset?.passo; if (ps) {
       const [eventoId, item] = ps.split("|");
       try { if (!t.checked && S.conta.perfil.tipo === "casa") await api.desmarcarCasa(eventoId, item); else await api.marcar(eventoId, item, t.checked); S.conta.chk = await lerChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); }
-      catch (e) { alert(e.message); t.checked = !t.checked; }
+      catch (e) { alert(comErro(e.message)); t.checked = !t.checked; }
       return;
     }
     if (t.dataset?.tipo) {
       // Mudar perfil muda o que a pessoa vê (e pode dar acesso de equipe): só com confirmação.
       const nome = t.closest("tr")?.querySelector("b")?.textContent || "esta conta";
       if (!confirm(`Mudar o perfil de ${nome} de ${ROTULO[t.dataset.antes] || t.dataset.antes} para ${ROTULO[t.value]}? O vínculo com o histórico atual é desfeito.`)) { t.value = t.dataset.antes; return; }
-      try { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value, codigo_acesso: null, vinculo_nome: null }); S.eq = null; render(); document.querySelector(`[data-tipo="${t.dataset.tipo}"]`)?.focus(); } catch (e) { alert(e.message); t.value = t.dataset.antes; }
+      try { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value, codigo_acesso: null, vinculo_nome: null }); S.eq = null; render(); document.querySelector(`[data-tipo="${t.dataset.tipo}"]`)?.focus(); } catch (e) { alert(comErro(e.message)); t.value = t.dataset.antes; }
       return;
     }
     if (t.dataset?.vinculo && !t.closest("dialog")) {
       const [codigo, nome] = t.value ? t.value.split("|") : [null, null];
-      try { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); } catch (e) { alert(e.message); }
+      try { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
       return;
     }
     if (t.id === "histFiltro") { S.histFiltro = t.value; render(); return; }
@@ -2520,7 +2541,7 @@ const TQConta = (() => {
     const casa = S.conta.perfil.tipo === "casa";
     if (casa && raiz.dataset.modo !== "edicao") return Promise.resolve();   // ficha enviada: muda só por pedido
     const d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) };
-    const msg = (t) => { const e = $("#ferr"); if (e) e.textContent = t; };
+    const msg = (t) => { const e = $("#ferr"); if (e) diz(e, t); };
     let p;
     if (casa) {
       const parceira = document.querySelector('input[name="parceira"]:checked')?.value === "sim", notion = parceira ? $("#casaNotion")?.value : null;
@@ -2531,21 +2552,21 @@ const TQConta = (() => {
       p = api.salvarInscricao(d, false).then((i) => { S.conta.insc = i; });
     }
     msg("Salvando…");
-    return p.then(() => msg(`Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não deu para salvar agora (${e.message}). Tente "Salvar rascunho".`));
+    return p.then(() => msg(`✓ Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não salvou automaticamente. ${e.message} Clique em "Salvar rascunho" para tentar de novo.`));
   }
 
   // ---------- público: "me avise de shows na minha cidade" ----------
   async function avisarCidade() {
     const err = $("#averr"), sel = $("#avCidade").value, cidade = (sel === "__outra" ? $("#avOutra").value : sel).trim(), contato = $("#avContato").value.trim();
-    if (cidade.length < 2) { err.textContent = "Escolha ou escreva a sua cidade."; return; }
+    if (cidade.length < 2) { diz(err, "Escolha ou escreva a sua cidade."); return; }
     const email = /@/.test(contato), digitos = contato.replace(/\D/g, "");
-    if (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contato) : digitos.length < 10) { err.textContent = "Escreva um e-mail ou um WhatsApp com DDD."; return; }
-    if (!$("#avOk2").checked) { err.textContent = "Marque a autorização para podermos avisar você."; return; }
-    err.textContent = "Enviando…";
+    if (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contato) : digitos.length < 10) { diz(err, "Escreva um e-mail ou um WhatsApp com DDD."); return; }
+    if (!$("#avOk2").checked) { diz(err, "Marque a autorização para podermos avisar você."); return; }
+    diz(err, "Enviando…");
     try {
       await api.avisar({ cidade, contato: email ? contato.toLowerCase() : digitos, canal: email ? "email" : "whatsapp" });
       $("#avForm").innerHTML = `<div class="alert good"><b>Pronto! Vamos te avisar.</b>Quando abrir show em ${esc(cidade)}, você fica sabendo antes.${REAL ? "" : " (Modo demonstração: o pedido ficou só neste navegador.)"}</div>`;
-    } catch (e) { err.textContent = e.message; }
+    } catch (e) { diz(err, e.message); }
   }
   function formAviso(cidades, sel = "") {
     return `<div id="avForm"><div class="fgrid">
