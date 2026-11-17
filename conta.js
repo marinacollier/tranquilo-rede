@@ -260,6 +260,13 @@ const TQConta = (() => {
       },
       async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
+      async semanal() { const p = eu(); return (db.sem || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || (x.user_id && x.user_id === p?.id) || (x.casa_ref && x.casa_ref === p?.vinculo_nome)); },
+      async salvarSemanal(alvo, dias) {
+        const p = eu(), casa = alvo === "casa";
+        if (casa ? p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome : p?.tipo !== "artista") throw new Error("Só a própria casa (responsável) ou a própria artista marca os dias da semana.");
+        db.sem = (db.sem || []).filter((x) => !(casa ? x.casa_ref === p.vinculo_nome : x.user_id === p.id));
+        db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id }), dias: [...new Set(dias)].sort() }); gravar();
+      },
       async dispArtistas() { const p = eu(); return (db.dispA || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.user_id === p?.id); },
       async marcarDispArtista(dia, situacao) {
         const p = eu(); if (p?.tipo !== "artista") throw new Error("Só a própria artista informa a disponibilidade.");
@@ -575,6 +582,13 @@ const TQConta = (() => {
       async responderSolicitacao(sid, aprovar, resposta) { ok(await sb.rpc("responder_solicitacao_ficha", { sid, aprovar, resposta_: resposta || null })); },
       async definirCombinados(cid, c) { ok(await sb.rpc("definir_combinados", { cid, c })); },
       async definirAreas(conta, areas) { ok(await sb.rpc("definir_areas", { conta, novas: areas })); },
+      async semanal() { return ok(await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias")); },
+      async salvarSemanal(alvo, dias) {
+        const p = await this.sessao(), casa = alvo === "casa", base = sb.from("disponibilidade_semanal").select("id");
+        const atual = ok(await (casa ? base.eq("casa_ref", p.vinculo_nome) : base.eq("user_id", p.id)).maybeSingle());
+        ok(atual ? await sb.from("disponibilidade_semanal").update({ dias }).eq("id", atual.id)
+          : await sb.from("disponibilidade_semanal").insert(casa ? { casa_ref: p.vinculo_nome, dias } : { user_id: p.id, dias }));
+      },
       async dispArtistas() { return ok(await sb.from("disponibilidade_artista").select("user_id,dia,situacao,nota").gte("dia", hojeIso()).order("dia")); },
       async marcarDispArtista(dia, situacao) {
         const u = await uid();
@@ -719,6 +733,13 @@ const TQConta = (() => {
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
+    // Equipe com área (Gui, Isa, Bruno): menu enxuto, só o que cada área usa no dia a dia, começando por "Hoje".
+    if (comAreas()) {
+      const POR_AREA = { agenda: ["datas_portal", "curadoria", "agenda_casas", "documentos", "convites"], operacoes: ["casas_cad", "convites", "documentos", "painel", "trilhas", "materiais"], marketing: ["campanhas", "materiais"] };
+      const quer = new Set(S.conta.perfil.areas.flatMap((a) => POR_AREA[a] || []));
+      const pac = doPac.filter(([k]) => k === "datas" && (quer.has("datas_portal") || quer.has("casas_cad")));
+      return [["hoje", "A fazer"], ["feito", "Feito"], ["geral", "Visão geral"], ...base.filter(([k]) => quer.has(k)), ...pac, ["conta", "Conta"]];
+    }
     const precisa = { datas_portal: ["agenda"], documentos: ["agenda", "operacoes"], campanhas: ["marketing"] }, soAdm = new Set(["prontidao", "relatos"]);
     const visivel = base.filter(([k]) => (!precisa[k] || precisa[k].some(temArea)) && (!soAdm.has(k) || !comAreas()));
     return [...visivel, ...doPac, ["conta", "Conta"]];
@@ -771,7 +792,7 @@ const TQConta = (() => {
     ["Circulação", [
       ["cidades_interesse", "Cidades da rede onde quer tocar", "cidades", null, 1],
       ["outras_cidades", "Outras cidades", "text"],
-      ["disponibilidade", "Observação sobre a disponibilidade (opcional)", "text", null, 0, "Os dias você marca no calendário logo abaixo da Ficha. Aqui só alguma observação (ex.: só a partir das 21h)."],
+      ["disponibilidade", "Observação sobre a disponibilidade (opcional)", "text", null, 0, "Ex.: só a partir de março; não toco em feriado."],
       ["equipe_viagem", "Quantas pessoas viajam no total", "number"],
     ]],
     ["Condições e contato", [
@@ -1095,16 +1116,25 @@ const TQConta = (() => {
     const pend = meusContratos().filter((c) => c.status === "enviado");
     return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>Leia, complete os seus dados e assine aqui mesmo, sem imprimir.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Ler e assinar →</button></div></div>`).join("");
   }
+  // Dados que a pessoa já deu em outro contrato (mesma chave de campo), do mais recente para o mais antigo:
+  // ela preenche uma vez e só confere nos próximos (pedido da Isa, 17/11/2026).
+  function dadosAnteriores(c) {
+    const outros = meusContratos().filter((x) => x.id !== c.id && x.status !== "cancelado").sort((a, b) => String(b.assinado_em || b.criado_em || "").localeCompare(String(a.assinado_em || a.criado_em || "")));
+    const r = {}; for (const x of outros) for (const [k, v] of Object.entries(x.dados || {})) if (r[k] == null && String(v ?? "").trim()) r[k] = String(v).trim();
+    return r;
+  }
   function telaContrato(c) {
     const si = TQContrato.situacao(c), assinado = c.status === "assinado";
+    const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
     const mostra = assinado ? c.texto_final : TQContrato.preencher(c.texto, c.campos, Object.fromEntries(c.campos.map((x) => [x.chave, String(c.dados?.[x.chave] ?? "").trim() || `[${x.rotulo}: preencha acima]`])));
     const completo = !si.falta;
     if (!assinado) setTimeout(ligarLeitura, 0);
     return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
       ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}. Código de verificação: ${esc(c.hash.slice(0, 12))}…<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar ou imprimir</button></div></div>`
         : `<p class="sub">São três passos: ${c.campos.length ? "complete os seus dados, " : ""}leia o contrato até o fim e assine digitando o seu nome completo.</p>`}
-      ${!assinado && c.campos.length ? `<div class="card"><h3 style="margin-top:0">1. Seus dados</h3><div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)}</b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || "")}"></label>`).join("")}</div>
-        <div class="barra-acoes"><button class="btn${completo ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><p class="muted" style="font-size:13px;margin:4px 0 0">Os dados entram no texto do contrato logo abaixo.</p></div>` : ""}
+      ${!assinado && c.campos.length ? `<div class="card"><h3 style="margin-top:0">1. Seus dados</h3><div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)}</b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
+        ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
+        <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><p class="muted" style="font-size:13px;margin:4px 0 0">Os dados entram no texto do contrato logo abaixo.</p></div>` : ""}
       <div class="card"><h3 style="margin-top:0">${assinado ? "Texto assinado" : `${c.campos.length ? "2" : "1"}. Leia o contrato inteiro`}</h3>
         <div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(mostra)}</div>
         ${assinado ? "" : `<p class="muted" id="ctLido" style="font-size:13px;margin:8px 0 0">${!completo ? "Complete e salve os seus dados para liberar a leitura." : c.lido_fim_em ? "✓ Você leu até o fim. Agora dá para assinar." : "Role o texto até o fim para liberar a assinatura."}</p>`}</div>
@@ -1573,12 +1603,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (S.disp === null) return faltaSchema("Datas");
       const mes = S.dispMes || hojeIso().slice(0, 7), evs = (S.pac?.eventos || []).filter((e) => !e.z);
       const dias = TQEquipe.diasSemana || [];
-      const fichaDias = S.conta.casa?.dados?.dias_semana || [];
+      const sem = semanaDe(S.sem, { casaRef: ref, fichaDias: S.conta.casa?.dados?.dias_semana }), dono = !funcoesDe();
       return `<div class="tag">Datas</div><h1>Disponibilidade da casa</h1>
-      <p class="sub">Marque os dias em que a casa pode receber o Tranquilo e os dias em que não pode. A Isa consulta este calendário para montar a agenda. Disponível não é reserva: a data só vale quando a Isa confirma com a casa.</p>
-      ${calendarioMes(mes, (dia) => { const r = S.disp.find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia), e = evs.filter((x) => x.d === dia);
-        return { classe: e.length ? "cal-ev" : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-disp-dia")}
-      ${fichaDias.length ? `<p class="muted" style="font-size:13px">Na Ficha, a casa disse que recebe: ${esc(fichaDias.map((d) => ({ segunda: "segunda", terca: "terça", quarta: "quarta", quinta: "quinta", sexta: "sexta", sabado: "sábado", domingo: "domingo" }[d] || d)).join(", "))}. <button class="btn sm" data-disp-semana>Marcar esses dias deste mês como disponíveis</button></p>` : ""}
+      <p class="sub">A Isa consulta este calendário para montar a agenda, sem precisar perguntar pelo WhatsApp. Disponível não é reserva: a data só vale quando a Isa confirma com a casa.</p>
+      ${dono ? blocoSemana(sem, "casa") : sem.length ? `<p class="muted">Toda semana: <b>${esc(sem.map((n) => NOME_SEM[n]).join(", "))}</b>.</p>` : ""}
+      <p class="muted" style="font-size:13px;margin:0 0 8px">No calendário: toque num dia para marcar <b>disponível</b>, de novo para <b>indisponível</b> e de novo para limpar.</p>
+      ${calendarioMes(mes, (dia) => { const r = S.disp.find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
+        return { classe: e.length ? "cal-ev" : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: dono && dia >= hojeIso() && !e.length }; }, "data-disp-dia")}
       <div class="err" role="status" aria-live="polite" id="dispErr"></div>`;
     },
     // ---------- equipe: painel da operação e agenda das casas ----------
@@ -1597,13 +1628,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const dia = String(f.dia || "").slice(0, 10), exc = !!S.dpExc, L = dia ? livresNoDia(E, casas, S.dpEd)(dia) : null;
       const naData = (nome) => (ed?.artistas || []).some((a) => k(a.nome) === k(nome));
       const casasOpc = exc ? casas : L ? casas.filter((c) => L.cs.some((x) => x.id === c.id) || (ed && c.id === ed.casa_id && dia === String(ed.dia).slice(0, 10))) : [];
-      const artsOpc = exc ? artistas : L ? [...L.as.map((a) => ({ id: a.id, nome: a.nome, quer: a.quer })), ...(f.artistas || []).filter((a) => a.nome && !L.as.some((x) => k(x.nome) === k(a.nome)) && naData(a.nome) && dia === String(ed?.dia || "").slice(0, 10)).map((a) => ({ nome: a.nome }))] : [];
+      const artsOpc = exc ? artistas : L ? [...L.as.map((a) => ({ id: a.id, nome: a.nome, quer: a.quer, mora: a.mora })), ...(f.artistas || []).filter((a) => a.nome && !L.as.some((x) => k(x.nome) === k(a.nome)) && naData(a.nome) && dia === String(ed?.dia || "").slice(0, 10)).map((a) => ({ nome: a.nome }))] : [];
       const avisoDia = exc ? `<div class="alert warn" style="margin:0 0 10px"><b>⚠ Exceção ligada</b>Todas as casas e artistas aparecem, mesmo sem ter marcado o dia como livre. Use só quando a casa e o artista já confirmaram por fora.</div>`
         : !dia ? `<p class="muted" style="font-size:13px;margin:0 0 10px">Escolha o dia primeiro: a lista de casas e de artistas mostra só quem marcou esse dia como livre.</p>`
         : `<p class="muted" style="font-size:13px;margin:0 0 10px">Livres em ${dt(dia)}: <b>${L.cs.length} ${L.cs.length === 1 ? "casa" : "casas"}</b> e <b>${L.as.length} ${L.as.length === 1 ? "artista" : "artistas"}</b>. ${!L.cs.length || !L.as.length ? "Para achar um dia com os dois, use \"Encontrar data\" acima." : ""}</p>`;
       const linhaArt = (i) => { const a = (f.artistas || [])[i] || {};
         const campoArt = exc ? `<input data-dp-art="${i}" list="dpArtistas" value="${esc(a.nome || "")}" placeholder="Nome (escolha da lista para ligar à conta)">`
-          : `<select data-dp-art="${i}"${!dia ? " disabled" : ""}><option value="">${!dia ? "Escolha o dia primeiro" : artsOpc.length ? "Escolha o artista" : "Nenhum artista livre neste dia"}</option>${artsOpc.map((x) => `<option value="${esc(x.nome)}"${k(x.nome) === k(a.nome) ? " selected" : ""}>${esc(x.nome)}${x.quer ? " ★" : ""}</option>`).join("")}</select>`;
+          : `<select data-dp-art="${i}"${!dia ? " disabled" : ""}><option value="">${!dia ? "Escolha o dia primeiro" : artsOpc.length ? "Escolha o artista" : "Nenhum artista livre neste dia"}</option>${artsOpc.map((x) => `<option value="${esc(x.nome)}"${k(x.nome) === k(a.nome) ? " selected" : ""}>${esc(x.nome)}${x.quer ? " ★" : ""}${x.mora ? " · mora em " + esc(x.mora) : ""}</option>`).join("")}</select>`;
         return `<div class="fgrid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr);margin-bottom:8px"><label class="fcampo"><b>${i + 1}º artista da noite${i === 0 ? " *" : ""}</b>
           ${campoArt}</label>
           <label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dp-prod="${i}"${a.producao ? " checked" : ""}> <span>tem produção</span></label></div>`; };
@@ -1635,6 +1666,89 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · contrato: ${cs.map((c) => c.status === "assinado" ? "assinado" : "para assinar").join(", ")}` : " · sem contrato"}</div></div>
           <div class="barra-acoes" style="margin:0">${x.status === "cancelada" ? "" : `<button class="btn sm pri" data-dp-contrato="${x.id}">Preparar contrato</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button>`}</div></div></div>`; }).join("")}</div>`
         : vazio("Nenhuma data criada no portal ainda", "Crie a primeira acima: ela aparece na hora para a casa e para as artistas.", "", "datas_portal")}`;
+    },
+    // "Hoje" (pedido da Marina, 17/11/2026): para quem tem área (Gui, Isa, Bruno), só o que precisa de ação agora,
+    // do mais urgente para o resto, com um botão que leva direto para a tela certa.
+    hoje() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o seu dia"); }
+      const areas = S.conta.perfil.tipo === "adm" || !S.conta.perfil.areas?.length ? ["operacoes", "agenda", "marketing"] : S.conta.perfil.areas;
+      if (areas.includes("marketing") && !S.hub) carregarHub();
+      const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+      const nome = String(S.conta.perfil.nome || "").split(" ")[0];
+      const cards = [];
+      const card = (urg, titulo, txt, aba, lista = []) => cards.push({ urg, html: `<div class="card"><div class="row"><div><b>${urg ? "🔴 " : ""}${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : ""}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${l}</li>`).join("")}${lista.length > 6 ? `<li class="muted">e mais ${lista.length - 6}</li>` : ""}</ul>` : ""}</div>` });
+      const evsNotion = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hoje), evsPortal = (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hoje).map(eventoDoPortal);
+      const proximas = (n) => [...evsNotion, ...evsPortal].filter((e) => e.d <= mais(n)).sort((a, b) => a.d.localeCompare(b.d));
+      const ondeDe = (e) => [e.h, e.c].filter(Boolean).join(" · ");
+      if (areas.includes("agenda")) {
+        const curad = (E.insc || []).filter((i) => i.status === "em_curadoria");
+        if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Aprovar, pedir ajustes ou não seguir.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
+        const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
+        if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Sem o line-up completo, a casa não recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && c.status === "assinado"));
+        if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Prepare o contrato do artista em Documentos e contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
+        const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
+        card(false, dias.length ? `${dias.length} ${dias.length === 1 ? "dia" : "dias"} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Abra Criar datas para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`));
+      }
+      if (areas.includes("operacoes")) {
+        const analise = (E.casas || []).filter((c) => c.status === "em_analise");
+        if (analise.length) card(true, `${analise.length} ${analise.length === 1 ? "Ficha espera" : "Fichas esperam"} a sua análise`, "Habilitar ou pedir ajustes.", "casas_cad", analise.map((c) => `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` · ${esc(c.dados.cidade_uf)}` : ""}`));
+        const sol = (E.sol || []).filter((x) => x.status === "pendente");
+        if (sol.length) card(true, `${sol.length} ${sol.length === 1 ? "pedido de atualização de Ficha" : "pedidos de atualização de Ficha"}`, "A casa pediu para mudar dados que já tinha enviado.", "casas_cad");
+        const semFicha = proximas(14).filter((e) => !(E.casas || []).some((c) => (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h)) && c.status === "habilitada"));
+        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${semFicha.length} ${semFicha.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com casa sem Ficha habilitada`, "Chame a casa para completar a Ficha ou convide pela aba Convites.", "casas_cad", semFicha.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        const convAntigos = (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3));
+        if (convAntigos.length) card(false, `${convAntigos.length} ${convAntigos.length === 1 ? "casa convidada ainda não entrou" : "casas convidadas ainda não entraram"} (mais de 3 dias)`, "Reenvie o convite ou mande o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)));
+      }
+      if (areas.includes("marketing")) {
+        const H = S.hub, atras = (H?.andamento || []).filter((a) => a.atrasados > 0);
+        if (!H) card(false, "Carregando as campanhas…", "", null);
+        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que já passaram sem \"Feito\" da casa.", "campanhas", atras.map((a) => `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}`));
+        const semCamp = proximas(30).filter((e) => !(H?.campanhas || []).some((c) => k(c.casa_ref) === k(e.h)));
+        if (H && semCamp.length) card(false, `${semCamp.length} ${semCamp.length === 1 ? "data nos próximos 30 dias" : "datas nos próximos 30 dias"} sem campanha carregada`, "Carregue a campanha da casa em Campanhas.", "campanhas", semCamp.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+      }
+      const urg = cards.filter((c) => c.urg), resto = cards.filter((c) => !c.urg);
+      return `<div class="tag">A fazer</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
+      <p class="sub">O que precisa de você agora, ${areas.length === 3 ? "em todas as áreas" : "na área de " + esc(nomesAreas(areas))}. O mais urgente vem primeiro.</p>
+      ${urg.length ? `<h2>Para resolver primeiro</h2><div class="list">${urg.map((c) => c.html).join("")}</div>` : `<div class="alert good"><b>✓ Nada urgente agora</b>Tudo em dia na sua área.</div>`}
+      ${resto.length ? `<h2>Para acompanhar</h2><div class="list">${resto.map((c) => c.html).join("")}</div>` : ""}`;
+    },
+    // "Feito": o que a própria pessoa fez nos últimos 30 dias (quem fez vem do banco: avaliado_por, criado_por, revisado_por).
+    feito() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o que você fez"); }
+      const eu = S.conta.perfil.id, desde = new Date(Date.now() - 30 * 864e5).toISOString(), recente = (t) => String(t || "") >= desde;
+      const linhas = [
+        ...(E.insc || []).filter((i) => i.avaliado_por === eu && recente(i.avaliado_em)).map((i) => [i.avaliado_em, "Curadoria", `${esc(i.dados?.nome_artistico || "artista")}: ${esc(STATUS_INSC[i.status]?.[1] || i.status)}`]),
+        ...(E.casas || []).filter((c) => c.avaliado_por === eu && recente(c.avaliado_em)).map((c) => [c.avaliado_em, "Ficha da casa", `${esc(c.dados?.nome || "casa")}: ${esc(STATUS_CASA[c.status]?.[1] || c.status)}`]),
+        ...(E.sol || []).filter((x) => x.revisado_por === eu && recente(x.revisado_em)).map((x) => [x.revisado_em, "Pedido de atualização", `${esc(x.status)}`]),
+        ...(E.datasP || []).filter((x) => x.criado_por === eu && recente(x.criado_em)).map((x) => [x.criado_em, "Data criada", `${dt(String(x.dia).slice(0, 10))} · ${esc(x.casa_nome)}${x.cidade ? " (" + esc(x.cidade) + ")" : ""} · ${esc((x.artistas || []).map((a) => a.nome).join(", "))}${x.status === "cancelada" ? " · cancelada" : ""}`]),
+        ...(E.contr || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Contrato", `${esc(c.titulo)} · ${c.status === "assinado" ? "assinado" : c.status === "cancelado" ? "cancelado" : "aguardando assinatura"}`]),
+        ...(E.conv || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Convite", `${esc(c.vinculo_nome || c.nome || c.email)}${c.aceito_em ? " · já entrou" : ""}`]),
+      ].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
+      return `<div class="tag">Feito</div><h1>O que você fez</h1><p class="sub">Últimos 30 dias, do mais recente para o mais antigo.</p>
+      ${linhas.length ? `<div class="list">${linhas.map(([q, t, txt]) => `<div class="card" style="padding:10px 14px"><div class="row"><div><b>${t}</b><div class="muted" style="font-size:13px">${txt}</div></div><span class="muted" style="font-size:12px">${dt(String(q).slice(0, 10))}</span></div></div>`).join("")}</div>`
+        : vazio("Nada por aqui ainda", "O que você aprovar, criar ou enviar aparece aqui.", `<button class="btn" data-ir="hoje">Ver o que tem para fazer</button>`, "feito")}`;
+    },
+    // "Visão geral" (só leitura): todas as próximas datas da rede, com cidade, casa, line-up, contrato e Ficha da casa.
+    geral() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("a visão geral"); }
+      const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), f = S.gf ||= { cidade: "" };
+      const evs = [...(S.pac?.eventos || []).filter((e) => !e.z && e.d >= hoje), ...(E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hoje).map(eventoDoPortal)].sort((a, b) => a.d.localeCompare(b.d));
+      const cidades = [...new Set(evs.map((e) => e.c).filter(Boolean))].sort();
+      const lista = evs.filter((e) => !f.cidade || e.c === f.cidade).slice(0, 80);
+      const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
+      const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every((c) => c.status === "assinado") ? "✓ assinado" : "aguardando"; };
+      return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Só para consultar. Para agir, use "A fazer".</p>
+      <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+      ${tabela("geral", [
+        { t: "Data", v: (e) => e.d, h: (e) => `<b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))}, ${dt(e.d)}</b>` },
+        { t: "Cidade", v: (e) => e.c || "", h: (e) => esc(e.c || "–") },
+        { t: "Casa", v: (e) => e.h || "", h: (e) => esc(e.h || "–") },
+        { t: "Line-up", v: (e) => (e.a || []).join(", "), h: (e) => esc((e.a || []).join(", ") || "a definir") },
+        { t: "Contrato", v: (e) => contrDe(e), h: (e) => contrDe(e) },
+        { t: "Ficha da casa", v: (e) => fichaDe(e)?.status || "", h: (e) => { const c = fichaDe(e); return c ? badge(STATUS_CASA, c.status) : '<span class="muted">sem Ficha</span>'; } },
+      ], lista, { i: 0, dir: 1 }, vazio("Nenhuma data por vir", "", "", "geral"))}`;
     },
     painel() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o painel"); }
@@ -1674,20 +1788,24 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("a agenda das casas"); }
       if (E.disp === null) return faltaSchema("Agenda das casas");
       const k = (x) => String(x || "").trim().toLowerCase(), evs = (S.pac?.eventos || []).filter((e) => !e.z);
-      const casas = [...new Set([...(E.disp || []).map((x) => x.casa_ref), ...(E.conv || []).filter((c) => c.tipo === "casa" && c.vinculo_nome).map((c) => c.vinculo_nome)])].sort();
+      const casas = [...new Set([...(E.disp || []).map((x) => x.casa_ref), ...(E.sem || []).filter((x) => x.casa_ref).map((x) => x.casa_ref), ...(E.conv || []).filter((c) => c.tipo === "casa" && c.vinculo_nome).map((c) => c.vinculo_nome)])].sort();
+      const semDe = (ref) => { const c = (E.casas || []).find((x) => k(x.perfil?.vinculo_nome) === k(ref)); return semanaDe(E.sem, { casaRef: ref, fichaDias: c?.dados?.dias_semana }); };
+      const sitDe = (ref, dia) => situacaoDia((E.disp || []).find((x) => k(x.casa_ref) === k(ref) && x.dia === dia), semDe(ref), dia);
+      const [ano, mm] = (S.dispMes || hojeIso().slice(0, 7)).split("-").map(Number), diasMes = Array.from({ length: new Date(Date.UTC(ano, mm, 0)).getUTCDate() }, (_, i) => `${S.dispMes || hojeIso().slice(0, 7)}-${String(i + 1).padStart(2, "0")}`);
       const casa = S.agCasa && casas.includes(S.agCasa) ? S.agCasa : casas[0], mes = S.dispMes || hojeIso().slice(0, 7);
       const doMes = (x) => x.dia.startsWith(mes);
       const conflitos = (E.disp || []).filter((x) => x.situacao === "indisponivel" && evs.some((e) => e.d === x.dia && k(e.h) === k(x.casa_ref)));
       return `<div class="tag">Agenda das casas</div><h1>Disponibilidade por casa</h1>
       <p class="sub">O que cada casa informou na área Datas, junto com os eventos já confirmados. Disponível não é reserva: confirme com a casa antes de fechar a data. Só a casa altera a disponibilidade dela.</p>
       ${casas.length ? `<div class="filters"><select data-ag-casa aria-label="Casa">${casas.map((c) => `<option${c === casa ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
-      ${calendarioMes(mes, (dia) => { const r = (E.disp || []).find((x) => k(x.casa_ref) === k(casa) && x.dia === dia), e = evs.filter((x) => x.d === dia && k(x.h) === k(casa));
-        return { classe: e.length ? (r?.situacao === "indisponivel" ? "conflito" : "cal-ev") : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: false }; })}
+      ${semDe(casa).length ? `<p class="muted" style="font-size:13px">${esc(casa)} recebe toda semana: <b>${esc(semDe(casa).map((n) => NOME_SEM[n]).join(", "))}</b>.</p>` : ""}
+      ${calendarioMes(mes, (dia) => { const sit = sitDe(casa, dia), e = evs.filter((x) => x.d === dia && k(x.h) === k(casa));
+        return { classe: e.length ? (sit === "indisponivel" ? "conflito" : "cal-ev") : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: false }; })}
       <h2>Casas com dias livres neste mês</h2>${tabela("agmes", [
         { t: "Casa", v: (r) => r.casa, h: (r) => `<b>${esc(r.casa)}</b>` },
         { t: "Dias disponíveis", n: 1, v: (r) => r.livres.length, h: (r) => r.livres.length ? r.livres.map((d) => dtc(d)).join(", ") : "–" },
         { t: "Indisponíveis", n: 1, v: (r) => r.fora },
-      ], casas.map((c) => ({ casa: c, livres: (E.disp || []).filter((x) => k(x.casa_ref) === k(c) && doMes(x) && x.situacao === "disponivel").map((x) => x.dia).sort(), fora: (E.disp || []).filter((x) => k(x.casa_ref) === k(c) && doMes(x) && x.situacao === "indisponivel").length })), { i: 1, dir: -1 }, "")}
+      ], casas.map((c) => ({ casa: c, livres: diasMes.filter((d) => d >= hojeIso() && livreNo(sitDe(c, d))), fora: diasMes.filter((d) => sitDe(c, d) === "indisponivel").length })), { i: 1, dir: -1 }, "")}
       ${conflitos.length ? `<div class="alert crit"><b>Conflitos: evento confirmado em dia marcado como indisponível</b>${conflitos.map((x) => `${esc(x.casa_ref)} · ${dt(x.dia)}`).join("; ")}</div>` : ""}` : vazio("Nenhuma casa informou a disponibilidade ainda", "Quando uma casa marcar os dias livres na área Datas, o calendário aparece aqui.", "", "agenda_casas")}`;
     },
     // ---------- equipe ----------
@@ -2164,8 +2282,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const novo = (pr) => pr.catch(() => null);
       const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol, disp] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato()), novo(api.solicitacoesTodas()), novo(api.disponibilidade())]);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      const [datasP, dispA] = await Promise.all([api.datasPortal().catch(() => null), api.dispArtistas().catch(() => null)]);
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA };
+      const [datasP, dispA, sem] = await Promise.all([api.datasPortal().catch(() => null), api.dispArtistas().catch(() => null), api.semanal().catch(() => [])]);
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA, sem: sem || [] };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("✕ Erro: não foi possível carregar os dados da equipe. " + e.message + " Recarregue a página.");
@@ -2370,6 +2488,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return true;
     }
     const dm = t.closest("[data-dispa-mes]"); if (dm) {
+      if (dm.dataset.dispaMes === "semana" && !lerDiasSemana().length) { diz($("#dispaErr"), "⚠ Marque antes, na Ficha, os dias da semana em que você pode tocar."); return true; }
       const modo = dm.dataset.dispaMes, mes = S.dispMes || hojeIso().slice(0, 7), [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate(), eu = S.conta.perfil.id;
       const evs = new Set((S.pac?.eventos || []).filter((e) => !e.z).map((e) => e.d));
       diz($("#dispaErr"), "Salvando…");
@@ -2377,18 +2496,20 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         for (let d = 1; d <= total; d++) {
           const dia = `${mes}-${String(d).padStart(2, "0")}`, wd = new Date(dia + "T12:00:00Z").getUTCDay(), atual = S.dispA.find((x) => x.user_id === eu && x.dia === dia);
           if (dia < hojeIso()) continue;
-          const quer = modo === "limpar" ? null : modo === "todos" || [4, 5, 6, 0].includes(wd) ? "disponivel" : atual?.situacao || null;
+          const semana = modo === "semana" ? lerDiasSemana().map((d) => DIAS_JS[d]) : [4, 5, 6, 0];
+          const quer = modo === "limpar" ? null : modo === "todos" || semana.includes(wd) ? "disponivel" : atual?.situacao || null;
           if ((atual?.situacao || null) === quer) continue;
           await api.marcarDispArtista(dia, quer); S.dispA = S.dispA.filter((x) => x !== atual); if (quer) S.dispA.push({ user_id: eu, dia, situacao: quer });
         }
         TQDiario.registrar("disponibilidade_artista", { mes: modo }); render();
-        diz($("#dispaErr"), modo === "limpar" ? "✓ Mês limpo." : modo === "todos" ? "✓ Todos os dias deste mês marcados como disponíveis." : "✓ Quintas a domingos marcados como disponíveis.");
+        diz($("#dispaErr"), modo === "limpar" ? "✓ Mês limpo." : modo === "todos" ? "✓ Todos os dias deste mês marcados como disponíveis." : modo === "semana" ? "✓ Dias da semana da Ficha marcados como disponíveis neste mês." : "✓ Quintas a domingos marcados como disponíveis.");
       } catch (x) { render(); diz($("#dispaErr"), traduz(x.message || "")); }
       return true;
     }
     const dad = t.closest("[data-dispa-dia]"); if (dad) {
       const dia = dad.dataset.dispaDia, atual = (S.dispA || []).find((x) => x.user_id === S.conta.perfil.id && x.dia === dia);
-      const prox = !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
+      const naSemana = semanaDe(S.sem, { userId: S.conta.perfil.id }).includes(wdDe(dia));
+      const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
       try { await api.marcarDispArtista(dia, prox); S.dispA = (S.dispA || []).filter((x) => x !== atual); if (prox) S.dispA.push({ user_id: S.conta.perfil.id, dia, situacao: prox }); TQDiario.registrar("disponibilidade_artista", { situacao: prox || "limpa" }); render(); }
       catch (x) { diz($("#dispaErr"), traduz(x.message || "")); }
       return true;
@@ -2448,7 +2569,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const daEquipe = P.campos.filter((c) => P.valores[c.chave]), daPessoa = P.campos.filter((c) => !P.valores[c.chave]);
       const texto = TQContrato.preencher(P.texto, daEquipe, P.valores);
       if (texto.length < 50) return erro("O texto do modelo está curto demais."), true;
-      await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa });
+      const igual = (S.eq?.contr || []).find((x) => x.user_id === P.conta && (x.evento_id || null) === (P.ev || null) && x.modelo_id === P.modelo && x.status !== "cancelado");
+      if (igual && !confirm(`Já existe um contrato deste modelo para esta pessoa${P.ev ? " nesta data" : ""} (${igual.status === "assinado" ? "assinado" : "aguardando assinatura"}). Criar outro mesmo assim?`)) return true;
+      if (P.enviando) return true; P.enviando = true;
+      try { await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa }); }
+      catch (e) { P.enviando = false; throw e; }
       TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
       S.cPrep = null; S.cPre = null; S.eq = null; render(); return true;
     }
@@ -2475,18 +2600,47 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // Criar datas: cruza a disponibilidade das casas (Datas da casa) com a dos artistas (banco v24) num período e cidade,
   // tirando quem já tem show no dia (Notion e datas do portal). Clicar numa casa ou artista já preenche a Nova data.
   // Calendário de disponibilidade da artista (banco v24): igual ao da casa. Aparece na Ficha (inscrição) e na aba Disponibilidade.
+  // Dias fixos da semana (banco v27): marcar "segunda" deixa toda segunda disponível no calendário e no cruzamento da Isa.
+  // Um dia marcado no calendário vale sobre a semana. Casa sem semana salva usa os dias da Ficha (campo do modelo do Gui).
+  const SEM = [[1, "Seg"], [2, "Ter"], [3, "Qua"], [4, "Qui"], [5, "Sex"], [6, "Sáb"], [0, "Dom"]];
+  const NOME_SEM = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+  const FICHA_DIA = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+  const wdDe = (dia) => new Date(dia + "T12:00:00Z").getUTCDay();
+  function semanaDe(rows, { casaRef, userId, fichaDias }) {
+    const k = (x) => String(x || "").trim().toLowerCase();
+    const r = (rows || []).find((x) => casaRef ? x.casa_ref && k(x.casa_ref) === k(casaRef) : x.user_id && x.user_id === userId);
+    return r ? (r.dias || []).map(Number) : (fichaDias || []).map((d) => FICHA_DIA[d]).filter((n) => n != null);
+  }
+  // disponivel | indisponivel | semana (livre pela semana fixa) | null
+  const situacaoDia = (explicito, dias, dia) => explicito?.situacao || (dias.includes(wdDe(dia)) ? "semana" : null);
+  const livreNo = (sit) => sit === "disponivel" || sit === "semana";
+  function blocoSemana(dias, alvo) {
+    return `<div class="card" style="margin:0 0 12px"><b>Dias fixos da semana</b>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Marque os dias em que ${alvo === "casa" ? "a casa sempre pode receber" : "você sempre pode tocar"}: eles ficam verdes no calendário e já aparecem para a Isa. Para uma exceção (feriado, viagem), toque no dia no calendário.</p>
+      <div class="fcidades">${SEM.map(([n, t]) => `<label><input type="checkbox" data-sem="${alvo}" value="${n}"${dias.includes(n) ? " checked" : ""}> ${t}</label>`).join("")}</div>
+      <div class="err" role="status" aria-live="polite" id="semErr"></div></div>`;
+  }
+  // (antigo) Dias da semana da Ficha do artista: o que está na tela (ainda não salvo) vale; senão, o que foi salvo.
+  const DIAS_JS = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+  const nomesDias = (ds) => ds.map((d) => ({ segunda: "segundas", terca: "terças", quarta: "quartas", quinta: "quintas", sexta: "sextas", sabado: "sábados", domingo: "domingos" }[d] || d)).join(", ");
+  function lerDiasSemana() {
+    const tela = [...document.querySelectorAll('[data-multi="dias_semana"]')];
+    return tela.length ? tela.filter((x) => x.checked).map((x) => x.value) : (S.conta?.insc?.dados?.dias_semana || []);
+  }
   function calendarioArtista() {
-    if (S.dispA === undefined) { if (!S.dispACarregando) { S.dispACarregando = true; api.dispArtistas().then((r) => { S.dispA = r; }, () => { S.dispA = null; }).finally(() => { S.dispACarregando = false; render(); }); } return carregando("a disponibilidade"); }
+    if (S.dispA === undefined) { if (!S.dispACarregando) { S.dispACarregando = true; Promise.all([api.dispArtistas(), api.semanal().catch(() => [])]).then(([r, sm]) => { S.dispA = r; S.sem = sm; }, () => { S.dispA = null; }).finally(() => { S.dispACarregando = false; render(); }); } return carregando("a disponibilidade"); }
     if (S.dispA === null) return faltaSchema("Disponibilidade");
     const k = (x) => String(x || "").trim().toLowerCase(), mes = S.dispMes || hojeIso().slice(0, 7), eu = S.conta.perfil.id;
     const meu = k(S.conta.perfil.vinculo_nome || S.conta.insc?.dados?.nome_artistico || "");
     const evs = (S.pac?.eventos || []).filter((e) => !e.z && meu && (e.a || []).some((n) => k(n) === meu));
+    const sem = semanaDe(S.sem, { userId: eu });
     const nLivres = S.dispA.filter((x) => x.user_id === eu && x.situacao === "disponivel" && x.dia >= hojeIso()).length;
-    return `<p class="sub">Toque num dia para marcar <b>disponível</b> (verde), de novo para <b>indisponível</b> e uma terceira vez para limpar. A equipe do Tranquilo cruza estes dias com as casas livres para montar a agenda. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
-      ${calendarioMes(mes, (dia) => { const r = S.dispA.find((x) => x.user_id === eu && x.dia === dia), e = evs.filter((x) => x.d === dia);
-        return { classe: e.length ? "cal-ev" : r?.situacao === "disponivel" ? "livre" : r?.situacao === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : r ? (r.situacao === "disponivel" ? "disponível" : "indisponível") : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-dispa-dia")}
-      <div class="barra-acoes"><button class="btn sm" data-dispa-mes="todos">Marcar todos os dias deste mês</button><button class="btn sm" data-dispa-mes="fds">Só quintas a domingos deste mês</button><button class="btn sm" data-dispa-mes="limpar">Limpar este mês</button></div>
-      <p class="muted" style="font-size:13px;margin:6px 0 0">${nLivres ? `Você tem <b>${nLivres} ${nLivres === 1 ? "dia livre marcado" : "dias livres marcados"}</b> daqui para frente.` : "Você ainda não marcou nenhum dia livre."}</p>
+    return `${blocoSemana(sem, "artista")}
+      <p class="muted" style="font-size:13px;margin:0 0 8px">No calendário: toque num dia para marcar <b>disponível</b> (verde), de novo para <b>indisponível</b> e de novo para limpar. A Isa cruza estes dias com as casas livres. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
+      ${calendarioMes(mes, (dia) => { const r = S.dispA.find((x) => x.user_id === eu && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
+        return { classe: e.length ? "cal-ev" : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-dispa-dia")}
+      <div class="barra-acoes"><button class="btn sm" data-dispa-mes="todos">Marcar todos os dias deste mês</button><button class="btn sm" data-dispa-mes="limpar">Limpar as marcações deste mês</button></div>
+      <p class="muted" style="font-size:13px;margin:6px 0 0">${sem.length ? `Toda semana: <b>${esc(sem.map((n) => NOME_SEM[n]).join(", "))}</b>. ` : ""}${nLivres ? `Mais <b>${nLivres} ${nLivres === 1 ? "dia avulso" : "dias avulsos"}</b> marcados daqui para frente.` : sem.length ? "" : "Você ainda não marcou nenhum dia livre."}</p>
       <div class="err" role="status" aria-live="polite" id="dispaErr"></div>`;
   }
   // Quem está livre num dia: casa que marcou "disponível" em Datas e artista que marcou em Disponibilidade, sem show
@@ -2494,16 +2648,18 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   function livresNoDia(E, casas, ignorarId) {
     const k = (x) => String(x || "").trim().toLowerCase();
     const casaRef = (c) => [k(c.nome), ...(E.casas || []).filter((x) => x.id === c.id).map((x) => k(x.perfil?.vinculo_nome))].filter(Boolean);
-    const artistas = (E.perfis || []).filter((p) => p.tipo === "artista").map((p) => { const i = (E.insc || []).find((x) => x.user_id === p.id);
-      return { id: p.id, nome: p.vinculo_nome || i?.dados?.nome_artistico || p.nome || p.email, status: i?.status, cidades: (i?.dados?.cidades_interesse || []).map(k) }; });
+    const artistas = (E.perfis || []).filter((p) => p.tipo === "artista").map((p) => { const i = (E.insc || []).find((x) => x.user_id === p.id), d = i?.dados || {};
+      return { id: p.id, nome: p.vinculo_nome || d.nome_artistico || p.nome || p.email, status: i?.status, cidades: (d.cidades_interesse || []).map(k), querTocar: d.cidades_interesse || [],
+        mora: [d.cidade_base, d.estado].filter(Boolean).join("/"), sem: semanaDe(E.sem, { userId: p.id }) }; });
+    const semCasa = (c) => { const x = (E.casas || []).find((y) => y.id === c.id); return semanaDe(E.sem, { casaRef: x?.perfil?.vinculo_nome || c.nome, fichaDias: x?.dados?.dias_semana }); };
     const evs = [...(S.pac?.eventos || []).filter((e) => !e.z).map((e) => ({ d: e.d, casa: k(e.h), arts: (e.a || []).map(k) })),
       ...(E.datasP || []).filter((x) => x.status !== "cancelada" && x.id !== ignorarId).map((x) => ({ d: String(x.dia).slice(0, 10), casa: k(x.casa_nome), casaId: x.casa_id, arts: (x.artistas || []).map((a) => k(a.nome)), ids: (x.artistas || []).map((a) => a.user_id) }))];
     return (dia, cid = "") => {
       const doDia = evs.filter((e) => e.d === dia), cidadeK = k(String(cid).split("/")[0]);
       const cs = casas.filter((c) => (!cid || c.cidade === cid) && !doDia.some((e) => e.casaId === c.id || casaRef(c).includes(e.casa))
-        && (E.disp || []).some((x) => x.dia === dia && x.situacao === "disponivel" && casaRef(c).includes(k(x.casa_ref))));
+        && livreNo(situacaoDia((E.disp || []).find((x) => x.dia === dia && casaRef(c).includes(k(x.casa_ref))), semCasa(c), dia)));
       const as = artistas.filter((a) => !doDia.some((e) => e.arts.includes(k(a.nome)) || (e.ids || []).includes(a.id))
-        && (E.dispA || []).some((x) => x.user_id === a.id && x.dia === dia && x.situacao === "disponivel"))
+        && livreNo(situacaoDia((E.dispA || []).find((x) => x.user_id === a.id && x.dia === dia), a.sem, dia)))
         .map((a) => ({ ...a, quer: !!cidadeK && a.cidades.some((c) => c.includes(cidadeK)) })).sort((x, y) => (y.quer - x.quer) || (y.status === "aprovada") - (x.status === "aprovada"));
       return { cs, as, artistas };
     };
@@ -2516,15 +2672,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const dias = []; for (let d = new Date(b.de + "T12:00:00Z"); d.toISOString().slice(0, 10) <= b.ate && dias.length < 62; d = new Date(d.getTime() + 864e5)) dias.push(d.toISOString().slice(0, 10));
     const linhas = dias.map((dia) => { const { cs, as } = livres(dia, b.cid); return { dia, cs, as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
     const semDisp = !(E.dispA || []).length;
-    const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia">${esc(c.nome)}</button>`;
-    const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data">${esc(a.nome)}${a.quer ? " ★" : ""}${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}</button>`;
+    const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia" style="text-align:left;line-height:1.3"><b>${esc(c.nome)}</b><br><span class="muted" style="font-size:12px">📍 ${esc(c.cidade || "cidade não informada")}</span></button>`;
+    const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data" style="text-align:left;line-height:1.3"><b>${esc(a.nome)}${a.quer ? " ★" : ""}</b>${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}<br><span class="muted" style="font-size:12px">🏠 mora em ${esc(a.mora || "cidade não informada")}${a.querTocar.length ? ` · quer tocar em ${esc(a.querTocar.join(", "))}` : ""}</span></button>`;
     return `<div class="card" id="dpBusca"><h2 style="margin-top:0">Encontrar data: casa e artista livres no mesmo dia</h2>
       <p class="muted" style="font-size:13px;margin-top:0">Cruza o que as casas marcaram em Datas com o que os artistas marcaram em Disponibilidade, sem quem já tem show no dia. Toque numa casa ou num artista para já preencher a Nova data abaixo. ★ = o artista quer tocar nessa cidade.</p>
       <div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
         <label class="fcampo"><b>Cidade</b><select data-dpb="cid"><option value="">Todas</option>${cidades.map((c) => `<option${c === b.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
         <label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dpb="ambos"${b.ambos ? " checked" : ""}> <span>só dias com casa e artista livres</span></label></div>
       ${semDisp ? `<div class="alert warn" style="margin-bottom:10px"><b>⚠ Nenhum artista marcou a disponibilidade ainda</b>Os artistas marcam os dias na área deles, em Disponibilidade. Enquanto isso, desmarque "só dias com casa e artista livres" para ver as casas livres.</div>` : ""}
-      ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
+      ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${esc(NOME_SEM[wdDe(l.dia)])}, ${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Casas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.cs.map((c) => chipC(c, l.dia)).join("") || '<span class="muted">nenhuma</span>'}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Artistas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.as.map((a) => chipA(a, l.dia)).join("") || '<span class="muted">nenhum</span>'}</span></div></div>`).join("")}</div>`
         : `<p class="muted">Nenhum dia ${b.ambos ? "com casa e artista livres" : "com casa ou artista livre"} nesse período${b.cid ? " em " + esc(b.cid) : ""}.</p>`}</div>`;
@@ -2550,7 +2706,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   async function carregarDisp() {
     if (S.dispCarregando) return; S.dispCarregando = true;
-    try { S.disp = await api.disponibilidade(); } catch { S.disp = null; } finally { S.dispCarregando = false; }
+    try { [S.disp, S.sem] = await Promise.all([api.disponibilidade(), api.semanal().catch(() => [])]); } catch { S.disp = null; } finally { S.dispCarregando = false; }
     render();
   }
   // Equipe da casa (dono e equipe) e trilhas (Central): carregados quando a aba abre.
@@ -2635,7 +2791,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const cm = t.closest("[data-cal-mes]"); if (cm) { S.dispMes = cm.dataset.calMes; render(); return true; }
     const dd = t.closest("[data-disp-dia]"); if (dd) {
       const ref = S.conta.perfil.vinculo_nome, dia = dd.dataset.dispDia, atual = (S.disp || []).find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia);
-      const prox = !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
+      const naSemana = semanaDe(S.sem, { casaRef: ref, fichaDias: S.conta.casa?.dados?.dias_semana }).includes(wdDe(dia));
+      const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
       try { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); }
       catch (x) { const e = $("#dispErr"); if (e) diz(e, traduz(x.message || "")); }
       return true;
@@ -3001,6 +3158,16 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   document.addEventListener("change", async (ev) => {
     if (ev.target.matches?.("[data-dp-todas]")) { S.dpVerTodas = ev.target.checked; render(); return; }
+    if (ev.target.matches?.("[data-gf]")) { (S.gf ||= {})[ev.target.dataset.gf] = ev.target.value; render(); return; }
+    if (ev.target.matches?.("[data-sem]")) {
+      const alvo = ev.target.dataset.sem, dias = [...document.querySelectorAll(`[data-sem="${alvo}"]:checked`)].map((x) => Number(x.value)), err = $("#semErr");
+      diz(err, "Salvando…");
+      try {
+        await api.salvarSemanal(alvo, dias); S.sem = await api.semanal().catch(() => S.sem); render();
+        diz($("#semErr"), dias.length ? `✓ Toda semana: ${dias.sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((n) => NOME_SEM[n]).join(", ")}. Já aparece para a Isa.` : "✓ Sem dias fixos. Valem só os dias marcados no calendário.");
+      } catch (x) { ev.target.checked = !ev.target.checked; diz(err, traduz(x.message || "")); }
+      return;
+    }
     if (ev.target.id === "dpDia" || ev.target.matches?.("[data-dp-exc]")) { S.dpPre = lerFormDp(); if (ev.target.matches("[data-dp-exc]")) S.dpExc = ev.target.checked; render(); return; }
     if (ev.target.matches?.("[data-dpb]")) { const x = ev.target, b = S.dpb ||= {}; if (!S.dpEd) S.dpPre = lerFormDp(); b[x.dataset.dpb] = x.type === "checkbox" ? x.checked : x.value; render(); return; }
     if (ev.target.id === "dpCasa") { const c = (S.eq?.casas || []).find((x) => x.id === ev.target.value), ci = $("#dpCidade"); if (c && ci && !ci.value) ci.value = c.dados?.cidade_uf || c.dados?.cidade || ""; return; }
@@ -3134,5 +3301,6 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
-  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  const noMenu = (k) => !comAreas() || ["hoje", "feito", "geral", "conta"].includes(k);
+  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
