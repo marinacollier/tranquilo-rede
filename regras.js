@@ -65,13 +65,31 @@
     ["rider", -28, "Enviar rider técnico e mapa de palco", "A casa precisa do rider 4 semanas antes para confirmar PA, monitores, microfones e DIs."],
     ["som", -21, "Validar o som com a casa", "Combine com o técnico da casa o setup (PA, mesa, monitores, microfones, DI, cabos) e o horário da passagem de som."],
     ["logistica", -21, "Confirmar logística", "Transporte, hospedagem e horário de chegada, direto com a casa e com o parceiro logístico, quando houver."],
-    ["divulgacao", -15, "Começar a divulgação", "Campanha mínima de 15 dias com o briefing e o link de ingressos que o Tranquilo envia. Mande fotos e release atualizados."],
     ["horarios", -7, "Confirmar horários e acompanhantes", "Chegada, passagem de som, portas, início e horário final. Mande à casa os nomes da equipe (2 a 3) e dos convidados (3 a 4) para a lista da portaria."],
     ["roteiro", -2, "Revisar o roteiro da noite", "Duração do show, intervalos e fala. A apresentação é o centro da noite."],
     ["passagem", 0, "Chegar e fazer a passagem de som", "No horário combinado. Problema comum: resolva direto com a casa. Exceção crítica: avise o Tranquilo."],
     ["pagamento", 1, "Enviar nota fiscal ou recibo", "Com os dados de pagamento, para o fechamento da data e o pagamento do cachê."],
     ["feedback", 3, "Contar como foi", "Casa, som, público e o que melhorar. Isso entra na qualificação da rede."],
   ];
+  // Campanha do artista (material do Bruno, "Artistas · como briefar cada um"): atividades obrigatórias por formato.
+  // Cada artista tem um link de ingresso só dele; manda o print de cada post para o Tranquilo.
+  const CAMPANHA_ARTISTA = {
+    Descubra: [
+      ["camp_ok", -20, "Campanha: dar o OK no briefing", "O briefing chega no D-20, assim que o line-up fecha. Abra o manual, confira o seu link de ingresso (é só seu) e responda com o OK."],
+      ["camp_convites", -15, "Campanha · Momento 0: 15 convites no privado", "Antes do primeiro post, mande 15 convites um a um no privado. É o que mais vende. Cada convite é o primeiro: nunca \"de novo\"."],
+      ["camp_anuncio", -14, "Campanha · Momento 1: reel ou post de anúncio", "Anuncie a noite no seu perfil com o seu link. Mande o print para o Tranquilo."],
+      ["camp_meio", -10, "Campanha · Momentos 2 a 5: caixinhas, enquetes e bastidores", "Stories ao longo da semana para manter a noite viva. O line-up completo é segredo até o D-1."],
+      ["camp_contagem", -3, "Campanha: contagem regressiva e \"é hoje\"", "Do D-3 ao dia do show, contagem nos stories e o \"é hoje\" no dia. Print de cada post."],
+      ["camp_flyer", -1, "Campanha: flyer público em collab", "D-1 à noite: o flyer com o line-up sai em collab com o Tranquilo."],
+    ],
+    Apresenta: [
+      ["camp_ok", -35, "Campanha: dar o OK no kit", "O kit (stories e convites com o seu link) chega no D-35, antes de a venda abrir. Confira e responda com o OK."],
+      ["camp_anuncio", -30, "Campanha: anúncio oficial e 15 convites", "D-30: stories com o link e 15 convites um a um no privado. Mande o print."],
+      ["camp_reel", -21, "Campanha: reel convite em collab", "D-21: reel convidando para o show, em collab com o Tranquilo."],
+      ["camp_reel_tocando", -7, "Campanha: reel tocando em collab", "D-7: reel tocando, em collab com o Tranquilo."],
+      ["camp_contagem", -3, "Campanha: contagem nos stories", "Do D-3 ao D-1, contagem regressiva nos stories. Quem abre a noite posta no próprio perfil, sem collab."],
+    ],
+  };
   const PASSOS_CASA = [
     ["handoff", -30, "Datas e atrações do mês aprovadas por escrito", "No mês anterior. Campanha planejada com o Marketing."],
     ["ficha", -28, "Revisar a ficha da casa para este formato", "Capacidade real, restrições de horário e som, acessos, carga e descarga."],
@@ -95,8 +113,9 @@
   // Passos que vieram do checklist de operações do Notion e não estão no Guia do Franqueado v1.5: aparecem com "a validar"
   // até o Gui confirmar (os outros seguem o Guia, "A semana de cada evento" e "Depois de cada evento").
   const A_VALIDAR = new Set(["ficha", "rider", "tecnico", "roteiro", "escrito", "travas", "porta_reserva", "briefing_anfitriao", "material_social"]);
-  function passosDaData(modelo, dataIso, feitos, hoje) {
-    const lista = modelo === "casa" ? PASSOS_CASA : PASSOS_ARTISTA;
+  function passosDaData(modelo, dataIso, feitos, hoje, produto) {
+    const camp = modelo === "casa" ? [] : (CAMPANHA_ARTISTA[produto] || CAMPANHA_ARTISTA[/apresenta/i.test(produto || "") ? "Apresenta" : "Descubra"]);
+    const lista = modelo === "casa" ? PASSOS_CASA : [...PASSOS_ARTISTA, ...camp].sort((a, b) => a[1] - b[1]);
     const base = new Date(dataIso + "T12:00:00");
     return lista.map(([chave, dias, titulo, texto]) => {
       const prazo = new Date(base.getTime() + dias * 864e5).toISOString().slice(0, 10);
