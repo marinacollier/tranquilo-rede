@@ -2274,10 +2274,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Atrasados", n: 1, v: (a) => a.atrasados, h: (a) => a.atrasados ? `<span class="badge b-crit">${a.atrasados}</span>` : "0" },
         { t: "Próximo dia", v: (a) => a.proximo || "", h: (a) => a.proximo ? dt(a.proximo) : "–" },
       ], (H.andamento || []).map((a) => ({ ...a, _click: "camp:" + a.campanha_id })), { i: 3, dir: -1 }, vazio("Nenhuma campanha carregada", "Carregue a campanha de uma casa logo abaixo, com a página ou o arquivo de dados do Bruno.", "", "campanhas"))}
-      ${formCampanha(H)}
-      ${coberturaCasas(H)}
       ${S.campAberta ? (() => { const c = H.campanhas.find((x) => x.id === S.campAberta); if (!c) return ""; const its = H.itens.filter((i) => i.campanha_id === c.id);
-        return `<h2>${esc(c.casa_ref)} · ${esc(c.titulo)}</h2><div class="list">${its.map((i) => diaCampanha(i, feitos, false).replace("por alguém da casa", feitos[i.id] ? "por " + esc(nomes[feitos[i.id].feito_por] || "alguém da casa") : "")).join("")}</div>`; })() : ""}`;
+        return `<div class="card" id="campDia" style="margin:14px 0"><div class="row"><h2 style="margin:0">${esc(c.casa_ref)} · ${esc(c.titulo)}</h2><button class="btn sm" data-camp-fechar>Fechar ✕</button></div><p class="muted" style="font-size:13px;margin:6px 0 10px">Dia a dia da campanha: o que a casa já marcou como feito e o que está atrasado.</p><div class="list">${its.map((i) => diaCampanha(i, feitos, false).replace("por alguém da casa", feitos[i.id] ? "por " + esc(nomes[feitos[i.id].feito_por] || "alguém da casa") : "")).join("")}</div></div>`; })() : ""}
+      ${formCampanha(H)}
+      ${coberturaCasas(H)}`;
     },
     materiais() {
       const H = S.hub; if (!H) { carregarHub(); return carregando("materiais"); }
@@ -3511,7 +3511,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.closest("[data-copiar-envio]")) { navigator.clipboard?.writeText($("#envTxt").value).then(() => { t.textContent = "✓ Copiada"; }); return; }
     if (t.id === "avOk") { await avisarCidade(); return; }
     const cl = t.closest("[data-click]");
-    if (cl && /^camp:/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); S.campAberta = cl.dataset.click.slice(5); render(); return; }
+    if (cl && /^camp:/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); S.campAberta = cl.dataset.click.slice(5); render(); setTimeout(() => $("#campDia")?.scrollIntoView({ behavior: "smooth", block: "start" }), 50); return; }
+    if (t.closest("[data-camp-fechar]")) { S.campAberta = null; render(); return; }
     if (cl && /^(insc|casacad):/.test(cl.dataset.click)) { ev.stopImmediatePropagation(); const [k, id] = cl.dataset.click.split(":"); return k === "insc" ? fichaInscricao(id) : fichaCasa(id); }
   }
   // Um clique por vez: enquanto a ação de um botão não termina, novos cliques nele são ignorados
