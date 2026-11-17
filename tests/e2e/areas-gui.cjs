@@ -62,7 +62,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); render(); }, codEq); await p.waitForTimeout(400);
     await p.click('[data-aba="lado_a_lado"]'); await p.waitForTimeout(800);
     const ll = await app();
-    ok(/20h10 às 20h40: Eddu Porto/.test(ll) && /15h30 às 16h30: passagem de som de Lamparina/.test(ll), 'mensagem do Apresenta: abertura Eddu Porto, Lamparina passa o som primeiro (quem toca por último)');
+    ok(/20h10 às 20h40: Thay Santos/.test(ll) && /15h30 às 16h30: passagem de som de YOÙN/.test(ll), 'mensagem do Apresenta (19/11 Santo André): abertura Thay Santos, YOÙN passa o som primeiro (quem toca por último)');
     ok(/16h10 às 16h40: passagem de som de LuizGa/.test(ll) && /21h30 às 21h50: olho no olho/.test(ll), 'mensagem do Descubra com 3 artistas: ordem do line-up e olho no olho');
     ok(/Ordem de apresentação não definida no line-up: pedir à Isa/.test(ll), 'sem ordem no line-up, a mensagem não sai e pede à Isa');
     ok(/artista e casa lado a lado/i.test(ll) && /Ordem da noite/.test(ll) && /Disponibilidade/.test(ll) && (await p.$$eval('a[href^="https://www.google.com/maps/search/"]', (xs) => xs.length)) > 0, 'equipe: cada data com artista e casa lado a lado, com endereço clicável');
