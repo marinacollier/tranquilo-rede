@@ -749,7 +749,7 @@ const TQConta = (() => {
   // Funções da conta na equipe da casa; null = dono da casa (ou conta que não é de casa).
   const funcoesDe = () => (S.conta?.perfil.tipo === "casa" && S.conta.perfil.funcoes?.length ? S.conta.perfil.funcoes : null);
   const nomesFuncoes = (fs) => (fs || []).map((f) => TQEquipe.NOME[f] || f).join(" · ");
-  const roteiroConta = () => (funcoesDe() ? "casa_equipe" : S.conta.perfil.tipo);
+  const roteiroConta = () => (funcoesDe() ? "casa_equipe" : comAreas() ? "eq_areas" : S.conta.perfil.tipo);
   const lerChecklist = () => (S.conta.perfil.tipo === "casa" ? api.checklistCasa() : api.meuChecklist());
   // Áreas da equipe do Tranquilo (banco v22, pedido da Marina, 17/11/2026). Administração vê tudo; equipe sem área marcada
   // também (como antes). Com área marcada, só as abas e os botões da área ficam visíveis.
@@ -3396,5 +3396,5 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   const noMenu = (k) => !comAreas() || k === "conta" || k in GRUPOS_EQ;
-  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
