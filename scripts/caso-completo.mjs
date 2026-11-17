@@ -185,6 +185,11 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Divulgação do Bruno é do artista (Marina, 17/11/2026): os documentos de marketing passam a abrir também para artistas.
+  if (MODO === 'publico-artista') {
+    const r = await sql(`update materiais set publico = array(select distinct unnest(publico || array['artista'])) where area = 'marketing' and not ('artista' = any (publico)) returning slug`);
+    ok(true, `${r.length} documentos de marketing agora abrem também para artistas`);
+  }
   // Campanhas fake (Marina, 17/11/2026): 4 campanhas de TESTE em situações diferentes para o Bruno testar.
   if (MODO === 'campanhas') {
     const SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];

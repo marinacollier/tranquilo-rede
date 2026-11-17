@@ -50,6 +50,13 @@ const D = __dirname + '/dados/';
     ok(!(await p.$('#leitorDoc')), '"Voltar" fecha o documento');
     await p.click('[data-manual="Apresenta"]'); await p.waitForTimeout(1200);
     { const t = await p.frameLocator('#leitorDoc').locator('body').innerText(); ok(/Manual do Tranquilo Apresenta/.test(t) && /Rider técnico/.test(t) && /Camarim/.test(t), 'manual do Apresenta abre no mesmo leitor dos outros documentos, completo'); }
+    // Divulgação (Produtor local, Anfitrião, Social media) é do artista (Marina, 17/11/2026).
+    ok(!(await p.evaluate(() => TQConta.areaDe('mkt_anfitriao'))), 'casa não tem mais a Divulgação do Bruno');
+    await p.click('#sair'); await p.waitForTimeout(500);
+    await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
+    await p.click('label:has(input[name="tipoNovo"][value="artista"])'); await p.waitForTimeout(200);
+    await p.fill('#enome', 'Artista Leitor'); await p.fill('#email', 'leitor@art.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
+    await p.waitForSelector('#side:not([hidden])', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(300);
     await abrirAba('mkt_anfitriao'); await p.waitForTimeout(400);
     ok(!(await p.$('#leitorDoc')) && await p.$('[data-ler="briefing-anfitriao"]') !== null, 'trocar de parte fecha o leitor; Marketing do anfitrião tem o briefing para ler na página');
     ok(!/Plano de Ação/i.test(await p.innerText('#app')), 'Plano de Ação saiu do Marketing');

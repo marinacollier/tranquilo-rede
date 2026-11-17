@@ -36,8 +36,8 @@ for (const arq of (await readdir(dir)).filter((f) => f.endsWith('.html')).sort()
   if (html.includes(tag)) throw new Error('marcador repetido no conteúdo');
   await q(`begin;
 insert into materiais (slug, titulo, area, funcao, tipo_material, publico, fonte_url)
-  values (${lit(slug)}, ${lit(d[0])}, ${lit(d[1])}, ${lit(d[2])}, ${lit(d[3])}, '{casa}', 'https://marinacollier.github.io/tranquilo-rede/#/materiais')
-  on conflict (slug) do update set ativo = true, titulo = excluded.titulo;
+  values (${lit(slug)}, ${lit(d[0])}, ${lit(d[1])}, ${lit(d[2])}, ${lit(d[3])}, ${d[1] === 'marketing' ? "'{casa,artista}'" : "'{casa}'"}, 'https://marinacollier.github.io/tranquilo-rede/#/materiais')
+  on conflict (slug) do update set ativo = true, titulo = excluded.titulo, publico = excluded.publico;
 insert into material_versoes (material_id, versao, resumo, conteudo_html)
   select id, case when exists (select 1 from material_versoes v where v.material_id = m.id and v.versao = ${lit(versao)}) then ${lit(versao)} || ' (' || to_char(now() at time zone 'America/Sao_Paulo', 'HH24:MI') || ')' else ${lit(versao)} end,
     'Abre dentro do portal', ${tag}${html}${tag}

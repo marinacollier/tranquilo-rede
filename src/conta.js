@@ -864,7 +864,7 @@ const TQConta = (() => {
   // Menu padrão do time (pedido da Marina, 17/11/2026): o mesmo formato para Gui, Isa, Bruno, equipe e administração.
   // Na lateral, as partes do trabalho; dentro de cada uma, as abas em cima. Cada área vê só as suas; a adm vê todas.
   const GRUPOS_EQ = {
-    g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
+    g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
     g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["artistas", "Histórico dos artistas"]]],
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
@@ -882,7 +882,9 @@ const TQConta = (() => {
   }
   function subsDoGrupo(g) {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
-    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k)));
+    // "Comece por aqui" é da administração e da equipe sem área; "Para você" e "Seu histórico", de quem tem área (Gui, Isa, Bruno).
+    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
+      && (k !== "inicio" || !comAreas()) && (!["hoje", "feito"].includes(k) || comAreas()));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
