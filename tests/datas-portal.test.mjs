@@ -52,3 +52,11 @@ await como(eq, async () => { ok(!!(await tenta(() => q(`select definir_areas($1,
 await como(adm, async () => { await q(`select definir_areas($1, array['agenda','marketing'])`, [eq]); });
 ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq])).rows[0].areas) === '["agenda","marketing"]', 'adm define as áreas da equipe');
 ok(!!(await tenta(() => q(`update perfis set areas = array['financeiro'] where id = $1`, [eq]))), 'só áreas conhecidas');
+// v22: a própria conta de equipe não muda as áreas direto na tabela; o convite aceito leva as áreas para a conta.
+await como(eq, async () => { await tenta(() => q(`update perfis set areas = null where id = $1`, [eq])); });
+ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq])).rows[0].areas) === '["agenda","marketing"]', 'equipe não apaga as próprias áreas pela tabela');
+const eq2 = await novo('eq2@x.com', 'artista');
+await q(`update perfis set tipo = 'equipe' where id = $1`, [eq2]);
+await q(`insert into convites (email, tipo, nome, areas) values ('eq2@x.com', 'equipe', 'Eq Dois', array['operacoes'])`);
+await q(`update convites set aceito_em = now() where email = 'eq2@x.com'`);
+ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq2])).rows[0].areas) === '["operacoes"]', 'convite aceito leva a área para a conta de equipe');

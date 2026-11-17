@@ -2417,3 +2417,34 @@ begin
 end $$;
 drop trigger if exists trg_convite_areas on convites;
 create trigger trg_convite_areas after update of aceito_em on convites for each row execute function convite_areas_na_conta();
+
+-- =====================================================================
+-- v23: a própria conta não muda as áreas da equipe (só a administração, por definir_areas, ou o convite aceito). 17/11/2026.
+-- Idempotente: redefine proteger_perfil com "areas" entre os campos travados.
+-- =====================================================================
+create or replace function proteger_perfil() returns trigger
+language plpgsql security invoker set search_path = public as $$
+begin
+  if current_user not in ('authenticated', 'anon') then return new; end if;   -- funções do próprio banco (v8, P09)
+  if not eh_adm() then
+    new.tipo := old.tipo;
+    new.email := old.email;
+    new.codigo_acesso := old.codigo_acesso;
+    new.vinculo_nome := old.vinculo_nome;
+    new.funcoes := old.funcoes;
+    new.areas := old.areas;
+    if old.codigo_acesso is not null then
+      new.vinculo_pedido := old.vinculo_pedido; new.vinculo_pedido_nome := old.vinculo_pedido_nome; new.vinculo_pedido_em := old.vinculo_pedido_em;
+    elsif new.vinculo_pedido is distinct from old.vinculo_pedido then
+      if new.vinculo_pedido is not null and new.vinculo_pedido !~ '^[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$' then raise exception 'Código de acesso inválido.'; end if;
+      new.vinculo_pedido_nome := left(new.vinculo_pedido_nome, 120);
+      new.vinculo_pedido_em := case when new.vinculo_pedido is null then null else now() end;
+    else
+      new.vinculo_pedido_nome := old.vinculo_pedido_nome; new.vinculo_pedido_em := old.vinculo_pedido_em;
+    end if;
+  elsif old.tipo = 'adm' and new.tipo <> 'adm' and (select count(*) from perfis where tipo = 'adm') <= 1 then
+    raise exception 'Esta é a última conta de administração: promova outra pessoa antes.';
+  end if;
+  return new;
+end $$;
+revoke all on function proteger_perfil() from public, anon, authenticated;

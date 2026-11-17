@@ -124,7 +124,7 @@ const TQConta = (() => {
       async marcarTutorial() { eu().tutorial_visto_em = agora(); gravar(); },
       async reivindicar() {
         const p = eu(), c = p && db.conv[p.email]; if (!c || c.aceito_em) return false;
-        Object.assign(p, { tipo: c.tipo, codigo_acesso: c.codigo_acesso || p.codigo_acesso, vinculo_nome: c.vinculo_nome || p.vinculo_nome, funcoes: c.tipo === "casa" ? c.funcoes || null : null }); c.aceito_em = agora(); gravar(); return true;
+        Object.assign(p, { tipo: c.tipo, codigo_acesso: c.codigo_acesso || p.codigo_acesso, vinculo_nome: c.vinculo_nome || p.vinculo_nome, funcoes: c.tipo === "casa" ? c.funcoes || null : null, ...(c.areas?.length && ["equipe", "adm"].includes(c.tipo) ? { areas: c.areas } : {}) }); c.aceito_em = agora(); gravar(); return true;
       },
       async avisar(a) { if (!db.avisos.some((x) => x.cidade.toLowerCase() === a.cidade.toLowerCase() && x.contato.toLowerCase() === a.contato.toLowerCase())) db.avisos.push({ ...a, id: id(), criado_em: agora() }); gravar(); },
       async avisos() { exigeEquipe(); return db.avisos; },
@@ -258,6 +258,7 @@ const TQConta = (() => {
         if (aprovar) { const c = Object.values(db.casas).find((y) => y.id === x.casa_id); c.dados = { ...c.dados, ...x.proposto }; c.pendencias = R.pendenciasCasa(c.dados); }
         Object.assign(x, { status: aprovar ? "aprovada" : "recusada", resposta: resposta || null, revisado_em: agora() }); gravar();
       },
+      async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
       async disponibilidade() { const p = eu(); return (db.disp || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.casa_ref === p?.vinculo_nome); },
       async datasPortal() {
@@ -318,9 +319,9 @@ const TQConta = (() => {
     const uid = async () => (await sb.auth.getUser()).data.user?.id;
     // O código de acesso não sai na leitura de perfis (só por meu_acesso, e o de todos só para a adm: schema v8).
     // Banco ainda sem a v8: lê como antes.
-    const COLS0 = "id,email,nome,tipo,whatsapp,vinculo_nome,criado_em,tutorial_visto_em,senha_definida,vinculo_pedido_nome,vinculo_pedido_em", COLS = COLS0 + ",funcoes";
+    const COLS0 = "id,email,nome,tipo,whatsapp,vinculo_nome,criado_em,tutorial_visto_em,senha_definida,vinculo_pedido_nome,vinculo_pedido_em", COLS = COLS0 + ",funcoes,areas";
     // Função na equipe da casa (schema v11). Banco ainda sem a coluna: lê como antes.
-    const lerCols = async (montar) => { const r = await montar(sb.from("perfis").select(COLS)); return r.error && /funcoes/.test(r.error.message || "") ? montar(sb.from("perfis").select(COLS0)) : r; };
+    const lerCols = async (montar) => { const r = await montar(sb.from("perfis").select(COLS)); return r.error && /funcoes|areas/.test(r.error.message || "") ? montar(sb.from("perfis").select(COLS0)) : r; };
     const semV8 = (e) => /PGRST202|42703|Could not find the function|does not exist/i.test(`${e?.code} ${e?.message}`);
     const perfil = async () => {
       const u = await uid(); if (!u) return null;
@@ -420,7 +421,7 @@ const TQConta = (() => {
       async registrosTodos() { return ok(await sb.from("registros_noite").select("*").order("criado_em", { ascending: false })); },
       // convites, primeiro acesso e avisos
       async convidar(c) {
-        const linha = { email: c.email.toLowerCase().trim(), tipo: c.tipo, nome: c.nome || "", whatsapp: c.whatsapp || null, codigo_acesso: c.codigo_acesso || null, vinculo_nome: c.vinculo_nome || null, criado_por: await uid() };
+        const linha = { email: c.email.toLowerCase().trim(), tipo: c.tipo, nome: c.nome || "", whatsapp: c.whatsapp || null, codigo_acesso: c.codigo_acesso || null, vinculo_nome: c.vinculo_nome || null, criado_por: await uid(), ...(c.areas?.length ? { areas: c.areas } : {}) };
         ok(await sb.from("convites").upsert(linha, { onConflict: "email" }));
         // Link de acesso por e-mail. A conta nasce ao clicar; o convite aplica perfil e vínculo nessa hora.
         const { error } = await sb.auth.signInWithOtp({ email: linha.email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome: linha.nome, tipo: linha.tipo === "casa" ? "casa" : "artista" } } });
@@ -566,6 +567,7 @@ const TQConta = (() => {
       async solicitacoesTodas() { return ok(await sb.from("solicitacoes_ficha").select("*").order("criado_em", { ascending: false }).limit(300)); },
       async responderSolicitacao(sid, aprovar, resposta) { ok(await sb.rpc("responder_solicitacao_ficha", { sid, aprovar, resposta_: resposta || null })); },
       async definirCombinados(cid, c) { ok(await sb.rpc("definir_combinados", { cid, c })); },
+      async definirAreas(conta, areas) { ok(await sb.rpc("definir_areas", { conta, novas: areas })); },
       async disponibilidade() { return ok(await sb.from("disponibilidade_casa").select("casa_ref,dia,situacao,nota,atualizado_em").order("dia")); },
       async datasPortal() { return ok(await sb.from("datas_portal").select("*").order("dia")); },
       async salvarDataPortal(d) {
@@ -683,6 +685,19 @@ const TQConta = (() => {
   const nomesFuncoes = (fs) => (fs || []).map((f) => TQEquipe.NOME[f] || f).join(" · ");
   const roteiroConta = () => (funcoesDe() ? "casa_equipe" : S.conta.perfil.tipo);
   const lerChecklist = () => (S.conta.perfil.tipo === "casa" ? api.checklistCasa() : api.meuChecklist());
+  // Áreas da equipe do Tranquilo (banco v22, pedido da Marina, 17/11/2026). Administração vê tudo; equipe sem área marcada
+  // também (como antes). Com área marcada, só as abas e os botões da área ficam visíveis.
+  const AREAS_EQ = [["operacoes", "Operações", "habilitar casas, editar Fichas, publicar guias"], ["agenda", "Agenda", "criar datas, documentos e contratos, decisões da curadoria de artistas"], ["marketing", "Marketing", "campanhas e documentos de marketing"]];
+  const nomesAreas = (as) => (as || []).map((a) => (AREAS_EQ.find(([k]) => k === a) || [, a])[1]).join(" · ");
+  const comAreas = () => S.conta?.perfil.tipo === "equipe" && !!S.conta.perfil.areas?.length;
+  function temArea(a) {
+    const p = S.conta?.perfil; if (!p) return false;
+    if (p.tipo === "adm") return true;
+    return p.tipo === "equipe" && (!p.areas?.length || p.areas.includes(a));
+  }
+  // Caixas de marcar das áreas (Pessoas e Convites). attr identifica o grupo: data-area-conta="<id>" ou data-cv-area.
+  const caixasAreas = (marcadas, attr) => `<div style="display:flex;gap:10px;flex-wrap:wrap">${AREAS_EQ.map(([k, t, o]) => `<label class="fcheck" title="${esc(o)}"><input type="checkbox" value="${k}" ${attr}${(marcadas || []).includes(k) ? " checked" : ""}> <span>${t}</span></label>`).join("")}</div>${/area-conta/.test(attr) ? '<div class="err" role="status" aria-live="polite"></div>' : ""}`;
+  const soArea = (a) => `<span class="muted" style="font-size:13px;align-self:center">Esta decisão é da área de ${esc(nomesAreas([a]))}.</span>`;
   function abas() {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
@@ -692,7 +707,9 @@ const TQConta = (() => {
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
-    return [...base, ...doPac, ["conta", "Conta"]];
+    const precisa = { datas_portal: "agenda", documentos: "agenda", campanhas: "marketing" }, soAdm = new Set(["prontidao", "relatos"]);
+    const visivel = base.filter(([k]) => (!precisa[k] || temArea(precisa[k])) && (!soAdm.has(k) || !comAreas()));
+    return [...visivel, ...doPac, ["conta", "Conta"]];
   }
   const rotuloQuem = () => `${ROTULO[S.conta.perfil.tipo]} · ${S.conta.perfil.vinculo_nome || S.conta.perfil.nome || S.conta.perfil.email}`;
 
@@ -1720,11 +1737,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     },
     pessoas() {
       const E = S.eq; if (!E?.perfis) { carregarEquipe(); return carregando("pessoas"); }
-      return `<div class="tag">Pessoas</div><h1>Contas na plataforma</h1><p class="sub">Artistas e casas criam a própria conta. Equipe e administração só são definidas aqui. O vínculo liga a conta ao histórico da artista ou da casa no Notion e libera as métricas dela.</p>
+      return `<div class="tag">Pessoas</div><h1>Contas na plataforma</h1><p class="sub">Artistas e casas criam a própria conta. Equipe e administração só são definidas aqui. O vínculo liga a conta ao histórico da artista ou da casa no Notion e libera as métricas dela. Na equipe, marque a área de cada pessoa: ela passa a ver só as abas e os botões da área. Sem área marcada, vê tudo.</p>
       ${tabela("pess", [
         { t: "Pessoa", v: (p) => p.nome || p.email, h: (p) => `<b>${esc(p.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(p.email)}</div>` },
         { t: "Perfil", v: (p) => p.tipo, h: (p) => `<select data-tipo="${p.id}" data-antes="${p.tipo}" aria-label="Perfil de ${esc(p.nome || p.email)}"${p.id === S.conta.perfil.id ? ' disabled title="Você não pode mudar o seu próprio perfil"' : ""}>${Object.entries(ROTULO).map(([k, t]) => `<option value="${k}"${p.tipo === k ? " selected" : ""}>${t}</option>`).join("")}</select>` },
-        { t: "Vínculo", v: (p) => p.vinculo_nome || "", h: (p) => ["artista", "casa"].includes(p.tipo) ? seletorVinculo(p) : "–" },
+        { t: "Vínculo", v: (p) => p.vinculo_nome || "", h: (p) => ["artista", "casa"].includes(p.tipo) ? seletorVinculo(p) : p.tipo === "equipe" ? caixasAreas(p.areas, `data-area-conta="${p.id}"`) : "–" },
         { t: "Criada", v: (p) => p.criado_em, h: (p) => dt(p.criado_em.slice(0, 10)) },
         { t: "Acesso", v: (p) => p.tutorial_visto_em || "", h: (p) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-link-senha="${esc(p.email)}">Enviar link de senha</button><button class="btn sm" data-enviar-tutorial="${esc(p.tipo)}|${esc(p.email)}|${esc(p.vinculo_nome || p.nome || "")}|${esc(p.whatsapp || "")}">Enviar tutorial</button></div><div class="muted" style="font-size:12px;margin-top:4px">${p.tutorial_visto_em ? "viu o tutorial em " + dt(p.tutorial_visto_em.slice(0, 10)) : "ainda não viu o tutorial"}</div>` },
       ], E.perfis, { i: 3, dir: -1 })}`;
@@ -1740,6 +1757,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="card"><div class="fgrid">
         <label class="fcampo"><b>Perfil</b><select id="cvTipo">${[["artista", "Artista"], ["casa", "Casa"], ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
         ${["artista", "casa"].includes(tipoSel) ? `<label class="fcampo"><b>${tipoSel === "casa" ? "Casa" : "Artista"} da rede</b>${acessos.length ? `<select id="cvVinc"><option value="">Sem vínculo por enquanto</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${pre.nome === a.nome ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>` : `<span class="muted" style="font-size:13px">A lista de nomes vem com o código de administração. Sem ele, o convite sai sem vínculo e a administração liga depois em Pessoas.</span>`}</label>` : ""}
+        ${tipoSel === "equipe" ? `<div class="fcampo"><b>Área (o que a pessoa vai fazer)</b>${caixasAreas(pre.areas, 'data-cv-area')}<span class="muted" style="font-size:12px">Sem área marcada, a pessoa vê tudo da equipe.</span></div>` : ""}
         <label class="fcampo"><b>Nome</b><input id="cvNome" value="${esc(pre.nome || "")}" autocomplete="off"></label>
         <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" autocomplete="off"></label>
         <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" autocomplete="off"></label>
@@ -1748,7 +1766,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <h2>Convites enviados</h2>
       ${tabela("conv", [
         { t: "Pessoa", v: (c) => c.nome || c.email, h: (c) => `<b>${esc(c.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(c.email)}</div>` },
-        { t: "Perfil", v: (c) => c.tipo, h: (c) => ROTULO[c.tipo] },
+        { t: "Perfil", v: (c) => c.tipo, h: (c) => ROTULO[c.tipo] + (c.areas?.length ? `<div class="muted" style="font-size:12px">${esc(nomesAreas(c.areas))}</div>` : "") },
         { t: "Vínculo", v: (c) => c.vinculo_nome || "", h: (c) => esc(c.vinculo_nome || "–") },
         { t: "Situação", v: (c) => c.aceito_em ? 2 : contas.has(c.email) ? 1 : 0, h: (c) => c.aceito_em ? `<span class="badge b-good">entrou em ${dt(c.aceito_em.slice(0, 10))}</span>` : contas.has(c.email) ? `<span class="badge b-warn">conta criada, falta confirmar o e-mail</span>` : `<span class="badge">aguardando</span>` },
         { t: "Tutorial", v: (c) => c.tutorial_enviado_em || "", h: (c) => c.tutorial_enviado_em ? `enviado em ${dt(c.tutorial_enviado_em.slice(0, 10))}` : `<span class="muted">não enviado</span>` },
@@ -1810,7 +1828,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const nPend = H.pendentes?.length || 0;
       return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem só para leitura: para usar, toque em \"Fazer minha cópia\" (ou Arquivo › Fazer uma cópia)."}</p>
       ${!equipe && nPend ? `<div class="alert warn" style="margin-bottom:12px"><b>${nPend} ${nPend === 1 ? "material pede" : "materiais pedem"} sua confirmação de leitura</b>Eles aparecem abaixo com o botão "Li e estou ciente".</div>` : ""}
-      ${equipe ? formDocsPagina() + formMateriais(H) : ""}
+      ${equipe && (temArea("operacoes") || temArea("marketing")) ? formDocsPagina() + formMateriais(H) : ""}
       <div class="list">${cards.join("") || vazio("Nenhum material publicado ainda", "Quando a equipe publicar guias e modelos, eles aparecem aqui.", "", "materiais")}</div>`;
     },
     documentos() {
@@ -2136,7 +2154,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
-    <div class="barra-acoes">${i.status === "aprovada" ? '<span class="badge b-good" style="align-self:center">✓ já aprovada</span>' : '<button class="btn pri" data-decisao="aprovada">Aprovar</button>'}${["aprovada", "encerrada"].includes(i.status) ? "" : '<button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>'}${ENCERRAR_ATIVO && i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : ""}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes">${!temArea("agenda") ? soArea("agenda") : (i.status === "aprovada" ? '<span class="badge b-good" style="align-self:center">✓ já aprovada</span>' : '<button class="btn pri" data-decisao="aprovada">Aprovar</button>') + (["aprovada", "encerrada"].includes(i.status) ? "" : '<button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>') + (ENCERRAR_ATIVO && i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : "")}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "insc:" + id; $("#dlg").showModal();
   }
   function fichaCasa(id) {
@@ -2179,7 +2197,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
     ${adm && c.perfil ? `<label class="fcampo"><b>Vincular à casa da rede (libera métricas)</b>${seletorVinculo(c.perfil)}</label>` : ""}
-    <div class="barra-acoes">${c.status === "habilitada" ? '<span class="badge b-good" style="align-self:center">✓ já habilitada</span>' : '<button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button>'}${c.status === "suspensa" ? "" : '<button class="btn" data-decisao="suspensa">Suspender</button>'}<button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>${ENCERRAR_ATIVO && c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes">${!temArea("operacoes") ? soArea("operacoes") + '<button class="btn" onclick="dlg.close()">Fechar</button>' : (c.status === "habilitada" ? '<span class="badge b-good" style="align-self:center">✓ já habilitada</span>' : '<button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button>') + (c.status === "suspensa" ? "" : '<button class="btn" data-decisao="suspensa">Suspender</button>') + '<button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>' + (ENCERRAR_ATIVO && c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : "")}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "casa:" + id; $("#dlg").showModal();
   }
   function fichaRegistro(eventoId) {
@@ -2770,7 +2788,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const err = $("#cverr"), email = $("#cvEmail").value.trim().toLowerCase(), nome = $("#cvNome").value.trim();
       if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { diz(err, "Escreva um e-mail válido."); return; }
       const [codigo_acesso, vinculo_nome] = ($("#cvVinc")?.value || "").split("|");
-      const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null };
+      const areas = (S.convTipo === "equipe") ? [...document.querySelectorAll("[data-cv-area]:checked")].map((x) => x.value) : [];
+      const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
       diz(err, "Enviando…");
       try {
         const r = await api.convidar(c); diz(err, ""); S.convPre = null; S.eq = null; render();
@@ -2867,6 +2886,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ps = t.dataset?.passo; if (ps) {
       const [eventoId, item] = ps.split("|");
       try { if (!t.checked && S.conta.perfil.tipo === "casa") await api.desmarcarCasa(eventoId, item); else await api.marcar(eventoId, item, t.checked); S.conta.chk = await lerChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); }
+      catch (e) { alert(comErro(e.message)); t.checked = !t.checked; }
+      return;
+    }
+    if (t.dataset?.areaConta) {
+      const pid = t.dataset.areaConta, areas = [...document.querySelectorAll(`[data-area-conta="${pid}"]:checked`)].map((x) => x.value);
+      try { await api.definirAreas(pid, areas); const p = (S.eq?.perfis || []).find((x) => x.id === pid); if (p) p.areas = areas.length ? areas : null; diz(t.closest("td")?.querySelector(".err"), `✓ ${areas.length ? nomesAreas(areas) : "sem área: vê tudo da equipe"}`); }
       catch (e) { alert(comErro(e.message)); t.checked = !t.checked; }
       return;
     }
