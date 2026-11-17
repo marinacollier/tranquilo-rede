@@ -39,7 +39,13 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('equipe');
     const mk = await abas();
     ok(mk.includes('campanhas') && !mk.includes('datas_portal') && !mk.includes('documentos') && !mk.includes('prontidao') && !mk.includes('relatos'), `Marketing: abas da área (${mk.join(', ')})`);
-    ok(['inicio', 'painel', 'lado_a_lado', 'agenda_casas', 'curadoria', 'casas_cad', 'trilhas', 'convites', 'demanda', 'materiais', 'conta'].every((k) => mk.includes(k)), 'todos da equipe mantêm Painel, Curadoria, Cadastros, Treinamentos, Convites, Demanda e Materiais');
+    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'materiais', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
+    await ir('hoje');
+    const menu = await p.$$eval('#tabs [data-aba]', (xs) => xs.map((x) => x.dataset.aba));
+    ok(JSON.stringify(menu.sort()) === JSON.stringify(['conta', 'feito', 'geral', 'hoje']), `menu só com A fazer, Feito, Visão geral e Conta (${menu.join(', ')})`);
+    ok(/Oi/.test(await p.textContent('#app')) && /na área de Marketing/.test(await p.textContent('#app')), 'A fazer mostra o que é da área de Marketing');
+    await ir('geral'); ok(/Próximas datas da rede/.test(await p.textContent('#app')) && /Só para consultar/.test(await p.textContent('#app')), 'Visão geral (só leitura) abre');
+    await ir('feito'); ok(/O que você fez/.test(await p.textContent('#app')), 'Feito abre');
     // Cadastros de casas e Curadoria: só visualizar (sem Habilitar nem Aprovar).
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.casas = d.casas || {}; d.casas.x = { id: 'casa-x', user_id: 'u-x', status: 'em_analise', dados: { nome: 'Casa X', cidade_uf: 'Recife/PE' }, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() }; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
     await p.reload(); await p.waitForTimeout(800); await pular();
@@ -53,7 +59,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.areas = ['agenda']; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
     await p.reload(); await p.waitForTimeout(800); await pular();
     const ag = await abas();
-    ok(ag.includes('datas_portal') && ag.includes('documentos') && !ag.includes('campanhas'), `Agenda: Criar datas e Documentos, sem Campanhas (${ag.join(', ')})`);
+    ok((ag[0] === 'hoje' && ['datas_portal', 'curadoria', 'agenda_casas', 'documentos', 'convites'].every((k) => ag.includes(k)) && !ag.includes('campanhas') && !ag.includes('casas_cad')), `Agenda (Isa): Hoje, Criar datas, Curadoria, Agenda das casas, Documentos e Convites (${ag.join(', ')})`);
     await ir('materiais'); const tm = await p.textContent('#app');
     ok(!/Publicar/.test(tm), 'Materiais: Agenda só lê (sem publicar)');
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.areas = ['operacoes']; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });

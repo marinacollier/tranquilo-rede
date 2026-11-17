@@ -12,10 +12,11 @@ E por estarem de acordo, assinam.`;
   const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
   await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
-  const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
+  const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); const dialogos = []; p.on('dialog', (d) => { dialogos.push(d.message()); d.accept(); });
   // Pula o tutorial (com um passo só não há "Pular": "Concluir" encerra).
   const pular = async () => { try { await p.waitForSelector('.tour-caixa', { timeout: 4000 }); await p.click((await p.$('[data-tour="pular"]')) ? '[data-tour="pular"]' : '[data-tour="avancar"]'); } catch {} };
   const sair = async () => { await p.click('#sair'); await p.waitForTimeout(300); };
+  let evPrimeiro = '';
   try {
     await p.goto(B); await p.waitForSelector('.cidade');
     // artista nova
@@ -28,7 +29,7 @@ E por estarem de acordo, assinam.`;
     {
       // Datas próximas sem contrato: "Preparar contrato" já escolhe a data.
       const pre = await p.$('[data-ct-pre]');
-      if (pre) { const ev = (await pre.getAttribute('data-ct-pre')).split('|')[0]; await pre.click(); await p.waitForTimeout(200);
+      if (pre) { const ev = (await pre.getAttribute('data-ct-pre')).split('|')[0]; evPrimeiro = ev; await pre.click(); await p.waitForTimeout(200);
         ok(await p.inputValue('#ctEv') === ev && /sem contrato/.test(await p.textContent('#app')), 'lista de datas sem contrato e "Preparar contrato" já escolhe a data'); }
       else ok(false, 'lista de datas sem contrato não apareceu');
     }
@@ -69,6 +70,19 @@ E por estarem de acordo, assinam.`;
     // equipe vê assinado
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector('[data-ct-ver]');
     ok(/Assinado/.test(await p.textContent('#app')) && /Ana Contrato Silva/.test(await p.textContent('#app')) && !(await p.$('[data-ct-cancelar]')), 'equipe vê o contrato assinado, sem botão de cancelar');
+    // Segundo contrato para a mesma pessoa: a equipe é avisada da duplicata; a artista não digita os dados de novo.
+    await p.selectOption('#ctConta', conta); await p.selectOption('#ctMod', { label: 'Apresenta artista' }); if (evPrimeiro) await p.selectOption('#ctEv', evPrimeiro); await p.click('#ctPrep');
+    await p.waitForSelector('[data-ct-campo="cache"]'); await p.fill('[data-ct-campo="cache"]', '2.000,00'); await p.fill('[data-ct-campo="data"]', '12/12/2026'); await p.fill('[data-ct-campo="cidade"]', 'Recife');
+    await p.click('#ctEnviar'); await p.waitForTimeout(600);
+    ok(dialogos.some((m) => /Já existe um contrato deste modelo para esta pessoa/.test(m)), 'criar contrato repetido pede confirmação (evita duplicata por clique duplo ou reenvio)');
+    await sair();
+    await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
+    await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
+    if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
+    await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
+    ok(await p.inputValue('[data-ct-dado="cpf"]') === '123.456.789-00' && await p.inputValue('[data-ct-dado="chave_pix"]') === 'ana@pix.com' && /Trouxemos o que você já informou/.test(await p.textContent('#app')), 'segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir');
+    await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
+    ok(/123\.456\.789-00/.test(await p.textContent('#ctTexto')), 'ao salvar, os dados trazidos entram no texto');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); await p.screenshot({ path: process.env.SHOT || '/tmp/contr-falha.png' }).catch(() => {}); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

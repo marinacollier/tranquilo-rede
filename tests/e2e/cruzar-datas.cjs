@@ -23,8 +23,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await criar('casa', 'Casa Cruza', 'cruza@casa.com');
     await p.click('[data-aba="ficha"]').catch(() => {}); await p.waitForSelector('[data-k="nome"]');
     await p.fill('[data-k="nome"]', 'Casa Cruza'); await p.fill('[data-k="cidade_uf"]', 'Recife/PE'); await p.waitForTimeout(1700);
-    await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.vinculo_nome = 'Casa Cruza'; d.disp = [{ casa_ref: 'Casa Cruza', dia, situacao: 'disponivel' }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
+    await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.vinculo_nome = 'Casa Cruza'; d.sem = [{ casa_ref: 'Casa Cruza', dias: [0, 1, 2, 3, 4, 5, 6] }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
     await p.reload(); await p.waitForTimeout(700); await pular();
+    await ir('agenda_casa');
+    ok((await p.$$('[data-sem="casa"]:checked')).length === 7 && (await p.$$eval('.cal-dia', (xs) => xs.filter((x) => /toda semana/.test(x.textContent)).length)) > 0, 'casa: dias fixos da semana no checklist e verdes no calendário');
     await sair();
     // Artista marca a disponibilidade na própria área.
     await criar('artista', 'Ana Cruza', 'ana@cruza.com');
@@ -47,6 +49,13 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#dispFicha [data-dispa-mes="limpar"]'); await p.waitForTimeout(800);
     dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
     ok(!dA.length, 'limpar o mês tira tudo');
+    // Dias fixos da semana (v27): marcar sábado e domingo deixa todos os sábados e domingos verdes.
+    await p.check('[data-sem="artista"][value="6"]'); await p.waitForTimeout(500); await p.check('[data-sem="artista"][value="0"]'); await p.waitForTimeout(500);
+    const semA = await p.evaluate(() => (JSON.parse(localStorage.getItem('tq-demo-v1')).sem || []).find((x) => x.user_id));
+    ok(JSON.stringify(semA?.dias) === '[0,6]' && /Toda semana: sábado, domingo/.test(await p.textContent('#semErr')), 'artista marca os dias fixos da semana (checklist)');
+    const cel = await p.$$eval('#dispFicha .cal-dia', (xs) => xs.filter((x) => /toda semana/.test(x.textContent)).length);
+    ok(cel >= 1, `os sábados e domingos ficam verdes no calendário (${cel} dias)`);
+    await p.uncheck('[data-sem="artista"][value="6"]'); await p.waitForTimeout(500); await p.uncheck('[data-sem="artista"][value="0"]'); await p.waitForTimeout(500);
     await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.dispA = [{ user_id: d.sessao, dia, situacao: 'disponivel' }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
     await p.reload(); await p.waitForTimeout(700); await pular();
     await sair();

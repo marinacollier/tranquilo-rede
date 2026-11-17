@@ -93,3 +93,16 @@ await como(op, async () => { await q(`update cadastros_casas set dados = dados |
 ok((await q(`select dados->>'palco' p from cadastros_casas where id = $1`, [cid])).rows[0].p === 'pela operacoes', 'Operações edita a Ficha da casa direto');
 await como(eq, async () => { await q(`update cadastros_casas set dados = dados || '{"palco":"pela agenda"}' where id = $1`, [cid]); });
 ok((await q(`select dados->>'palco' p from cadastros_casas where id = $1`, [cid])).rows[0].p === 'pela operacoes', 'Agenda/Marketing não editam a Ficha da casa');
+// v27: dias fixos da semana. O dono da casa e a artista marcam; a equipe lê; ninguém marca pelos outros.
+await q(`update perfis set vinculo_nome = 'Casa Um' where id = $1`, [casa]);
+await como(casa, async () => { await q(`insert into disponibilidade_semanal (casa_ref, dias) values ('Casa Um', '{1,5,5}')`); });
+ok(JSON.stringify((await q(`select dias from disponibilidade_semanal where casa_ref = 'Casa Um'`)).rows[0]?.dias) === '[1,5]', 'dono da casa marca os dias da semana (sem repetir)');
+await como(art, async () => {
+  await q(`insert into disponibilidade_semanal (user_id, dias) values ($1, '{0,6}')`, [art]);
+  ok(!!(await tenta(() => q(`insert into disponibilidade_semanal (casa_ref, dias) values ('Casa Um', '{2}')`))), 'artista não marca pela casa');
+  ok((await q(`select * from disponibilidade_semanal`)).rows.length === 1, 'artista vê só a própria semana');
+});
+await como(art2, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_semanal (user_id, dias) values ($1, '{3}')`, [art]))), 'artista não marca pela outra'); });
+await como(casa2, async () => { ok((await q(`select * from disponibilidade_semanal`)).rows.length === 0, 'outra casa não vê'); });
+await como(eq, async () => { ok((await q(`select * from disponibilidade_semanal`)).rows.length === 2, 'equipe vê a semana de todos'); });
+ok(!!(await tenta(() => q(`insert into disponibilidade_semanal (user_id, dias) values ($1, '{7}')`, [art2]))), 'só dias de 0 a 6');

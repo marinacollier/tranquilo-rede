@@ -2634,3 +2634,47 @@ begin
   end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v27: disponibilidade fixa por dia da semana (pedido da Marina e da Isa, 17/11/2026). Idempotente.
+-- A casa (dono) e a artista marcam os dias da semana em que sempre podem; esses dias contam como disponíveis
+-- no calendário e no cruzamento da Isa. Um dia marcado no calendário (disponível ou indisponível) vale sobre a semana.
+-- Uma linha por casa (casa_ref) ou por artista (user_id). dias: 0 = domingo … 6 = sábado.
+-- =====================================================================
+create table if not exists disponibilidade_semanal (
+  id uuid primary key default gen_random_uuid(),
+  casa_ref text check (casa_ref is null or length(casa_ref) between 1 and 160),
+  user_id uuid references perfis (id) on delete cascade,
+  dias smallint[] not null default '{}' check (dias <@ array[0, 1, 2, 3, 4, 5, 6]::smallint[]),
+  atualizado_por uuid default auth.uid() references perfis (id) on delete set null,
+  atualizado_em timestamptz not null default now(),
+  check ((casa_ref is null) <> (user_id is null))
+);
+create unique index if not exists disp_sem_casa on disponibilidade_semanal (lower(casa_ref)) where casa_ref is not null;
+create unique index if not exists disp_sem_user on disponibilidade_semanal (user_id) where user_id is not null;
+alter table disponibilidade_semanal enable row level security;
+drop policy if exists dsem_ler on disponibilidade_semanal;
+create policy dsem_ler on disponibilidade_semanal for select using (
+  eh_equipe() or user_id = auth.uid() or (casa_ref is not null and lower(casa_ref) = lower(minha_casa_ref())));
+drop policy if exists dsem_gravar on disponibilidade_semanal;
+create policy dsem_gravar on disponibilidade_semanal for insert with check (
+  (casa_ref is not null and sou_dono_da_casa(casa_ref))
+  or (user_id = auth.uid() and exists (select 1 from perfis p where p.id = auth.uid() and p.tipo = 'artista')));
+drop policy if exists dsem_editar on disponibilidade_semanal;
+create policy dsem_editar on disponibilidade_semanal for update
+  using ((casa_ref is not null and sou_dono_da_casa(casa_ref)) or user_id = auth.uid())
+  with check ((casa_ref is not null and sou_dono_da_casa(casa_ref)) or user_id = auth.uid());
+revoke all on disponibilidade_semanal from anon;
+grant select, insert, update on disponibilidade_semanal to authenticated;
+create or replace function disp_semanal_carimbo() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.atualizado_em := now(); new.atualizado_por := auth.uid();
+  if tg_op = 'UPDATE' then new.casa_ref := old.casa_ref; new.user_id := old.user_id; end if;
+  new.dias := array(select distinct x from unnest(new.dias) x order by x);
+  return new;
+end $$;
+drop trigger if exists trg_disp_sem on disponibilidade_semanal;
+create trigger trg_disp_sem before insert or update on disponibilidade_semanal for each row execute function disp_semanal_carimbo();
+drop trigger if exists trg_auditoria on disponibilidade_semanal;
+create trigger trg_auditoria after insert or update or delete on disponibilidade_semanal for each row execute function registrar_auditoria();
