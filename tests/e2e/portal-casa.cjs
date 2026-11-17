@@ -46,7 +46,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#enviar'); await p.waitForTimeout(600);
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#solPedir');
     ok(await p.$eval('#form [data-k="nome"]', (x) => x.disabled) && !(await p.$eval('#form [data-k="luz"]', (x) => x.disabled)), 'ficha enviada: o que foi respondido trava, o que ficou vazio continua aberto (v25)');
-    await p.click('#solPedir'); await p.fill('#form [data-k="luz"]', 'Frontal e contra'); await p.fill('#solMsg', 'Instalamos luz nova'); await p.click('#solEnviar'); await p.waitForTimeout(500);
+    await p.click('#solPedir'); await p.click('#solEnviar'); await p.waitForTimeout(150);
+    ok(/não mudou nenhum campo/.test(await p.textContent('#ferr')) && !((await db()).sol || []).length, 'pedido de atualização sem nenhuma mudança não é enviado');
+    await p.fill('#form [data-k="luz"]', 'Frontal e contra'); await p.click('#solEnviar'); await p.waitForTimeout(150);
+    ok(/pelo menos 10 caracteres/.test(await p.textContent('#ferr')) && await p.$eval('#solMsg', (e) => e.classList.contains('campo-falta')) && !((await db()).sol || []).length, 'pedido sem dizer o que mudou é barrado e o campo fica em vermelho');
+    await p.fill('#solMsg', 'Instalamos luz nova'); await p.click('#solEnviar'); await p.waitForTimeout(500);
+    ok(/✓ Feito: Pedido enviado/.test(await p.textContent('#ferr')), 'pedido enviado termina com "✓ Feito"');
     const d1 = await db(); const sol = (d1.sol || [])[0];
     ok(sol && sol.status === 'pendente' && sol.proposto.luz === 'Frontal e contra' && Object.keys(sol.proposto).length === 1 && d1.casas[d1.sessao].dados.luz !== 'Frontal e contra', 'pedido guarda só o que mudou e a ficha ainda não muda');
     ok(/Pedido de atualização com a Central/.test(await p.innerText('#app')), 'a casa vê o pedido aberto');
