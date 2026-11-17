@@ -7,7 +7,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   const c = await b.newContext({ viewport: { width: 1280, height: 860 } });
   let aceita = false; const recebidos = [];
   // Banco simulado: só o endereço do diário responde; o resto do Supabase fica fora do ar.
-  await c.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = { supabaseUrl: "https://teste-diario.supabase.co", supabaseAnonKey: "chave-de-teste" };' }));
+  await c.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = { supabaseUrl: "https://teste-diario.supabase.co", supabaseAnonKey: "chave-de-teste" };' }));
   await c.route(/teste-diario\.supabase\.co/, (r) => r.abort());   // registrada antes: a regra do diário (abaixo) tem prioridade
   await c.route(/teste-diario\.supabase\.co\/rest\/v1\/diario/, async (r) => {
     if (!aceita) return r.fulfill({ status: 404, body: '{"code":"PGRST205","message":"Could not find the table"}' });

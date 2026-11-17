@@ -5,7 +5,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
 const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acessos.tsv', 'utf8').trim().split('\n').map((l) => l.split('\t'))) COD[t] ||= c;
 async function novo(b, largura = 1280) {
   const ctx = await b.newContext({ viewport: { width: largura, height: 860 } });
-  await ctx.route('**/config.js', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
+  await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
   const p = await ctx.newPage(); p.erros = []; p.on('pageerror', (e) => p.erros.push(e.message)); p.on('dialog', (d) => d.accept()); return p;
 }
 // Lê as abas do menu e confere: tutorial aberto, todas as abas explicadas, número de passos igual ao roteiro.

@@ -194,6 +194,8 @@ const publico = {
 };
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
 for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'campanha.js', 'equipe.js', 'operacao.js', 'contrato.js', 'conta.js', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
+// Versão nos scripts (?v=...): o navegador baixa de novo a cada publicação, em vez de usar o arquivo guardado.
+await writeFile(path.join(DIST, 'index.html'), (await readFile(path.join(DIST, 'index.html'), 'utf8')).replaceAll('__V__', Date.now().toString(36)));
 await writeFile(path.join(DIST, '.nojekyll'), '');
 await writeFile(path.join(DIST, 'robots.txt'), 'User-agent: *\nDisallow: /\n');
 
