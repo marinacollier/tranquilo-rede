@@ -24,7 +24,7 @@ const PROTEGIDOS = ['casa.teste@tranquilo.com.br', 'artista.teste@tranquilo.com.
 if (MODO === 'listar') {
   const pem = Buffer.from(process.env.CHAVE_PUBLICA || '', 'base64').toString('utf8');
   if (!/BEGIN PUBLIC KEY/.test(pem)) { console.error('::error::CHAVE_PUBLICA ausente.'); process.exit(1); }
-  const linhas = await sql(`select p.id, u.email, p.nome, p.tipo, p.vinculo_nome, u.created_at::date criado, u.last_sign_in_at::date ultimo,
+  const linhas = await sql(`select p.id, u.email, p.nome, p.tipo, p.vinculo_nome, u.created_at::date criado, to_char(u.last_sign_in_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultimo, (select count(*) from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours') acoes_6h, (select json_agg(x) from (select to_char(d.criado_em at time zone 'America/Sao_Paulo', 'HH24:MI') h, d.acao, d.tela from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours' order by d.criado_em desc limit 12) x) recentes,
     (select count(*) from inscricoes_artistas where user_id = p.id) insc, (select count(*) from cadastros_casas where user_id = p.id) ficha,
     (select count(*) from contratos where user_id = p.id) contratos, (select count(*) from checklist where user_id = p.id) passos,
     (select count(*) from disponibilidade_artista where user_id = p.id) disp_art,
