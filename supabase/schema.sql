@@ -2381,3 +2381,39 @@ drop trigger if exists trg_datas_portal on datas_portal;
 create trigger trg_datas_portal before insert or update on datas_portal for each row execute function datas_portal_carimbo();
 drop trigger if exists trg_auditoria on datas_portal;
 create trigger trg_auditoria after insert or update or delete on datas_portal for each row execute function registrar_auditoria();
+
+-- =====================================================================
+-- v22: áreas da equipe do Tranquilo (pedido da Marina, 17/11/2026). Idempotente.
+-- operacoes (Gui): habilita casas, edita Fichas, publica guias · agenda (Isa): datas, contratos, curadoria de artistas ·
+-- marketing (Bruno): campanhas e documentos de marketing. Todos veem curadoria, cadastros e agenda das casas, convidam e
+-- sobem treinamentos. Administração vê tudo. Sem área marcada, a conta de equipe continua vendo tudo (como antes).
+-- =====================================================================
+alter table perfis add column if not exists areas text[];
+do $$ begin
+  alter table perfis add constraint perfis_areas_validas check (areas is null or areas <@ array['operacoes', 'agenda', 'marketing']::text[]);
+exception when duplicate_object then null; end $$;
+grant select (areas) on perfis to authenticated;
+alter table convites add column if not exists areas text[];
+do $$ begin
+  alter table convites add constraint convites_areas_validas check (areas is null or areas <@ array['operacoes', 'agenda', 'marketing']::text[]);
+exception when duplicate_object then null; end $$;
+-- Só a administração define as áreas de alguém da equipe.
+create or replace function definir_areas(conta uuid, novas text[]) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not eh_adm() then raise exception 'Só a administração define as áreas da equipe.' using errcode = 'insufficient_privilege'; end if;
+  update perfis set areas = nullif(novas, '{}') where id = conta and tipo in ('equipe', 'adm');
+end $$;
+revoke all on function definir_areas(uuid, text[]) from public, anon;
+grant execute on function definir_areas(uuid, text[]) to authenticated;
+-- Convite aceito leva as áreas para a conta.
+create or replace function convite_areas_na_conta() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.aceito_em is not null and old.aceito_em is null and new.areas is not null then
+    update perfis set areas = new.areas where lower(email) = new.email and tipo in ('equipe', 'adm');
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_convite_areas on convites;
+create trigger trg_convite_areas after update of aceito_em on convites for each row execute function convite_areas_na_conta();

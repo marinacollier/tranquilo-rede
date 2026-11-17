@@ -45,3 +45,10 @@ await como(eq, async () => {
   ok((await q(`select count(*)::int n from contratos where evento_id = $1`, ['p:' + id])).rows[0].n === 1, 'equipe gera contrato ligado à data do portal');
 });
 ok((await q(`select count(*)::int n from auditoria where tabela = 'datas_portal'`)).rows[0].n >= 2, 'criar e mudar data fica no histórico de alterações');
+
+// v22: áreas da equipe
+const adm = await novo('adm2@x.com', 'artista'); await q(`update perfis set tipo = 'adm' where id = $1`, [adm]);
+await como(eq, async () => { ok(!!(await tenta(() => q(`select definir_areas($1, array['agenda'])`, [eq]))), 'equipe não define as próprias áreas'); });
+await como(adm, async () => { await q(`select definir_areas($1, array['agenda','marketing'])`, [eq]); });
+ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq])).rows[0].areas) === '["agenda","marketing"]', 'adm define as áreas da equipe');
+ok(!!(await tenta(() => q(`update perfis set areas = array['financeiro'] where id = $1`, [eq]))), 'só áreas conhecidas');
