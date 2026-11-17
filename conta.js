@@ -1071,6 +1071,9 @@ const TQConta = (() => {
   }
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
+    // Contrato da data: assinado conta como feito; enviado ganha o botão no próprio passo; sem contrato, a vez é da equipe.
+    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado");
+    if (ctData.some((c) => c.status === "assinado")) feitos.contrato = true;
     const fs = funcoesDe();
     const ps = R.passosDaData(modelo, e.d, feitos, hojeIso()).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
@@ -1080,7 +1083,8 @@ const TQConta = (() => {
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${local}
-      ${proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span></div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
+      ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Ler e assinar". Você não precisa fazer nada agora.</div>`
+        : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Ler e assinar →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
       <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b>${p.validar ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
@@ -1468,7 +1472,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}${funcoesDe() ? ` · ${esc(nomesFuncoes(funcoesDe()))}` : ""}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : p.vinculo_pedido_nome ? `${esc(p.vinculo_pedido_nome)} <span class="badge b-warn">aguardando a equipe confirmar</span> <span class="muted" style="font-size:13px">as métricas já aparecem enquanto isso</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
       ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
-      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
+      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-mudar-senha>Mudar a senha</button><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
     },
     // ---------- equipe da casa por função e trilha da nova casa ----------
     equipe_casa() {
@@ -2427,7 +2431,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // ---------- primeiro acesso: senha e tutorial ----------
   function primeiroAcesso() {
     const p = S.conta?.perfil; if (!p) return;
-    if (p.senha_definida === false || api.precisaSenha?.()) return pedirSenha();
+    if (!S.senhaDepois && (p.senha_definida === false || api.precisaSenha?.())) return pedirSenha();
     if (TQTour.aberto()) return;
     if (!p.tutorial_visto_em) abrirTutorial(roteiroConta(), true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
@@ -2445,12 +2449,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       },
     });
   }
-  function pedirSenha() {
-    $("#dlgIn").innerHTML = `<div class="tag">Primeiro acesso</div><h2 style="margin-top:4px">Crie a sua senha</h2>
-    <p class="sub">Você entrou pelo link do e-mail. Escolha uma senha para as próximas vezes.</p>
+  function pedirSenha(trocar) {
+    $("#dlgIn").innerHTML = `<div class="tag">${trocar ? "Conta" : "Primeiro acesso"}</div><h2 style="margin-top:4px">${trocar ? "Mudar a senha" : "Crie a sua senha"}</h2>
+    <p class="sub">${trocar ? "Escolha a senha nova. Ela vale a partir da próxima vez que você entrar." : "Você entrou pelo link do e-mail. Escolha uma senha para as próximas vezes."}</p>
     <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8"></label>
     <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
-    <div class="err" role="status" aria-live="polite" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button></div>`;
+    <div class="err" role="status" aria-live="polite" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button><button class="btn" id="nsdepois">${trocar ? "Cancelar" : "Agora não"}</button></div>${trocar ? "" : '<p class="dica">Dá pra criar depois na aba Conta, em "Mudar a senha".</p>'}`;
     $("#dlg").dataset.alvo = "senha"; $("#dlg").showModal(); setTimeout(() => $("#ns1")?.focus(), 30);
   }
 
@@ -3122,13 +3126,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       navigator.clipboard?.writeText(txt); t.textContent = "✓ Copiada"; return;
     }
     // ---------- primeiro acesso, convites e avisos ----------
+    if (t.closest("[data-mudar-senha]")) { pedirSenha(true); return; }
     if (t.closest("[data-rever-tutorial]")) { abrirTutorial(roteiroConta(), false); return; }
+    if (t.id === "nsdepois") { S.senhaDepois = true; $("#dlg").close(); primeiroAcesso(); return; }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
       if (a.length < 8) { diz(err, "Use pelo menos 8 caracteres."); return; }
       if (a !== b) { diz(err, "As duas senhas não são iguais."); return; }
       diz(err, "Salvando…");
-      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; $("#dlg").close(); primeiroAcesso(); } catch (e) { diz(err, e.message); }
+      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; diz(err, "✓ senha salva."); setTimeout(() => { $("#dlg").close(); primeiroAcesso(); }, 1200); } catch (e) { diz(err, e.message); }
       return;
     }
     if (t.id === "cvOk") {
