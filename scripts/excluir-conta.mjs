@@ -2,14 +2,31 @@
 // A conta é achada pela impressão SHA-256 do e-mail (minúsculo): o e-mail nunca aparece no repositório nem no log.
 // MODO=ensaio mostra o que seria afetado e desfaz; MODO=excluir grava. Não exclui a última conta de administração.
 // MODO=confirmar marca o e-mail como confirmado (conta de teste com e-mail que não recebe mensagem).
+// MODO=promover-adm transforma a conta em administração (a pessoa cria a conta pelo site; o e-mail nunca passa pelo GitHub).
+// MODO=consultar diz se a conta existe, se está confirmada, o tipo e se o e-mail está na lista inicial de administração.
 // Uso (Actions): EMAIL_SHA256=<hash> MODO=ensaio|excluir node scripts/excluir-conta.mjs · precisa do SUPABASE_ACCESS_TOKEN.
 import { readFile } from 'node:fs/promises';
 
 const tok = process.env.SUPABASE_ACCESS_TOKEN, hash = (process.env.EMAIL_SHA256 || '').trim().toLowerCase(), modo = process.env.MODO || 'ensaio';
-if (!tok || !/^[0-9a-f]{64}$/.test(hash) || !['ensaio', 'excluir', 'confirmar'].includes(modo)) { console.error('::error::Falta o token, a impressão do e-mail (64 caracteres) ou o modo.'); process.exit(1); }
+if (!tok || !/^[0-9a-f]{64}$/.test(hash) || !['ensaio', 'excluir', 'confirmar', 'promover-adm', 'consultar'].includes(modo)) { console.error('::error::Falta o token, a impressão do e-mail (64 caracteres) ou o modo.'); process.exit(1); }
 const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 const fim = modo === 'excluir' ? 'commit' : 'rollback';
+const H = `encode(extensions.digest(lower(email), 'sha256'), 'hex') = '${hash}'`;
+if (modo === 'consultar' || modo === 'promover-adm') {
+  const q = modo === 'consultar'
+    ? `select (select count(*) from auth.users where ${H}) contas, (select count(*) from auth.users where ${H} and email_confirmed_at is not null) confirmadas,
+         (select string_agg(p.tipo::text, ',') from perfis p join auth.users u on u.id = p.id where ${H.replace(/email/g, 'u.email')}) tipo,
+         (select count(*) from admins_iniciais where ${H}) na_lista_adm, (select count(*) from convites where ${H}) convites`
+    : `with u as (select id from auth.users where ${H}) update perfis set tipo = 'adm' where id in (select id from u) returning tipo::text`;
+  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+  const t = await r.text();
+  if (!r.ok) { console.error(`::error::Falhou (HTTP ${r.status}): ${t.replace(/[^\s@]+@[^\s@]+/g, '[e-mail]').slice(0, 400)}`); process.exit(1); }
+  const l = JSON.parse(t);
+  if (modo === 'consultar') console.log('CONSULTA:', JSON.stringify(l[0]));
+  else console.log(l.length ? 'PROMOVIDA: a conta agora é de administração.' : 'Nenhuma conta com esse e-mail ainda: crie a conta pelo site e rode de novo.');
+  process.exit(modo === 'promover-adm' && !l.length ? 1 : 0);
+}
 if (modo === 'confirmar') {
   const q = `update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where encode(extensions.digest(lower(email), 'sha256'), 'hex') = '${hash}' returning (select tipo::text from perfis where perfis.id = auth.users.id) tipo`;
   const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });

@@ -9,7 +9,7 @@ on:
         description: SHA-256 do e-mail em minúsculas
         required: true
       modo:
-        description: ensaio, excluir ou confirmar
+        description: consultar, ensaio, excluir, confirmar ou promover-adm
         default: ensaio
 
 jobs:
