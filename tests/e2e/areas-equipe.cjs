@@ -76,6 +76,14 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(['datas_portal', 'documentos', 'campanhas', 'prontidao', 'relatos', 'pessoas', 'historico'].every((k) => ad.includes(k)), 'Administração vê tudo, com Pessoas e Histórico');
     const titulos = await p.$$eval('#tabs .nav-t', (xs) => xs.map((x) => x.textContent));
     ok(['Início', 'Datas', 'Artistas', 'Casas', 'Contratos', 'Marketing', 'Pessoas e acessos'].every((t) => titulos.includes(t)), 'menu da administração separado por assunto: ' + titulos.join(' · '));
+    // Conta: mudar a senha (com Cancelar) e salvar.
+    await ir('conta'); await p.click('[data-mudar-senha]'); await p.waitForTimeout(300);
+    ok(await p.isVisible('#nsdepois') && /Cancelar/.test(await p.textContent('#nsdepois')), 'Conta: Mudar a senha abre com Cancelar');
+    await p.click('#nsdepois'); await p.waitForTimeout(300);
+    ok(!(await p.evaluate(() => document.querySelector('#dlg').open)), 'Cancelar fecha a troca de senha');
+    await p.click('[data-mudar-senha]'); await p.fill('#ns1', 'tranquilo-nova-1'); await p.fill('#ns2', 'tranquilo-nova-1'); await p.click('#nsok'); await p.waitForTimeout(400);
+    { const m = await p.textContent('#nserr'); ok(/✓ Feito: senha salva/.test(m), 'senha nova salva com ✓ Feito ' + m); }
+    await p.waitForTimeout(1300);
     await p.screenshot({ path: (process.argv[2] || '/tmp') + '/menu-adm.png', clip: { x: 0, y: 0, width: 300, height: 1400 } });
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
