@@ -681,29 +681,38 @@ const TQConta = (() => {
   // Documento do Gui de 11/11/2026: Operações (Guia primeiro), Datas, Cronogramas, Marketing (por função) e Bonificações.
   // A Ficha é a porta de entrada: fica por último no menu e abre primeiro enquanto não foi enviada.
   // Por tema (pedido da Marina, 17/11/2026): datas, disponibilidade, contratos, financeiro, operações, marketing e cadastro.
-  const AREAS_CASA = [["datas_casa", "Datas"], ["disponibilidade", "Disponibilidade"], ["contratos", "Contratos"], ["financeiro", "Financeiro"], ["operacoes", "Operações"], ["marketing", "Marketing"], ["ficha", "Cadastro"]];
+  // Menu curto (pedido da Marina, 17/11/2026): só "Sua casa" e "Suas datas"; as partes ficam dentro, na ordem do fluxo.
+  // Sua casa: cadastro → equipe → treinamento e guia → contrato → financeiro. Suas datas: disponibilidade → passo a passo
+  // → cronograma → marketing → público. Artista: "Suas datas" e "Seu cadastro".
+  const AREAS_CASA = [["datas_casa", "Suas datas"], ["ficha", "Sua casa"]];
+  const AREAS_ART = [["art_datas", "Suas datas"], ["art_cad", "Seu cadastro"]];
   const MKT_FUNCOES = [["mkt_produtor", "lider", "Produtor local"], ["mkt_anfitriao", "anfitriao", "Anfitrião"], ["mkt_social", "social_media", "Social media"]];
   function subsDaArea(area) {
-    if (S.conta?.perfil.tipo !== "casa") return [];
+    const tipo = S.conta?.perfil.tipo, pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
+    if (tipo === "artista") {
+      if (area === "art_datas") return [["passos", "Próximos passos"], ["contratos_meus", "Contratos"], ["disp_artista", "Disponibilidade"], ...(S.pac ? PERFIS[S.pac.perfil].abas.filter(([k]) => ["agenda", "pracas"].includes(k)) : [])];
+      if (area === "art_cad") return [["inscricao", "Minha inscrição"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["duvidas", "Dúvidas"]];
+      return [];
+    }
+    if (tipo !== "casa") return [];
     const fs = funcoesDe(), A = fs ? TQEquipe.abasDaFuncao(fs) : null;
-    if (!fs && S.conta.casa?.status === "encerrada") return area === "ficha" ? [["cadastro_casa", "Ficha da unidade"]] : [];
-    const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
-    if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
-    if (area === "operacoes") return [["guia", "Guia do franqueado"], ...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
-      ["materiais", "Materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
-    if (area === "datas_casa") return [["passos", "Passo a passo das datas"], ...(!fs || fs.includes("lider") ? [["cronograma", "Cronogramas"]] : []),
+    if (!fs && S.conta.casa?.status === "encerrada") return area === "ficha" ? [["cadastro_casa", "Cadastro"]] : [];
+    if (area === "ficha") return [
+      ...(fs ? [] : [["cadastro_casa", "Cadastro"]]), ...(!fs || A.equipe ? [["equipe_casa", "Equipe"]] : []),
+      ...(fs ? [["minha_funcao", "Minha função"]] : []), ["guia", "Guia do franqueado"], ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
+      ...(fs ? [] : [["contratos_meus", "Contrato"], ["financeiro_casa", "Financeiro"], ["bonificacao", "Bonificações"]]),
+      ["materiais", "Materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["base", "Base de conhecimento"], ["metodo", "Método"], ["duvidas", "Dúvidas"]];
+    if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", "Passo a passo"],
+      ...(!fs || fs.includes("lider") ? [["cronograma", "Cronogramas"]] : []),
+      ...MKT_FUNCOES.filter(([, f]) => !fs || fs.includes(f)).map(([k, , t]) => [k, t]), ...(!fs || A.campanha ? [["campanha", "Campanhas"]] : []),
       ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
-    if (area === "disponibilidade") return fs ? [] : [["agenda_casa", "Disponibilidade"]];
-    if (area === "contratos") return fs ? [] : [["contratos_meus", "Contratos"]];
-    if (area === "financeiro") return fs ? [] : [["financeiro_casa", "Combinados e repasses"], ["bonificacao", "Bonificações"]];
-    if (area === "marketing") return [...MKT_FUNCOES.filter(([, f]) => !fs || fs.includes(f)).map(([k, , t]) => [k, t]), ...(!fs || A.campanha ? [["campanha", "Campanhas"]] : [])];
     return [];
   }
   /** Área do portal da casa que contém a tela k (ou null). */
   function areaDe(k) {
     if (!k) return null;
     if (comAreas()) { for (const [g] of gruposEquipe()) if (subsDoGrupo(g).some(([x]) => x === k)) return g; return null; }
-    if (S.conta?.perfil.tipo !== "casa") return null; for (const [a] of AREAS_CASA) if (subsDaArea(a).some(([x]) => x === k)) return a; return null;
+    const t = S.conta?.perfil.tipo; if (t !== "casa" && t !== "artista") return null; for (const [a] of (t === "casa" ? AREAS_CASA : AREAS_ART)) if (subsDaArea(a).some(([x]) => x === k)) return a; return null;
   }
   // Equipe com área (Gui, Isa, Bruno): menu simples como o da casa, poucos itens com o trabalho de cada um e as partes dentro.
   const GRUPOS_EQ = {
@@ -713,9 +722,9 @@ const TQConta = (() => {
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["trilhas", "Treinamentos"], ["convites", "Convidar"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"]]],
-    g_materiais: ["Materiais", [["materiais", "Guias e materiais"]]],
+    g_materiais: ["Materiais", [["materiais", "Guias e materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"]]],
   };
-  const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos"], operacoes: ["g_casas", "g_contratos", "g_materiais"], marketing: ["g_campanhas", "g_materiais"] };
+  const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos", "g_materiais"], operacoes: ["g_casas", "g_contratos", "g_materiais"], marketing: ["g_campanhas", "g_materiais"] };
   function gruposEquipe() {
     const gs = ["g_hoje", ...new Set((S.conta?.perfil.areas || []).flatMap((a) => GRUPOS_DA_AREA[a] || []))];
     return gs.map((g) => [g, GRUPOS_EQ[g][0]]);
@@ -734,7 +743,7 @@ const TQConta = (() => {
   function telaArea(area) {
     const subs = subsDaArea(area); if (!subs.length) return "";
     S.sub ||= {}; let k = S.sub[area]; if (!subs.some(([x]) => x === k)) k = subs[0][0]; S.sub[area] = k;
-    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc(AREAS_CASA.find(([a]) => a === area)[1])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${area}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
+    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc([...AREAS_CASA, ...AREAS_ART].find(([a]) => a === area)[1])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${area}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
     return nav + (TELAS[k] || window.TQ_TELAS?.[k])();
   }
   // Funções da conta na equipe da casa; null = dono da casa (ou conta que não é de casa).
@@ -759,10 +768,10 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [["passos", "Próximos passos"], ["contratos_meus", "Contratos"], ["inscricao", "Minha inscrição"], ["disp_artista", "Disponibilidade"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+    if (t === "artista") return [...AREAS_ART, ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
-    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
+    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
     // Equipe com área (Gui, Isa, Bruno): menu enxuto, só o que cada área usa no dia a dia, começando por "Hoje".
     if (comAreas()) {
@@ -773,7 +782,7 @@ const TQConta = (() => {
     }
     const precisa = { datas_portal: ["agenda"], documentos: ["agenda", "operacoes"], campanhas: ["marketing"] }, soAdm = new Set(["prontidao", "relatos"]);
     const visivel = base.filter(([k]) => (!precisa[k] || precisa[k].some(temArea)) && (!soAdm.has(k) || !comAreas()));
-    return [...visivel, ...doPac, ["conta", "Conta"]];
+    return [...visivel, ...doPac.filter(([k]) => !visivel.some(([x]) => x === k)), ["conta", "Conta"]];
   }
   const rotuloQuem = () => `${ROTULO[S.conta.perfil.tipo]} · ${S.conta.perfil.vinculo_nome || S.conta.perfil.nome || S.conta.perfil.email}`;
 
@@ -789,6 +798,8 @@ const TQConta = (() => {
     for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) e.push(`${nome}: confira o endereço (ex.: nome@casa.com.br)`);
     if (d.dono_nascimento && !/^\d{2}\/\d{2}\/\d{4}$/.test(String(d.dono_nascimento).trim())) e.push("Data de nascimento: use dd/mm/aaaa");
     for (const [k, nome] of [["dono_cpf", "CPF"], ["cnpj", "CNPJ"]]) if (d[k]) { const n = String(d[k]).replace(/\D/g, "").length; if (n !== (k === "cnpj" ? 14 : 11)) e.push(`${nome}: confira os ${k === "cnpj" ? 14 : 11} números`); }
+    // Mínimo de caracteres: nunca deixa seguir sem (pedido da Marina, 17/11/2026).
+    for (const [k, nome, min] of [["release", "Release curto", 200]]) { const n = String(d[k] ?? "").trim().length; if (n && n < min) e.push(`${nome}: escreva pelo menos ${min} caracteres (agora tem ${n})`); }
     for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"]]) {
       if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) e.push(`${nome}: só números, sem sinal de menos`);
     }
@@ -1074,8 +1085,8 @@ const TQConta = (() => {
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     // Contrato da data: assinado conta como feito; enviado ganha o botão no próprio passo; sem contrato, a vez é da equipe.
-    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado");
-    if (ctData.some((c) => c.status === "assinado")) feitos.contrato = true;
+    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !arqsContrato(c).length);
+    if (ctData.some((c) => c.status === "assinado" || arqsContrato(c).length)) feitos.contrato = true;
     const fs = funcoesDe();
     const ps = R.passosDaData(modelo, e.d, feitos, hojeIso()).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
@@ -1085,8 +1096,8 @@ const TQConta = (() => {
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${local}
-      ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Ler e assinar". Você não precisa fazer nada agora.</div>`
-        : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Ler e assinar →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
+      ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Abrir o contrato". Você não precisa fazer nada agora.</div>`
+        : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Abrir o contrato →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
       <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b>${p.validar ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
@@ -1096,7 +1107,7 @@ const TQConta = (() => {
     const meus = (S.conta.arqs || {})[e.id] || [];
     const artista = S.conta.perfil.tipo === "artista";
     return `<details style="margin-top:6px"><summary>Contrato e materiais${docs.length + meus.length + digitais.length ? ` (${docs.length + meus.length + digitais.length})` : ""}</summary>
-      <div style="margin-top:10px">${digitais.map((c) => `<div class="row" style="margin-bottom:6px"><span>✍️ ${esc(c.titulo)} · <span class="badge ${TQContrato.situacao(c).classe}">${TQContrato.situacao(c).rotulo}</span></span><button class="btn sm" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Ler e assinar"}</button></div>`).join("")}${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
+      <div style="margin-top:10px">${digitais.map((c) => `<div class="row" style="margin-bottom:6px"><span>✍️ ${esc(c.titulo)} · <span class="badge ${situacaoCt(c).classe}">${situacaoCt(c).rotulo}</span></span><button class="btn sm" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Abrir e assinar"}</button></div>`).join("")}${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
       <b style="font-size:14px">Seus arquivos</b>
       ${meus.length ? `<ul class="passos" style="margin:6px 0">${meus.map((f) => `<li><a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a> <span class="muted" style="font-size:12px">· ${f.em ? dt(f.em.slice(0, 10)) : ""}</span></li>`).join("")}</ul>` : `<p class="muted" style="font-size:13px;margin:4px 0">Nenhum arquivo enviado para esta data.</p>`}
       <label class="fcampo" style="margin-top:8px"><b>Enviar ${artista ? "rider, mapa de palco, fotos ou release" : "rider da casa, fotos do palco ou documentos"}</b><input type="file" data-enviar-arquivo="${esc(e.id)}" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip,.txt,.mp3"></label>
@@ -1106,6 +1117,10 @@ const TQConta = (() => {
   // ---------- contrato automático ----------
   // Equipe: modelos, preparar (campos da equipe preenchidos, o resto fica para a pessoa) e acompanhar.
   function secaoContratos(E, contas, datas, dataTxt, nomeConta) {
+    // Contrato por área (pedido da Marina, 17/11/2026): Isa (Agenda) libera o da artista; Gui (Operações) o da casa.
+    const ehCasaMod = (m) => /^casa|parceria|franque/i.test(m.nome || ""), artOk = temArea("agenda"), casaOk = temArea("operacoes");
+    contas = contas.filter((p) => (p.tipo === "casa" ? casaOk : artOk));
+    if (E.contr !== null && E.modContr !== null) E = { ...E, modContr: (E.modContr || []).filter((m) => (ehCasaMod(m) ? casaOk : artOk)), contr: (E.contr || []).filter((c) => { const p = (E.perfis || []).find((x) => x.id === c.user_id); return !p || (p.tipo === "casa" ? casaOk : artOk); }) };
     if (E.contr === null || E.modContr === null) return `<div class="alert warn" style="margin-bottom:14px"><b>Contrato automático ainda não está ligado no banco</b>Rode o supabase/schema.sql (parte v7) para usar.</div>`;
     const mods = E.modContr || [], prep = S.cPrep, ed = mods.find((m) => m.id === S.cModEd);
     const lista = (E.contr || []).filter((c) => c.status !== "cancelado" || S.cVerCancel);
@@ -1141,15 +1156,15 @@ const TQConta = (() => {
         { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
         { t: "Data", v: (c) => c.evento_id || "", h: (c) => c.evento_id ? esc(dataTxt(c.evento_id)) : "–" },
-        { t: "Situação", v: (c) => c.status + (c.assinado_em || ""), h: (c) => { const si = TQContrato.situacao(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
-        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-ct-ver="${c.id}">${c.status === "assinado" ? "Ver e baixar" : "Ver"}</button>${c.status === "enviado" ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}</div>` },
+        { t: "Situação", v: (c) => c.status + (c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}</div>` },
       ], lista, { i: 3, dir: 1 }, vazio("Nenhum contrato gerado ainda", "Prepare o primeiro contrato acima: ele aparece na área da artista ou da casa para assinar.", "", "documentos"))}`;
   }
   // Artista e casa: contratos pendentes no topo do passo a passo e a tela de leitura e assinatura.
   const meusContratos = () => (S.conta.contr || []).filter((c) => c.status !== "cancelado");
   function avisoContratos() {
-    const pend = meusContratos().filter((c) => c.status === "enviado");
-    return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>Leia, complete os seus dados e assine aqui mesmo, sem imprimir.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Ler e assinar →</button></div></div>`).join("");
+    const pend = meusContratos().filter((c) => c.status === "enviado" && !arqsContrato(c).length);
+    return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
   }
   // Dados que a pessoa já deu em outro contrato (mesma chave de campo), do mais recente para o mais antigo:
   // ela preenche uma vez e só confere nos próximos (pedido da Isa, 17/11/2026).
@@ -1158,26 +1173,34 @@ const TQConta = (() => {
     const r = {}; for (const x of outros) for (const [k, v] of Object.entries(x.dados || {})) if (r[k] == null && String(v ?? "").trim()) r[k] = String(v).trim();
     return r;
   }
+  // Arquivo assinado que a pessoa enviou (pasta contrato_<id> no armazenamento). Pessoa: S.conta.arqs; equipe: S.eq.arqs.
+  const arqsContrato = (c) => S.eq?.arqs ? S.eq.arqs.filter((f) => f.evento_id === "contrato_" + c.id) : ((S.conta?.arqs || {})["contrato_" + c.id] || []);
+  // Situação para a tela: assinado no portal, assinado com arquivo enviado, ou o que falta.
+  function situacaoCt(c) {
+    if (c.status !== "assinado" && arqsContrato(c).length) return { rotulo: "Assinado · arquivo recebido", classe: "b-good" };
+    const si = TQContrato.situacao(c);
+    return si.falta ? si : c.status === "enviado" ? { rotulo: "Aguardando assinatura", classe: "b-warn" } : si;
+  }
+  const textoContrato = (c) => c.status === "assinado" ? c.texto_final : TQContrato.preencher(c.texto, c.campos, Object.fromEntries(c.campos.map((x) => [x.chave, String(c.dados?.[x.chave] ?? "").trim() || "________________"])));
+  // Contrato (pedido da Marina, 17/11/2026): o Tranquilo já manda assinado; a pessoa completa os dados, baixa o PDF,
+  // assina (à mão ou gov.br) e envia o arquivo de volta. O envio marca o passo "contrato" da data sozinho.
   function telaContrato(c) {
-    const si = TQContrato.situacao(c), assinado = c.status === "assinado";
+    const si = TQContrato.situacao(c), assinado = c.status === "assinado", env = arqsContrato(c);
     const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
-    const mostra = assinado ? c.texto_final : TQContrato.preencher(c.texto, c.campos, Object.fromEntries(c.campos.map((x) => [x.chave, String(c.dados?.[x.chave] ?? "").trim() || `[${x.rotulo}: preencha acima]`])));
-    const completo = !si.falta;
-    if (!assinado) setTimeout(ligarLeitura, 0);
+    const completo = !si.falta, n0 = c.campos.length ? 1 : 0;
+    const passo = (n, titulo, corpo, feito) => `<div class="card"><h3 style="margin-top:0">${feito ? "✓ " : `${n}. `}${titulo}</h3>${corpo}</div>`;
     return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
-      ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}. Código de verificação: ${esc(c.hash.slice(0, 12))}…<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar ou imprimir</button></div></div>`
-        : `<p class="sub">São três passos: ${c.campos.length ? "complete os seus dados, " : ""}leia o contrato até o fim e assine digitando o seu nome completo.</p>`}
-      ${!assinado && c.campos.length ? `<div class="card"><h3 style="margin-top:0">1. Seus dados</h3><div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)}</b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
+      ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}.<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
+        : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${esc(env[0].nome.replace(/^\d+-/, ""))}${env[0].em ? ` · ${dt(env[0].em.slice(0, 10))}` : ""}. Está tudo certo: a equipe do Tranquilo já recebeu.</div>`
+        : `<p class="sub">O contrato já vai assinado pelo Tranquilo. ${c.campos.length ? "Complete os seus dados, baixe" : "Baixe"} o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>`}
+      ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
         ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
-        <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><p class="muted" style="font-size:13px;margin:4px 0 0">Os dados entram no texto do contrato logo abaixo.</p></div>` : ""}
-      <div class="card"><h3 style="margin-top:0">${assinado ? "Texto assinado" : `${c.campos.length ? "2" : "1"}. Leia o contrato inteiro`}</h3>
-        <div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(mostra)}</div>
-        ${assinado ? "" : `<p class="muted" id="ctLido" style="font-size:13px;margin:8px 0 0">${!completo ? "Complete e salve os seus dados para liberar a leitura." : c.lido_fim_em ? "✓ Você leu até o fim. Agora dá para assinar." : "Role o texto até o fim para liberar a assinatura."}</p>`}</div>
-      ${assinado ? "" : `<div class="card"><h3 style="margin-top:0">${c.campos.length ? "3" : "2"}. Assinar</h3>
-        <label class="fcampo"><b>Seu nome completo</b><input id="ctNome" autocomplete="name" maxlength="160" value="${esc(S.conta.perfil.nome || "")}"></label>
-        <label class="fcheck"><input type="checkbox" id="ctConcordo"> <span>Li o contrato inteiro e concordo com os termos. Entendo que digitar o meu nome aqui vale como a minha assinatura.</span></label>
-        <div class="barra-acoes"><button class="btn pri" id="ctAssinar"${completo && c.lido_fim_em ? "" : " disabled"}>Assinar contrato</button></div>
-        <p class="muted" style="font-size:12px;margin:6px 0 0">Ficam registrados o texto exato, a data e a hora, o seu IP e o navegador. Você e a equipe têm acesso à mesma cópia, aqui no site.</p></div>`}
+        <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><div class="err" role="status" aria-live="polite" id="ctDadosMsg">${completo ? "✓ Feito: dados salvos." : ""}</div>`, completo) : ""}
+      ${assinado ? "" : passo(n0 + 1, "Baixe o contrato", `<p class="muted" style="font-size:14px;margin:0 0 10px">${completo ? "O PDF já sai com os seus dados e a assinatura do Tranquilo." : "Salve os seus dados primeiro: eles entram no PDF."}</p><div class="barra-acoes"><button class="btn${completo && !env.length ? " pri" : ""}" data-ct-ver="${c.id}"${completo ? "" : " disabled"}>Baixar PDF</button></div>`)}
+      ${assinado ? "" : passo(n0 + 2, "Assine e envie de volta", `<p class="muted" style="font-size:14px;margin:0 0 10px">Assine no campo indicado no PDF (à mão e escaneie ou fotografe, ou pelo gov.br) e envie o arquivo aqui. Aceita PDF ou foto.</p>
+        <label class="fcampo"><b>${env.length ? "Enviar outra versão" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
+        <div class="err" role="status" aria-live="polite" id="arqErr-contrato_${esc(c.id)}">${env.length ? "✓ Feito: contrato assinado recebido." : ""}</div>`, !!env.length)}
+      <div class="card"><h3 style="margin-top:0">Texto do contrato</h3><div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(textoContrato(c))}</div></div>
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
   }
   // Marca "leu até o fim" quando o texto chega ao fim da rolagem (ou cabe inteiro na tela).
@@ -1411,7 +1434,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   const TELAS = {
     ...Object.fromEntries(Object.keys(GRUPOS_EQ).map((g) => [g, () => telaGrupo(g)])),
-    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), disponibilidade: () => telaArea("disponibilidade"), contratos: () => telaArea("contratos"), financeiro: () => telaArea("financeiro"),
+    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), art_datas: () => telaArea("art_datas"), art_cad: () => telaArea("art_cad"),
     passos() {
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
@@ -1641,8 +1664,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const L = meusContratos().sort((a, b) => (a.status === "enviado" ? 0 : 1) - (b.status === "enviado" ? 0 : 1) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
       const casa = S.conta.perfil.tipo === "casa";
       return `<div class="tag">Contratos</div><h1>Seus contratos</h1>
-      <p class="sub">Aqui ficam todos os contratos ${casa ? "da casa com o Tranquilo" : "das suas datas"}: o que falta assinar aparece primeiro. Você lê, completa os dados e assina aqui mesmo, sem imprimir.</p>
-      ${L.length ? `<div class="list">${L.map((c) => { const si = TQContrato.situacao(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${c.status === "enviado" ? " pri" : ""}" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Ler e assinar →"}</button></div>`; }).join("")}</div>`
+      <p class="sub">Aqui ficam todos os contratos ${casa ? "da casa com o Tranquilo" : "das suas datas"}: o que falta assinar aparece primeiro. Você completa os dados, baixa o PDF (já assinado pelo Tranquilo), assina e envia o arquivo de volta.</p>
+      ${L.length ? `<div class="list">${L.map((c) => { const si = situacaoCt(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${c.status === "enviado" ? " pri" : ""}" data-ct-abrir="${c.id}">${c.status === "assinado" || arqsContrato(c).length ? "Ver" : "Abrir e assinar →"}</button></div>`; }).join("")}</div>`
         : vazio("Nenhum contrato por enquanto", casa ? "Quando a equipe do Tranquilo enviar o contrato da parceria, ele aparece aqui para você ler e assinar." : "Quando uma data for confirmada, a equipe do Tranquilo prepara o contrato e ele aparece aqui para você ler e assinar.", "", "contratos_meus")}`;
     },
     // Financeiro da casa: combinados registrados pela Central e situação dos dados de repasse.
@@ -2458,7 +2481,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // ---------- primeiro acesso: senha e tutorial ----------
   function primeiroAcesso() {
     const p = S.conta?.perfil; if (!p) return;
-    if (!S.senhaDepois && (p.senha_definida === false || api.precisaSenha?.())) return pedirSenha();
+    // Criar senha no primeiro acesso: só a equipe do Tranquilo convidada (Gui, Isa, Bruno) ou quem veio pelo link "esqueci a senha".
+    if (!S.senhaDepois && (api.precisaSenha?.() || (p.senha_definida === false && p.tipo === "equipe"))) return pedirSenha();
     if (TQTour.aberto()) return;
     if (!p.tutorial_visto_em) abrirTutorial(roteiroConta(), true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
@@ -2477,7 +2501,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     });
   }
   function pedirSenha(trocar) {
-    $("#dlgIn").innerHTML = `<div class="tag">${trocar ? "Conta" : "Primeiro acesso"}</div><h2 style="margin-top:4px">${trocar ? "Mudar a senha" : "Crie a sua senha"}</h2>
+    $("#dlgIn").innerHTML = `<button class="dlg-x" data-ns-fechar aria-label="Fechar">✕</button><div class="tag">${trocar ? "Conta" : "Primeiro acesso"}</div><h2 style="margin-top:4px">${trocar ? "Mudar a senha" : "Crie a sua senha"}</h2>
     <p class="sub">${trocar ? "Escolha a senha nova. Ela vale a partir da próxima vez que você entrar." : "Você entrou pelo link do e-mail. Escolha uma senha para as próximas vezes."}</p>
     <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8"></label>
     <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
@@ -2517,7 +2541,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) diz(e, m); };
     const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; if (!["contratos", "contratos_meus"].includes(S.aba)) irPara("passos"); render(); scrollTo(0, 0); return true; }
     if (t.closest("[data-ct-voltar]")) { S.contrAberto = null; render(); scrollTo(0, 0); return true; }
-    const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c); return true; }
+    const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c.status === "assinado" ? c : { ...c, texto: textoContrato(c) }); return true; }
     const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
     if (t.id === "mcOk") {
       const nome = $("#mcNome").value.trim(), texto = $("#mcTexto").value.trim(), em = $("#mcErr");
@@ -2530,7 +2554,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (!conta) return erro("Escolha a conta da artista ou da casa."), true;
       if (!modelo) return erro("Escolha um modelo de contrato."), true;
       const m = S.eq.modContr.find((x) => x.id === modelo), p0 = S.eq.perfis.find((x) => x.id === conta), p = { ...p0, vinculo_nome: nomeDaConta(p0) };
-      const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev);
+      const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev) || (S.eq.datasP || []).map(eventoDoPortal).find((x) => x.id === ev);
       const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
       // O que já está no portal: Ficha da casa (ou inscrição da artista) e o que a pessoa preencheu em contratos anteriores.
       const ehCasa = p0?.tipo === "casa", ficha = ehCasa ? (S.eq.casas || []).find((c) => c.user_id === conta || (p0.vinculo_nome && (c.dados?.nome === p0.vinculo_nome || c.perfil?.vinculo_nome === p0.vinculo_nome))) : (S.eq.insc || []).find((i) => i.user_id === conta);
@@ -2984,13 +3008,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "salvarVazios") {
       const casa = S.conta.perfil.tipo === "casa", atual = casa ? S.conta.casa : S.conta.insc, err = $("#ferr");
       const d = { ...(atual?.dados || {}), ...Object.fromEntries(Object.entries(lerForm($("#form"))).filter(([k, v]) => vazioV(atual?.dados?.[k]) && !vazioV(v))) };
-      if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Nada novo para salvar: preencha algum campo vazio."), undefined;
-      const erros = conferirFormato(d); if (erros.length) return diz(err, `Não salvou: ${erros.join("; ")}.`), undefined;
+      if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Você ainda não escreveu nada nos campos em branco. Preencha um deles e toque em \"Salvar o que preenchi\" de novo."), undefined;
+      const erros = conferirFormato(d); if (erros.length) return diz(err, `✕ Não salvou. Corrija: ${erros.join("; ")}.`), undefined;
       diz(err, "Salvando…");
       try {
         if (casa) S.conta.casa = await api.salvarCasa(d, { enviar: false, ja_parceira: atual.ja_parceira, notion_casa_id: atual.notion_casa_id });
         else S.conta.insc = await api.salvarInscricao(d, false);
-        TQDiario.registrar("ficha_vazios", { casa }); render(); diz($("#ferr"), "✓ Salvo. O que você preencheu já está com o Tranquilo.");
+        TQDiario.registrar("ficha_vazios", { casa }); render(); diz($("#ferr"), "✓ Salvo. O que você preencheu já chegou ao Tranquilo.");
       } catch (e) { diz(err, traduz(e.message || "")); }
       return;
     }
@@ -3159,7 +3183,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // ---------- primeiro acesso, convites e avisos ----------
     if (t.closest("[data-mudar-senha]")) { pedirSenha(true); return; }
     if (t.closest("[data-rever-tutorial]")) { abrirTutorial(roteiroConta(), false); return; }
-    if (t.id === "nsdepois") { S.senhaDepois = true; $("#dlg").close(); primeiroAcesso(); return; }
+    if (t.id === "nsdepois" || t.closest?.("[data-ns-fechar]")) { S.senhaDepois = true; $("#dlg").close(); primeiroAcesso(); return; }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
       if (a.length < 8) { diz(err, "Use pelo menos 8 caracteres."); return; }
@@ -3270,7 +3294,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.dataset?.enviarArquivo && t.files?.[0]) {
       const ev = t.dataset.enviarArquivo, msg = $(`#arqErr-${CSS.escape(ev)}`);
       if (msg) diz(msg, "Enviando…");
-      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos(); TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
+      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos();
+        // Contrato assinado enviado: o passo "contrato" da data fica feito sozinho.
+        const ctId = ev.startsWith("contrato_") && ev.slice(9), ct = ctId && meusContratos().find((x) => x.id === ctId);
+        if (ct?.evento_id) { try { await api.marcar(ct.evento_id, "contrato", true); S.conta.chk = await lerChecklist(); } catch { /* o arquivo já foi; o passo aparece feito pelo arquivo */ } } TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
       catch (e) { if (msg) diz(msg, e.message); t.value = ""; }
       return;
     }
