@@ -69,3 +69,21 @@ await como(art2, async () => {
 });
 await como(casa, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2026-12-21', 'disponivel')`))), 'casa não usa a disponibilidade de artista'); });
 await como(art, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2020-01-01', 'disponivel')`))), 'artista não marca dia passado'); });
+// v25: depois de enviada, a casa e a artista preenchem campos vazios; o que já tinha resposta não muda direto.
+await db.exec(`set session_replication_role = replica`);   // só para montar o cenário: casa já habilitada
+await q(`update cadastros_casas set status = 'habilitada', dados = '{"nome":"Casa Um","luz":"sim","cidade_uf":"Recife/PE","endereco":"Rua A, 1","dono_nome":"Dona Um","whatsapp":"81999990000","capacidade_sentado":80}' where id = $1`, [cid]);
+await db.exec(`set session_replication_role = origin`);
+await como(casa, async () => {
+  await q(`update cadastros_casas set dados = dados || '{"som":"mesa 8 canais"}' where id = $1`, [cid]);
+  ok(/Solicitar atualização/.test((await tenta(() => q(`update cadastros_casas set dados = dados || '{"luz":"nao"}' where id = $1`, [cid]))) || ''), 'casa enviada não muda o que já tinha resposta');
+});
+const dCasa = (await q(`select dados, status::text s from cadastros_casas where id = $1`, [cid])).rows[0];
+ok(dCasa.dados.som === 'mesa 8 canais' && dCasa.dados.luz === 'sim' && dCasa.s === 'habilitada', 'casa habilitada preenche campo vazio e continua habilitada');
+await q(`insert into inscricoes_artistas (user_id, dados, status) values ($1, '{"nome_artistico":"Ana","release":""}', 'em_curadoria') on conflict (user_id) do update set dados = excluded.dados, status = excluded.status`, [art]);
+await como(art, async () => {
+  await q(`update inscricoes_artistas set dados = dados || '{"release":"Texto novo de release"}' where user_id = $1`, [art]);
+  ok(!!(await tenta(() => q(`update inscricoes_artistas set dados = dados || '{"nome_artistico":"Outra"}' where user_id = $1`, [art]))), 'artista em curadoria não muda o que já tinha resposta');
+  ok(!!(await tenta(() => q(`update inscricoes_artistas set dados = dados || '{"x":"1"}', status = 'aprovada' where user_id = $1`, [art]))) || (await q(`select status::text s from inscricoes_artistas where user_id = $1`, [art])).rows[0].s === 'em_curadoria', 'preencher vazio não muda o status da inscrição');
+});
+const dArt = (await q(`select dados, status::text s from inscricoes_artistas where user_id = $1`, [art])).rows[0];
+ok(dArt.dados.release === 'Texto novo de release' && dArt.dados.nome_artistico === 'Ana' && dArt.s === 'em_curadoria', 'artista em curadoria preenche campo vazio');

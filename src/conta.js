@@ -58,7 +58,7 @@ const TQConta = (() => {
       async minhaInscricao() { return db.insc[db.sessao] || null; },
       async salvarInscricao(dados, enviar) {
         const atual = db.insc[db.sessao];
-        if (atual && !["rascunho", "ajustes"].includes(atual.status)) throw new Error("Inscrição em análise: aguarde o retorno da curadoria.");
+        if (atual && !["rascunho", "ajustes"].includes(atual.status) && (enviar || atual.status === "encerrada" || !soPreencheVazios(atual.dados, dados))) throw new Error("Inscrição em análise: aguarde o retorno da curadoria. Campos vazios você preenche direto.");
         const pc = R.preCuradoria(dados);
         db.insc[db.sessao] = { ...(atual || { id: id(), user_id: db.sessao, criado_em: agora() }), dados, status: enviar ? "em_curadoria" : (atual?.status || "rascunho"),
           score: pc.score, faixa: pc.faixa, score_detalhe: pc.detalhe, alertas: pc.alertas, enviado_em: enviar ? agora() : atual?.enviado_em || null, atualizado_em: agora() };
@@ -846,8 +846,9 @@ const TQConta = (() => {
   // Edição da Ficha pela administração: liga quando a regra v16 do banco estiver em produção.
   const EDITAR_FICHA_ATIVO = true;  // banco v16 e v17 em produção (conferido em 13/11)
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
+  // travado = "vazios": Ficha já enviada; só os campos ainda vazios ficam abertos (banco v25).
   function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
-    const v = d[k] ?? "", dis = travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
+    const v = d[k] ?? "", dis = travado === "vazios" ? (vazioV(v) ? "" : " disabled") : travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
     const aj = ajuda ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(ajuda)}</div>` : "";
     if (tipo === "check") return `<label class="fcheck"><input type="checkbox" data-k="${k}"${String(v) === "true" ? " checked" : ""}${dis}> <span>${esc(rot)}${req}</span></label>`;
     if (tipo === "multi") {
@@ -864,6 +865,9 @@ const TQConta = (() => {
     else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : /(^|_)email/.test(k) ? "email" : "text"}"${/whatsapp|telefone/.test(k) ? ' inputmode="tel" autocomplete="tel"' : /cpf|cnpj|nascimento|agencia|rep_conta|rep_documento/.test(k) ? ' inputmode="numeric"' : ""} value="${esc(v)}"${tipo === "number" ? ` data-num inputmode="numeric" placeholder="${esc(ph || "ex.: 12.000")}"` : ` maxlength="${k === "release" ? 3000 : 300}"${ph ? ` placeholder="${esc(ph)}"` : ""}`}${dis}>`;
     return `<label class="fcampo"><b>${esc(rot)}${req}</b>${inp}${aj}</label>`;
   }
+  const vazioV = (v) => v == null || v === "" || v === false || v === "false" || (Array.isArray(v) && !v.length);
+  // Mesma regra do banco (so_preenche_vazios): nada que já tinha resposta muda.
+  const soPreencheVazios = (antes, depois) => Object.entries(antes || {}).every(([k, v]) => vazioV(v) || JSON.stringify(depois?.[k]) === JSON.stringify(v));
   const formHtml = (def, d, travado) => def.map(([titulo, cs]) => `<section class="card fsec"><h3>${esc(titulo)}</h3><div class="fgrid">${cs.map((c) => campo(c, d, travado)).join("")}</div></section>`).join("");
   // Ficha da casa: seções com descrição; campo vazio continua visível (vazio).
   const formCasa = (d, travado) => F_CASA.map(([titulo, desc, cs]) => (titulo === "Dúvidas sobre o Guia" && S.conta?.perfil.tipo === "casa" ? equipeNaFicha() : "") + `<section class="card fsec"><h3>${esc(titulo)}</h3>${desc ? `<p class="muted" style="margin:-4px 0 10px;font-size:14px">${esc(desc)}</p>` : ""}<div class="fgrid">${cs.map((c) => campo(c, Object.fromEntries([[c[0], valorCasa(d, c[0])]]), travado)).join("")}</div></section>`).join("");
@@ -1344,11 +1348,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     inscricao() {
       const i = S.conta.insc, d = i?.dados || {}, trav = i && !["rascunho", "ajustes"].includes(i.status);
       return `<div class="tag">Inscrição de artista</div><h1>${trav ? "Sua inscrição" : "Inscreva-se na rede"}</h1>
-      <p class="sub">${trav ? "Sua inscrição está com a equipe. Você pode consultar as respostas, mas só edita de novo se a curadoria pedir ajustes." : "Leva uns 10 minutos. O rascunho fica salvo e você pode voltar depois. Ao enviar, a pré-curadoria é automática e o resultado aparece na hora."}</p>
+      <p class="sub">${trav ? "Sua inscrição está com a equipe. Você pode consultar as respostas e preencher o que ficou vazio; o que já foi respondido só muda se a curadoria pedir ajustes." : "Leva uns 10 minutos. O rascunho fica salvo e você pode voltar depois. Ao enviar, a pré-curadoria é automática e o resultado aparece na hora."}</p>
       ${i?.parecer && i.status === "ajustes" ? `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer)}</div>` : ""}
       <div id="medidor">${medidor(R.preCuradoria(d))}</div>
-      <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav)}</div>
-      ${trav ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar para a curadoria</button></div>`}`;
+      <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav ? (i.status === "encerrada" ? true : "vazios") : false)}</div>
+      ${trav ? (i.status === "encerrada" ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. O que já foi respondido só muda se a curadoria pedir ajustes.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button></div>`) : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar para a curadoria</button></div>`}`;
     },
     cadastro_casa() {
       const c = S.conta.casa, d = c?.dados || {}, parceira = S.casaParceira ?? !!c?.ja_parceira;
@@ -1380,12 +1384,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b>${k === "habilitacao" ? " " + A_VALIDAR_HTML : ""} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
       ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
       ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
-      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, travado || c?.status === "suspensa")}</div>
+      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, ["suspensa", "encerrada"].includes(c?.status) ? true : travado ? "vazios" : false)}</div>
       ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
       ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
         : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou (opcional)</b><textarea id="solMsg" rows="2" maxlength="1000"></textarea></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
-        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<div class="barra-acoes"><button class="btn pri" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
+        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. Para mudar o que já foi respondido, use Solicitar atualização.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button><button class="btn" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
       <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
     },
@@ -2702,6 +2706,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ev.preventDefault(); const email = $("#email").value.trim();
       if (!email) { diz($("#eerr"), "Escreva seu e-mail acima e clique de novo."); return; }
       await api.recuperar(email); diz($("#eerr"), REAL ? "✓ Se existir conta com esse e-mail, o link para trocar a senha chega em até 2 minutos. Olhe também o spam." : "⚠ No modo demonstração não há envio de e-mail.");
+      return;
+    }
+    if (t.id === "salvarVazios") {
+      const casa = S.conta.perfil.tipo === "casa", atual = casa ? S.conta.casa : S.conta.insc, err = $("#ferr");
+      const d = { ...(atual?.dados || {}), ...Object.fromEntries(Object.entries(lerForm($("#form"))).filter(([k, v]) => vazioV(atual?.dados?.[k]) && !vazioV(v))) };
+      if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Nada novo para salvar: preencha algum campo vazio."), undefined;
+      const erros = conferirFormato(d); if (erros.length) return diz(err, `Não salvou: ${erros.join("; ")}.`), undefined;
+      diz(err, "Salvando…");
+      try {
+        if (casa) S.conta.casa = await api.salvarCasa(d, { enviar: false, ja_parceira: atual.ja_parceira, notion_casa_id: atual.notion_casa_id });
+        else S.conta.insc = await api.salvarInscricao(d, false);
+        TQDiario.registrar("ficha_vazios", { casa }); render(); diz($("#ferr"), "✓ Salvo. O que você preencheu já está com o Tranquilo.");
+      } catch (e) { diz(err, traduz(e.message || "")); }
       return;
     }
     if (t.id === "salvar" || t.id === "enviar") {

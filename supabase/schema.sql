@@ -2480,3 +2480,105 @@ drop trigger if exists trg_disp_art on disponibilidade_artista;
 create trigger trg_disp_art before insert or update on disponibilidade_artista for each row execute function disp_artista_carimbo();
 drop trigger if exists trg_auditoria on disponibilidade_artista;
 create trigger trg_auditoria after insert or update or delete on disponibilidade_artista for each row execute function registrar_auditoria();
+
+-- =====================================================================
+-- v25: a casa e a artista preenchem os campos vazios da própria Ficha mesmo depois de enviada (pedido da Marina,
+-- 17/11/2026). O que já estava preenchido continua mudando só por "Solicitar atualização" (casa) ou ajustes da
+-- curadoria (artista). Suspensa e encerrada continuam travadas. Idempotente.
+-- =====================================================================
+create or replace function so_preenche_vazios(antes jsonb, depois jsonb) returns boolean
+language sql immutable set search_path = public as $$
+  select not exists (
+    select 1 from jsonb_each(coalesce(antes, '{}'::jsonb)) a
+    where a.value not in ('null'::jsonb, '""'::jsonb, '[]'::jsonb, '{}'::jsonb, 'false'::jsonb, '"false"'::jsonb)
+      and (coalesce(depois, '{}'::jsonb) -> a.key) is distinct from a.value)
+$$;
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- A equipe não edita os dados da casa; só aplica um pedido aprovado (responder_solicitacao_ficha liga "aplicando").
+    -- A administração edita a Ficha direto (importar a Ficha que a casa mandou por outro canal); a equipe só aplica pedido aprovado.
+    if not eh_adm() and not exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto) then
+      new.dados := old.dados;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status::text in ('em_analise', 'habilitada', 'suspensa', 'encerrada') and new.dados is distinct from old.dados
+       and (old.status::text in ('suspensa', 'encerrada') or not so_preenche_vazios(old.dados, new.dados)) then
+      raise exception 'O que já foi enviado ao Tranquilo muda por "Solicitar atualização". Campos vazios você preenche direto.' using errcode = '42501';
+    end if;
+    if old.status::text in ('habilitada', 'suspensa', 'encerrada') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+create or replace function antes_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  new.atualizado_em := now();
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    new.user_id := old.user_id; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    if eh_adm() and new.dados is distinct from old.dados then
+      -- A administração corrige a inscrição direto; a pré-curadoria é recalculada.
+      r := pre_curadoria(new.dados);
+      new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    else
+      new.dados := old.dados;
+      new.score := old.score; new.faixa := old.faixa; new.score_detalhe := old.score_detalhe; new.alertas := old.alertas;
+    end if;
+    if new.status is distinct from old.status then new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if old.status not in ('rascunho', 'ajustes') then
+      -- v25: depois de enviada, a artista ainda preenche o que ficou vazio; o resto só muda se a curadoria pedir ajustes.
+      if new.dados is distinct from old.dados and old.status::text <> 'encerrada' and so_preenche_vazios(old.dados, new.dados) then
+        new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+        new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+        r := pre_curadoria(new.dados);
+        new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+        new.atualizado_em := now();
+        return new;
+      end if;
+      raise exception 'Inscrição em análise: aguarde o retorno da curadoria. O que já foi enviado só muda se a curadoria pedir ajustes; campos vazios você preenche direto.';
+    end if;
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+  else
+    new.parecer := null; new.nota_interna := null; new.avaliado_por := null; new.avaliado_em := null;
+    new.criado_em := now(); new.enviado_em := null;
+  end if;
+  if new.status not in ('rascunho', 'em_curadoria') then
+    new.status := coalesce(old.status, 'rascunho');
+  end if;
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
+  return new;
+end $$;

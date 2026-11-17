@@ -45,7 +45,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     for (const [k, v] of [['nome', 'Casa Portal'], ['cidade_uf', 'Recife/PE'], ['endereco', 'Rua A, 1'], ['dono_nome', 'Dona Teste'], ['whatsapp', '81 99999-0000'], ['capacidade_sentado', '80']]) await p.fill(`#form [data-k="${k}"]`, v);
     await p.click('#enviar'); await p.waitForTimeout(600);
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#solPedir');
-    ok(await p.$eval('#form [data-k="luz"]', (x) => x.disabled), 'ficha enviada fica só para leitura');
+    ok(await p.$eval('#form [data-k="nome"]', (x) => x.disabled) && !(await p.$eval('#form [data-k="luz"]', (x) => x.disabled)), 'ficha enviada: o que foi respondido trava, o que ficou vazio continua aberto (v25)');
     await p.click('#solPedir'); await p.fill('#form [data-k="luz"]', 'Frontal e contra'); await p.fill('#solMsg', 'Instalamos luz nova'); await p.click('#solEnviar'); await p.waitForTimeout(500);
     const d1 = await db(); const sol = (d1.sol || [])[0];
     ok(sol && sol.status === 'pendente' && sol.proposto.luz === 'Frontal e contra' && Object.keys(sol.proposto).length === 1 && d1.casas[d1.sessao].dados.luz !== 'Frontal e contra', 'pedido guarda só o que mudou e a ficha ainda não muda');

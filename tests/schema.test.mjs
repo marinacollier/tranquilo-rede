@@ -77,8 +77,8 @@ await como(eq, async () => {
 await como(adm, async () => { ok((await q(`select tipo from chaves_internas order by tipo`)).rows.length === 2, 'adm lê as duas chaves'); });
 await como(casa, async () => {
   // v13: ficha enviada não muda em silêncio. A casa pede a atualização; a Central aprova.
-  const e = await tenta(() => q(`update cadastros_casas set dados = dados || '{"backline":"bateria"}', status = 'rascunho' where user_id = $1`, [casa]));
-  ok(/Solicitar atualização/.test(e || ''), 'casa habilitada não muda a ficha direto (pede atualização)');
+  const e = await tenta(() => q(`update cadastros_casas set dados = dados || jsonb_build_object('nome', 'Outro nome'), status = 'rascunho' where user_id = $1`, [casa]));
+  ok(/Solicitar atualização/.test(e || ''), 'casa habilitada não muda o que já respondeu (pede atualização)');
   ok((await q(`select status, classificacao from cadastros_casas`)).rows[0].status === 'habilitada', 'e continua habilitada');
   const e2 = await tenta(() => q(`select solicitar_atualizacao_ficha($1)`, [{ whatsapp: '81' }]));
   ok(/Nada mudou/.test(e2 || ''), 'pedido sem mudança é recusado');
