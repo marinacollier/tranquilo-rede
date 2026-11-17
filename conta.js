@@ -860,8 +860,8 @@ const TQConta = (() => {
   const GRUPOS_EQ = {
     g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
-    g_artistas: ["Curadoria", [["curadoria", "Curadoria"]]],
-    g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["trilhas", "Treinamentos"]]],
+    g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["artistas", "Histórico dos artistas"]]],
+    g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"]]],
     
@@ -873,7 +873,7 @@ const TQConta = (() => {
   }
   function subsDoGrupo(g) {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
-    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => k !== "datas" || pac.includes("datas"));
+    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => !["datas", "casas", "artistas"].includes(k) || pac.includes(k));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
