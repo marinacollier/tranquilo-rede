@@ -36,7 +36,10 @@ jobs:
         env:
           SITE_SECRET: ${{ secrets.SITE_SECRET }}
         run: |
-          node scripts/build.mjs > /dev/null
+          set -o pipefail
+          # Sem o segredo do site, gera com um descartável: os pacotes de métricas não abrem, o resto do portal funciona.
+          if [ -z "$SITE_SECRET" ]; then echo "info  sem SITE_SECRET: pacotes de métricas não abrem neste teste"; export SITE_SECRET="descartavel-$(openssl rand -hex 16)"; fi
+          node scripts/build.mjs | tail -3
           (python3 -m http.server 8080 --directory dist > /dev/null 2>&1 &)
           sleep 2
       - name: Testar
