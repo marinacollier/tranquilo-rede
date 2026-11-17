@@ -4,7 +4,7 @@ const { chromium } = require('playwright');
 const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok = (c, m) => { res.push((c ? 'OK    ' : 'FALHA ') + m); if (!c) process.exitCode = 1; };
 (async () => {
   const b = await chromium.launch(); const erros = [];
-  const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
+  const ctx = await b.newContext({ viewport: { width: 1280, height: 1500 } });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
   await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
@@ -74,6 +74,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 6. Administração vê tudo.
     await entrar('adm'); const ad = await abas();
     ok(['datas_portal', 'documentos', 'campanhas', 'prontidao', 'relatos', 'pessoas', 'historico'].every((k) => ad.includes(k)), 'Administração vê tudo, com Pessoas e Histórico');
+    const titulos = await p.$$eval('#tabs .nav-t', (xs) => xs.map((x) => x.textContent));
+    ok(['Início', 'Datas', 'Artistas', 'Casas', 'Contratos', 'Marketing', 'Pessoas e acessos'].every((t) => titulos.includes(t)), 'menu da administração separado por assunto: ' + titulos.join(' · '));
+    await p.screenshot({ path: (process.argv[2] || '/tmp') + '/menu-adm.png', clip: { x: 0, y: 0, width: 300, height: 1400 } });
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();
