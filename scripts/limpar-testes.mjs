@@ -3,7 +3,7 @@
 //                 (CHAVE_PUBLICA, PEM em base64), porque o log é público. Só quem tem a chave privada lê.
 //   MODO=ensaio   apaga os dados das contas em IDS dentro de uma transação desfeita e mostra só contagens.
 //   MODO=limpar   apaga de verdade os dados das contas em IDS (inscrição, Ficha, contratos, datas, disponibilidade,
-//                 passos, equipe da casa, treinamento, arquivos). As contas (login) ficam, zeradas. Nada vai ao Notion.
+//                 passos, equipe da casa, treinamento). As contas (login) ficam, zeradas. Nada vai ao Notion.
 // IDS: uuids separados por vírgula. Nunca apaga as contas do caso completo (casa.teste / artista.teste).
 import { readFile } from 'node:fs/promises';
 import { publicEncrypt, randomBytes, createCipheriv, constants } from 'node:crypto';
@@ -66,7 +66,6 @@ delete from datas_portal where criado_por in (select id from lim_ids) or casa_id
 delete from solicitacoes_ficha where casa_id in (select id from cadastros_casas where user_id in (select id from lim_ids));
 delete from inscricoes_artistas where user_id in (select id from lim_ids);
 delete from cadastros_casas where user_id in (select id from lim_ids);
-delete from storage.objects where bucket_id = 'materiais' and split_part(name, '/', 1) in (select id::text from lim_ids);
 select (select count(*) from lim_ids) contas, (select count(*) from lim_casas) casas;`;
 const r = await sql(MODO === 'limpar' ? `begin; ${passo} commit;` : `begin; ${passo} rollback;`);
 console.log(`OK    ${MODO === 'limpar' ? 'apagado' : 'ensaio (desfeito)'}: ${JSON.stringify(r.at?.(-1) ?? r)}`);
