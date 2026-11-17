@@ -79,6 +79,8 @@ delete from disponibilidade_semanal where casa_ref = ${lit(CASA)} or user_id in 
 delete from equipe_casa where casa_ref = ${lit(CASA)};
 delete from trilhas where casa_ref = ${lit(CASA)};
 delete from checklist where user_id in (select id from caso_ids);
+delete from inscricoes_artistas where user_id in (select id from caso_ids);
+delete from cadastros_casas where user_id in (select id from caso_ids);
 do $$ declare fk record; begin
   for fk in select c.conrelid::regclass tabela, a.attname coluna, a.attnotnull obrig
             from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
