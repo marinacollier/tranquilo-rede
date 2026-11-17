@@ -185,6 +185,33 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Campanhas fake (Marina, 17/11/2026): 4 campanhas de TESTE em situações diferentes para o Bruno testar.
+  if (MODO === 'campanhas') {
+    const SEM = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+    const dia = (n) => { const d = new Date(Date.now() + n * 864e5); return d.toISOString().slice(0, 10); };
+    const rot = (iso) => `${SEM[new Date(iso + 'T12:00:00Z').getUTCDay()]} ${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+    const ACOES = [
+      [{ canal: 'Instagram', show: 'Descubra', texto: 'Post de anúncio da noite com o flyer (sem revelar o line-up).', links: [] }],
+      [{ canal: 'WhatsApp', show: 'Descubra', texto: 'Mandar o convite no grupo da comunidade e em 15 conversas no privado.', links: [] }],
+      [{ canal: 'Stories', show: 'Descubra', texto: 'Caixinha: "que música você quer ouvir ao vivo?"', links: [] }],
+      [{ canal: 'Instagram', show: 'Descubra', texto: 'Reel de bastidores da casa preparando a noite.', links: [] }],
+      [{ canal: 'Stories', show: 'Descubra', texto: 'Contagem regressiva com o link de ingresso.', links: [] }],
+    ];
+    const casos = [['TESTE · Bar do Farol', 'em dia'], ['TESTE · Quintal Azul', 'atrasada'], ['TESTE · Galpão Maré', 'começando'], ['Casa Aurora (teste)', 'concluída']];
+    await sql(`delete from campanhas where slug like 'teste-%'`);
+    for (const [i, [casa, sit]] of casos.entries()) {
+      const dono = (await sql(`select id from perfis where tipo = 'casa' and vinculo_nome = ${lit(casa)} limit 1`))[0]?.id;
+      if (!dono) { ok(false, `campanha ${casa}: casa sem conta`); continue; }
+      const ini = sit === 'concluída' ? -12 : sit === 'começando' ? -1 : -6;
+      const c = (await sql(`insert into campanhas (slug, titulo, casa_ref) values (${lit(`teste-campanha-${i + 1}`)}, ${lit(`TESTE · Campanha ${casa.replace('TESTE · ', '')}`)}, ${lit(casa)}) returning id`))[0].id;
+      const its = Array.from({ length: 10 }, (_, j) => dia(ini + j));
+      const ids = await sql(`insert into campanha_itens (campanha_id, chave, dia, rotulo, acoes) values ${its.map((d, j) => `(${lit(c)}, ${lit('d' + d.replace(/-/g, ''))}, ${lit(d)}, ${lit(rot(d))}, ${js(ACOES[j % ACOES.length])})`).join(', ')} returning id, dia::text dia`);
+      const hoje = dia(0), passados = ids.filter((x) => x.dia < hoje);
+      const feitos = sit === 'em dia' || sit === 'concluída' ? passados : sit === 'atrasada' ? passados.filter((_, j) => j % 2 === 0) : [];
+      if (feitos.length) await sql(`insert into campanha_feitos (item_id, feito_por, feito_em) values ${feitos.map((x) => `(${lit(x.id)}, ${lit(dono)}, now() - interval '1 day')`).join(', ')}`);
+    }
+    ok(true, 'campanhas de TESTE: Bar do Farol (em dia), Quintal Azul (atrasada), Galpão Maré (começando), Casa Aurora (concluída)');
+  }
   // Casas mais leves para o Gui (Marina, 17/11/2026): uma casa de teste em cada etapa. Fica 1 esperando a análise da
   // Ficha; as outras são habilitadas; 1 habilitada fica sem disponibilidade; 1 recebe o contrato de parceria para assinar.
   if (MODO === 'casas-leve') {
