@@ -585,6 +585,52 @@ body:has(.tour) .consent{display:none}
 .fila .q{font-family:var(--serif);font-weight:900;font-size:28px;color:#fff;min-width:34px}
 .fila .q.zero{color:var(--ink-4)}
 .inicio-pe{color:var(--ink-4);font-size:13px;margin-top:26px}
+/* ---------- revisão geral de UX (11/2026) ---------- */
+/* Caixas de marcar e opções: as regras de campo (largura 100%, flex:1, borda) não valem para elas.
+   Antes a caixinha ocupava metade do rótulo e o texto ia para a direita. */
+.fcampo input[type=checkbox],.fcampo input[type=radio],.filters input[type=checkbox],.filters input[type=radio],.fcheck input,.fcidades input{width:17px;height:17px;min-width:0;flex:none;padding:0;margin:0;border:0;box-shadow:none;background:none}
+.fcheck input{margin-top:2px}
+.fcidades label{justify-content:flex-start;text-align:left;line-height:1.3;min-height:42px;transition:border-color .15s,background .15s}
+.fcidades label:hover{border-color:var(--line-2)}
+.filters:has(>.fcheck){gap:10px 22px}
+.filters>.fcheck{align-items:center}
+/* Formulário ocupa a largura do cartão, com respiro igual entre as seções */
+.fgrid{max-width:none}
+.fsec+.fsec,.card.fsec{margin-top:14px}
+.fsec>h3+p.muted{margin-top:-6px!important}
+/* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
+select:has(option[value=""]:checked){color:var(--ink-4)}
+select option{color:var(--ink)}
+/* Arquivo: o botão nativo vira um botão do portal */
+input[type=file]{font-size:13.5px;color:var(--ink-3);max-width:100%}
+input[type=file]::file-selector-button{font:500 13.5px var(--sans);color:var(--ink);background:var(--raised);border:1px solid var(--line-2);border-radius:999px;padding:7px 14px;margin-right:12px;cursor:pointer}
+input[type=file]::file-selector-button:hover{border-color:var(--ink-4);background:var(--hover)}
+/* Blocos que abrem e fecham (details) dentro de cartões: seta própria em vez do triângulo do navegador */
+.card details>summary,details.card>summary{list-style:none;display:flex;align-items:center;gap:8px}
+.card details>summary::-webkit-details-marker,details.card>summary::-webkit-details-marker{display:none}
+.card details>summary::before,details.card>summary::before{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:2px}
+.card details[open]>summary::before,details.card[open]>summary::before{transform:rotate(45deg)}
+/* Tabelas: um pouco menos de recuo lateral, para as colunas de texto não quebrarem em quatro linhas */
+th,td{padding:12px 14px}
+/* Legenda do calendário: cada cor igual à do dia */
+.cal-legenda .cal-dia{border-radius:999px;padding:3px 10px}
+/* Celular: faixa de números com quantidade ímpar não deixa um quadrado vazio */
+@media (max-width:640px){.stats .kpi:last-child:nth-child(odd){grid-column:1/-1}}
+/* Tabela curta que vira lista no celular (Ficha: seus contatos no Tranquilo) */
+@media (max-width:560px){
+  table.pilha thead{display:none}
+  table.pilha,table.pilha tbody,table.pilha tr,table.pilha td{display:block;width:100%}
+  table.pilha tr{padding:12px 14px;border-bottom:1px solid var(--line)}
+  table.pilha tr:last-child{border-bottom:0}
+  table.pilha td{padding:2px 0;border:0}
+  table.pilha td:first-child{font-weight:600;color:var(--ink)}
+}
+/* Cartões de função da equipe: título e selos na mesma linha, descrição embaixo */
+.func-card .muted{display:block;margin-top:4px}
+.func-card .kv{grid-template-columns:110px 1fr;gap:6px 12px}
+.fcidades{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.fsec>h3+p{margin-bottom:16px!important}
+.fgrid+b{display:block;margin-top:18px}
 </style>
 </head>
 <body>
