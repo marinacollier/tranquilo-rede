@@ -9,7 +9,7 @@ on:
         description: Hash bcrypt da senha das duas contas
         required: false
       modo:
-        description: criar, apagar ou arrumar
+        description: criar, apagar, arrumar ou curadoria
         default: criar
 
 jobs:

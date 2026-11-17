@@ -96,7 +96,7 @@ delete from auth.users where id in (select id from caso_ids);`);
 }
 
 try {
-  if (MODO !== 'arrumar') await apagar();
+  if (MODO === 'criar' || MODO === 'apagar') await apagar();
   if (MODO === 'criar') {
     const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
     const serv = (chaves.find?.((k) => k.name === 'service_role') || chaves.find?.((k) => k.type === 'secret'))?.api_key;
@@ -184,6 +184,33 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     const linhas = [...feitos(id.artista, lista('PASSOS_ARTISTA')), ...feitos(id.casa, lista('PASSOS_CASA'))];
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
+  }
+  // Curadoria para a Isa testar (pedido da Marina, 17/11/2026): 3 inscrições fake esperando a curadoria.
+  if (MODO === 'curadoria') {
+    const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
+    const serv = (chaves.find?.((k) => k.name === 'service_role') || chaves.find?.((k) => k.type === 'secret'))?.api_key;
+    console.log(`::add-mask::${serv}`);
+    const H = { apikey: serv, 'Content-Type': 'application/json', ...(serv.startsWith('eyJ') ? { Authorization: `Bearer ${serv}` } : {}) };
+    const BASE = { estado: 'SP', formato_interesse: 'descubra', tecnico_proprio: 'nao', aceite: 'true', rider_tipo: 'circulavel', aceita_bonus: 'true' };
+    const casos = [
+      ['curadoria.forte', 'Nina Sol (teste)', { ...BASE, nome_artistico: 'Nina Sol (teste)', cidade_base: 'São Paulo', generos: 'MPB, soul. Referências: Liniker, Céu, Xênia França.', release: 'Nina Sol é cantora e compositora paulistana que mistura MPB e soul em canções sobre afeto e cidade. Lançou dois EPs, circula por casas de música autoral de São Paulo e Campinas e tem uma comunidade fiel que acompanha cada show de perto.', foto: 'https://picsum.photos/seed/ninasol/1200/800', spotify: 'https://open.spotify.com/artist/1111111111111111111111', youtube: 'https://www.youtube.com/@ninasol-teste', instagram: '@ninasol.teste', ouvintes_mensais: '42000', seguidores_instagram: '38000', formacao: 'duo', integrantes: '2', cidades_interesse: ['São Paulo', 'Campinas', 'Santos'], equipe_viagem: '2', cache_minimo: '500', whatsapp: '(11) 97777-1111' }],
+      ['curadoria.media', 'Rafa Tom (teste)', { ...BASE, nome_artistico: 'Rafa Tom (teste)', cidade_base: 'Belo Horizonte', estado: 'MG', generos: 'Indie, folk.', release: 'Rafa Tom faz indie folk em português, com violão e voz. Começou tocando em bares de Belo Horizonte e lançou o primeiro single em 2025. Quer circular pela rede para encontrar público novo nas cidades do interior e na capital paulista.', spotify: 'https://open.spotify.com/artist/2222222222222222222222', instagram: '@rafatom.teste', ouvintes_mensais: '3200', seguidores_instagram: '5100', formacao: 'solo', integrantes: '1', cidades_interesse: ['Belo Horizonte'], equipe_viagem: '1', cache_minimo: '400', whatsapp: '(31) 98888-2222' }],
+      ['curadoria.fraca', 'Banda Eco (teste)', { ...BASE, nome_artistico: 'Banda Eco (teste)', cidade_base: 'Recife', estado: 'PE', generos: 'Rock.', release: 'A Banda Eco é um quinteto de rock de Recife com guitarras, bateria completa e metais. Ensaia há dois anos, tem um show autoral de uma hora e meia e quer estrear fora do estado tocando em casas grandes com estrutura completa de palco e luz.', instagram: '@bandaeco.teste', ouvintes_mensais: '150', seguidores_instagram: '900', formacao: 'banda', integrantes: '5', rider_tipo: 'especial', cidades_interesse: ['Recife'], equipe_viagem: '7', cache_minimo: '3000', aceita_bonus: 'false', whatsapp: '(81) 99999-3333' }],
+    ];
+    await sql(`do $$ begin alter table contratos disable trigger trg_contrato_apagar; delete from contratos where user_id in (select id from auth.users where email like 'curadoria.%@teste-e2e.invalid'); alter table contratos enable trigger trg_contrato_apagar; end $$;
+delete from inscricoes_artistas where user_id in (select id from auth.users where email like 'curadoria.%@teste-e2e.invalid');
+delete from auth.users where email like 'curadoria.%@teste-e2e.invalid';`);
+    for (const [user, nome, dados] of casos) {
+      const r = await fetch(`${URL_SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email: `${user}@teste-e2e.invalid`, password: createHash('sha256').update(String(Math.random())).digest('hex'), email_confirm: true, user_metadata: { nome, tipo: 'artista' } }) });
+      const j = await r.json(); if (!r.ok) throw new Error(`criar ${user}: HTTP ${r.status}`);
+      await sql(`update perfis set nome = ${lit(nome)}, tutorial_visto_em = now() where id = ${lit(j.id)};
+insert into inscricoes_artistas (user_id, dados, status) values (${lit(j.id)}, ${js(dados)}, 'em_curadoria');`);
+    }
+    const n = await sql(`select count(*)::int n from inscricoes_artistas where status = 'em_curadoria'`);
+    ok(n[0].n >= 3, `${n[0].n} inscrições esperando a curadoria (3 de teste: forte, média e fraca)`);
+    const isa = await sql(`update perfis set areas = '{agenda}' where tipo = 'equipe' and nome ilike 'Isabella%' and (areas is null or areas = '{}') returning id`);
+    const isa2 = await sql(`select coalesce(array_to_string(areas, ','), '') a from perfis where tipo = 'equipe' and nome ilike 'Isabella%'`);
+    ok(isa2.length === 1, `conta da Isa com área: ${isa2[0]?.a || '(nenhuma)'}${isa.length ? ' (marcada agora)' : ''}`);
   }
   // Nome da conta de administração da Marina (pedido dela, 17/11/2026).
   if (MODO === 'arrumar') { const r = await sql(`update perfis set nome = 'Marina Collier' where tipo = 'adm' and lower(nome) = 'marina teste artista' returning id`); ok(r.length === 1, `nome da administração atualizado (${r.length})`); }
