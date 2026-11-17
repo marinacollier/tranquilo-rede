@@ -185,6 +185,63 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Variedade para Gui e Isa testarem (pedido da Marina, 17/11/2026): 10 casas e 10 artistas de TESTE, fichas completas,
+  // cidades e dias diferentes. Metade das casas espera a habilitação (Gui), metade habilitada; metade dos artistas espera
+  // a curadoria (Isa), metade aprovada com disponibilidade. Recriar apaga a leva anterior (e-mails teste.*@teste-e2e.invalid).
+  if (MODO === 'variedade') {
+    const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
+    const serv = (chaves.find?.((k) => k.name === 'service_role') || chaves.find?.((k) => k.type === 'secret'))?.api_key;
+    console.log(`::add-mask::${serv}`);
+    const H = { apikey: serv, 'Content-Type': 'application/json', ...(serv.startsWith('eyJ') ? { Authorization: `Bearer ${serv}` } : {}) };
+    const dv = (d, w) => { const s = d.reduce((a, x, i) => a + x * w[i], 0) % 11; return s < 2 ? 0 : 11 - s; };
+    const cpf = (n) => { const d = String(100000000 + n * 7919).slice(0, 9).split('').map(Number); d.push(dv(d, [10, 9, 8, 7, 6, 5, 4, 3, 2])); d.push(dv(d, [11, 10, 9, 8, 7, 6, 5, 4, 3, 2])); const t = d.join(''); return `${t.slice(0, 3)}.${t.slice(3, 6)}.${t.slice(6, 9)}-${t.slice(9)}`; };
+    const cnpj = (n) => { const d = (String(10000000 + n * 104729).slice(0, 8) + '0001').split('').map(Number); d.push(dv(d, [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])); d.push(dv(d, [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2])); const t = d.join(''); return `${t.slice(0, 2)}.${t.slice(2, 5)}.${t.slice(5, 8)}/${t.slice(8, 12)}-${t.slice(12)}`; };
+    const CID = [['São Paulo', 'SP', '11'], ['Campinas', 'SP', '19'], ['Santos', 'SP', '13'], ['Belo Horizonte', 'MG', '31'], ['Recife', 'PE', '81'], ['Florianópolis', 'SC', '48'], ['Curitiba', 'PR', '41'], ['Salvador', 'BA', '71'], ['Rio de Janeiro', 'RJ', '21'], ['Porto Alegre', 'RS', '51']];
+    const DIAS = [['quinta', 'sexta', 'sabado'], ['sexta', 'sabado'], ['quarta', 'quinta'], ['sabado', 'domingo'], ['terca', 'quarta', 'quinta'], ['sexta'], ['quinta', 'sabado'], ['domingo'], ['quarta', 'sexta'], ['sabado']];
+    const NUM = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
+    const CASAS = ['Bar do Farol', 'Quintal Azul', 'Sala Jabuticaba', 'Varanda 21', 'Galpão Maré', 'Casa Ipê', 'Porão da Serra', 'Terraço Aurora', 'Armazém 9', 'Lume Bar'];
+    const ARTS = [['Clara Neves', 'MPB, bossa nova', 'solo'], ['Duo Brisa', 'folk, indie', 'duo'], ['Trio Caju', 'samba, choro', 'trio'], ['Léo Vento', 'soul, R&B', 'solo'], ['Mari Ramos', 'pop, MPB', 'solo'], ['Banda Lua Nova', 'rock alternativo', 'banda'], ['Tom Serra', 'violão, instrumental', 'solo'], ['Ana Céu', 'jazz, MPB', 'duo'], ['Juca Mar', 'forró, xote', 'trio'], ['Bia Sol', 'indie pop', 'solo']];
+    await sql(`create temp table if not exists var_ids as select id from auth.users where email like 'teste.%@teste-e2e.invalid';
+do $$ begin alter table contratos disable trigger trg_contrato_apagar; delete from contratos where user_id in (select id from auth.users where email like 'teste.%@teste-e2e.invalid'); alter table contratos enable trigger trg_contrato_apagar; end $$;
+delete from disponibilidade_casa where casa_ref like 'TESTE · %'; delete from disponibilidade_semanal where casa_ref like 'TESTE · %' or user_id in (select id from auth.users where email like 'teste.%@teste-e2e.invalid');
+delete from disponibilidade_artista where user_id in (select id from auth.users where email like 'teste.%@teste-e2e.invalid');
+delete from inscricoes_artistas where user_id in (select id from auth.users where email like 'teste.%@teste-e2e.invalid');
+delete from cadastros_casas where user_id in (select id from auth.users where email like 'teste.%@teste-e2e.invalid');
+delete from auth.users where email like 'teste.%@teste-e2e.invalid';`);
+    const conta = async (user, nome, tipo) => { const r = await fetch(`${URL_SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email: `${user}@teste-e2e.invalid`, password: createHash('sha256').update(String(Math.random())).digest('hex'), email_confirm: true, user_metadata: { nome, tipo } }) }); const j = await r.json(); if (!r.ok) throw new Error(`criar ${user}: HTTP ${r.status}`); await sql(`update perfis set nome = ${lit(nome)}, tutorial_visto_em = now(), senha_definida = true where id = ${lit(j.id)}`); return j.id; };
+    const central = (await sql(`select id from perfis where nome = 'Central (caso de teste)' limit 1`))[0]?.id;
+    const imp = central ? `select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: central, role: 'authenticated' }))}, true), set_config('request.jwt.claim.sub', ${lit(central)}, true);` : '';
+    const proximos = (dias) => { const out = []; for (let i = 1; i <= 42; i++) { const d = new Date(Date.now() + i * 864e5); if (dias.some((x) => NUM[x] === d.getUTCDay())) out.push(d.toISOString().slice(0, 10)); } return out; };
+    let nc = 0, na = 0;
+    for (let i = 0; i < 10; i++) {
+      const [cid, uf, ddd] = CID[i], nome = `TESTE · ${CASAS[i]}`, dias = DIAS[i];
+      const id = await conta(`teste.casa${i + 1}`, `TESTE · Dona ${CASAS[i]}`, 'casa');
+      const d = { ...FICHA, nome, cidade_uf: `${cid}/${uf}`, cnpj: cnpj(i + 1), rep_documento: cnpj(i + 1), rep_pix: cnpj(i + 1), razao_social: `${CASAS[i]} Música Ltda. (TESTE)`, endereco: `Rua de Teste, ${100 + i * 7}, Centro, ${cid}/${uf}`, instagram: `@teste.${CASAS[i].toLowerCase().replace(/[^a-z]/g, '')}`,
+        dono_nome: `TESTE Dona ${CASAS[i]}`, dono_cpf: cpf(i + 1), dono_email: `teste.casa${i + 1}@teste-e2e.invalid`, whatsapp: `(${ddd}) 9${String(8000 + i)}-${String(1000 + i)}`, telefone: `(${ddd}) 3${String(300 + i)}-${String(4000 + i)}`,
+        capacidade_sentado: String(60 + i * 15), capacidade: String(100 + i * 20), dias_semana: dias };
+      const hab = i % 2 === 0;
+      await sql(`insert into cadastros_casas (user_id, dados, status, enviado_em) values (${lit(id)}, ${js(d)}, 'em_analise', now() - interval '${2 + i} days');`);
+      if (hab) await sql(`${imp} update cadastros_casas set status = 'habilitada', parecer = 'Ficha completa (TESTE).', combinados = ${js(COMBINADOS)} where user_id = ${lit(id)};`);
+      await sql(`update perfis set vinculo_nome = ${lit(nome)} where id = ${lit(id)} and vinculo_nome is null;
+insert into disponibilidade_semanal (casa_ref, dias, atualizado_por) values (${lit(nome)}, '{${dias.map((x) => NUM[x]).join(',')}}', ${lit(id)});
+insert into disponibilidade_casa (casa_ref, dia, situacao, atualizado_por) values ${proximos(dias).map((x) => `(${lit(nome)}, ${lit(x)}, 'disponivel', ${lit(id)})`).join(', ')};`);
+      nc++;
+      const [an, gen, form] = ARTS[i], anome = `TESTE · ${an}`, adias = DIAS[(i + 3) % 10];
+      const aid = await conta(`teste.artista${i + 1}`, anome, 'artista');
+      const ins = { ...INSC, nome_artistico: anome, cidade_base: cid, estado: uf, generos: `${gen}.`, formacao: form, integrantes: String(form === 'solo' ? 1 : form === 'duo' ? 2 : form === 'trio' ? 3 : 5),
+        instagram: `@teste.${an.toLowerCase().replace(/[^a-z]/g, '')}`, ouvintes_mensais: String(500 + i * 4800), seguidores_instagram: String(900 + i * 3700), cidades_interesse: [cid, CID[(i + 1) % 10][0]], outras_cidades: '',
+        cache_minimo: String(400 + i * 60), whatsapp: `(${ddd}) 9${String(7000 + i)}-${String(2000 + i)}`, disponibilidade: `Prefere ${adias.join(', ')}.`,
+        release: `${anome} é um projeto de ${gen} criado para testes do portal da Rede Tranquilo. Toca em casas de música autoral de ${cid} e região, com repertório próprio e releituras, e quer circular pela rede para encontrar público novo em outras cidades.` };
+      const apr = i % 2 === 0;
+      await sql(`insert into inscricoes_artistas (user_id, dados, status) values (${lit(aid)}, ${js(ins)}, 'em_curadoria');`);
+      if (apr) await sql(`${imp} update inscricoes_artistas set status = 'aprovada', parecer = 'Aprovada (TESTE).' where user_id = ${lit(aid)};
+update perfis set vinculo_nome = ${lit(anome)} where id = ${lit(aid)};
+insert into disponibilidade_semanal (user_id, dias, atualizado_por) values (${lit(aid)}, '{${adias.map((x) => NUM[x]).join(',')}}', ${lit(aid)});
+insert into disponibilidade_artista (user_id, dia, situacao) values ${proximos(adias).map((x) => `(${lit(aid)}, ${lit(x)}, 'disponivel')`).join(', ')};`);
+      na++;
+    }
+    ok(nc === 10 && na === 10, `${nc} casas e ${na} artistas TESTE criados (5 casas esperando habilitação, 5 habilitadas; 5 artistas esperando curadoria, 5 aprovados com disponibilidade)`);
+  }
   // Curadoria para a Isa testar (pedido da Marina, 17/11/2026): 3 inscrições fake esperando a curadoria.
   if (MODO === 'curadoria') {
     const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
