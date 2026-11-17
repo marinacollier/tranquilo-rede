@@ -2448,3 +2448,35 @@ begin
   return new;
 end $$;
 revoke all on function proteger_perfil() from public, anon, authenticated;
+
+-- =====================================================================
+-- v24: disponibilidade do artista, dia a dia (pedido da Marina, 17/11/2026), igual à da casa. Idempotente.
+-- O artista marca os dias livres; a equipe cruza com a disponibilidade das casas em "Criar datas" (busca por dia e cidade).
+-- =====================================================================
+create table if not exists disponibilidade_artista (
+  user_id uuid not null default auth.uid() references perfis (id) on delete cascade,
+  dia date not null,
+  situacao text not null check (situacao in ('disponivel', 'indisponivel')),
+  nota text check (nota is null or length(nota) <= 200),
+  atualizado_em timestamptz not null default now(),
+  primary key (user_id, dia)
+);
+create index if not exists disp_art_dia on disponibilidade_artista (dia);
+alter table disponibilidade_artista enable row level security;
+drop policy if exists dispa_ler on disponibilidade_artista;
+create policy dispa_ler on disponibilidade_artista for select using (eh_equipe() or user_id = auth.uid());
+drop policy if exists dispa_gravar on disponibilidade_artista;
+create policy dispa_gravar on disponibilidade_artista for insert with check (user_id = auth.uid() and dia >= current_date - 1 and exists (select 1 from perfis p where p.id = auth.uid() and p.tipo = 'artista'));
+drop policy if exists dispa_editar on disponibilidade_artista;
+create policy dispa_editar on disponibilidade_artista for update using (user_id = auth.uid()) with check (user_id = auth.uid() and dia >= current_date - 1);
+drop policy if exists dispa_apagar on disponibilidade_artista;
+create policy dispa_apagar on disponibilidade_artista for delete using (user_id = auth.uid());
+revoke all on disponibilidade_artista from anon;
+grant select, insert, update, delete on disponibilidade_artista to authenticated;
+create or replace function disp_artista_carimbo() returns trigger
+language plpgsql set search_path = public as $$
+begin new.atualizado_em := now(); if tg_op = 'UPDATE' then new.user_id := old.user_id; end if; return new; end $$;
+drop trigger if exists trg_disp_art on disponibilidade_artista;
+create trigger trg_disp_art before insert or update on disponibilidade_artista for each row execute function disp_artista_carimbo();
+drop trigger if exists trg_auditoria on disponibilidade_artista;
+create trigger trg_auditoria after insert or update or delete on disponibilidade_artista for each row execute function registrar_auditoria();

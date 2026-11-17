@@ -60,3 +60,12 @@ await q(`update perfis set tipo = 'equipe' where id = $1`, [eq2]);
 await q(`insert into convites (email, tipo, nome, areas) values ('eq2@x.com', 'equipe', 'Eq Dois', array['operacoes'])`);
 await q(`update convites set aceito_em = now() where email = 'eq2@x.com'`);
 ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq2])).rows[0].areas) === '["operacoes"]', 'convite aceito leva a área para a conta de equipe');
+// v24: disponibilidade do artista
+await como(art, async () => { await q(`insert into disponibilidade_artista (dia, situacao) values ('2026-12-20', 'disponivel')`); });
+await como(eq, async () => { ok((await q(`select user_id from disponibilidade_artista where dia = '2026-12-20'`)).rows.length === 1, 'equipe vê a disponibilidade da artista'); });
+await como(art2, async () => {
+  ok((await q(`select * from disponibilidade_artista`)).rows.length === 0, 'outra artista não vê a disponibilidade de ninguém');
+  ok(!!(await tenta(() => q(`insert into disponibilidade_artista (user_id, dia, situacao) values ($1, '2026-12-21', 'disponivel')`, [art]))), 'artista não marca dia por outra');
+});
+await como(casa, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2026-12-21', 'disponivel')`))), 'casa não usa a disponibilidade de artista'); });
+await como(art, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2020-01-01', 'disponivel')`))), 'artista não marca dia passado'); });
