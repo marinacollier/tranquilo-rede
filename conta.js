@@ -687,11 +687,13 @@ const TQConta = (() => {
   // Menu simples (pedido da Marina, 17/11/2026), na ordem do fluxo: Próximos passos, Cadastro, Equipe, Disponibilidade
   // e Contrato. As partes que sobram ficam dentro de cada um; Bonificações só aparece para casa que tem.
   const AREAS_CASA = [["datas_casa", "Próximos passos"], ["ficha", "Cadastro"], ["equipe_g", "Equipe"], ["disp_g", "Disponibilidade"], ["contr_g", "Contrato"]];
-  const AREAS_ART = [];
+  // Material de divulgação do Bruno (Produtor local, Anfitrião, Social media) é do artista (Marina, 17/11/2026).
+  const AREAS_ART = [["art_mkt", "Divulgação"]];
   // Referência (Materiais, Base, Método): só para o time do Tranquilo; artista e casa veem só Dúvidas (pedido da Marina, 17/11/2026).
   const REFERENCIA = [["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["duvidas", "Dúvidas"]];
   const MKT_FUNCOES = [["mkt_produtor", "lider", "Produtor local"], ["mkt_anfitriao", "anfitriao", "Anfitrião"], ["mkt_social", "social_media", "Social media"]];
   function subsDaArea(area) {
+    if (S.conta?.perfil.tipo === "artista") return area === "art_mkt" ? MKT_FUNCOES.map(([k, , t]) => [k, t]) : [];
     if (S.conta?.perfil.tipo !== "casa") return [];
     const pacAbas = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     const fs = funcoesDe(), A = fs ? TQEquipe.abasDaFuncao(fs) : null;
@@ -701,7 +703,7 @@ const TQConta = (() => {
       ...(!fs || A.campanha ? [["campanha", "Divulgação"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
       ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
     if (area === "ficha") return fs ? [["minha_funcao", "Minha função"], ["guia", "Guia do franqueado"]] : [["cadastro_casa", "Ficha da casa"], ["guia", "Guia do franqueado"]];
-    if (area === "equipe_g") return [...(!fs || A.equipe ? [["equipe_casa", "Quem é quem"]] : []), ...MKT_FUNCOES.filter(([, f]) => !fs || fs.includes(f)).map(([k, , t]) => [k, t])];
+    if (area === "equipe_g") return !fs || A.equipe ? [["equipe_casa", "Quem é quem"]] : [];
     if (area === "disp_g") return fs ? [] : [["agenda_casa", "Disponibilidade"]];
     if (area === "contr_g") return fs ? [] : [["contratos_meus", "Contrato"], ["financeiro_casa", "Combinados e repasses"], ...(temBonif ? [["bonificacao", "Bonificações"]] : [])];
     return [];
@@ -792,7 +794,7 @@ const TQConta = (() => {
   function telaArea(area) {
     const subs = subsDaArea(area); if (!subs.length) return "";
     S.sub ||= {}; let k = S.sub[area]; if (!subs.some(([x]) => x === k)) k = subs[0][0]; S.sub[area] = k;
-    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc(AREAS_CASA.find(([a]) => a === area)[1])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${area}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
+    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc([...AREAS_CASA, ...AREAS_ART].find(([a]) => a === area)[1])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${area}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
     return nav + (TELAS[k] || window.TQ_TELAS?.[k])();
   }
   // Funções da conta na equipe da casa; null = dono da casa (ou conta que não é de casa).
@@ -817,7 +819,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha ficha"], ["disp_artista", "Disponibilidade"], ["contratos_meus", "Contrato"], ...doPac, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
+    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha ficha"], ["disp_artista", "Disponibilidade"], ["contratos_meus", "Contrato"], ["art_mkt", "Divulgação"], ...doPac, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
@@ -1527,7 +1529,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   const TELAS = {
     ...Object.fromEntries(Object.keys(GRUPOS_EQ).map((g) => [g, () => telaGrupo(g)])),
-    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), equipe_g: () => telaArea("equipe_g"), disp_g: () => telaArea("disp_g"), contr_g: () => telaArea("contr_g"),
+    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), art_mkt: () => telaArea("art_mkt"), equipe_g: () => telaArea("equipe_g"), disp_g: () => telaArea("disp_g"), contr_g: () => telaArea("contr_g"),
     passos() {
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);

@@ -673,15 +673,15 @@ th,td{padding:12px 14px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1794942329"></script>
-<script src="diario.js?v=1794942329"></script>
-<script src="regras.js?v=1794942329"></script>
-<script src="tour.js?v=1794942329"></script>
-<script src="campanha.js?v=1794942329"></script>
-<script src="equipe.js?v=1794942329"></script>
-<script src="operacao.js?v=1794942329"></script>
-<script src="contrato.js?v=1794942329"></script>
-<script src="conta.js?v=1794942329"></script>
+<script src="config.js?v=1794942506"></script>
+<script src="diario.js?v=1794942506"></script>
+<script src="regras.js?v=1794942506"></script>
+<script src="tour.js?v=1794942506"></script>
+<script src="campanha.js?v=1794942506"></script>
+<script src="equipe.js?v=1794942506"></script>
+<script src="operacao.js?v=1794942506"></script>
+<script src="contrato.js?v=1794942506"></script>
+<script src="conta.js?v=1794942506"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
@@ -1276,7 +1276,7 @@ function fichaPor(tipo, nome) {
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
   ["Sua casa", ["datas_casa", "ficha", "equipe_g", "disp_g", "contr_g"]],
-  ["Sua área", ["passos", "inscricao", "disp_artista", "contratos_meus"]],
+  ["Sua área", ["passos", "inscricao", "disp_artista", "contratos_meus", "art_mkt"]],
   ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "convites"]],
   ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "trilha", "campanha", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "prontidao", "documentos", "pessoas", "historico"]],
@@ -1304,6 +1304,7 @@ const ICONES = {
   contratos_meus: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
   art_datas: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   art_cad: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
+  art_mkt: ic('<path d="M3 11v2a1 1 0 0 0 1 1h2l5 4V6L6 10H4a1 1 0 0 0-1 1zM16 8a5 5 0 0 1 0 8M19 5a9 9 0 0 1 0 14"/>'),
   equipe_g: ic('<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5M15 15c2.5 0 4.5 1.6 5.5 4.5"/>'),
   disp_g: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
   contr_g: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
