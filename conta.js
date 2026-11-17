@@ -716,7 +716,7 @@ const TQConta = (() => {
   const GRUPOS_EQ = {
     g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
-    g_artistas: ["Artistas", [["curadoria", "Curadoria"]]],
+    g_artistas: ["Curadoria", [["curadoria", "Curadoria"]]],
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"]]],
@@ -1924,7 +1924,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const conflitos = (E.disp || []).filter((x) => x.situacao === "indisponivel" && evs.some((e) => e.d === x.dia && k(e.h) === k(x.casa_ref)));
       return `<div class="tag">Agenda das casas</div><h1>Disponibilidade por casa</h1>
       <p class="sub">O que cada casa informou na área Datas, junto com os eventos já confirmados. Disponível não é reserva: confirme com a casa antes de fechar a data. Só a casa altera a disponibilidade dela.</p>
-      ${casas.length ? `<div class="filters"><select data-ag-casa aria-label="Casa">${casas.map((c) => `<option${c === casa ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+      ${casas.length ? `<div class="filters"><label class="escolha">Ver a casa (toque para trocar)<select data-ag-casa aria-label="Casa">${casas.map((c) => `<option${c === casa ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label></div>
       ${semDe(casa).length ? `<p class="muted" style="font-size:13px">${esc(casa)} recebe toda semana: <b>${esc(semDe(casa).map((n) => NOME_SEM[n]).join(", "))}</b>.</p>` : ""}
       ${calendarioMes(mes, (dia) => { const sit = sitDe(casa, dia), e = evs.filter((x) => x.d === dia && k(x.h) === k(casa));
         return { classe: e.length ? (sit === "indisponivel" ? "conflito" : "cal-ev") : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m).join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: false }; })}

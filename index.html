@@ -604,7 +604,9 @@ select option{color:var(--ink)}
 .dlg-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer;display:grid;place-items:center}.dlg-x:hover{border-color:var(--violet)}
 #dlg{position:fixed}
 /* Caixas de escolha com cara de clicável (pedido da Marina, 17/11/2026): seta sempre visível, mãozinha e borda ao passar. */
-select{cursor:pointer;background-repeat:no-repeat;background-position:right 13px center;background-size:12px 8px}
+select,.filters select,.fcampo select,td select{cursor:pointer;padding-right:38px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%23C9CBE8' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;background-size:12px 8px}
+select:hover:not(:disabled),.filters select:hover:not(:disabled){border-color:var(--violet);background-color:var(--hover,#16171d)}
+.escolha{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--ink-3,#aaa);font-weight:600}
 select:hover:not(:disabled){border-color:var(--violet)}
 select:disabled{cursor:not-allowed;opacity:.6}
 /* Arquivo: o botão nativo vira um botão do portal */
@@ -664,15 +666,15 @@ th,td{padding:12px 14px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1794941248"></script>
-<script src="diario.js?v=1794941248"></script>
-<script src="regras.js?v=1794941248"></script>
-<script src="tour.js?v=1794941248"></script>
-<script src="campanha.js?v=1794941248"></script>
-<script src="equipe.js?v=1794941248"></script>
-<script src="operacao.js?v=1794941248"></script>
-<script src="contrato.js?v=1794941248"></script>
-<script src="conta.js?v=1794941248"></script>
+<script src="config.js?v=1794941567"></script>
+<script src="diario.js?v=1794941567"></script>
+<script src="regras.js?v=1794941567"></script>
+<script src="tour.js?v=1794941567"></script>
+<script src="campanha.js?v=1794941567"></script>
+<script src="equipe.js?v=1794941567"></script>
+<script src="operacao.js?v=1794941567"></script>
+<script src="contrato.js?v=1794941567"></script>
+<script src="conta.js?v=1794941567"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
