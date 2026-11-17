@@ -1178,6 +1178,12 @@ const TQConta = (() => {
         <label class="fcheck"><input type="checkbox" id="ctConcordo"> <span>Li o contrato inteiro e concordo com os termos. Entendo que digitar o meu nome aqui vale como a minha assinatura.</span></label>
         <div class="barra-acoes"><button class="btn pri" id="ctAssinar"${completo && c.lido_fim_em ? "" : " disabled"}>Assinar contrato</button></div>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Ficam registrados o texto exato, a data e a hora, o seu IP e o navegador. Você e a equipe têm acesso à mesma cópia, aqui no site.</p></div>`}
+      ${assinado ? "" : (() => { const env = ((S.conta.arqs || {})["contrato_" + c.id] || [])[0];
+        return `<div class="card"><h3 style="margin-top:0">Prefere assinar fora do portal?</h3><p class="muted" style="font-size:14px;margin:0 0 10px">O contrato já vai assinado pelo Tranquilo. Baixe o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>
+        <div class="barra-acoes"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div>
+        ${env ? `<div class="alert good" style="margin:10px 0 0"><b>Contrato assinado enviado</b>${esc(env.nome.replace(/^\d+-/, ""))}${env.em ? ` · ${dt(env.em.slice(0, 10))}` : ""}. A equipe confere e confirma.</div>` : ""}
+        <label class="fcampo" style="margin-top:10px"><b>${env ? "Enviar outra versão" : "Enviar o contrato assinado (PDF ou foto)"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"></label>
+        <div class="err" role="status" aria-live="polite" id="arqErr-contrato_${esc(c.id)}"></div></div>`; })()}
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
   }
   // Marca "leu até o fim" quando o texto chega ao fim da rolagem (ou cabe inteiro na tela).
@@ -2530,7 +2536,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (!conta) return erro("Escolha a conta da artista ou da casa."), true;
       if (!modelo) return erro("Escolha um modelo de contrato."), true;
       const m = S.eq.modContr.find((x) => x.id === modelo), p0 = S.eq.perfis.find((x) => x.id === conta), p = { ...p0, vinculo_nome: nomeDaConta(p0) };
-      const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev);
+      const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev) || (S.eq.datasP || []).map(eventoDoPortal).find((x) => x.id === ev);
       const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
       // O que já está no portal: Ficha da casa (ou inscrição da artista) e o que a pessoa preencheu em contratos anteriores.
       const ehCasa = p0?.tipo === "casa", ficha = ehCasa ? (S.eq.casas || []).find((c) => c.user_id === conta || (p0.vinculo_nome && (c.dados?.nome === p0.vinculo_nome || c.perfil?.vinculo_nome === p0.vinculo_nome))) : (S.eq.insc || []).find((i) => i.user_id === conta);

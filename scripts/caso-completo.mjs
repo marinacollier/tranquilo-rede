@@ -131,7 +131,7 @@ update perfis set nome = ${lit(ARTISTA)}, whatsapp = '11 96666-5555', senha_defi
     const casaId = ca[0].id;
 
     // Equipe da casa, treinamento e disponibilidade.
-    const eq = [['Helena Duarte Ribeiro', ['lider'], false], ['Caio Mendes', ['anfitriao'], false], ['Bia Lopes', ['social_media'], false], ['Davi Rocha', ['som'], false], ['Nina Alves', ['porta'], false], ['Téo Santos', ['anfitriao', 'porta'], true]];
+    const eq = [['Helena Duarte Ribeiro', ['lider'], false], ['Caio Mendes', ['anfitriao'], false], ['Bia Lopes', ['social_media'], false], ['Davi Rocha', ['som'], false], ['Nina Alves', ['porta'], false], ['Téo Santos', ['anfitriao'], true]];
     await sql(`insert into equipe_casa (casa_ref, nome, whatsapp, funcoes, reserva, criado_por) values ${eq.map(([n, f, r], i) => `(${lit(CASA)}, ${lit(n)}, ${lit(`11 9${String(1000 + i).padStart(4, '0')}-${String(2000 + i)}`)}, ${lit(`{${f.join(',')}}`)}, ${r}, ${lit(id.casa)})`).join(', ')};`);
     const etapas = ['nota', 'resp_espaco', 'docs', 'leitura', 'duvidas_ops', 'proposta', 'data_aprovada', 'ingresse', 'campanha', 'duvidas_mkt', 'tripe', 'equipe_ok', 'porta_ingresse', 'planilhas', 'homologacao', 'conferido'];
     await sql(`insert into trilhas (casa_ref, inicio, nota_passagem, criado_por) values (${lit(CASA)}, '2026-11-03', 'Casa organizada, equipe completa e muita vontade de começar. Atenção ao som do baixo no palco pequeno.', ${lit(id.central)});

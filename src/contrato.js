@@ -6,14 +6,14 @@ const TQContrato = (() => {
   // Campos que a equipe já sabe: preenchidos sozinhos a partir da data e da conta (dá para corrigir antes de enviar).
   const DA_EQUIPE = {
     artista: "Nome artístico", data: "Data do show", cidade: "Cidade", casa: "Casa de shows", horario: "Horário",
-    cache: "Cachê (R$)", evento: "Nome do evento", data_assinatura: "Data da assinatura",
+    cache: "Cachê (R$)", evento: "Nome do evento", formato: "Formato da apresentação", data_assinatura: "Data da assinatura",
   };
   // Nomes que os modelos do Notion usam entre chaves para o que a equipe já sabe ({NOME DO ARTISTA}, {data}…).
   const SINONIMOS = {
     "nome do artista": "artista", "nome artistico": "artista", "artista": "artista",
     "data": "data", "data da edicao": "data", "data do show": "data", "data do evento": "data",
     "cidade": "cidade", "cidade/uf": "cidade", "casa": "casa", "casa de shows": "casa", "local e endereco": "casa",
-    "horario": "horario", "horario de abertura": "horario", "cache": "cache", "valor do cache": "cache",
+    "horario": "horario", "horario de abertura": "horario", "formato": "formato", "formato da apresentacao": "formato", "modelo": "formato", "cache": "cache", "valor do cache": "cache",
     "data de hoje": "data_assinatura", "data de assinatura": "data_assinatura",
   };
   const semAcento = (s) => String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
@@ -54,6 +54,8 @@ const TQContrato = (() => {
       const [y, m, d] = String(evento.d || "").split("-");
       if (y) s.data = `${d}/${m}/${y}`;
       s.cidade = evento.c || ""; s.casa = evento.h || ""; s.evento = evento.t || evento.n || "";
+      const ab = evento.noite?.inicio || (evento.portal?.abertura ? String(evento.portal.abertura).slice(0, 5) : ""); if (ab) s.horario = ab.replace(":00", "h").replace(":", "h");
+      if (evento.m) s.formato = evento.m;
     }
     s.data_assinatura = new Date().toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" });
     return s;
@@ -81,7 +83,8 @@ const TQContrato = (() => {
     const artista = [
       [/nome artistico|nome do artista/, () => d.nome_artistico], [/whatsapp|telefone|celular/, () => d.whatsapp],
       [/e-?mail/, () => extra.email], [/instagram/, () => d.instagram], [/^cidade/, () => [d.cidade_base, d.estado].filter(Boolean).join("/")],
-      [/integrantes|pessoas no palco/, () => d.integrantes],
+      [/integrantes|pessoas no palco|quantidade de pessoas/, () => d.equipe_viagem || d.integrantes],
+      [/redes sociais|perfil principal/, () => d.instagram], [/restri/, () => d.restricoes || "Nenhuma informada"],
     ];
     for (const c of campos) {
       const nome = semAcento(c.rotulo || c.chave);
@@ -107,20 +110,60 @@ const TQContrato = (() => {
   }
 
   /** Página para imprimir ou salvar em PDF: o texto assinado e o registro da assinatura. */
+  /** Contrato para baixar em PDF (pedido da Marina, 17/11/2026): A4 padronizado com a marca do Tranquilo, cláusulas
+   *  formatadas, o Tranquilo já como signatário e o espaço para a outra parte assinar (no papel, gov.br ou no portal). */
   function paginaImpressao(c, escapar) {
+    const br = (iso) => (iso ? new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric", timeZone: "America/Sao_Paulo" }) : "");
     const quando = c.assinado_em ? new Date(c.assinado_em).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }) : "";
-    const texto = c.texto_final || c.texto;
-    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${escapar(c.titulo)}</title>
-<style>body{font:15px/1.6 Georgia,serif;max-width:720px;margin:40px auto;padding:0 20px;color:#111}h1{font-size:20px}pre{white-space:pre-wrap;font:inherit}
-.ass{border-top:2px solid #111;margin-top:32px;padding-top:12px;font:13px/1.5 system-ui,sans-serif}.ass b{display:inline-block;min-width:150px}
-.botao{font:600 14px system-ui;padding:10px 16px;margin:0 0 20px;cursor:pointer}@media print{.botao{display:none}}</style></head><body>
-<button class="botao" onclick="print()">Imprimir ou salvar em PDF</button>
-<h1>${escapar(c.titulo)}</h1><pre>${escapar(texto)}</pre>
-${c.status === "assinado" ? `<div class="ass"><div><b>Assinado por</b> ${escapar(c.assinado_nome)}</div><div><b>Em</b> ${escapar(quando)} (horário de Brasília)</div>
-<div><b>IP</b> ${escapar(c.ip || "não registrado")}</div><div><b>Navegador</b> ${escapar(c.navegador || "não registrado")}</div>
-<div><b>Código de verificação</b> SHA-256 ${escapar(c.hash)}</div>
-<p>Assinatura eletrônica: a pessoa leu o contrato até o fim, confirmou que concorda e digitou o nome completo na área dela da Rede Tranquilo. O código acima é a impressão digital do texto: qualquer mudança no texto muda o código.</p></div>` : `<div class="ass">Ainda não assinado.</div>`}
-</body></html>`;
+    const texto = String(c.texto_final || c.texto || "").replace(/\r/g, "");
+    const titulo = /^(cl[aá]usula|par[aá]grafo|cap[ií]tulo|se[cç][aã]o)\b/i, caixa = /^[A-ZÀ-Ý0-9][A-ZÀ-Ý0-9 ,.ºª°§:;()\/&–—-]{4,}$/;
+    const corpo = texto.split(/\n\s*\n/).map((bloco) => bloco.trim()).filter(Boolean).map((bloco) => {
+      const linhas = bloco.split("\n").map((l) => l.trim()).filter(Boolean);
+      return linhas.map((l) => (titulo.test(l) || (caixa.test(l) && l.length < 90) ? `<h2>${escapar(l)}</h2>` : `<p>${escapar(l)}</p>`)).join("");
+    }).join("");
+    const assinado = c.status === "assinado", emitido = br(c.criado_em) || br(new Date().toISOString());
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapar(c.titulo)}</title>
+<style>
+@page{size:A4;margin:22mm 20mm 24mm}
+*{box-sizing:border-box}
+body{margin:0;background:#f2f1ee;color:#1b1b1d;font:11.5pt/1.62 Georgia,"Times New Roman",serif}
+.folha{background:#fff;max-width:210mm;margin:24px auto;padding:22mm 20mm 20mm;box-shadow:0 2px 18px rgba(0,0,0,.08)}
+.topo{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #1b1b1d;padding-bottom:10px;margin-bottom:22px;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.marca{font:800 26px/1 Georgia,serif;letter-spacing:-.5px}.marca i{color:#6d7ce8;font-style:normal}
+.marca small{display:block;font:600 9px/1.4 system-ui,sans-serif;letter-spacing:3px;color:#666;margin-top:4px}
+.meta{text-align:right;font-size:9pt;color:#555;line-height:1.5}
+h1{font:700 15pt/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0 0 18px;text-wrap:balance}
+h2{font:700 10.5pt/1.4 system-ui,-apple-system,"Segoe UI",sans-serif;letter-spacing:.3px;margin:18px 0 6px;break-after:avoid}
+p{margin:0 0 8px;text-align:justify;hyphens:auto;orphans:3;widows:3}
+.assinaturas{display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:40px;break-inside:avoid;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+.campo-ass{border-top:1.5px solid #1b1b1d;padding-top:8px;font-size:9.5pt;line-height:1.45}
+.campo-ass b{display:block;font-size:10pt}
+.selo{display:inline-block;margin-bottom:6px;padding:5px 9px;border:1.5px solid #2f7d4f;color:#2f7d4f;border-radius:6px;font:700 8.5pt/1.3 system-ui,sans-serif}
+.vazio{height:33px}
+.registro{margin-top:26px;padding:12px 14px;background:#f6f6f4;border-radius:8px;font:9pt/1.5 system-ui,sans-serif;color:#333;break-inside:avoid}
+.registro b{display:inline-block;min-width:140px}
+.rodape{margin-top:28px;padding-top:8px;border-top:1px solid #ddd;font:8.5pt/1.4 system-ui,sans-serif;color:#777;display:flex;justify-content:space-between;gap:12px}
+.acoes{position:sticky;top:0;z-index:2;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding:12px;background:#1b1b1d;font-family:system-ui,sans-serif}
+.acoes button{font:600 14px system-ui;padding:10px 18px;border-radius:999px;border:0;cursor:pointer;background:#fff;color:#1b1b1d}
+.acoes span{color:#ddd;font-size:13px;align-self:center}
+@media (max-width:640px){.folha{padding:18px}.assinaturas{grid-template-columns:1fr}}
+@media print{body{background:#fff}.folha{box-shadow:none;margin:0;padding:0;max-width:none}.acoes{display:none}}
+</style></head><body>
+<div class="acoes"><button onclick="print()">Baixar em PDF</button><span>Na janela que abrir, escolha “Salvar como PDF”.</span></div>
+<main class="folha">
+<header class="topo"><div class="marca">T<i>.</i> Tranquilo<small>REDE TRANQUILO</small></div>
+<div class="meta">Emitido em ${escapar(emitido)}${c.hash ? `<br>Verificação ${escapar(c.hash.slice(0, 12))}` : ""}</div></header>
+<h1>${escapar(c.titulo)}</h1>
+${corpo}
+<section class="assinaturas">
+<div><div class="selo">✓ Assinado pelo Tranquilo</div><div class="campo-ass"><b>TRANQUILO</b>Contratante · emitido e assinado em ${escapar(emitido)}</div></div>
+<div>${assinado ? `<div class="selo">✓ Assinado eletronicamente</div>` : `<div class="vazio"></div>`}<div class="campo-ass"><b>${escapar(assinado ? c.assinado_nome : "Nome completo")}</b>${assinado ? `Contratada(o) · ${escapar(quando)}` : "Contratada(o) · assinatura e data"}</div></div>
+</section>
+${assinado ? `<div class="registro"><div><b>Assinado por</b>${escapar(c.assinado_nome)}</div><div><b>Data e hora</b>${escapar(quando)} (Brasília)</div><div><b>IP</b>${escapar(c.ip || "não registrado")}</div><div><b>Código SHA-256</b>${escapar(c.hash)}</div>
+<div style="margin-top:6px">Assinatura eletrônica na Rede Tranquilo: a pessoa leu o contrato até o fim, confirmou que concorda e digitou o nome completo. O código é a impressão digital do texto: qualquer mudança no texto muda o código.</div></div>`
+  : `<div class="registro">Para assinar: assine no campo acima (à mão ou pelo gov.br), salve em PDF e envie de volta pela Rede Tranquilo, na aba Contratos. Se preferir, assine direto no portal, sem imprimir.</div>`}
+<footer class="rodape"><span>Rede Tranquilo · tranquilomusica.com.br</span><span>${escapar(c.titulo).slice(0, 80)}</span></footer>
+</main></body></html>`;
   }
 
   return { campos, doCadastro, preencher, sugestoes, hash, situacao, paginaImpressao, DA_EQUIPE };
