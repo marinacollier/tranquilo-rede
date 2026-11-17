@@ -21,6 +21,15 @@ async function sql(q) {
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
 const PROTEGIDOS = ['casa.teste@tranquilo.com.br', 'artista.teste@tranquilo.com.br'];
 
+if (MODO === 'acessos') {
+  // Só a função (nunca nome ou e-mail: o log é público), o último acesso e as ações de hoje.
+  const r = await sql(`select p.tipo, coalesce(array_to_string(p.areas, '+'), '') areas, to_char(u.last_sign_in_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultimo,
+    (select count(*) from diario d where d.user_id = p.id and d.criado_em > now() - interval '12 hours') acoes,
+    (select string_agg(distinct d.tela, ', ') from diario d where d.user_id = p.id and d.criado_em > now() - interval '12 hours') telas
+    from perfis p join auth.users u on u.id = p.id where u.email not like '%@teste-e2e.invalid' and u.last_sign_in_at > now() - interval '24 hours' order by u.last_sign_in_at desc`);
+  for (const x of r) console.log(`ACESSO ${x.tipo}${x.areas ? ' (' + x.areas + ')' : ''} · último login ${x.ultimo} · ${x.acoes} ações em 12h · telas: ${String(x.telas || '-').slice(0, 200)}`);
+  process.exit(0);
+}
 if (MODO === 'listar') {
   const pem = Buffer.from(process.env.CHAVE_PUBLICA || '', 'base64').toString('utf8');
   if (!/BEGIN PUBLIC KEY/.test(pem)) { console.error('::error::CHAVE_PUBLICA ausente.'); process.exit(1); }
