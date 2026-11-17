@@ -850,7 +850,15 @@ const TQConta = (() => {
     if (raiz.querySelector("[data-cidade]")) d.cidades_interesse = cs;
     return d;
   }
-  const faltando = (def, d) => def.flatMap((sec) => sec[sec.length > 2 && typeof sec[1] === "string" ? 2 : 1]).filter(([k, , tipo, , obrig]) => obrig && (tipo === "check" ? d[k] !== "true" : tipo === "cidades" ? !(d[k] || []).length : !d[k])).map(([, rot]) => rot);
+  const camposFaltando = (def, d) => def.flatMap((sec) => sec[sec.length > 2 && typeof sec[1] === "string" ? 2 : 1]).filter(([k, , tipo, , obrig]) => obrig && (tipo === "check" ? d[k] !== "true" : tipo === "cidades" ? !(d[k] || []).length : tipo === "number" ? !(+d[k] > 0) : !String(d[k] ?? "").trim()));
+  const faltando = (def, d) => camposFaltando(def, d).map(([, rot]) => rot);
+  // Marca em vermelho os campos obrigatórios vazios e leva a pessoa até o primeiro.
+  function marcarFaltando(raiz, def, d) {
+    raiz.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
+    const els = camposFaltando(def, d).map(([k]) => raiz.querySelector(`[data-k="${k}"]`)).filter(Boolean);
+    els.forEach((el) => { el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); });
+    if (els[0]) { els[0].scrollIntoView({ block: "center" }); els[0].focus({ preventScroll: true }); }
+  }
 
   // ---------- telas: artista ----------
   const STATUS_INSC = { rascunho: ["", "Rascunho"], em_curadoria: ["b-warn", "Com a curadoria"], ajustes: ["b-serious", "Ajustes pedidos"], aprovada: ["b-good", "Aprovada"], reprovada_pre: ["b-crit", "Não seguiu na pré-curadoria"], reprovada: ["b-crit", "Não seguiu na curadoria"], encerrada: ["b-crit", "Participação encerrada"] };
@@ -2401,7 +2409,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       // Na casa, guarda também o que veio de versões anteriores da ficha (nenhum dado preenchido some).
       const enviar = t.id === "enviar", raiz = $("#form"), d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) }, err = $("#ferr");
       const falta = faltando(casa ? F_CASA : F_ARTISTA, d);
-      if (enviar && falta.length && !casa) { diz(err, `Faltam: ${falta.join(", ").replace(/\.+$/, "")}. Os campos com * são obrigatórios.`); return; }
+      // Enviar exige os campos com * (casa e artista). O rascunho salva sem eles, para ninguém perder o que digitou.
+      if (enviar && falta.length) { marcarFaltando(raiz, casa ? F_CASA : F_ARTISTA, d); const rot = casa && R.pendenciasCasa(d).habilitacao.length ? R.pendenciasCasa(d).habilitacao : falta; diz(err, `Não enviado: falta preencher ${rot.join(", ").replace(/\.+$/, "")}. Os campos obrigatórios estão marcados em vermelho. O que você já digitou fica salvo como rascunho.`); return; }
       const erros = enviar ? conferirFormato(d) : [];
       if (erros.length) { diz(err, `Confira antes de enviar: ${erros.join("; ")}.`); return; }
       diz(err, "Salvando…");

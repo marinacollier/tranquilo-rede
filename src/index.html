@@ -389,8 +389,13 @@ td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/ta
 .camp-dia.feito b{text-decoration:none}
 .camp-dia.atrasado{border-color:rgba(238,127,108,.45)}
 .camp-dia.hoje{border-color:var(--violet)}
-.faq details{border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;background:var(--surface)}
-.faq summary{cursor:pointer;font-weight:700;color:var(--ink);font-size:15px;list-style-position:outside}
+.faq{max-width:860px}
+.campo-falta{border-color:var(--red)!important;box-shadow:0 0 0 3px var(--red-soft)!important}
+.faq details{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:8px;background:var(--surface)}
+.faq summary{cursor:pointer;font-weight:700;color:var(--ink);font-size:15px;list-style:none;display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";flex:none;width:22px;height:22px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-weight:400;color:var(--ink-3);line-height:1}
+.faq details[open] summary::after{content:"−"}
 .faq-r{color:var(--ink-2);font-size:15px;line-height:1.55;margin-top:10px}
 .relatar{position:fixed;right:14px;bottom:14px;z-index:35;border:1px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:999px;padding:10px 16px;min-height:44px;font:600 14px/1 var(--sans);cursor:pointer;box-shadow:0 8px 24px rgba(0,0,0,.35)}
 .relatar:hover,.relatar:focus-visible{color:var(--ink);border-color:var(--violet);outline:none}
