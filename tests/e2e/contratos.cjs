@@ -77,6 +77,43 @@ E por estarem de acordo, assinam.`;
     ok(await p.inputValue('[data-ct-dado="cpf"]') === '123.456.789-09' && await p.inputValue('[data-ct-dado="chave_pix"]') === 'ana@pix.com' && /Trouxemos o que você já informou/.test(await p.textContent('#app')), 'segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir');
     await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
     ok(/123\.456\.789-09/.test(await p.textContent('#ctTexto')), 'ao salvar, os dados trazidos entram no texto');
+    // Conferência (banco v28): a artista envia o assinado; a equipe pede de novo com o motivo; a artista reenvia; a equipe confirma.
+    const pdf = { name: 'contrato-assinado.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste') };
+    const ctId = (await p.getAttribute('[data-enviar-arquivo^="contrato_"]', 'data-enviar-arquivo')).slice(9);
+    await p.setInputFiles('[data-enviar-arquivo^="contrato_"]', pdf); await p.waitForSelector('text=Contrato assinado enviado');
+    ok(/vai conferir/.test(await p.textContent('#app')), 'artista envia o assinado e vê que a equipe vai conferir');
+    await sair();
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
+    const linhaCt = () => p.textContent(`tr:has([data-ct-ver="${ctId}"])`);
+    ok(/Assinado · arquivo recebido/.test(await linhaCt()) && await p.$(`[data-ct-devolver="${ctId}"]`), 'equipe vê "arquivo recebido" com "Conferir e confirmar" e "Pedir de novo"');
+    await p.click(`[data-ct-devolver="${ctId}"]`); await p.waitForSelector('#ctMotivo');
+    await p.click(`[data-ct-devolver-ok="${ctId}"]`);
+    ok(/✕ Erro: Escreva o motivo/.test(await p.textContent('#ctConfMsg')), 'pedir de novo sem motivo explica o que falta');
+    await p.fill('#ctMotivo', 'Faltou a assinatura na página 2.'); await p.click(`[data-ct-devolver-ok="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
+    ok(/✓ Feito: Pedido enviado: Ana Contrato/.test(await p.textContent('#ctConfMsg')) && /Arquivo pedido de novo/.test(await linhaCt()) && /Faltou a assinatura na página 2/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'pedido de novo fica na tabela com o motivo e sem o botão de conferir');
+    await sair();
+    await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
+    await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
+    if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
+    ok(/envie o arquivo assinado de novo/.test(await p.textContent('#app')) && /Faltou a assinatura na página 2/.test(await p.textContent('#app')), 'artista vê no passo a passo que precisa enviar de novo, com o motivo');
+    await p.click(`[data-ct-abrir="${ctId}"]`); await p.waitForSelector('#ctDeNovo');
+    ok(/Faltou a assinatura na página 2/.test(await p.textContent('#ctDeNovo')) && !(await p.isDisabled('[data-enviar-arquivo^="contrato_"]')), 'tela do contrato mostra o motivo e libera o envio do arquivo novo');
+    await p.waitForTimeout(20);
+    await p.setInputFiles('[data-enviar-arquivo^="contrato_"]', { ...pdf, name: 'contrato-assinado-v2.pdf' }); await p.waitForSelector('text=Contrato assinado enviado');
+    ok(!(await p.$('#ctDeNovo')), 'arquivo novo enviado: o pedido some da tela da artista');
+    await sair();
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
+    await p.click(`[data-ct-conferir="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
+    ok(/✓ Feito: Contrato conferido e confirmado/.test(await p.textContent('#ctConfMsg')) && /✓ Assinado e conferido/.test(await linhaCt()) && /conferido por/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'equipe confere e confirma: "✓ Assinado e conferido", com quem e quando');
+    ok(dialogos.some((m) => /Depois de conferido, o contrato não muda mais/.test(m)), 'conferir pede confirmação antes');
+    await sair();
+    await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
+    await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
+    if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
+    await p.click('[data-aba="contratos_meus"]'); await p.waitForSelector(`[data-ct-abrir="${ctId}"]`);
+    ok(/✓ Assinado e conferido/.test(await p.textContent('#app')), 'na lista de contratos da artista aparece "✓ Assinado e conferido"');
+    await p.click(`[data-ct-abrir="${ctId}"]`); await p.waitForSelector('#ctTexto');
+    ok(/Contrato assinado e conferido/.test(await p.textContent('#app')) && !(await p.$('[data-enviar-arquivo^="contrato_"]')) && !(await p.$('#ctSalvarDados')), 'artista vê "assinado e conferido", sem envio nem edição dos dados');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); await p.screenshot({ path: process.env.SHOT || '/tmp/contr-falha.png' }).catch(() => {}); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

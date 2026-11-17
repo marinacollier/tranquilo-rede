@@ -33,8 +33,8 @@ ok(d.casa === 'Casa Nova' && d.titulo === 'Campanha teste', 'dados JSON: casa e 
 ok(JSON.stringify(ler(JSON.stringify(camp)).itens.map(({ chave, dia, rotulo, acoes }) => ({ chave, dia, rotulo, acoes }))) === JSON.stringify(camp.itens), 'dados JSON no formato do Hub: lido sem perda');
 
 const erro = (t) => { try { ler(t); return ''; } catch (e) { return e.message; } };
-ok(/Nenhum dia/.test(erro('<html><h1>x</h1></html>')), 'página sem dias é recusada');
-ok(/Nenhum dia/.test(erro('{"acoes": []}')), 'arquivo sem ações é recusado');
+ok(/não tem os dias/.test(erro('<html><h1>x</h1></html>')), 'página sem dias é recusada');
+ok(/não tem os dias/.test(erro('{"acoes": []}')), 'arquivo sem ações é recusado');
 ok(/não abriu/.test(erro('{"acoes": [')), 'JSON quebrado é recusado com mensagem clara');
 
 // O script de linha de comando usa a mesma leitura.
