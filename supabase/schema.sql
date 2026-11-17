@@ -2338,3 +2338,46 @@ update perfis p set vinculo_nome = left(trim(c.dados ->> 'nome'), 160)
   from cadastros_casas c
   where c.user_id = p.id and c.status = 'habilitada' and p.tipo = 'casa' and p.funcoes is null and p.vinculo_nome is null
     and nullif(trim(c.dados ->> 'nome'), '') is not null;
+
+-- =====================================================================
+-- v21: datas criadas no portal pela Central (pedido da Marina para a Isa, 17/11/2026). Idempotente.
+-- A data nasce no portal com casa, formato, abertura e artistas (contas do portal ou só o nome). A casa e as artistas
+-- da data veem na hora; o contrato e a mensagem de cronograma usam a data. O Notion continua só leitura.
+-- =====================================================================
+create table if not exists datas_portal (
+  id uuid primary key default gen_random_uuid(),
+  dia date not null,
+  abertura time not null default '19:00',
+  produto text not null check (produto in ('Apresenta', 'Descubra')),
+  casa_id uuid references cadastros_casas (id) on delete set null,
+  casa_nome text not null check (length(casa_nome) between 2 and 160),
+  cidade text check (cidade is null or length(cidade) <= 120),
+  artistas jsonb not null default '[]' check (jsonb_typeof(artistas) = 'array'),   -- [{nome, user_id, ordem, producao}]
+  status text not null default 'confirmada' check (status in ('confirmada', 'cancelada')),
+  link_ingressos text check (link_ingressos is null or link_ingressos ~ '^https://'),
+  observacao text check (observacao is null or length(observacao) <= 2000),
+  criado_por uuid default auth.uid() references perfis (id) on delete set null,
+  criado_em timestamptz not null default now(),
+  atualizado_em timestamptz not null default now()
+);
+create index if not exists datas_portal_dia on datas_portal (dia);
+alter table datas_portal enable row level security;
+drop policy if exists dp_ler on datas_portal;
+create policy dp_ler on datas_portal for select using (
+  eh_equipe()
+  or exists (select 1 from cadastros_casas c where c.id = casa_id and c.user_id = auth.uid())
+  or exists (select 1 from jsonb_array_elements(artistas) a where a ->> 'user_id' = auth.uid()::text)
+);
+drop policy if exists dp_criar on datas_portal;
+create policy dp_criar on datas_portal for insert with check (eh_equipe());
+drop policy if exists dp_editar on datas_portal;
+create policy dp_editar on datas_portal for update using (eh_equipe()) with check (eh_equipe());
+revoke all on datas_portal from anon;
+grant select, insert, update on datas_portal to authenticated;
+create or replace function datas_portal_carimbo() returns trigger
+language plpgsql set search_path = public as $$
+begin new.atualizado_em := now(); if tg_op = 'UPDATE' then new.criado_por := old.criado_por; new.criado_em := old.criado_em; end if; return new; end $$;
+drop trigger if exists trg_datas_portal on datas_portal;
+create trigger trg_datas_portal before insert or update on datas_portal for each row execute function datas_portal_carimbo();
+drop trigger if exists trg_auditoria on datas_portal;
+create trigger trg_auditoria after insert or update or delete on datas_portal for each row execute function registrar_auditoria();
