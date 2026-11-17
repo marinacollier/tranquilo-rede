@@ -30,14 +30,14 @@ const res = []; const ok = (c, m) => { res.push((c ? 'OK    ' : 'FALHA ') + m); 
 const EMAIL = { casa: 'casa.teste@tranquilo.com.br', artista: 'artista.teste@tranquilo.com.br', central: 'central.caso-teste@teste-e2e.invalid' };
 const CASA = 'Casa Aurora (teste)', ARTISTA = 'Lia Moreno (teste)', DIA = '2026-11-20';
 const FICHA = {
-  nome: CASA, cidade_uf: 'São Paulo/SP', razao_social: 'Aurora Bar e Música Ltda.', cnpj: '12.345.678/0001-90', inscricao: '123.456.789.110',
+  nome: CASA, cidade_uf: 'São Paulo/SP', razao_social: 'Aurora Bar e Música Ltda.', cnpj: '12.345.678/0001-95', inscricao: '123.456.789.110',
   emite_nf: 'sim', endereco: 'Rua das Flores, 120, Vila Madalena, São Paulo/SP, 05435-010', complemento: 'Portão azul, ao lado da padaria',
   instagram: '@casaaurora.teste', site: 'https://casaaurora.example.com', telefone: '11 3333-4444', funcionamento: 'Quarta a domingo, 18h à 1h',
   como_chegar: 'Metrô Fradique Coutinho a 8 minutos a pé. Estacionamento conveniado na esquina (R$ 25). Rua iluminada e movimentada à noite.',
   dono_nome: 'Helena Duarte Ribeiro', dono_cpf: '123.456.789-09', dono_rg: '12.345.678-9', dono_nascimento: '14/03/1986',
-  dono_email: EMAIL.casa, whatsapp: '11 98888-7777', dono_endereco: 'Rua Harmonia, 455, ap. 32, Vila Madalena, São Paulo/SP, 05435-000',
-  rep_titular: 'Aurora Bar e Música Ltda.', rep_documento: '12.345.678/0001-90', rep_banco: 'Banco do Brasil', rep_tipo: 'corrente',
-  rep_agencia: '1234-5', rep_conta: '98765-4', rep_pix: '12.345.678/0001-90',
+  dono_email: EMAIL.casa, whatsapp: '(11) 98888-7777', dono_endereco: 'Rua Harmonia, 455, ap. 32, Vila Madalena, São Paulo/SP, 05435-000',
+  rep_titular: 'Aurora Bar e Música Ltda.', rep_documento: '12.345.678/0001-95', rep_banco: 'Banco do Brasil', rep_tipo: 'corrente',
+  rep_agencia: '1234-5', rep_conta: '98765-4', rep_pix: '12.345.678/0001-95',
   capacidade_sentado: '90', capacidade: '140', conforto: '60 almofadas, 20 tapetes, 30 banquetas e 10 mesas baixas', palco: '4 x 3 m, 40 cm de altura',
   camarim: 'tem', acessibilidade: ['rampa', 'banheiro', 'cadeirante'], acessibilidade_obs: 'Entrada com rampa pela lateral.', menores: 'responsavel',
   rider: 'Rider técnico da casa: PA Yamaha DXR12 (2), sub DXS15 (1), mesa Behringer X32 Compact, 4 retornos, 6 microfones SM58, 2 DI, 6 pedestais.',
@@ -58,7 +58,7 @@ const INSC = {
   formacao: 'trio', integrantes: '3', rider_tipo: 'circulavel', rider_link: 'https://example.com/rider-lia-moreno.pdf', tecnico_proprio: 'nao',
   necessidades: 'Teclado 88 teclas com estante (a artista leva), 2 DI, 3 retornos.', cidades_interesse: ['São Paulo', 'Campinas', 'Santos'],
   outras_cidades: 'Sorocaba', disponibilidade: 'Quintas, sextas e sábados à noite.', equipe_viagem: '3', aceita_bonus: 'true', cache_minimo: '600',
-  contato_producao: 'Rafa Prado (produção) · 11 97777-6666', whatsapp: '11 96666-5555', aceite: 'true', restricoes: 'Uma pessoa vegetariana',
+  contato_producao: 'Rafa Prado (produção) · 11 97777-6666', whatsapp: '(11) 96666-5555', aceite: 'true', restricoes: 'Uma pessoa vegetariana',
 };
 const DADOS_ARTISTA_CONTRATO = { nome_completo: 'Lia Moreno Santos', cpf: '987.654.321-00', rg: '98.765.432-1', nacionalidade: 'brasileira', profissao: 'musicista',
   endereco: 'Rua Girassol, 88, Pinheiros, São Paulo/SP, 05433-001', chave_pix: 'lia.moreno.teste@example.com', email: EMAIL.artista, telefone: '11 96666-5555',
@@ -147,7 +147,7 @@ insert into disponibilidade_semanal (user_id, dias, atualizado_por) values (${li
     ok(true, `equipe da casa (6 pessoas, com reserva), treinamento concluído e ${livres.length} dias livres de casa e artista`);
 
     // A data do show, criada no portal pela Isa (Central).
-    const arts = [{ nome: 'Duo Maré (teste)', user_id: null, ordem: 1, producao: false }, { nome: 'Joca Vidal (teste)', user_id: null, ordem: 2, producao: false }, { nome: ARTISTA, user_id: id.artista, ordem: 3, producao: false }];
+    const arts = [{ nome: 'Duo Maré (teste)', user_id: null, ordem: 1, producao: false, whatsapp: '(11) 95555-1111' }, { nome: 'Joca Vidal (teste)', user_id: null, ordem: 2, producao: false, whatsapp: '(11) 95555-2222' }, { nome: ARTISTA, user_id: id.artista, ordem: 3, producao: false, whatsapp: '(11) 96666-5555' }];
     const dp = await sql(`${imp} insert into datas_portal (dia, abertura, produto, casa_id, casa_nome, cidade, artistas, link_ingressos, observacao, criado_por) values (${lit(DIA)}, '19:00', 'Descubra', ${lit(casaId)}, ${lit(CASA)}, 'São Paulo/SP', ${js(arts)}, 'https://www.ingresse.com/tranquilo-descubra-teste', 'Caso de teste: noite Descubra completa, com três artistas.', ${lit(id.central)}) returning id;`);
     const ev = 'p:' + dp.at(-1).id;
     ok(!!dp.at(-1)?.id, `data criada no portal: Tranquilo Descubra em ${DIA.split('-').reverse().join('/')} na ${CASA}`);
