@@ -208,7 +208,7 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
       const ids = await sql(`insert into campanha_itens (campanha_id, chave, dia, rotulo, acoes) values ${its.map((d, j) => `(${lit(c)}, ${lit('d' + d.replace(/-/g, ''))}, ${lit(d)}, ${lit(rot(d))}, ${js(ACOES[j % ACOES.length])})`).join(', ')} returning id, dia::text dia`);
       const hoje = dia(0), passados = ids.filter((x) => x.dia < hoje);
       const feitos = sit === 'em dia' || sit === 'concluída' ? passados : sit === 'atrasada' ? passados.filter((_, j) => j % 2 === 0) : [];
-      if (feitos.length) await sql(`insert into campanha_feitos (item_id, feito_por, feito_em) values ${feitos.map((x) => `(${lit(x.id)}, ${lit(dono)}, now() - interval '1 day')`).join(', ')}`);
+      if (feitos.length) await sql(`select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: dono, role: 'authenticated' }))}, true), set_config('request.jwt.claim.sub', ${lit(dono)}, true); insert into campanha_feitos (item_id, feito_por, feito_em) values ${feitos.map((x) => `(${lit(x.id)}, ${lit(dono)}, now() - interval '1 day')`).join(', ')}`);
     }
     ok(true, 'campanhas de TESTE: Bar do Farol (em dia), Quintal Azul (atrasada), Galpão Maré (começando), Casa Aurora (concluída)');
   }
