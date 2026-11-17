@@ -1,0 +1,30 @@
+name: Limpar testes
+
+# Só roda à mão. listar: saída cifrada (o log é público). ensaio: desfaz. limpar: apaga os dados das contas em ids.
+on:
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: listar, ensaio ou limpar
+        default: listar
+      chave_publica:
+        description: Chave pública (PEM em base64) para cifrar a listagem
+        required: false
+      ids:
+        description: ids das contas, separados por vírgula
+        required: false
+
+jobs:
+  limpar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/limpar-testes.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          MODO: ${{ inputs.modo }}
+          CHAVE_PUBLICA: ${{ inputs.chave_publica }}
+          IDS: ${{ inputs.ids }}
