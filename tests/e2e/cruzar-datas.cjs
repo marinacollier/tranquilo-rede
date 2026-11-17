@@ -37,6 +37,16 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click(`[data-dispa-dia="${primeiro}"]`); await p.click(`[data-dispa-dia="${primeiro}"]`); await p.waitForTimeout(400);
     dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
     ok(!dA.some((x) => x.dia === primeiro), 'terceiro toque limpa o dia');
+    // Na Ficha (inscrição) o mesmo calendário, com "todos os dias do mês".
+    await ir('inscricao'); await p.waitForSelector('#dispFicha .cal');
+    await p.click('#dispFicha [data-dispa-mes="todos"]'); await p.waitForTimeout(800);
+    const hojeSP = new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10), [aa, mm] = hojeSP.split('-').map(Number), fim = new Date(Date.UTC(aa, mm, 0)).getUTCDate();
+    const esperado = fim - Number(hojeSP.slice(8)) + 1;
+    dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
+    ok(dA.filter((x) => x.situacao === 'disponivel').length === esperado && /✓ Feito: Todos os dias/.test(await p.textContent('#dispaErr')), `Ficha do artista: calendário marca todos os dias que faltam no mês (${esperado})`);
+    await p.click('#dispFicha [data-dispa-mes="limpar"]'); await p.waitForTimeout(800);
+    dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
+    ok(!dA.length, 'limpar o mês tira tudo');
     await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.dispA = [{ user_id: d.sessao, dia, situacao: 'disponivel' }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
     await p.reload(); await p.waitForTimeout(700); await pular();
     await sair();
@@ -49,6 +59,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife/PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);
     ok(await p.inputValue('[data-dp-art="0"]') === 'Ana Cruza' && await p.inputValue('#dpDia') === dia, 'tocar no artista coloca no line-up sem perder a casa');
+    ok(/Livres em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/✓ Feito: Data criada/.test(await p.textContent('#dpErr')), 'a data criada pela busca salva');
     ok(!/Casa Cruza/.test(await p.textContent('#dpBusca')), 'depois de criada, casa e artista saem dos livres desse dia');

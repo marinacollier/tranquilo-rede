@@ -24,7 +24,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(200);
     ok(/^✕ Erro: Não salvou: falta o dia, a casa, pelo menos um artista/.test(await p.textContent('#dpErr')), 'sem dia, casa e artista não salva e diz o que falta');
     const dia = new Date(Date.now() + 10 * 864e5).toISOString().slice(0, 10);
-    await p.fill('#dpDia', dia); await p.fill('#dpAbre', '20:00'); await p.selectOption('#dpProd', 'Descubra');
+    await p.fill('#dpDia', dia); await p.dispatchEvent('#dpDia', 'change'); await p.waitForTimeout(400);
+    ok(/Nenhuma casa livre neste dia/.test(await p.textContent('#dpCasa')), 'sem disponibilidade marcada, a Nova data não oferece casa nenhuma');
+    // Casa e artistas confirmaram por fora (sem conta no portal): Exceção libera todos.
+    await p.check('[data-dp-exc]'); await p.waitForTimeout(400);
+    ok(await p.inputValue('#dpDia') === dia, 'ligar a exceção não perde o dia');
+    await p.fill('#dpAbre', '20:00'); await p.selectOption('#dpProd', 'Descubra');
     await p.selectOption('#dpCasa', { label: 'Casa Agenda · Recife/PE' });
     await p.fill('[data-dp-art="0"]', 'Ana Teste'); await p.fill('[data-dp-art="1"]', 'Banda Dois'); await p.check('[data-dp-prod="1"]');
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
