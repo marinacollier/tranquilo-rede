@@ -1467,7 +1467,7 @@ $("#relatar").onclick = () => {
   };
   void logado;
 };
-$("#comoFunciona").onclick = () => { menu(false); S.conta ? TQConta.abrirTutorial(S.conta.perfil.tipo, false) : tutorialCodigo(false); };
+$("#comoFunciona").onclick = () => { menu(false); S.conta ? TQConta.abrirTutorial(TQConta.roteiroConta(), false) : tutorialCodigo(false); };
 $("#menu").onclick = () => menu(true);
 $("#veu").onclick = () => menu(false);
 document.querySelectorAll("[data-home]").forEach((a) => (a.onclick = (e) => { e.preventDefault(); if (S.pac || S.conta) S.aba = abasAtuais()[0][0]; render(); scrollTo(0, 0); }));

@@ -41,6 +41,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const mk = await abas();
     ok(mk.includes('campanhas') && !mk.includes('datas_portal') && !mk.includes('documentos') && !mk.includes('prontidao') && !mk.includes('relatos'), `Marketing: abas da área (${mk.join(', ')})`);
     ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
+    { const r = await p.evaluate(() => { const ks = [...TQConta.abas().map(([k]) => k), ...TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [])]; return { rot: TQConta.roteiroConta(), falta: TQTour.semTutorial('eq_areas', ks) }; });
+      ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Marketing: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('hoje');
     const menu = await p.$$eval('#tabs [data-aba]', (xs) => xs.map((x) => x.dataset.aba));
     ok(JSON.stringify(menu) === JSON.stringify(['g_hoje', 'g_campanhas', 'g_materiais', 'conta']), `menu simples: Hoje, Campanhas, Materiais e Conta (${menu.join(', ')})`);
@@ -61,12 +63,16 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await p.waitForTimeout(800); await pular();
     const ag = await abas();
     ok((ag[0] === 'hoje' && ['datas_portal', 'curadoria', 'agenda_casas', 'documentos', 'convites'].every((k) => ag.includes(k)) && !ag.includes('campanhas') && !ag.includes('casas_cad')), `Agenda (Isa): Hoje, Criar datas, Curadoria, Agenda das casas, Documentos e Convites (${ag.join(', ')})`);
+    { const r = await p.evaluate(() => { const ks = [...TQConta.abas().map(([k]) => k), ...TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [])]; return { rot: TQConta.roteiroConta(), falta: TQTour.semTutorial('eq_areas', ks) }; });
+      ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Agenda: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('materiais'); const tm = await p.textContent('#app');
     ok(!/Publicar/.test(tm), 'Materiais: Agenda só lê (sem publicar)');
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.areas = ['operacoes']; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
     await p.reload(); await p.waitForTimeout(800); await pular();
     const op = await abas();
     ok(op.includes('documentos') && !op.includes('datas_portal') && !op.includes('campanhas'), `Operações: Documentos e contratos (contrato com a casa), sem Criar datas e Campanhas (${op.join(', ')})`);
+    { const r = await p.evaluate(() => { const ks = [...TQConta.abas().map(([k]) => k), ...TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [])]; return { rot: TQConta.roteiroConta(), falta: TQTour.semTutorial('eq_areas', ks) }; });
+      ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Operações: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('casas_cad'); await p.click('[data-click^="casacad:"]'); await p.waitForTimeout(500);
     ok(!!(await p.$('#dlg [data-decisao="habilitada"]')) && !!(await p.$('#dlg [data-editar-ficha]')), 'Operações: Habilitar e Editar a Ficha');
     await p.evaluate(() => document.querySelector('#dlg').close());
