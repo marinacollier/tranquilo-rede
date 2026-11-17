@@ -78,7 +78,7 @@
     let r;
     if (/^[[{]/.test(t)) { let j; try { j = JSON.parse(t); } catch { throw new Error("O arquivo parece JSON, mas não abriu. Confira se ele está completo."); } r = deDados(j, ano); }
     else r = deHtml(t, ano);
-    if (!r.itens.length) throw new Error("Nenhum dia de campanha encontrado. O formato do arquivo mudou? Nada foi importado.");
+    if (!r.itens.length) throw new Error("Este arquivo não tem os dias de uma campanha com data (ex.: 20/10). Confira se é a página da campanha de uma casa, e não um documento do Bruno (esses vão em Materiais › Publicar documentos). Nada foi importado.");
     const semAcao = r.itens.filter((i) => !i.acoes.length).map((i) => i.rotulo);
     return { ...r, avisos: semAcao.length ? [`Dias sem ações lidas: ${semAcao.join(", ")}`] : [] };
   }

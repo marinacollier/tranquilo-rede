@@ -30,7 +30,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await sair();
     // Artista marca a disponibilidade na própria área.
     await criar('artista', 'Ana Cruza', 'ana@cruza.com');
-    ok((await p.evaluate(() => TQConta.areaDe('disp_artista'))) === 'art_datas', 'artista tem a aba Disponibilidade');
+    ok((await p.evaluate(() => TQConta.abas().some(([k]) => k === 'disp_artista'))), 'artista tem a aba Disponibilidade');
     await ir('disp_artista');
     const primeiro = await p.getAttribute('[data-dispa-dia]', 'data-dispa-dia');
     await p.click(`[data-dispa-dia="${primeiro}"]`); await p.waitForTimeout(400);

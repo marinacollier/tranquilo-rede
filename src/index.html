@@ -1266,15 +1266,15 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Sua casa", ["datas_casa", "ficha"]],
-  ["Sua área", ["art_datas", "art_cad"]],
-  ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas"]],
+  ["Sua casa", ["datas_casa", "ficha", "equipe_g", "disp_g", "contr_g"]],
+  ["Sua área", ["passos", "inscricao", "disp_artista", "contratos_meus"]],
+  ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "convites"]],
   ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "passos", "contratos_meus", "disp_artista", "trilha", "campanha", "operacao", "agenda", "minhas"]],
-  ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "convites", "prontidao", "documentos", "pessoas", "historico"]],
+  ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "prontidao", "documentos", "pessoas", "historico"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa", "equipe_casa"]],
-  ["Referência", ["materiais", "base", "metodo", "roteiro", "duvidas", "acessos"]],
-  ["Conta", ["conta"]],
+  ["Referência", ["roteiro", "duvidas", "acessos"]],
+  ["Conta", ["materiais", "base", "metodo", "conta"]],
 ];
 // Administração e equipe sem área (pedido da Marina, 17/11/2026): menu separado por assunto, como a rede pensa.
 const GRUPOS_CENTRAL = [
@@ -1284,8 +1284,8 @@ const GRUPOS_CENTRAL = [
   ["Isa · Artistas e datas", ["datas_portal", "lado_a_lado", "curadoria", "artistas", "datas", "operacao"]],
   ["Bruno · Marketing", ["campanhas", "demanda"]],
   ["Só administração", ["estrategia", "pessoas", "prontidao", "relatos", "historico", "acessos"]],
-  ["Referência", ["materiais", "base", "metodo", "roteiro", "duvidas"]],
-  ["Conta", ["conta"]],
+  ["Referência", ["roteiro", "duvidas"]],
+  ["Conta", ["materiais", "base", "metodo", "conta"]],
 ];
 const gruposAtuais = () => { const t = S.conta ? S.conta.perfil.tipo : S.pac?.perfil; return t === "adm" || (t === "equipe" && !S.conta?.perfil.areas?.length) ? GRUPOS_CENTRAL : GRUPOS; };
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
@@ -1295,6 +1295,9 @@ const ICONES = {
   contratos_meus: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
   art_datas: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   art_cad: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
+  equipe_g: ic('<circle cx="9" cy="8" r="3.5"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.8-3.5 3.2-5.5 6-5.5s5.2 2 6 5.5M15 15c2.5 0 4.5 1.6 5.5 4.5"/>'),
+  disp_g: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
+  contr_g: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
   financeiro: ic('<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5v1.5M12 16v1.5"/>'),
   disp_artista: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
   g_hoje: ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),

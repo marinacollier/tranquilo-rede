@@ -19,10 +19,10 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     const txt = await p.textContent('#app');
     ok(/aguardando a equipe confirmar/.test(txt), 'depois de colar o código, a conta mostra o vínculo aguardando confirmação');
     ok(!(await p.$('#vcod')), 'o campo de código some enquanto o pedido está aberto');
-    ok((await p.evaluate(() => TQConta.areaDe('agenda'))) === 'art_datas', 'as métricas do código já abrem (aba Minha agenda)');
+    ok((await p.evaluate(() => TQConta.abas().some(([k]) => k === 'agenda'))), 'as métricas do código já abrem (aba Minha agenda)');
     await p.reload(); await pular(); await p.waitForTimeout(500);
     await p.click('[data-aba="conta"]');
-    ok(/aguardando a equipe confirmar/.test(await p.textContent('#app')) && (await p.evaluate(() => TQConta.areaDe('agenda'))) === 'art_datas', 'o pedido e as métricas continuam depois de recarregar');
+    ok(/aguardando a equipe confirmar/.test(await p.textContent('#app')) && (await p.evaluate(() => TQConta.abas().some(([k]) => k === 'agenda'))), 'o pedido e as métricas continuam depois de recarregar');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();
