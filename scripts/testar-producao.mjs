@@ -39,6 +39,12 @@ create temp table e2e_reg as
 create temp table e2e_casas as select dados->>'nome' nome from cadastros_casas where user_id in (select id from e2e_ids) and dados->>'nome' is not null
   union select vinculo_nome from perfis where id in (select id from e2e_ids) and vinculo_nome is not null;
 delete from notas_internas where alvo_id::text in (select rid from e2e_reg);
+-- Contrato assinado não se apaga (trava do banco); só o das contas de teste sai, com a trava desligada nesta transação.
+do $$ begin
+  alter table contratos disable trigger trg_contrato_apagar;
+  delete from contratos where user_id in (select id from e2e_ids);
+  alter table contratos enable trigger trg_contrato_apagar;
+end $$;
 delete from disponibilidade_casa where lower(casa_ref) in (select lower(nome) from e2e_casas);
 do $$ declare fk record; n int; begin
   for fk in select c.conrelid::regclass tabela, a.attname coluna, a.attnotnull obrig
@@ -113,6 +119,7 @@ async function logsLogin(desde) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all?sql=${encodeURIComponent(q)}&iso_timestamp_start=${encodeURIComponent(desde)}&iso_timestamp_end=${encodeURIComponent(new Date(Date.now() + 60000).toISOString())}`, { headers: { Authorization: `Bearer ${tok}` } });
   const j = await r.json();
   if (j.error) throw new Error(JSON.stringify(j.error));
+  if (!logsLogin.visto) { logsLogin.visto = 1; const o = (() => { try { return JSON.parse(j.result?.[0]?.event_message); } catch { return null; } })(); console.log(`info  registros do login: ${j.result?.length ?? 0} linhas; campos: ${o ? Object.keys(o).join(',') : typeof j.result?.[0]?.event_message}`); }
   return (j.result || []).map((l) => { let o = {}; try { o = JSON.parse(l.event_message); } catch {} return { path: o.path || '', status: o.status, nivel: o.level || '', msg: o.msg || '', erro: o.error || '' }; }).reverse();
 }
 
@@ -235,7 +242,7 @@ try {
     const m = await um(`select count(*)::int n from modelos_contrato where nome = ${lit(`Teste E2E ${RUN}`)}`);
     reg('equipe salva modelo de contrato', m.n === 1, `${m.n} no banco${(await p.$('#mcErr')) ? ' · ' + (await texto(p, '#mcErr')).slice(0, 160) : ''}`);
     const ops = await p.$$eval('#ctConta option', (os) => os.map((o) => [o.value, o.textContent]));
-    reg('casa habilitada aparece na lista de contas do contrato, pelo nome da casa', ops.some(([v, t]) => v === contas.casa && t.includes(CASA)), ops.some(([v]) => v === contas.casa) ? 'aparece com outro nome' : 'não aparece');
+    reg('casa habilitada aparece na lista de contas do contrato, pelo nome da casa', ops.some(([v, t]) => v === contas.casa && t.includes(CASA)), ops.some(([v, t]) => v === contas.casa && t.includes(CASA)) ? '' : ops.some(([v]) => v === contas.casa) ? 'aparece com outro nome' : 'não aparece');
     reg('artista aparece na lista de contas do contrato', ops.some(([v]) => v === contas.artista));
     await gerar(p, contas.artista, 'artista');
     await gerar(p, contas.casa, 'casa');
