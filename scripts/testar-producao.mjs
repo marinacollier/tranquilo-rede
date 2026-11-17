@@ -70,6 +70,7 @@ const reg = (nome, ok, detalhe = '') => { res.push({ nome, ok }); console.log(`$
 const inicio = new Date().toISOString();
 const SENHA = `E2e-${crypto.randomUUID()}`;
 const email = (papel) => `teste-e2e-${RUN}-${papel}@${DOM}`;
+let resetEm = null;
 const CASA = `Casa Teste E2E ${RUN}`, ARTISTA = `Artista Teste E2E ${RUN}`;
 
 // Configuração do login (só o que não é segredo, e sem endereços pessoais).
@@ -106,6 +107,14 @@ try {
   const t = await sql(`select tipo::text, count(*)::int n from perfis where id in (${Object.values(contas).map(lit).join(',')}) group by 1 order by 1`);
   reg('contas descartáveis criadas e confirmadas (adm, equipe, casa, artista)', t.map((x) => `${x.tipo}:${x.n}`).join(',') === 'adm:1,artista:1,casa:1,equipe:1', t.map((x) => `${x.tipo}:${x.n}`).join(','));
 } catch (e) { reg('contas descartáveis criadas', false, e.message); await limpar().catch(() => {}); process.exit(1); }
+
+async function logsLogin(desde) {
+  const q = "select timestamp, event_message from auth_logs order by timestamp desc limit 200";
+  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all?sql=${encodeURIComponent(q)}&iso_timestamp_start=${encodeURIComponent(desde)}&iso_timestamp_end=${encodeURIComponent(new Date(Date.now() + 60000).toISOString())}`, { headers: { Authorization: `Bearer ${tok}` } });
+  const j = await r.json();
+  if (j.error) throw new Error(JSON.stringify(j.error));
+  return (j.result || []).map((l) => { let o = {}; try { o = JSON.parse(l.event_message); } catch {} return { path: o.path || '', status: o.status, nivel: o.level || '', msg: o.msg || '', erro: o.error || '' }; }).reverse();
+}
 
 // ---------- navegador ----------
 const require = createRequire(import.meta.url);
@@ -156,9 +165,7 @@ try {
     await p.waitForFunction(() => /✓|✕|⚠/.test(document.querySelector('#eerr')?.textContent || ''), null, { timeout: 20000 });
     const m = await texto(p, '#eerr');
     reg('"Esqueci minha senha" responde sem erro na tela', /^✓/.test(m), m.slice(0, 120));
-    await p.waitForTimeout(3000);
-    const a = await sql(`select payload->>'action' acao, count(*)::int n from auth.audit_log_entries where created_at >= ${lit(inicio)} and lower(payload->>'actor_username') = ${lit(email('casa'))} group by 1`);
-    reg('pedido de troca de senha aceito pelo servidor (registro de auditoria do login)', a.some((x) => x.acao === 'user_recovery_requested'), a.map((x) => `${x.acao}:${x.n}`).join(',') || 'nenhum registro');
+    resetEm = new Date().toISOString();
     await p.context().close();
   });
 
@@ -168,7 +175,7 @@ try {
     const p = await entrar('casa');
     await abrirAba(p, 'cadastro_casa'); await p.waitForSelector('#enviar');
     await p.fill('[data-k="nome"]', ''); await p.click('#enviar'); await p.waitForTimeout(600);
-    reg('Ficha sem obrigatórios é barrada e diz o que falta', /Não enviado: falta preencher/.test(await texto(p, '#ferr')));
+    { const m = await texto(p, '#ferr'); reg('Ficha sem obrigatórios é barrada e diz o que falta', /Não enviado: falta preencher/.test(m), m.slice(0, 140)); }
     const campos = { nome: CASA, cidade_uf: 'Recife/PE', endereco: 'Rua de Teste, 100, Recife, 50000-000', dono_nome: 'Dona Teste E2E', whatsapp: '81 99999-0000', capacidade_sentado: '80' };
     for (const [k, v] of Object.entries(campos)) await p.fill(`[data-k="${k}"]`, v);
     await p.click('#enviar');
@@ -240,7 +247,9 @@ try {
     const p = await entrar('artista');
     await abrirAba(p, 'passos'); await p.waitForSelector('[data-ct-abrir]', { timeout: 10000 });
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
-    if (await p.$('[data-ct-dado="cpf"]')) { await p.fill('[data-ct-dado="cpf"]', '000.000.000-00'); await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto'); await p.waitForTimeout(800); }
+    const dados = await p.$$('[data-ct-dado]');
+    for (const d of dados) await d.fill('Teste 000');
+    if (dados.length) { await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto'); await p.waitForTimeout(1200); }
     await p.$eval('#ctTexto', (el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); }); await p.waitForTimeout(1500);
     await p.fill('#ctNome', 'Artista Teste Ponta A Ponta'); await p.check('#ctConcordo'); await p.click('#ctAssinar');
     await p.waitForSelector('[data-ct-voltar]').catch(() => {}); await p.waitForTimeout(1500);
@@ -281,20 +290,27 @@ try {
     await p.fill('#cvNome', 'Convidada Teste E2E'); await p.fill('#cvEmail', email('convite')); await p.click('#cvOk');
     await p.waitForTimeout(3000);
     const c = await um(`select count(*)::int n from convites where email = ${lit(email('convite'))}`);
-    const aviso = await p.$eval('dialog[open]', (d) => d.textContent).catch(() => '');
+    const aviso = await p.$eval('#dlg', (d) => d.textContent).catch(() => '');
     reg('convite enviado pela Central fica registrado', c.n === 1, `${c.n} no banco${(await p.$('#cverr')) ? ' · ' + (await texto(p, '#cverr')).slice(0, 120) : ''}`);
-    console.log(`info  aviso do envio do convite: ${limpo((aviso.match(/(✓|✕|⚠)[^.]*\./) || [''])[0]).slice(0, 160) || '(sem aviso)'}`);
+    console.log(`info  aviso do envio do convite: ${limpo((aviso.match(/(✓|✕|⚠)[^.]*\./) || [''])[0]).slice(0, 160) || '(sem aviso na tela)'}`);
     await p.context().close();
   });
 } finally {
   reg('sem erro de JavaScript nas páginas', !errosJs.length, errosJs.map(limpo).join(' | ').slice(0, 300));
   await nav.close();
-  // Erros recentes do login (sem e-mail): ajudam a achar a causa de envio que não sai.
+  // Registros do login desta execução (sem e-mail): o pedido de troca de senha e os envios de convite.
+  // O Supabase não grava mais a auditoria do login no banco; os registros vêm da API de logs (chegam com atraso).
   try {
-    const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/analytics/endpoints/logs.all?sql=${encodeURIComponent("select timestamp, event_message from auth_logs where regexp_contains(event_message, '\"level\":\"error\"') order by timestamp desc limit 15")}&iso_timestamp_start=${encodeURIComponent(inicio)}`, { headers: { Authorization: `Bearer ${tok}` } });
-    const j = await r.json();
-    for (const l of j.result || []) { let m = l.event_message; try { const o = JSON.parse(m); m = `${o.path || ''} ${o.msg || ''} ${o.error || ''}`; } catch {} console.log(`info  erro do login: ${limpo(m)}`); }
-    if (!(j.result || []).length) console.log(`info  nenhum erro do login nesta execução${j.error ? ` (consulta: ${limpo(JSON.stringify(j.error))})` : ''}`);
+    let ls = [];
+    for (let i = 0; i < 12; i++) {
+      ls = await logsLogin(inicio);
+      if (!resetEm || ls.some((l) => l.path === '/recover')) break;
+      await new Promise((r) => setTimeout(r, 10000));
+    }
+    const rec = ls.filter((l) => l.path === '/recover');
+    if (resetEm) reg('pedido de troca de senha aceito pelo servidor (registro do login, sem erro de envio)', rec.some((l) => l.status === 200) && !ls.some((l) => /sending|smtp|mail/i.test(l.erro || '')), rec.map((l) => `${l.status} ${l.msg}`).join(' | ') || 'nenhum registro de /recover');
+    const vistos = new Set();
+    for (const l of ls) { const k = `${l.path} ${l.status} ${l.nivel} ${l.msg} ${l.erro}`; if (vistos.has(k) || !(['/recover', '/otp', '/magiclink'].includes(l.path) || l.nivel === 'error' || /mail|smtp/i.test(l.msg + l.erro))) continue; vistos.add(k); console.log(`info  login: ${limpo(k)}`); }
   } catch (e) { console.log(`info  registros do login indisponíveis: ${limpo(e.message)}`); }
   try { const s = await limpar(); reg('limpeza: nenhuma conta ou convite de teste sobrou', Number(s.contas) === 0 && Number(s.convites) === 0, `contas ${s.contas}, convites ${s.convites}`); }
   catch (e) { reg('limpeza', false, e.message); }

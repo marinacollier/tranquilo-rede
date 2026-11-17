@@ -17,8 +17,12 @@ for (const [arq, nome] of Object.entries(MODELOS)) {
 }
 // Limite de e-mails por hora do Supabase (o padrão de 30 trava convites em lote). O teto real passa a ser o do Gmail.
 corpo.rate_limit_email_sent = Number(process.env.LIMITE_EMAILS_HORA || 500);
+// Endereços para onde os links dos e-mails (troca de senha, convite, confirmação) podem voltar. Sem esta lista, o Supabase
+// ignora o endereço pedido pelo site e manda sempre para o site_url (o portal dentro de tranquilomusica.com.br/rede ficava de fora).
+corpo.uri_allow_list = ['https://marinacollier.github.io/tranquilo-rede/**', 'https://tranquilomusica.com.br/rede', 'https://tranquilomusica.com.br/rede/**',
+  'https://www.tranquilomusica.com.br/rede', 'https://www.tranquilomusica.com.br/rede/**'].join(',');
 const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
   method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
 });
 if (!r.ok) { console.error(`::error::O Supabase recusou (HTTP ${r.status}): ${(await r.text()).slice(0, 300)}`); process.exit(1); }
-console.log(`OK: limite de ${corpo.rate_limit_email_sent} e-mails por hora; ${Object.keys(MODELOS).length} e-mails em português aplicados (${Object.values(assuntos).join(' · ')}).`);
+console.log(`OK: limite de ${corpo.rate_limit_email_sent} e-mails por hora; ${corpo.uri_allow_list.split(',').length} endereços de retorno permitidos; ${Object.keys(MODELOS).length} e-mails em português aplicados (${Object.values(assuntos).join(' · ')}).`);

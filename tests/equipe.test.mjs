@@ -129,3 +129,20 @@ await como(outra, async () => {
   ok(!sql(await q(`select * from solicitacoes_ficha`)).length, 'outra casa não vê o pedido de atualização da Aurora');
   ok(!!(await tenta(() => q(`select responder_solicitacao_ficha((select id from solicitacoes_ficha limit 1), true)`))), 'casa não responde pedidos');
 });
+
+// v20: casa nova (fora do Notion, sem código) fica ligada à casa quando a Central habilita a Ficha.
+{
+  const nova = await novo('dona@casanova.com', 'casa');
+  const ficha = { nome: 'Casa Nova Teste', cidade_uf: 'Recife/PE', endereco: 'Rua A, 1', dono_nome: 'Dona Nova', whatsapp: '81 99999-0000', capacidade_sentado: '80' };
+  await como(nova, async () => { await q(`insert into cadastros_casas (user_id, dados, status) values ($1, $2, 'em_analise')`, [nova, ficha]); });
+  await como(nova, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_casa (casa_ref, dia, situacao) values ('Casa Nova Teste', $1, 'disponivel')`, [amanha]))), 'antes de habilitar, a casa nova não grava disponibilidade'); });
+  await como(eq, async () => { await q(`update cadastros_casas set status = 'habilitada' where user_id = $1`, [nova]); });
+  const pn = sql(await q(`select vinculo_nome, codigo_acesso from perfis where id = $1`, [nova]))[0];
+  ok(pn.vinculo_nome === 'Casa Nova Teste' && pn.codigo_acesso === null, 'habilitar liga a conta da casa nova ao nome da Ficha (sem código do Notion)');
+  await como(nova, async () => {
+    await q(`insert into disponibilidade_casa (casa_ref, dia, situacao) values ('Casa Nova Teste', $1, 'disponivel')`, [amanha]);
+    ok(sql(await q(`select * from disponibilidade_casa`)).length === 1, 'casa nova habilitada marca e vê a própria disponibilidade');
+    ok(!!(await tenta(() => q(`update perfis set vinculo_nome = 'Casa Aurora' where id = $1`, [nova]))) || sql(await q(`select vinculo_nome from perfis where id = $1`, [nova]))[0].vinculo_nome === 'Casa Nova Teste', 'a casa não troca o próprio vínculo');
+  });
+  ok(sql(await q(`select vinculo_nome from perfis where id = $1`, [dono]))[0].vinculo_nome === 'Casa Aurora', 'habilitar não mexe em conta que já tinha vínculo');
+}

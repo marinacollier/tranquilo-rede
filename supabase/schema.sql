@@ -2305,3 +2305,36 @@ begin
 end $$;
 drop trigger if exists trg_casa_zzhabilitar on cadastros_casas;
 create trigger trg_casa_zzhabilitar before insert or update on cadastros_casas for each row execute function casa_habilitar_completa();
+
+-- =====================================================================
+-- v20: a conta da casa fica ligada à casa quando a Central habilita a Ficha (teste em produção, 17/11/2026). Idempotente.
+-- Antes, a conta só se ligava por um código de acesso do Notion (convite ou Pessoas): casa nova, que ainda não está
+-- no Notion, nunca tinha código e via "A conta ainda não está ligada à casa" (sem disponibilidade e sem equipe).
+-- · Ao habilitar, a conta dona da Ficha (sem função na equipe) recebe o nome da casa da Ficha, se ainda não tiver vínculo.
+-- · O dono da casa é a conta de casa ligada a ela (vinculo_nome só muda pela adm ou pelo banco), com ou sem código do Notion.
+-- · Casas já habilitadas sem vínculo ficam ligadas agora.
+-- =====================================================================
+create or replace function sou_dono_da_casa(ref text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from perfis where id = auth.uid() and tipo = 'casa' and funcoes is null and vinculo_nome is not null and lower(vinculo_nome) = lower(ref))
+$$;
+revoke all on function sou_dono_da_casa(text) from public, anon;
+grant execute on function sou_dono_da_casa(text) to authenticated;
+
+create or replace function casa_ligar_conta() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.status = 'habilitada' and (tg_op = 'INSERT' or old.status is distinct from 'habilitada') and nullif(trim(new.dados ->> 'nome'), '') is not null then
+    update perfis set vinculo_nome = left(trim(new.dados ->> 'nome'), 160)
+      where id = new.user_id and tipo = 'casa' and funcoes is null and vinculo_nome is null;
+  end if;
+  return null;
+end $$;
+revoke all on function casa_ligar_conta() from public, anon, authenticated;
+drop trigger if exists trg_casa_ligar_conta on cadastros_casas;
+create trigger trg_casa_ligar_conta after insert or update of status on cadastros_casas for each row execute function casa_ligar_conta();
+
+update perfis p set vinculo_nome = left(trim(c.dados ->> 'nome'), 160)
+  from cadastros_casas c
+  where c.user_id = p.id and c.status = 'habilitada' and p.tipo = 'casa' and p.funcoes is null and p.vinculo_nome is null
+    and nullif(trim(c.dados ->> 'nome'), '') is not null;

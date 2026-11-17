@@ -999,7 +999,7 @@ const TQConta = (() => {
     return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Contrato para assinar no site</h3>
       <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa preenche antes de assinar (CPF, endereço, Pix…).</p>
       <div class="grid g3">
-        <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${pre.conta === p.id ? " selected" : ""}>${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${pre.conta === p.id ? " selected" : ""}>${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${pre.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Modelo</b><select id="ctMod"><option value="">${mods.length ? "Escolha o modelo" : "Cadastre um modelo abaixo"}</option>${mods.map((m) => `<option value="${m.id}"${prep?.modelo === m.id ? " selected" : ""}>${esc(m.nome)}</option>`).join("")}</select></label>
       </div><div class="barra-acoes"><button class="btn" id="ctPrep">Preparar contrato</button></div>
@@ -1754,8 +1754,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     documentos() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("documentos"); }
       if (E.docs === null) return faltaSchema("Documentos");
-      const contas = (E.perfis || []).filter((p) => ["artista", "casa"].includes(p.tipo)).sort((a, b) => (a.vinculo_nome || a.nome || a.email).localeCompare(b.vinculo_nome || b.nome || b.email, "pt-BR"));
-      const nomeConta = Object.fromEntries((E.perfis || []).map((p) => [p.id, p.vinculo_nome || p.nome || p.email]));
+      // Casa ainda sem vínculo aparece pelo nome da Ficha (não pelo nome de quem criou a conta).
+      const contas = (E.perfis || []).filter((p) => ["artista", "casa"].includes(p.tipo)).map((p) => ({ ...p, rotulo: nomeDaConta(p) })).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
+      const nomeConta = Object.fromEntries((E.perfis || []).map((p) => [p.id, nomeDaConta(p)]));
       const datas = (S.pub?.agenda || []).filter((e) => e.id);
       const dataTxt = (id) => { const e = (S.pub?.agenda || []).find((x) => x.id === id) || S.pac?.eventos?.find((x) => x.id === id); return e ? `${dt(e.d)} · ${e.c}` : id ? id.slice(0, 8) : "–"; };
       return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Gere o contrato de cada data para a artista ou a casa assinar aqui mesmo, ou anexe um contrato pronto (link). Os dois aparecem no passo a passo dela, em "Contrato e materiais". Abaixo, os arquivos que artistas e casas enviaram.</p>
@@ -1763,7 +1764,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="card"><h3 style="margin-top:0">Anexar documento pronto (link)</h3><div class="grid g2">
         <label class="fcampo"><b>Tipo</b><select id="docTipo"><option value="contrato">Contrato de uma data</option><option value="modelo">Modelo de contrato (para todos)</option><option value="outro">Outro documento de uma data</option></select></label>
         <label class="fcampo"><b>Nome</b><input id="docTit" maxlength="120" placeholder="ex.: Contrato Joyce Alane · BH 05/11"></label>
-        <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.vinculo_nome || p.nome || p.email)} · ${p.tipo}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="docEv"><option value="">Escolha a data</option>${datas.map((e) => `<option value="${esc(e.id)}">${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo" style="grid-column:1/-1"><b>Link (Drive, Dropbox, DocuSign…)</b><input id="docUrl" maxlength="500" placeholder="https://"></label>
       </div><div class="barra-acoes"><button class="btn pri" id="docOk">Anexar</button></div><div class="err" role="status" aria-live="polite" id="docErr"></div>
@@ -2045,6 +2046,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     } finally { S.eqCarregando = false; }
     render();
   }
+  // Nome de uma conta de artista ou casa para a Central: o vínculo; sem vínculo, o nome da casa na Ficha; senão o da pessoa.
+  function nomeDaConta(p) { return p.vinculo_nome || (p.tipo === "casa" && (S.eq?.casas || []).find((c) => c.user_id === p.id)?.dados?.nome) || p.nome || p.email; }
   function seletorVinculo(p) {
     const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === p.tipo);
     if (p.vinculo_pedido && !p.codigo_acesso) {
@@ -2221,7 +2224,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const conta = $("#ctConta").value, ev = $("#ctEv").value, modelo = $("#ctMod").value;
       if (!conta) return erro("Escolha a conta da artista ou da casa."), true;
       if (!modelo) return erro("Escolha um modelo de contrato."), true;
-      const m = S.eq.modContr.find((x) => x.id === modelo), p = S.eq.perfis.find((x) => x.id === conta);
+      const m = S.eq.modContr.find((x) => x.id === modelo), p0 = S.eq.perfis.find((x) => x.id === conta), p = { ...p0, vinculo_nome: nomeDaConta(p0) };
       const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev);
       const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
       S.cPrep = { conta, ev, modelo, texto, campos, valores: Object.fromEntries(campos.map((c) => [c.chave, sug[c.chave] || ""])),
