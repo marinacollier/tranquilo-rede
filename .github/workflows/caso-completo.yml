@@ -1,0 +1,27 @@
+name: Caso completo (casa e artista de teste)
+
+# Só roda à mão. Cria (ou recria) uma casa e uma artista fictícias que já passaram pelo fluxo inteiro, com uma data
+# em 20/11/2026 e contratos assinados. O hash bcrypt da senha entra como parâmetro: a senha não passa pelo repositório.
+on:
+  workflow_dispatch:
+    inputs:
+      senha_hash:
+        description: Hash bcrypt da senha das duas contas
+        required: false
+      modo:
+        description: criar ou apagar
+        default: criar
+
+jobs:
+  caso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/caso-completo.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SENHA_HASH: ${{ inputs.senha_hash }}
+          MODO: ${{ inputs.modo }}
