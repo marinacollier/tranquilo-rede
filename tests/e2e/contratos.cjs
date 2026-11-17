@@ -52,14 +52,14 @@ E por estarem de acordo, assinam.`;
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
     ok(/R\$ 3\.000,00/.test(await p.textContent('#ctTexto')) && /________________/.test(await p.textContent('#ctTexto')), 'texto mostra o cachê da equipe e marca o que falta');
     ok(await p.isDisabled('[data-ct-ver]') && await p.isDisabled('[data-enviar-arquivo^="contrato_"]'), 'baixar e enviar ficam travados até salvar os dados');
-    await p.fill('[data-ct-dado="cpf"]', '123.456.789-00'); await p.fill('[data-ct-dado="endereco_completo"]', 'Rua A, 10, Recife'); await p.fill('[data-ct-dado="chave_pix"]', 'ana@pix.com');
+    await p.fill('[data-ct-dado="cpf"]', '123.456.789-09'); await p.fill('[data-ct-dado="endereco_completo"]', 'Rua A, 10, Recife'); await p.fill('[data-ct-dado="chave_pix"]', 'ana@pix.com');
     await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
     if (process.env.SHOT2) { await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(200); await p.screenshot({ path: process.env.SHOT2, fullPage: true }); await p.setViewportSize({ width: 1280, height: 900 }); }
-    ok(/123\.456\.789-00/.test(await p.textContent('#ctTexto')) && /✓ Feito/.test(await p.textContent('#ctDadosMsg')), 'dados salvos entram no texto, com ✓ Feito');
+    ok(/123\.456\.789-09/.test(await p.textContent('#ctTexto')) && /✓ Feito/.test(await p.textContent('#ctDadosMsg')), 'dados salvos entram no texto, com ✓ Feito');
     ok(!(await p.isDisabled('[data-ct-ver]')) && !(await p.isDisabled('[data-enviar-arquivo^="contrato_"]')), 'com os dados salvos, libera baixar o PDF e enviar o assinado');
     ok(!(await p.$('#ctAssinar')), 'não assina dentro do portal: baixa, assina e envia');
     const [pop] = await Promise.all([ctx.waitForEvent('page'), p.click('[data-ct-ver]')]); await pop.waitForLoadState();
-    ok(/Assinado pelo Tranquilo/.test(await pop.textContent('body')) && /123\.456\.789-00/.test(await pop.textContent('body')) && /Baixar em PDF/.test(await pop.textContent('body')), 'PDF sai com os dados da pessoa e a assinatura do Tranquilo');
+    ok(/Assinado pelo Tranquilo/.test(await pop.textContent('body')) && /123\.456\.789-09/.test(await pop.textContent('body')) && /Baixar em PDF/.test(await pop.textContent('body')), 'PDF sai com os dados da pessoa e a assinatura do Tranquilo');
     await pop.close(); await sair();
     // equipe vê o contrato aguardando o arquivo assinado
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector('[data-ct-ver]');
@@ -74,9 +74,9 @@ E por estarem de acordo, assinam.`;
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
-    ok(await p.inputValue('[data-ct-dado="cpf"]') === '123.456.789-00' && await p.inputValue('[data-ct-dado="chave_pix"]') === 'ana@pix.com' && /Trouxemos o que você já informou/.test(await p.textContent('#app')), 'segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir');
+    ok(await p.inputValue('[data-ct-dado="cpf"]') === '123.456.789-09' && await p.inputValue('[data-ct-dado="chave_pix"]') === 'ana@pix.com' && /Trouxemos o que você já informou/.test(await p.textContent('#app')), 'segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir');
     await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
-    ok(/123\.456\.789-00/.test(await p.textContent('#ctTexto')), 'ao salvar, os dados trazidos entram no texto');
+    ok(/123\.456\.789-09/.test(await p.textContent('#ctTexto')), 'ao salvar, os dados trazidos entram no texto');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); await p.screenshot({ path: process.env.SHOT || '/tmp/contr-falha.png' }).catch(() => {}); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

@@ -21,7 +21,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await pular(); await p.waitForSelector('[data-aba="ficha"]');
     // 1. Menu: exatamente quatro áreas, nesta ordem; a conta fica no rodapé.
     const menu = await p.$$eval('nav.tabs .nav-g:not(.nav-rodape) button[data-aba]', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(JSON.stringify(menu) === JSON.stringify(['Suas datas', 'Sua casa', 'Materiais', 'Base de conhecimento', 'Método', 'Dúvidas']), `menu da casa por tema (17/11): ${menu.join(' · ')}`);
+    ok(JSON.stringify(menu) === JSON.stringify(['Suas datas', 'Sua casa', 'Dúvidas']), `menu da casa por tema (17/11): ${menu.join(' · ')}`);
     ok(!!(await p.$('nav.tabs .nav-rodape [data-aba="conta"]')), 'Minha conta no rodapé, fora das quatro áreas');
     // 2. Ficha da Casa = modelo v1: seções, ordem, campos e opções.
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#form');

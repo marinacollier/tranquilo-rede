@@ -686,7 +686,7 @@ const TQConta = (() => {
   // → cronograma → marketing → público. Artista: "Suas datas" e "Seu cadastro".
   const AREAS_CASA = [["datas_casa", "Suas datas"], ["ficha", "Sua casa"]];
   const AREAS_ART = [["art_datas", "Suas datas"], ["art_cad", "Seu cadastro"]];
-  // Referência: bloco fixo do menu para todos os acessos (pedido da Marina, 17/11/2026).
+  // Referência (Materiais, Base, Método): só para o time do Tranquilo; artista e casa veem só Dúvidas (pedido da Marina, 17/11/2026).
   const REFERENCIA = [["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["duvidas", "Dúvidas"]];
   const MKT_FUNCOES = [["mkt_produtor", "lider", "Produtor local"], ["mkt_anfitriao", "anfitriao", "Anfitrião"], ["mkt_social", "social_media", "Social media"]];
   function subsDaArea(area) {
@@ -770,9 +770,9 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [...AREAS_ART, ...REFERENCIA, ["conta", "Conta"]];
+    if (t === "artista") return [...AREAS_ART, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
-    if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ...REFERENCIA, ["conta", "Conta"]];
+    if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
     // Equipe com área (Gui, Isa, Bruno): menu enxuto, só o que cada área usa no dia a dia, começando por "Hoje".
@@ -791,6 +791,47 @@ const TQConta = (() => {
   // ---------- formulários ----------
   const EMAIL_OK = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   // Erros de formato que a pessoa consegue corrigir (vazio é tratado por "faltando").
+  // ---------- validações básicas (pedido da Marina, 17/11/2026): aceita com ou sem pontuação, confere e formata ----------
+  const VAL = (() => {
+    const dig = (v) => String(v ?? "").replace(/\D/g, "");
+    const rep = (n) => /^(\d)\1+$/.test(n);
+    function cpf(v) { const n = dig(v); if (n.length !== 11 || rep(n)) return false;
+      const dv = (k) => { let s = 0; for (let i = 0; i < k; i++) s += +n[i] * (k + 1 - i); const r = (s * 10) % 11; return r === 10 ? 0 : r; };
+      return dv(9) === +n[9] && dv(10) === +n[10]; }
+    function cnpj(v) { const n = dig(v); if (n.length !== 14 || rep(n)) return false;
+      const dv = (k) => { const w = k === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]; let s = 0; for (let i = 0; i < k; i++) s += +n[i] * w[i]; const r = s % 11; return r < 2 ? 0 : 11 - r; };
+      return dv(12) === +n[12] && dv(13) === +n[13]; }
+    const fCpf = (v) => dig(v).replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, "$1.$2.$3-$4");
+    const fCnpj = (v) => dig(v).replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+    const email = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(v ?? "").trim());
+    const tel = (v) => { const n = dig(v).replace(/^55(?=\d{10,11}$)/, ""); return n.length === 10 || n.length === 11; };
+    const fTel = (v) => { const n = dig(v).replace(/^55(?=\d{10,11}$)/, ""); return n.length === 11 ? n.replace(/^(\d{2})(\d{5})(\d{4})$/, "($1) $2-$3") : n.replace(/^(\d{2})(\d{4})(\d{4})$/, "($1) $2-$3"); };
+    const uuid = (v) => /^[0-9a-f]{8}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{4}-?[0-9a-f]{12}$/i.test(String(v ?? "").trim());
+    // Pix: CPF, CNPJ, e-mail, celular ou chave aleatória.
+    const pix = (v) => { const t = String(v ?? "").trim(); return email(t) || uuid(t) || (/^[\d.\-/\s]+$/.test(t) && (cpf(t) || cnpj(t))) || (/^[+\d()\s-]+$/.test(t) && tel(t)); };
+    const fPix = (v) => { const t = String(v ?? "").trim(); if (email(t) || uuid(t)) return t.toLowerCase(); if (/^[\d.\-/\s]+$/.test(t) && cpf(t)) return fCpf(t); if (/^[\d.\-/\s]+$/.test(t) && cnpj(t)) return fCnpj(t); return tel(t) ? fTel(t) : t; };
+    const doc = (v) => cpf(v) || cnpj(v), fDoc = (v) => (cpf(v) ? fCpf(v) : cnpj(v) ? fCnpj(v) : String(v ?? "").trim());
+    const cep = (v) => dig(v).length === 8, fCep = (v) => dig(v).replace(/^(\d{5})(\d{3})$/, "$1-$2");
+    const nome = (v) => String(v ?? "").trim().split(/\s+/).filter((w) => w.length > 1).length >= 2;
+    // Regra pelo nome do campo (contratos: os rótulos vêm do modelo).
+    function porRotulo(rotulo, v) {
+      const r = String(rotulo || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase(), t = String(v ?? "").trim();
+      if (!t) return { erro: `${rotulo}: preencha` };
+      if (/pix/.test(r)) return pix(t) ? { v: fPix(t) } : { erro: `${rotulo}: use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória` };
+      if (/cpf\s*\/\s*cnpj|cpf ou cnpj|documento/.test(r)) return doc(t) ? { v: fDoc(t) } : { erro: `${rotulo}: CPF (11 números) ou CNPJ (14 números) válido` };
+      if (/cnpj/.test(r)) return cnpj(t) ? { v: fCnpj(t) } : { erro: `${rotulo}: CNPJ inválido (confira os 14 números)` };
+      if (/cpf/.test(r)) return cpf(t) ? { v: fCpf(t) } : { erro: `${rotulo}: CPF inválido (confira os 11 números)` };
+      if (/e-?mail/.test(r)) return email(t) ? { v: t.toLowerCase() } : { erro: `${rotulo}: confira o e-mail (ex.: nome@email.com)` };
+      if (/telefone|celular|whats/.test(r)) return tel(t) ? { v: fTel(t) } : { erro: `${rotulo}: número com DDD (ex.: 11 99999-9999)` };
+      if (/^cep/.test(r)) return cep(t) ? { v: fCep(t) } : { erro: `${rotulo}: 8 números (ex.: 01234-567)` };
+      if (/nome completo|razao social/.test(r)) return nome(t) ? { v: t.replace(/\s+/g, " ") } : { erro: `${rotulo}: escreva o nome completo (nome e sobrenome)` };
+      if (/^rg/.test(r)) return dig(t).length >= 5 ? { v: t } : { erro: `${rotulo}: confira o número` };
+      if (t.length < 2) return { erro: `${rotulo}: preencha direitinho` };
+      return { v: t };
+    }
+    return { cpf, cnpj, doc, pix, email, tel, cep, fCpf, fCnpj, fDoc, fPix, fTel, fCep, porRotulo };
+  })();
+  window.TQVal = VAL;
   function conferirFormato(d) {
     const e = [], url = (k, nome) => { if (d[k] && !/^https?:\/\/\S+\.\S+/i.test(String(d[k]).trim())) e.push(`${nome} precisa ser um link começando com https://`); };
     url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto");
@@ -799,7 +840,10 @@ const TQConta = (() => {
     if (d.telefone) { const n = String(d.telefone).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.telefone)) e.push("Telefone da casa: só números, com DDD"); }
     for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) e.push(`${nome}: confira o endereço (ex.: nome@casa.com.br)`);
     if (d.dono_nascimento && !/^\d{2}\/\d{2}\/\d{4}$/.test(String(d.dono_nascimento).trim())) e.push("Data de nascimento: use dd/mm/aaaa");
-    for (const [k, nome] of [["dono_cpf", "CPF"], ["cnpj", "CNPJ"]]) if (d[k]) { const n = String(d[k]).replace(/\D/g, "").length; if (n !== (k === "cnpj" ? 14 : 11)) e.push(`${nome}: confira os ${k === "cnpj" ? 14 : 11} números`); }
+    if (d.dono_cpf && !VAL.cpf(d.dono_cpf)) e.push("CPF do Dono A inválido: confira os 11 números");
+    if (d.cnpj && !VAL.cnpj(d.cnpj)) e.push("CNPJ inválido: confira os 14 números");
+    if (d.rep_documento && !VAL.doc(d.rep_documento)) e.push("CPF ou CNPJ do titular da conta inválido");
+    if (d.rep_pix && !VAL.pix(d.rep_pix)) e.push("Chave Pix: use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória");
     // Mínimo de caracteres: nunca deixa seguir sem (pedido da Marina, 17/11/2026).
     for (const [k, nome, min] of [["release", "Release curto", 200]]) { const n = String(d[k] ?? "").trim().length; if (n && n < min) e.push(`${nome}: escreva pelo menos ${min} caracteres (agora tem ${n})`); }
     for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"]]) {
@@ -994,7 +1038,7 @@ const TQConta = (() => {
     return { id: "p:" + x.id, d: String(x.dia).slice(0, 10), n: `Tranquilo ${x.produto} — ${cidade || x.casa_nome}${x.produto === "Apresenta" && arts.length ? " — " + arts[arts.length - 1].nome : ""}`,
       s: x.status === "cancelada" ? "Cancelado" : "Data confirmada", c: cidade, m: x.produto, h: x.casa_nome, a: arts.map((a) => a.nome), l: x.link_ingressos || null,
       f: true, z: x.status === "cancelada", portal: x, au: arts.map((a) => a.user_id).filter(Boolean), kc: x.casa_id,
-      noite: { inicio: String(x.abertura || "19:00").slice(0, 5), artistas: arts.map((a, i) => ({ nome: a.nome, ordem: a.ordem || i + 1, status: "Confirmado", producao: !!a.producao })) } };
+      noite: { inicio: String(x.abertura || "19:00").slice(0, 5), artistas: arts.map((a, i) => ({ nome: a.nome, ordem: a.ordem || i + 1, status: "Confirmado", producao: !!a.producao, whatsapp: a.whatsapp || null })) } };
   }
   const noiteDe = (e) => e.noite || S.pac?.noites?.[e.id];
   // Marketing por função (documento do Gui): o que cada um faz no marketing, a partir do que a Operações já combinou por função.
@@ -1049,9 +1093,9 @@ const TQConta = (() => {
     const linhaHora = ([a, b, t, pre]) => `${pre === "até" ? `até ${hm(ini + b)}` : b ? `${hm(ini + a)} às ${hm(ini + b)}` : hm(ini + a)}: ${t}`;
     const d = new Date(e.d + "T12:00:00"), dia = DIAS_SEM[d.getDay()], dataBr = e.d.slice(8, 10) + "/" + e.d.slice(5, 7);
     const principal = apres ? nomes[1] : null;
-    const contatos = ord.map((a, i) => `• ${a.nome}${apres && i === 0 ? " (abertura)" : ""}: ${a.producao ? "[nome da produção] (produção), " : ""}[telefone]`);
+    const contatos = ord.map((a, i) => `• ${a.nome}${apres && i === 0 ? " (abertura)" : ""}: ${a.producao ? "[nome da produção] (produção), " : ""}${a.whatsapp || "[telefone]"}`);
     if (ord.some((a) => a.producao)) avisos.push("Nome da produção e telefones ficam no Notion: a Operações completa os campos entre colchetes (a validar).");
-    else avisos.push("Telefones ficam no Notion: a Operações completa os [telefone] (a validar).");
+    else if (ord.some((a) => !a.whatsapp)) avisos.push(`Falta o WhatsApp de ${ord.filter((a) => !a.whatsapp).map((a) => a.nome).join(", ")}: ainda sem conta no portal. Complete antes de mandar.`);
     const texto = [`Oi, ${contato || "[contato da casa]"}! Tudo bem? 🌿`, "",
       `Pra ${dia} (${dataBr}), no *Tranquilo ${produto}${principal ? ` com ${principal}` : ""}*, cria por favor um grupo no WhatsApp pra alinhar os horários com os artistas e o técnico de som.`, "",
       "*Quem entra no grupo:*", ...contatos, tecnico ? `• *Técnico de som:* ${tecnico}` : "• *Técnico de som:* coloca quem vai operar o som da noite", "",
@@ -1557,6 +1601,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="materiais">Ver todos os materiais</button><button class="btn sm" data-ir="duvidas">Dúvidas frequentes</button></div>`;
     },
     cronograma() {
+      if (S.conta.equipe === undefined && S.conta.perfil.vinculo_nome) carregarEquipeCasa();   // técnico de som da equipe entra sozinho na mensagem
       const evs = eventosDaConta().filter((e) => e.d >= hojeIso()), d = S.conta.casa?.dados || {};
       const end = valorCasa(d, "endereco") || S.pac?.ficha_notion?.endereco || "", casa = d.nome || S.conta.perfil.vinculo_nome || "a casa";
       return `<div class="tag">Cronogramas</div><h1>Datas fechadas</h1>
@@ -2622,7 +2667,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const casa = (E.casas || []).find((c) => c.id === v("#dpCasa"));
       const contas = (E.perfis || []).filter((p) => p.tipo === "artista"), k = (x) => String(x || "").trim().toLowerCase();
       const artistas = [0, 1, 2].map((i) => ({ nome: ($(`[data-dp-art="${i}"]`)?.value || "").trim(), producao: !!$(`[data-dp-prod="${i}"]`)?.checked }))
-        .filter((a) => a.nome).map((a, i) => { const c = contas.find((p) => k(p.vinculo_nome || p.nome || p.email) === k(a.nome)); return { ...a, ordem: i + 1, ...(c ? { user_id: c.id } : {}) }; });
+        .filter((a) => a.nome).map((a, i) => { const c = contas.find((p) => k(p.vinculo_nome || p.nome || p.email) === k(a.nome));
+          // WhatsApp do artista (inscrição ou perfil) vai junto: a casa monta o grupo do cronograma sem pedir telefone.
+          const w = c && ((E.insc || []).find((x) => x.user_id === c.id)?.dados?.whatsapp || c.whatsapp);
+          return { ...a, ordem: i + 1, ...(c ? { user_id: c.id } : {}), ...(w ? { whatsapp: VAL.tel(w) ? VAL.fTel(w) : w } : {}) }; });
       const falta = [!v("#dpDia") && "o dia", !casa && "a casa", !artistas.length && "pelo menos um artista"].filter(Boolean);
       if (falta.length) return diz(err, `Não salvou: falta ${falta.join(", ")}.`), true;
       if (!S.dpExc) {
@@ -2674,8 +2722,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (t.id === "ctSalvarDados") {
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
-      const d = {}; document.querySelectorAll("[data-ct-dado]").forEach((i) => { d[i.dataset.ctDado] = i.value.trim(); });
-      await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); return true;
+      const d = {}, erros = []; document.querySelectorAll("[data-ct-dado]").forEach((i) => { const campo = c.campos.find((x) => x.chave === i.dataset.ctDado), r = VAL.porRotulo(campo?.rotulo || i.dataset.ctDado, i.value);
+        i.classList.toggle("campo-falta", !!r.erro); if (r.erro) erros.push(r.erro); else { d[i.dataset.ctDado] = r.v; i.value = r.v; } });
+      const msg = $("#ctDadosMsg");
+      if (erros.length) { diz(msg, `✕ Não salvou. Corrija: ${erros.join("; ")}.`); document.querySelector(".campo-falta")?.focus(); return true; }
+      diz(msg, "Salvando…");
+      try { await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); diz($("#ctDadosMsg"), "✓ Feito: dados salvos. Agora baixe o PDF."); } catch (x) { diz($("#ctDadosMsg"), traduz(x.message || "")); }
+      return true;
     }
     if (t.id === "ctAssinar") {
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;

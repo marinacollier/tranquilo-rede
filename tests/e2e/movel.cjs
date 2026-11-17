@@ -32,7 +32,6 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // Aba do menu ou, no portal da casa, a parte de uma das quatro áreas.
     const ir = async (aba) => { await p.evaluate((a) => { const b = document.querySelector(`[data-aba="${a}"]`); if (b) return b.click(); const ar = window.TQConta.areaDe(a); document.querySelector(`[data-aba="${ar}"]`).click(); document.querySelector(`[data-sub="${ar}|${a}"]`)?.click(); }, aba); await p.waitForTimeout(600); };
     await ir('campanha'); await p.waitForSelector('.camp-dia'); await largura('casa-campanha');
-    await ir('materiais'); await largura('casa-materiais');
     await ir('duvidas'); ok(/Google Agenda/.test(await p.innerText('#app')) && /Li e estou ciente/.test(await p.innerText('#app')), 'casa: dúvidas novas aparecem (campanha, agenda, ciência)'); await largura('casa-duvidas');
     await ir('cadastro_casa'); await largura('casa-ficha'); await ir('agenda_casa'); await p.waitForTimeout(300); await largura('casa-disponibilidade');
     await p.evaluate(() => document.querySelector('#sair')?.click()); await p.waitForTimeout(500);

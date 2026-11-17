@@ -32,13 +32,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const ics = require('fs').readFileSync(await dl.path(), 'utf8');
     ok(dl.suggestedFilename() === 'campanha-rooftap-nov26.ics' && (ics.match(/BEGIN:VEVENT/g) || []).length === 10 && /DTSTART;VALUE=DATE:20261020/.test(ics) && ics.split('\r\n').every((l) => Buffer.byteLength(l) <= 75), 'campanha baixa em .ics com os 10 dias (linhas dentro do limite)');
     // materiais e ciência
-    await abrirAba('materiais'); await p.waitForSelector('[data-ciencia]', { timeout: 5000 });
-    ok(/1 material pede sua confirmação/.test(await p.innerText('#app')), 'aviso de material pendente de leitura');
-    await p.click('[data-ciencia="v1"]'); await p.waitForTimeout(500);
-    ok(/Você confirmou a leitura da versão 2026-10-20/.test(await p.innerText('#app')) && !(await p.$('[data-ciencia]')), '"Li e estou ciente" registra e some o botão');
-    ok(await p.$('a[href="https://exemplo.com/apresenta"]') !== null, 'material sem ciência só tem o botão Abrir');
-    ok(await p.$('a[href="https://docs.google.com/document/d/1AbCdEfGhIjKlMnOpQrStUvWxYz012345/copy"]') !== null, 'Google Docs ganha "Fazer minha cópia" (/copy)');
-    ok(!(await p.$('[data-mat-versao]')), 'casa não vê o formulário de publicar');
+    // Casa não vê Materiais, Base nem Método (pedido da Marina, 17/11/2026): só o time.
+    ok(!(await p.$('[data-aba="materiais"]')) && !(await p.$('[data-aba="base"]')) && !(await p.$('[data-aba="metodo"]')) && !(await p.evaluate(() => TQConta.areaDe('materiais'))), 'casa não vê Materiais, Base nem Método');
     await p.click('#sair'); await p.waitForTimeout(500);
     // equipe (demo): andamento e ciência
     await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
@@ -48,7 +43,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('table[data-tbl="andcamp"] tbody tr'); await p.waitForTimeout(400);
     ok((await p.$$('.camp-dia')).length === 10 && !(await p.$('[data-camp-feito]')), 'matriz abre o dia a dia, sem poder marcar');
     await abrirAba('materiais'); await p.waitForTimeout(800);
-    ok(/Ciência da versão 2026-10-20:<\/b>|Ciência da versão 2026-10-20: 1 pessoa/.test(await p.innerText('#app')), 'matriz vê quantos confirmaram a leitura');
+    ok(/Ciência da versão 2026-10-20: \d+ pessoa/.test(await p.innerText('#app')), 'matriz vê quantos confirmaram a leitura');
     // equipe carrega campanha nova (arquivo de dados) e atualiza a do Rooftap (página HTML)
     await p.click('[data-aba="campanhas"]'); await p.waitForSelector('#cfArq', { state: 'attached', timeout: 5000 });
     const cob = await p.innerText('table[data-tbl="cobcasas"]');
@@ -80,11 +75,6 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/https/.test(await p.innerText('#materr')), 'link sem https é recusado');
     await p.fill('#mnUrl', 'https://docs.google.com/document/d/1ZyXwVuTsRqPoNmLkJiHgFeDcBa98765/edit'); await p.check('#mnCie'); await p.click('[data-mat-novo]'); await p.waitForTimeout(400);
     ok(/Função da fotografia/.test(await p.innerText('#app')) && /Ciência da versão 1: 0 pessoas/.test(await p.innerText('#app')), 'material novo aparece com ciência pedida');
-    await p.click('#sair'); await p.waitForTimeout(500);
-    await p.click('#entrar'); await p.waitForTimeout(300); if (await p.isVisible('[data-entrada="entrar"]')) await p.click('[data-entrada="entrar"]'); await p.waitForSelector('#email'); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
-    await p.waitForSelector('[data-aba="datas_casa"]', { timeout: 8000 }); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
-    await abrirAba('materiais'); await p.waitForSelector('[data-ciencia]', { timeout: 5000 });
-    ok(/4 materiais pedem sua confirmação/.test(await p.innerText('#app')), `casa volta a ter pendência: nova versão + material novo (${(await p.innerText('.alert.warn')).slice(0, 60)})`);
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(erros.length === 0, 'sem exceções JS ' + erros.slice(0, 2).join(' | '));
   console.log(res.join('\n')); await b.close();
