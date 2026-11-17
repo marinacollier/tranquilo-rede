@@ -96,7 +96,7 @@ delete from auth.users where id in (select id from caso_ids);`);
 }
 
 try {
-  await apagar();
+  if (MODO !== 'arrumar') await apagar();
   if (MODO === 'criar') {
     const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
     const serv = (chaves.find?.((k) => k.name === 'service_role') || chaves.find?.((k) => k.type === 'secret'))?.api_key;
@@ -184,6 +184,29 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     const linhas = [...feitos(id.artista, lista('PASSOS_ARTISTA')), ...feitos(id.casa, lista('PASSOS_CASA'))];
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
+  }
+  // Arrumação pedida pela Marina: sai o modelo de contrato de teste dela; contratos pendentes ganham os dados da Ficha/inscrição.
+  if (MODO === 'criar' || MODO === 'arrumar') {
+    const r = await sql(`do $$ begin
+  alter table contratos disable trigger trg_contrato_travado;
+  update contratos set modelo_id = null where modelo_id in (select id from modelos_contrato where nome ilike 'Artista teste%');
+  alter table contratos enable trigger trg_contrato_travado;
+end $$;
+delete from modelos_contrato where nome ilike 'Artista teste%' returning id;`);
+    ok(true, `modelo de contrato de teste removido (${r.length})`);
+    global.window = {}; if (!global.TQC) eval((await readFile(new URL('../src/contrato.js', import.meta.url), 'utf8')) + ';global.TQC = TQContrato;');
+    const pend = await sql(`select c.id, c.campos, c.dados, p.tipo, p.email, i.dados ins, k.dados ficha, k.combinados
+      from contratos c join perfis p on p.id = c.user_id left join inscricoes_artistas i on i.user_id = c.user_id left join cadastros_casas k on k.user_id = c.user_id
+      where c.status = 'enviado'`);
+    let n = 0;
+    for (const c of pend) {
+      const tipo = c.tipo === 'casa' ? 'casa' : 'artista', campos = c.campos || [];
+      const cad = global.TQC.doCadastro(campos, tipo, tipo === 'casa' ? c.ficha : c.ins, { combinados: c.combinados, email: c.email });
+      const novos = Object.fromEntries(Object.entries(cad).filter(([k]) => !String(c.dados?.[k] ?? '').trim()));
+      if (!Object.keys(novos).length) continue;
+      await sql(`update contratos set dados = dados || ${js(novos)} where id = ${lit(c.id)} and status = 'enviado'`); n++;
+    }
+    ok(true, `${n} de ${pend.length} contratos pendentes preenchidos com a Ficha ou a inscrição`);
   }
 } catch (e) { ok(false, 'quebrou: ' + limpo(e.message)); }
 console.log(res.join('\n'));
