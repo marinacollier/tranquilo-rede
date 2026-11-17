@@ -2767,3 +2767,24 @@ begin
 end $$;
 revoke all on function conferir_contrato(uuid, boolean, text) from public, anon;
 grant execute on function conferir_contrato(uuid, boolean, text) to authenticated;
+
+-- =====================================================================
+-- v29: disponibilidade semanal do artista por cidade (pedido da Marina, 17/11/2026). Idempotente.
+-- O artista que circula marca, para cada cidade, os dias da semana em que pode tocar (ex.: São Paulo seg/ter/qua,
+-- Campinas ter/qua, BH qui/sex). Linha sem cidade vale para qualquer cidade (como antes).
+-- =====================================================================
+alter table disponibilidade_semanal add column if not exists cidade text check (cidade is null or length(cidade) between 1 and 120);
+drop index if exists disp_sem_user;
+create unique index if not exists disp_sem_user_cid on disponibilidade_semanal (user_id, lower(coalesce(cidade, ''))) where user_id is not null;
+drop policy if exists dsem_apagar on disponibilidade_semanal;
+create policy dsem_apagar on disponibilidade_semanal for delete using (user_id = auth.uid() or (casa_ref is not null and sou_dono_da_casa(casa_ref)));
+grant delete on disponibilidade_semanal to authenticated;
+create or replace function disp_semanal_carimbo() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  new.atualizado_em := now(); new.atualizado_por := auth.uid();
+  if tg_op = 'UPDATE' then new.casa_ref := old.casa_ref; new.user_id := old.user_id; new.cidade := old.cidade; end if;
+  if new.casa_ref is not null then new.cidade := null; end if;
+  new.dias := array(select distinct x from unnest(new.dias) x order by x);
+  return new;
+end $$;

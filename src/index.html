@@ -603,9 +603,11 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+.sem-cid{padding:8px 0;border-top:1px solid var(--line-2)}.sem-cid:first-of-type{border-top:0}.sem-cid b{display:block;margin-bottom:4px}
 /* Dados de teste em destaque */
 .eh-teste{box-shadow:inset 4px 0 0 #f5b301;background-image:linear-gradient(rgba(245,179,1,.08),rgba(245,179,1,.08))!important;position:relative}
-.card.eh-teste::after,li.eh-teste::after,.row.eh-teste::after{content:"TESTE";position:absolute;top:8px;right:10px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.12em;color:#1b1b1d;background:#f5b301;padding:4px 7px;border-radius:999px;pointer-events:none}
+.row.eh-teste::before{content:"TESTE";flex:none;align-self:center;margin-right:10px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.12em;color:#1b1b1d;background:#f5b301;padding:4px 7px;border-radius:999px}
+.card.eh-teste:not(.row)::after,li.eh-teste:not(.row)::after{content:"TESTE";position:absolute;top:-9px;right:16px;z-index:1;font:800 10px/1 system-ui,sans-serif;letter-spacing:.12em;color:#1b1b1d;background:#f5b301;padding:4px 7px;border-radius:999px;pointer-events:none}
 tr.eh-teste td:first-child::before{content:"TESTE";display:inline-block;margin-right:6px;font:800 9px/1 system-ui,sans-serif;letter-spacing:.1em;color:#1b1b1d;background:#f5b301;padding:3px 6px;border-radius:999px;vertical-align:middle}
 option.eh-teste{color:#f5b301}
 .aviso-teste{margin:0 0 14px;padding:10px 14px;border-radius:12px;border:1px solid #f5b301;background:rgba(245,179,1,.10);font-size:14px}

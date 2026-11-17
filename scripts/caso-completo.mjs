@@ -185,6 +185,33 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Casas mais leves para o Gui (Marina, 17/11/2026): uma casa de teste em cada etapa. Fica 1 esperando a análise da
+  // Ficha; as outras são habilitadas; 1 habilitada fica sem disponibilidade; 1 recebe o contrato de parceria para assinar.
+  if (MODO === 'casas-leve') {
+    const central = (await sql(`select id from perfis where nome = 'Central (caso de teste)' limit 1`))[0]?.id;
+    const imp = `select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: central, role: 'authenticated' }))}, true), set_config('request.jwt.claim.sub', ${lit(central)}, true);`;
+    const cs = await sql(`select c.user_id id, c.dados->>'nome' nome, c.status::text status, c.dados ficha from cadastros_casas c join auth.users u on u.id = c.user_id
+      where u.email like 'teste.casa%@teste-e2e.invalid' order by c.dados->>'nome'`);
+    const fica = cs.find((c) => c.status === 'em_analise');
+    for (const c of cs.filter((x) => x.status === 'em_analise' && x !== fica)) await sql(`${imp} update cadastros_casas set status = 'habilitada', parecer = 'Ficha completa (TESTE).', combinados = ${js(COMBINADOS)} where user_id = ${lit(c.id)};`);
+    const hab = cs.filter((c) => c !== fica);
+    const semDisp = hab[0], comContrato = hab[1];
+    if (semDisp) await sql(`delete from disponibilidade_casa where casa_ref = ${lit(semDisp.nome)}; delete from disponibilidade_semanal where casa_ref = ${lit(semDisp.nome)};`);
+    let ct = 'não';
+    if (comContrato) {
+      global.window = {}; if (!global.TQC) eval((await readFile(new URL('../src/contrato.js', import.meta.url), 'utf8')) + ';global.TQC = TQContrato;');
+      const m = (await sql(`select id, nome, texto from modelos_contrato where nome ilike 'casa%' or nome ilike '%parceria%' order by criado_em desc limit 1`))[0];
+      if (m) {
+        const { texto, campos } = global.TQC.campos(m.texto), cad = global.TQC.doCadastro(campos, 'casa', comContrato.ficha, { combinados: COMBINADOS });
+        const sug = global.TQC.sugestoes(null, { vinculo_nome: comContrato.nome });
+        const valores = Object.fromEntries(campos.map((c) => [c.chave, sug[c.chave] || cad[c.chave] || ''])), daEquipe = campos.filter((c) => valores[c.chave]), daPessoa = campos.filter((c) => !valores[c.chave]);
+        await sql(`delete from contratos where user_id = ${lit(comContrato.id)} and status = 'enviado';
+insert into contratos (user_id, titulo, modelo_id, texto, campos, dados, status, criado_por) values (${lit(comContrato.id)}, ${lit(`${m.nome} · ${comContrato.nome}`.slice(0, 160))}, ${lit(m.id)}, ${lit(global.TQC.preencher(texto, daEquipe, valores))}, ${js(daPessoa)}, '{}'::jsonb, 'enviado', ${lit(central)});`);
+        ct = comContrato.nome;
+      }
+    }
+    ok(true, `casas de teste: 1 esperando análise (${fica?.nome || '-'}), 1 sem disponibilidade (${semDisp?.nome || '-'}), contrato para assinar: ${ct}`);
+  }
   // Curadoria mais leve (Marina, 17/11/2026): a Isa testa mais os matches de data e o contrato. Aprova as inscrições de
   // teste que esperavam curadoria (fica só a Banda Eco para ela testar) e dá dias livres a quem ainda não tinha.
   if (MODO === 'curadoria-leve') {
