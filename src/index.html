@@ -603,6 +603,12 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+/* Dados de teste em destaque */
+.eh-teste{box-shadow:inset 4px 0 0 #f5b301;background-image:linear-gradient(rgba(245,179,1,.08),rgba(245,179,1,.08))!important;position:relative}
+.card.eh-teste::after,li.eh-teste::after,.row.eh-teste::after{content:"TESTE";position:absolute;top:8px;right:10px;font:800 10px/1 system-ui,sans-serif;letter-spacing:.12em;color:#1b1b1d;background:#f5b301;padding:4px 7px;border-radius:999px;pointer-events:none}
+tr.eh-teste td:first-child::before{content:"TESTE";display:inline-block;margin-right:6px;font:800 9px/1 system-ui,sans-serif;letter-spacing:.1em;color:#1b1b1d;background:#f5b301;padding:3px 6px;border-radius:999px;vertical-align:middle}
+option.eh-teste{color:#f5b301}
+.aviso-teste{margin:0 0 14px;padding:10px 14px;border-radius:12px;border:1px solid #f5b301;background:rgba(245,179,1,.10);font-size:14px}
 /* Trilha da casa e do artista */
 .side button.trava{opacity:.55}.nav-trava{margin-left:auto;font-size:12px}
 .trilha-lista{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
@@ -1412,7 +1418,19 @@ function render() {
   // Documento aberto dentro da página (Guia, manuais, documentos do marketing): some ao trocar de aba ou de parte.
   if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
   $("#app").innerHTML = (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
+  marcarTestes();
   ligar();
+}
+// Dados de teste em destaque (pedido da Marina, 17/11/2026): o time testa sem confundir com casas e artistas reais.
+const EH_TESTE = /\bTESTE\b|\(teste\)|teste-e2e/i;
+function marcarTestes() {
+  const app = $("#app"); if (!app) return;
+  app.querySelectorAll("tr, li, .card, option, .camp-dia, .row").forEach((el) => {
+    if (el.matches(".card") && el.querySelector("tr, .card, li")) return;   // não pinta o cartão que só agrupa uma lista
+    if (EH_TESTE.test(el.textContent || "")) el.classList.add("eh-teste");
+  });
+  const eq = S.conta && ["equipe", "adm"].includes(S.conta.perfil.tipo);
+  if (eq && app.querySelector(".eh-teste") && !app.querySelector(".aviso-teste")) app.insertAdjacentHTML("afterbegin", '<div class="aviso-teste"><b>🧪 Modo teste:</b> o que tem a faixa amarela e a etiqueta TESTE é fictício, pode mexer à vontade. O resto é real: cuidado.</div>');
 }
 function ligar() {
   const on = (sel, ev, fn) => { const el = $(sel); if (el) el[ev] = fn; };
