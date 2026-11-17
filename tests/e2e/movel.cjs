@@ -6,7 +6,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
-  await ctx.addInitScript((h) => { try { localStorage.setItem('tq-demo-hub', h);
+  await ctx.addInitScript((h) => { try { localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-demo-hub', h);
     if (!localStorage.getItem('tq-demo-v1')) localStorage.setItem('tq-demo-v1', JSON.stringify({ usuarios: {}, insc: {}, casas: {}, chk: [], reg: [], sessao: null, conv: { 'rooftap@teste.com': { email: 'rooftap@teste.com', tipo: 'casa', nome: 'Rooftap', vinculo_nome: 'Rooftap', aceito_em: '2026-10-20T10:00:00Z' } } })); } catch {} }, HUB);
   const p = await ctx.newPage(); const erros = []; p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
   const largura = async (nome) => {

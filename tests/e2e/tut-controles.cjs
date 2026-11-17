@@ -5,7 +5,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
 async function novo(b, largura = 1280) {
   const ctx = await b.newContext({ viewport: { width: largura, height: 860 } });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
-  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); } catch {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); } catch {} });
   const p = await ctx.newPage(); p.erros = []; p.on('pageerror', (e) => p.erros.push(e.message)); p.on('dialog', (d) => d.accept()); return p;
 }
 const tit = (p) => p.textContent('#tourTit');

@@ -8,7 +8,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   const b = await chromium.launch(); const erros = [];
   for (const [nome, vp, cod, demo] of [['adm-d', { width: 1366, height: 860 }, COD.adm, 'adm'], ['eq-m', { width: 390, height: 844 }, COD.equipe, 'equipe']]) {
     const c = await b.newContext({ viewport: vp }); await c.route(/supabase\.co/, (r) => r.abort());
-    await c.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); } catch {} });
+    await c.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); } catch {} });
     const p = await c.newPage(); p.on('pageerror', (e) => erros.push(e.message));
     await p.goto(U); await p.waitForTimeout(1200); await p.click('#entrar'); await p.waitForTimeout(200);
     await p.click('[data-demo="' + demo + '"]'); await p.waitForSelector('.tour-caixa'); await p.click('[data-tour="pular"]');

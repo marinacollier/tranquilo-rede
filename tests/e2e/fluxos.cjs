@@ -7,7 +7,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
 (async () => {
   const b = await chromium.launch();
   const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
-  await ctx.route(/supabase\.co/, (r) => r.abort()); await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); } catch {} });
+  await ctx.route(/supabase\.co/, (r) => r.abort()); await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); } catch {} });
   const p = await ctx.newPage(); const erros = []; p.on('pageerror', (e) => erros.push(e.message));
   p.on('dialog', (d) => d.accept());
   // 1. Público: tutorial abre na primeira visita

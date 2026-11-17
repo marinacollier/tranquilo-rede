@@ -601,6 +601,13 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+/* Trilha da casa e do artista */
+.side button.trava{opacity:.55}.nav-trava{margin-left:auto;font-size:12px}
+.trilha-lista{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.trilha-lista li{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid var(--line-2)}
+.trilha-lista li .trilha-marca{width:22px;text-align:center;flex:none}.trilha-lista li>span:nth-child(2){flex:1;min-width:0}
+.trilha-lista li.feito{opacity:.7}.trilha-lista li.feito .trilha-marca{color:#8fd19e}
+.trilha-lista li.atual{border-color:var(--violet);background:var(--violet-soft)}.trilha-lista li.trava{opacity:.55}
 .dlg-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer;display:grid;place-items:center}.dlg-x:hover{border-color:var(--violet)}
 #dlg{position:fixed}
 /* Caixas de escolha com cara de clicável (pedido da Marina, 17/11/2026): seta sempre visível, mãozinha e borda ao passar. */
@@ -1360,7 +1367,7 @@ function navHtml(abas) {
     if (!itens.length) return "";
     // Na casa, o menu tem só as quatro áreas; a conta fica no rodapé, fora delas.
     if (nome === "Conta" && S.conta?.perfil.tipo === "casa") return `<div class="nav-g nav-rodape">${itens.map((k) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}"${S.aba === k ? ' aria-current="page"' : ""}>${ICONES[k] || ""}<span>Minha conta</span></button>`).join("")}</div>`;
-    return `<div class="nav-g"><div class="nav-t">${nome}</div>${itens.map((k) => `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}"${S.aba === k ? ' aria-current="page"' : ""}>${ICONES[k] || ""}<span>${esc(conta.get(k))}</span></button>`).join("")}</div>`;
+    return `<div class="nav-g"><div class="nav-t">${nome}</div>${itens.map((k) => { const tr = TQConta.bloqueio?.(k); return `<button data-aba="${k}" class="${S.aba === k ? "on" : ""}${tr ? " trava" : ""}"${S.aba === k ? ' aria-current="page"' : ""}${tr ? ` title="${esc("Ainda não liberado: " + tr)}"` : ""}>${ICONES[k] || ""}<span>${esc(conta.get(k))}</span>${tr ? '<span class="nav-trava" aria-label="travado">🔒</span>' : ""}</button>`; }).join("")}</div>`;
   }).join("");
 }
 function quemHtml() {
@@ -1401,7 +1408,7 @@ function render() {
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
   // Documento aberto dentro da página (Guia, manuais, documentos do marketing): some ao trocar de aba ou de parte.
   if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
-  $("#app").innerHTML = (S.lendo && TQConta.leitor()) || (TQConta.telas[S.aba] || TELAS[S.aba])();
+  $("#app").innerHTML = (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
   ligar();
 }
 function ligar() {

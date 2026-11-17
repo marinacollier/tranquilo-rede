@@ -13,7 +13,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
     if (!aceita) return r.fulfill({ status: 404, body: '{"code":"PGRST205","message":"Could not find the table"}' });
     recebidos.push(...JSON.parse(r.request().postData() || '[]')); return r.fulfill({ status: 201, body: '' });
   });
-  await c.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); } catch {} });
+  await c.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); } catch {} });
   const p = await c.newPage(); p.on('pageerror', (e) => erros.push(e.message));
   await p.goto(BASE); await p.waitForTimeout(2500);
   await p.fill('#avContato', 'segredo@exemplo.com'); await p.click('#avOk'); await p.waitForTimeout(6500);
