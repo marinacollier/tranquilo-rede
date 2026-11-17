@@ -59,7 +59,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
     const codEq = linhas.find(([t]) => t === 'equipe')[1];
     await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); render(); }, codEq); await p.waitForTimeout(400);
-    await p.click('[data-aba="lado_a_lado"]'); await p.waitForTimeout(800);
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'lado_a_lado'); await p.waitForTimeout(800);
     const ll = await app();
     ok(/20h10 às 20h40: Thay Santos/.test(ll) && /15h30 às 16h30: passagem de som de YOÙN/.test(ll), 'mensagem do Apresenta (19/11 Santo André): abertura Thay Santos, YOÙN passa o som primeiro (quem toca por último)');
     ok(/16h10 às 16h40: passagem de som de LuizGa/.test(ll) && /21h30 às 21h50: olho no olho/.test(ll), 'mensagem do Descubra com 3 artistas: ordem do line-up e olho no olho');

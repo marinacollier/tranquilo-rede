@@ -69,7 +69,7 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
   ok(/#tutorial-casa/.test(await p.inputValue('#envTxt')), 'equipe: tutorial da casa vai com o link certo');
   await p.click('#dlg [data-envio]'); await p.click('#dlg button:has-text("Fechar")'); await p.click('[data-aba="convites"]');
   ok(/enviado em/.test(await p.textContent('#app')), 'equipe: registra que o tutorial foi enviado');
-  await p.click('[data-aba="demanda"]'); await p.waitForTimeout(300);
+  await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'demanda'); await p.waitForTimeout(300);
   const dem = await p.textContent('#app'); ok(/Recife/.test(dem) && /nenhuma/.test(dem), 'equipe: demanda mostra Recife pedida e sem data');
   await p.screenshot({ path: `${out}/5-demanda.png`, fullPage: true });
   await p.click('#sair'); await p.waitForTimeout(300);

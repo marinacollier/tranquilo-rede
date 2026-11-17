@@ -19,7 +19,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 1. Equipe sem área: vê tudo, como antes.
     await entrar('equipe');
     const todas = await abas();
-    ok(['datas_portal', 'documentos', 'campanhas', 'prontidao', 'relatos'].every((k) => todas.includes(k)), 'equipe sem área marcada continua vendo todas as abas da equipe');
+    ok(['datas_portal', 'documentos', 'campanhas', 'curadoria', 'casas_cad'].every((k) => todas.includes(k)) && !todas.includes('relatos'), 'equipe sem área marcada vê todas as partes do time (relatos e prontidão só a administração)');
     const eqId = await p.evaluate(() => S.conta.perfil.id);
     await sair();
     // 2. Administração marca "Marketing" para a conta de equipe em Pessoas.
@@ -40,7 +40,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('equipe');
     const mk = await abas();
     ok(mk.includes('campanhas') && !mk.includes('datas_portal') && !mk.includes('documentos') && !mk.includes('prontidao') && !mk.includes('relatos'), `Marketing: abas da área (${mk.join(', ')})`);
-    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'convites', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
+    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'painel', 'campanhas', 'demanda', 'convites', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
     { const r = await p.evaluate(() => { const ks = [...TQConta.abas().map(([k]) => k), ...TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [])]; return { rot: TQConta.roteiroConta(), falta: TQTour.semTutorial('eq_areas', ks) }; });
       ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Marketing: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('hoje');
@@ -81,7 +81,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('adm'); const ad = await abas();
     ok(['datas_portal', 'documentos', 'campanhas', 'prontidao', 'relatos', 'pessoas', 'historico'].every((k) => ad.includes(k)), 'Administração vê tudo, com Pessoas e Histórico');
     const titulos = await p.$$eval('#tabs .nav-t', (xs) => xs.map((x) => x.textContent));
-    ok(['Para todos', 'Gui · Casas e franqueados', 'Isa · Artistas e datas', 'Bruno · Marketing', 'Só administração', 'Conta'].every((t) => titulos.includes(t)), 'menu da administração por acesso: ' + titulos.join(' · '));
+    ok(['Seu trabalho', 'Ajuda'].every((t) => titulos.includes(t)) && (await abas()).includes('pessoas'), 'menu da administração no mesmo padrão do time: ' + titulos.join(' · '));
     // Conta: mudar a senha (com Cancelar) e salvar.
     await ir('conta'); await p.click('[data-mudar-senha]'); await p.waitForTimeout(300);
     ok(await p.isVisible('#nsdepois') && /Cancelar/.test(await p.textContent('#nsdepois')), 'Conta: Mudar a senha abre com Cancelar');

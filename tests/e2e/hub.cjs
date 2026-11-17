@@ -37,7 +37,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#sair'); await p.waitForTimeout(500);
     // equipe (demo): andamento e ciência
     await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
-    await p.click('[data-aba="campanhas"]'); await p.waitForSelector('table[data-tbl="andcamp"] tbody tr', { timeout: 5000 });
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'campanhas'); await p.waitForSelector('table[data-tbl="andcamp"] tbody tr', { timeout: 5000 });
     const linha = await p.innerText('table[data-tbl="andcamp"] tbody tr');
     ok(/Rooftap/.test(linha) && /1\/10/.test(linha), `matriz vê o andamento (${linha.replace(/\s+/g, ' ')})`);
     await p.click('table[data-tbl="andcamp"] tbody tr'); await p.waitForTimeout(400);
@@ -45,7 +45,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await abrirAba('materiais'); await p.waitForTimeout(800);
     ok(/Ciência da versão 2026-10-20: \d+ pessoa/.test(await p.innerText('#app')), 'matriz vê quantos confirmaram a leitura');
     // equipe carrega campanha nova (arquivo de dados) e atualiza a do Rooftap (página HTML)
-    await p.click('[data-aba="campanhas"]'); await p.waitForSelector('#cfArq', { state: 'attached', timeout: 5000 });
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'campanhas'); await p.waitForSelector('#cfArq', { state: 'attached', timeout: 5000 });
     const cob = await p.innerText('table[data-tbl="cobcasas"]');
     ok(/Rooftap/.test(cob) && /1\/10/.test(cob) && /leve|completa|sem agenda/.test(cob) && /\b1\b/.test(cob), `casas no hub: Rooftap com pessoa, formato e campanha (${cob.replace(/\s+/g, ' ').slice(0, 120)})`);
     await p.click('details:has(#cfArq) summary'); await p.setInputFiles('#cfArq', __dirname + '/dados/casa-nova.json'); await p.waitForTimeout(400);

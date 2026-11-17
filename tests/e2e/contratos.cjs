@@ -25,7 +25,7 @@ E por estarem de acordo, assinam.`;
     await pular(); await sair();
     // equipe: modelo e envio
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular();
-    await p.click('[data-aba="documentos"]'); await p.waitForSelector('#contrAuto');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector('#contrAuto');
     {
       // Datas próximas sem contrato: "Preparar contrato" já escolhe a data.
       const pre = await p.$('[data-ct-pre]');
@@ -62,7 +62,7 @@ E por estarem de acordo, assinam.`;
     ok(/Assinado pelo Tranquilo/.test(await pop.textContent('body')) && /123\.456\.789-09/.test(await pop.textContent('body')) && /Baixar em PDF/.test(await pop.textContent('body')), 'PDF sai com os dados da pessoa e a assinatura do Tranquilo');
     await pop.close(); await sair();
     // equipe vê o contrato aguardando o arquivo assinado
-    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector('[data-ct-ver]');
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector('[data-ct-ver]');
     ok(/Aguardando assinatura/.test(await p.textContent('#app')), 'equipe vê o contrato aguardando a assinatura');
     // Segundo contrato para a mesma pessoa: a equipe é avisada da duplicata; a artista não digita os dados de novo.
     await p.selectOption('#ctConta', conta); await p.selectOption('#ctMod', { label: 'Apresenta artista' }); if (evPrimeiro) await p.selectOption('#ctEv', evPrimeiro); await p.click('#ctPrep');
@@ -83,7 +83,7 @@ E por estarem de acordo, assinam.`;
     await p.setInputFiles('[data-enviar-arquivo^="contrato_"]', pdf); await p.waitForSelector('text=Contrato assinado enviado');
     ok(/vai conferir/.test(await p.textContent('#app')), 'artista envia o assinado e vê que a equipe vai conferir');
     await sair();
-    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
     const linhaCt = () => p.textContent(`tr:has([data-ct-ver="${ctId}"])`);
     ok(/Assinado · arquivo recebido/.test(await linhaCt()) && await p.$(`[data-ct-devolver="${ctId}"]`), 'equipe vê "arquivo recebido" com "Conferir e confirmar" e "Pedir de novo"');
     await p.click(`[data-ct-devolver="${ctId}"]`); await p.waitForSelector('#ctMotivo');
@@ -102,7 +102,7 @@ E por estarem de acordo, assinam.`;
     await p.setInputFiles('[data-enviar-arquivo^="contrato_"]', { ...pdf, name: 'contrato-assinado-v2.pdf' }); await p.waitForSelector('text=Contrato assinado enviado');
     ok(!(await p.$('#ctDeNovo')), 'arquivo novo enviado: o pedido some da tela da artista');
     await sair();
-    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
+    await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
     await p.click(`[data-ct-conferir="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
     ok(/✓ Feito: Contrato conferido e confirmado/.test(await p.textContent('#ctConfMsg')) && /✓ Assinado e conferido/.test(await linhaCt()) && /conferido por/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'equipe confere e confirma: "✓ Assinado e conferido", com quem e quando');
     ok(dialogos.some((m) => /Depois de conferido, o contrato não muda mais/.test(m)), 'conferir pede confirmação antes');

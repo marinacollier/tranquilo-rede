@@ -34,6 +34,8 @@ const TQTour = (() => {
     { titulo: "Relatos", cobre: ["relatos"], ...N, texto: "Quando alguém usa \"Algo deu errado?\", o relato chega aqui com a tela e os últimos erros daquela pessoa, para a equipe entender sem pedir print.", itens: [], ir: ["relatos", "Abrir relatos"] },
     { titulo: "Base de conhecimento e método", cobre: ["base", "metodo"], texto: "Os artigos da Base de conhecimento do Notion e o método dos 50 eventos, para consultar sem sair do painel.", itens: [] },
   ];
+  // Menu padrão do time (17/11/2026): as partes na lateral; dentro de cada uma, as abas em cima.
+  EQUIPE.unshift({ titulo: "O menu do time", cobre: ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_adm", "painel", "demanda", "lado_a_lado"], texto: "Na lateral ficam as partes do trabalho: Início, Datas, Curadoria, Casas, Contratos, Campanhas e Convidar (a administração vê também Administração). Dentro de cada parte, as abas ficam em cima. Materiais, Base e Método ficam em Ajuda.", itens: ["Cada área vê só as partes dela."] });
   const CONTA = (extra) => ({ titulo: "Sua conta", cobre: ["conta"], texto: "Na aba Conta ficam seus dados, o vínculo com a rede e o campo para colar um código de acesso." + (extra || ""), itens: ["Este tutorial pode ser revisto a qualquer momento por lá."], ir: ["conta", "Abrir conta"] });
   const ROTEIROS = {
     artista: {
@@ -89,10 +91,10 @@ const TQTour = (() => {
       rotulo: "Equipe do Tranquilo",
       passos: [
         { titulo: "Oi! Este é o seu espaço", texto: "O portal junta o que chega da rede na sua área, pra você não precisar procurar. O menu é curto: Início e as partes do seu trabalho. Vai no seu ritmo.", itens: ["Todo mundo convida, vê curadoria, cadastros e agenda das casas, e pode publicar treinamentos."] },
-        { titulo: "Início", cobre: ["g_hoje", "hoje", "feito", "geral"], ...N7, texto: "Para você reúne o que chegou na sua área (vale olhar primeiro em cima, o resto embaixo). Seu histórico guarda o que você fez em 30 dias. A rede mostra as próximas datas, só para consultar.", itens: [], ir: ["hoje", "Abrir o Início"] },
+        { titulo: "Início", cobre: ["g_hoje", "hoje", "feito", "geral", "painel", "operacao"], ...N7, texto: "Para você reúne o que chegou na sua área (vale olhar primeiro em cima, o resto embaixo). Seu histórico guarda o que você fez em 30 dias. A rede mostra as próximas datas, só para consultar.", itens: [], ir: ["hoje", "Abrir o Início"] },
         // Isa · Agenda
         { titulo: "Agenda: datas e artistas", soSe: "datas_portal", texto: "Você cuida das datas, dos artistas e do contrato do artista. Em Datas › Criar datas você junta casa e artistas num dia: a busca mostra quem está livre na mesma data e cidade.", itens: ["A data aparece na hora para a casa e para os artistas com conta."], ir: ["datas_portal", "Abrir Criar datas"] },
-        { titulo: "Agenda das casas", cobre: ["g_datas", "agenda_casas", "datas"], ...N7, texto: "Em Datas › Agenda das casas, o calendário que cada casa preenche, com conflitos marcados. Datas do Notion mostra o retrato do Notion.", itens: [] },
+        { titulo: "Agenda das casas", cobre: ["g_datas", "agenda_casas", "datas", "lado_a_lado"], ...N7, texto: "Em Datas › Agenda das casas, o calendário que cada casa preenche, com conflitos marcados. Datas do Notion mostra o retrato do Notion.", itens: [] },
         { titulo: "Curadoria e convites", cobre: ["g_artistas", "curadoria", "artistas"], ...N7, texto: "Em Curadoria cada inscrição chega com a pré-curadoria pronta: aprovar, pedir ajustes ou não seguir.", itens: [], ir: ["curadoria", "Abrir a curadoria"] },
         // Gui · Operações
         { titulo: "Operações: casas", soSe: "casas_cad", texto: "Você cuida das casas: Ficha, habilitação, combinados, treinamento e contrato da casa. Em Casas › Fichas das casas você habilita (só com a Ficha completa), edita a Ficha e registra os combinados.", itens: ["Casa já habilitada não mostra de novo o botão de habilitar."], ir: ["casas_cad", "Abrir as fichas"] },
@@ -101,7 +103,7 @@ const TQTour = (() => {
         { titulo: "Convidar", cobre: ["convites"], ...N7, texto: "Todo mundo do time convida: artista, casa ou alguém da equipe. A pessoa recebe o link para criar a senha e o tutorial dela.", itens: [], ir: ["convites", "Abrir Convidar"] },
         { titulo: "Contratos", cobre: ["g_contratos", "documentos"], ...N7, texto: "Em Contratos você prepara o contrato a partir do modelo: os dados já vêm da Ficha (casa) ou da inscrição (artista). A pessoa baixa o PDF já assinado pelo Tranquilo, assina e envia de volta; você vê \"Assinado · arquivo recebido\".", itens: ["A Isa libera o contrato do artista; o Gui, o da casa."], ir: ["documentos", "Abrir contratos"] },
         // Bruno · Marketing
-        { titulo: "Marketing: campanhas", soSe: "campanhas", cobre: ["g_campanhas", "campanhas"], ...N7, texto: "Você cuida da divulgação. Em Campanhas vê o andamento de cada casa (dias feitos e atrasados) e carrega ou atualiza a campanha de uma casa com o arquivo.", itens: [], ir: ["campanhas", "Abrir campanhas"] },
+        { titulo: "Marketing: campanhas", soSe: "campanhas", cobre: ["g_campanhas", "campanhas", "demanda"], ...N7, texto: "Você cuida da divulgação. Em Campanhas vê o andamento de cada casa (dias feitos e atrasados) e carrega ou atualiza a campanha de uma casa com o arquivo.", itens: [], ir: ["campanhas", "Abrir campanhas"] },
         { titulo: "Materiais, Base e Método", cobre: ["materiais", "base", "metodo"], ...N7, texto: "Junto da Conta ficam Materiais (guias e documentos que abrem dentro da página; Operações e Marketing publicam versões novas), a Base de conhecimento e o Método.", itens: [], ir: ["materiais", "Abrir materiais"] },
         CONTA(" Aqui também dá para mudar a sua senha."),
       ],

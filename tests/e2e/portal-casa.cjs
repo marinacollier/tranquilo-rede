@@ -64,15 +64,15 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 5. Central: aprova o pedido; vê a agenda das casas e o painel.
     await p.click('[data-aba="conta"]'); await p.click('#sairConta'); await p.waitForTimeout(400);
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
-    await p.click('[data-aba="casas_cad"]'); await p.waitForSelector('table[data-tbl="casc"] tbody tr'); await p.click('table[data-tbl="casc"] tbody tr'); await p.waitForSelector('[data-sol-responder]');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'casas_cad'); await p.waitForSelector('table[data-tbl="casc"] tbody tr'); await p.click('table[data-tbl="casc"] tbody tr'); await p.waitForSelector('[data-sol-responder]');
     ok(/Instalamos luz nova/.test(await p.innerText('#dlgIn')) && /Frontal e contra/.test(await p.innerText('#dlgIn')), 'Central vê o pedido com o antes e o proposto');
     ok(/só a administração vê/.test(await p.innerText('#dlgIn')), 'equipe não vê dados pessoais e bancários do Dono A');
     await p.click('[data-sol-responder$="|1"]'); await p.waitForTimeout(500);
     const d2 = await db(), casa = Object.values(d2.casas)[0];
     ok(casa.dados.luz === 'Frontal e contra' && d2.sol[0].status === 'aprovada', 'pedido aprovado atualiza a ficha');
-    await p.click('[data-aba="agenda_casas"]'); await p.waitForSelector('.cal');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'agenda_casas'); await p.waitForSelector('.cal');
     ok(/Casa Portal/.test(await p.innerText('#app')), 'Agenda das casas mostra a casa que informou a disponibilidade');
-    await p.click('[data-aba="painel"]'); await p.waitForTimeout(400);
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'painel'); await p.waitForTimeout(400);
     ok(/Eventos por data/.test(await p.innerText('#app')), 'Painel da operação abre para a equipe');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));

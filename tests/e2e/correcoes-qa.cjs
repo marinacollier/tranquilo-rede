@@ -59,7 +59,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 6. Central: "Copiar Ficha para a Tranks" (pergunta + todos os dados).
     await p.click('[data-aba="conta"]'); await p.click('#sairConta'); await p.waitForTimeout(400);
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
-    await p.click('[data-aba="casas_cad"]'); await p.waitForSelector('[data-click^="casacad:"]'); await p.click('[data-click^="casacad:"]');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'casas_cad'); await p.waitForSelector('[data-click^="casacad:"]'); await p.click('[data-click^="casacad:"]');
     await p.waitForSelector('[data-tranks]'); await p.click('[data-tranks]'); await p.waitForTimeout(300);
     const tk = await p.evaluate(() => navigator.clipboard.readText()).catch(() => '');
     ok(/^Tranks, esta é a Ficha da unidade/.test(tk) && /\?/.test(tk.split('\n')[0]) && /\*O espaço\*/.test(tk) && /Pendências calculadas/.test(tk) && !/\*Dados para repasses\*/.test(tk), 'Copiar Ficha para a Tranks: pergunta + dados da Ficha, sem dados bancários para a equipe');

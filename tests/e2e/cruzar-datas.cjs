@@ -30,6 +30,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await sair();
     // Artista marca a disponibilidade na própria área.
     await criar('artista', 'Ana Cruza', 'ana@cruza.com');
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.insc = d.insc || {}; d.insc[d.sessao] = { ...(d.insc[d.sessao] || { id: 'i-ana', user_id: d.sessao }), dados: { nome_artistico: 'Ana Cruza', cidade_base: 'Recife', estado: 'PE', cidades_interesse: ['Recife'] }, status: 'aprovada' }; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(700); await pular();
     ok((await p.evaluate(() => TQConta.abas().some(([k]) => k === 'disp_artista'))), 'artista tem a aba Disponibilidade');
     await ir('disp_artista');
     const primeiro = await p.getAttribute('[data-dispa-dia]', 'data-dispa-dia');
@@ -68,7 +70,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife/PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);
     ok(await p.inputValue('[data-dp-art="0"]') === 'Ana Cruza' && await p.inputValue('#dpDia') === dia, 'tocar no artista coloca no line-up sem perder a casa');
-    ok(/Livres em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
+    ok(/Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/✓ Feito: Data criada/.test(await p.textContent('#dpErr')), 'a data criada pela busca salva');
     ok(!/Casa Cruza/.test(await p.textContent('#dpBusca')), 'depois de criada, casa e artista saem dos livres desse dia');

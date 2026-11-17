@@ -853,27 +853,32 @@ const TQConta = (() => {
   /** Área do portal da casa que contém a tela k (ou null). */
   function areaDe(k) {
     if (!k) return null;
-    if (comAreas()) { for (const [g] of gruposEquipe()) if (subsDoGrupo(g).some(([x]) => x === k)) return g; return null; }
+    if (menuAgrupado()) { for (const [g] of gruposEquipe()) if (subsDoGrupo(g).some(([x]) => x === k)) return g; return null; }
     const t = S.conta?.perfil.tipo; if (t !== "casa" && t !== "artista") return null; for (const [a] of (t === "casa" ? AREAS_CASA : AREAS_ART)) if (subsDaArea(a).some(([x]) => x === k)) return a; return null;
   }
   // Equipe com área (Gui, Isa, Bruno): menu simples como o da casa, poucos itens com o trabalho de cada um e as partes dentro.
+  // Menu padrão do time (pedido da Marina, 17/11/2026): o mesmo formato para Gui, Isa, Bruno, equipe e administração.
+  // Na lateral, as partes do trabalho; dentro de cada uma, as abas em cima. Cada área vê só as suas; a adm vê todas.
   const GRUPOS_EQ = {
-    g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"]]],
-    g_datas: ["Datas", [["datas_portal", "Criar datas"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
+    g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
+    g_datas: ["Datas", [["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
     g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["artistas", "Histórico dos artistas"]]],
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
-    g_campanhas: ["Campanhas", [["campanhas", "Campanhas"]]],
-    
+    g_campanhas: ["Campanhas", [["campanhas", "Campanhas"], ["demanda", "Demanda"]]],
+    g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
   };
   const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos"], operacoes: ["g_casas", "g_contratos"], marketing: ["g_campanhas"] };
+  const menuAgrupado = () => ["equipe", "adm"].includes(S.conta?.perfil.tipo);
   function gruposEquipe() {
-    const gs = ["g_hoje", ...new Set((S.conta?.perfil.areas || []).flatMap((a) => GRUPOS_DA_AREA[a] || []))];
-    return gs.map((g) => [g, GRUPOS_EQ[g][0]]);
+    const p = S.conta?.perfil, tudo = p?.tipo === "adm" || !p?.areas?.length;
+    const gs = tudo ? ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", ...(p?.tipo === "adm" ? ["g_adm"] : [])]
+      : ["g_hoje", ...new Set(p.areas.flatMap((a) => GRUPOS_DA_AREA[a] || []))];
+    return gs.filter((g) => subsDoGrupo(g).length).map((g) => [g, GRUPOS_EQ[g][0]]);
   }
   function subsDoGrupo(g) {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
-    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => !["datas", "casas", "artistas"].includes(k) || pac.includes(k));
+    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k)));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
@@ -916,9 +921,9 @@ const TQConta = (() => {
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
     // Equipe com área (Gui, Isa, Bruno): menu enxuto, só o que cada área usa no dia a dia, começando por "Hoje".
-    if (comAreas()) {
+    if (menuAgrupado()) {
       const POR_AREA = { agenda: ["datas_portal", "curadoria", "agenda_casas", "documentos", "convites"], operacoes: ["casas_cad", "convites", "documentos", "painel", "trilhas", "materiais"], marketing: ["campanhas", "materiais"] };
-      const quer = new Set(S.conta.perfil.areas.flatMap((a) => POR_AREA[a] || []));
+      const quer = new Set((S.conta.perfil.areas || []).flatMap((a) => POR_AREA[a] || []));
       const pac = doPac.filter(([k]) => k === "datas" && (quer.has("datas_portal") || quer.has("casas_cad")));
       return [...gruposEquipe(), ["convites", "Convidar"], ...REFERENCIA.filter(([k]) => k !== "duvidas"), ["conta", "Conta"]];
     }
@@ -1924,13 +1929,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const f = ed ? { ...ed, ...(S.dpPre || {}) } : { abertura: "19:00:00", produto: "Descubra", artistas: [], ...(S.dpPre || {}) };
       // A Nova data obedece a disponibilidade: escolhido o dia, só aparecem as casas e os artistas que marcaram esse dia
       // como livre e não têm show. "Exceção" libera todos (ex.: a casa confirmou por WhatsApp e ainda não marcou no portal).
-      const dia = String(f.dia || "").slice(0, 10), exc = !!S.dpExc, L = dia ? livresNoDia(E, casas, S.dpEd)(dia) : null;
+      const dia = String(f.dia || "").slice(0, 10), exc = !!S.dpExc, livres = dia ? livresNoDia(E, casas, S.dpEd) : null;
+      // Artistas: só quem mora ou quer tocar na cidade da casa escolhida (bug do 17/11: aparecia artista de outra cidade).
+      const cidSel = (casas.find((c) => c.id === f.casa_id)?.cidade || f.cidade || "").trim();
+      // Só libera o que dá match (Marina, 17/11/2026): casa só aparece se há artista livre que mora ou quer tocar na cidade dela.
+      const base = livres ? livres(dia) : null, comMatch = (c) => livres(dia, c.cidade || "", true).as.length > 0;
+      const L = base ? { ...base, cs: base.cs.filter(comMatch), as: livres(dia, cidSel, true).as } : null;
+      if (L && !cidSel) L.as = [...new Map(L.cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
       const naData = (nome) => (ed?.artistas || []).some((a) => k(a.nome) === k(nome));
       const casasOpc = exc ? casas : L ? casas.filter((c) => L.cs.some((x) => x.id === c.id) || (ed && c.id === ed.casa_id && dia === String(ed.dia).slice(0, 10))) : [];
       const artsOpc = exc ? artistas : L ? [...L.as.map((a) => ({ id: a.id, nome: a.nome, quer: a.quer, mora: a.mora })), ...(f.artistas || []).filter((a) => a.nome && !L.as.some((x) => k(x.nome) === k(a.nome)) && naData(a.nome) && dia === String(ed?.dia || "").slice(0, 10)).map((a) => ({ nome: a.nome }))] : [];
       const avisoDia = exc ? `<div class="alert warn" style="margin:0 0 10px"><b>⚠ Exceção ligada</b>Todas as casas e artistas aparecem, mesmo sem ter marcado o dia como livre. Use só quando a casa e o artista já confirmaram por fora.</div>`
         : !dia ? `<p class="muted" style="font-size:13px;margin:0 0 10px">Escolha o dia primeiro: a lista de casas e de artistas mostra só quem marcou esse dia como livre.</p>`
-        : `<p class="muted" style="font-size:13px;margin:0 0 10px">Livres em ${dt(dia)}: <b>${L.cs.length} ${L.cs.length === 1 ? "casa" : "casas"}</b> e <b>${L.as.length} ${L.as.length === 1 ? "artista" : "artistas"}</b>. ${!L.cs.length || !L.as.length ? "Para achar um dia com os dois, use \"Encontrar data\" acima." : ""}</p>`;
+        : `<p class="muted" style="font-size:13px;margin:0 0 10px">Com match em ${dt(dia)}: <b>${L.cs.length} ${L.cs.length === 1 ? "casa" : "casas"}</b> e <b>${L.as.length} ${L.as.length === 1 ? "artista" : "artistas"}</b>. ${!L.cs.length || !L.as.length ? "Nenhum match neste dia: nenhuma casa tem artista livre que more ou queira tocar na cidade dela. Tudo bem, escolha outro dia (\"Encontrar data\" acima mostra os dias com match)." : ""}</p>`;
       const linhaArt = (i) => { const a = (f.artistas || [])[i] || {};
         const campoArt = exc ? `<input data-dp-art="${i}" list="dpArtistas" value="${esc(a.nome || "")}" placeholder="Nome (escolha da lista para ligar à conta)">`
           : `<select data-dp-art="${i}"${!dia ? " disabled" : ""}><option value="">${!dia ? "Escolha o dia primeiro" : artsOpc.length ? "Escolha o artista" : "Nenhum artista livre neste dia"}</option>${artsOpc.map((x) => `<option value="${esc(x.nome)}"${k(x.nome) === k(a.nome) ? " selected" : ""}>${esc(x.nome)}${x.quer ? " ★" : ""}${x.mora ? " · mora em " + esc(x.mora) : ""}</option>`).join("")}</select>`;
@@ -2844,7 +2855,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (!S.dpExc) {
         const ed = S.dpEd ? (E.datasP || []).find((x) => x.id === S.dpEd) : null, mesmoDia = ed && String(ed.dia).slice(0, 10) === v("#dpDia");
         const cs = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || c.perfil?.nome || "Casa sem nome", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
-        const L = livresNoDia(E, cs, S.dpEd)(v("#dpDia"));
+        const cidCasa = (cs.find((x) => x.id === casa.id)?.cidade || "").trim(), L = livresNoDia(E, cs, S.dpEd)(v("#dpDia"), cidCasa, true);
         const casaOk = L.cs.some((x) => x.id === casa.id) || (mesmoDia && ed.casa_id === casa.id);
         const fora = artistas.filter((a) => !L.as.some((x) => k(x.nome) === k(a.nome)) && !(mesmoDia && (ed.artistas || []).some((x) => k(x.nome) === k(a.nome)))).map((a) => a.nome);
         if (!casaOk || fora.length) return diz(err, `Não salvou: ${[!casaOk && `a casa não marcou ${dt(v("#dpDia"))} como livre (ou já tem show)`, fora.length && `${fora.join(", ")} não ${fora.length > 1 ? "marcaram" : "marcou"} esse dia como livre`].filter(Boolean).join("; ")}. Se já confirmaram por fora, marque "Exceção".`), true;
@@ -2982,13 +2993,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const semCasa = (c) => { const x = (E.casas || []).find((y) => y.id === c.id); return semanaDe(E.sem, { casaRef: x?.perfil?.vinculo_nome || c.nome, fichaDias: x?.dados?.dias_semana }); };
     const evs = [...(S.pac?.eventos || []).filter((e) => !e.z).map((e) => ({ d: e.d, casa: k(e.h), arts: (e.a || []).map(k) })),
       ...(E.datasP || []).filter((x) => x.status !== "cancelada" && x.id !== ignorarId).map((x) => ({ d: String(x.dia).slice(0, 10), casa: k(x.casa_nome), casaId: x.casa_id, arts: (x.artistas || []).map((a) => k(a.nome)), ids: (x.artistas || []).map((a) => a.user_id) }))];
-    return (dia, cid = "") => {
+    return (dia, cid = "", soDaCidade = false) => {
       const doDia = evs.filter((e) => e.d === dia), cidadeK = k(String(cid).split("/")[0]);
       const cs = casas.filter((c) => (!cid || c.cidade === cid) && !doDia.some((e) => e.casaId === c.id || casaRef(c).includes(e.casa))
         && livreNo(situacaoDia((E.disp || []).find((x) => x.dia === dia && casaRef(c).includes(k(x.casa_ref))), semCasa(c), dia)));
       const as = artistas.filter((a) => !doDia.some((e) => e.arts.includes(k(a.nome)) || (e.ids || []).includes(a.id))
         && livreNo(situacaoDia((E.dispA || []).find((x) => x.user_id === a.id && x.dia === dia), a.sem, dia)))
-        .map((a) => ({ ...a, quer: !!cidadeK && a.cidades.some((c) => c.includes(cidadeK)) })).sort((x, y) => (y.quer - x.quer) || (y.status === "aprovada") - (x.status === "aprovada"));
+        .map((a) => ({ ...a, quer: !!cidadeK && a.cidades.some((c) => c.includes(cidadeK)) }))
+        .filter((a) => !soDaCidade || !cidadeK || a.quer || k(a.mora).includes(cidadeK)).sort((x, y) => (y.quer - x.quer) || (y.status === "aprovada") - (x.status === "aprovada"));
       return { cs, as, artistas };
     };
   }
@@ -2998,7 +3010,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const cidades = [...new Set(casas.map((c) => c.cidade).filter(Boolean))].sort((a, c) => a.localeCompare(c, "pt-BR"));
     const livres = livresNoDia(E, casas, S.dpEd);
     const dias = []; for (let d = new Date(b.de + "T12:00:00Z"); d.toISOString().slice(0, 10) <= b.ate && dias.length < 62; d = new Date(d.getTime() + 864e5)) dias.push(d.toISOString().slice(0, 10));
-    const linhas = dias.map((dia) => { const { cs, as } = livres(dia, b.cid); return { dia, cs, as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
+    const linhas = dias.map((dia) => { const r = livres(dia, b.cid);
+      // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
+      const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
+      const as = [...new Map(cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
+      return { dia, cs: b.ambos ? cs : r.cs, as: b.ambos ? as : r.as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
     const semDisp = !(E.dispA || []).length;
     const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia" style="text-align:left;line-height:1.3"><b>${esc(c.nome)}</b><br><span class="muted" style="font-size:12px">📍 ${esc(c.cidade || "cidade não informada")}</span></button>`;
     const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data" style="text-align:left;line-height:1.3"><b>${esc(a.nome)}${a.quer ? " ★" : ""}</b>${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}<br><span class="muted" style="font-size:12px">🏠 mora em ${esc(a.mora || "cidade não informada")}${a.querTocar.length ? ` · quer tocar em ${esc(a.querTocar.join(", "))}` : ""}</span></button>`;
@@ -3649,6 +3665,6 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
-  const noMenu = (k) => !comAreas() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
+  const noMenu = (k) => !menuAgrupado() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
   return { bloqueio, telaTravada, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

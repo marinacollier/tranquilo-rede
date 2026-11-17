@@ -19,7 +19,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#sair'); await p.waitForTimeout(500);
     // equipe cria a data
     await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
-    ok(await p.$('[data-aba="datas_portal"]') !== null, 'Central tem "Criar datas" no menu');
+    ok((await p.evaluate(() => TQConta.areaDe('datas_portal'))) === 'g_datas', 'Central tem "Criar datas" (em Datas) no menu');
     await ir('datas_portal'); await p.waitForSelector('#dpDia', { timeout: 5000 });
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(200);
     ok(/^✕ Erro: Não salvou: falta o dia, a casa, pelo menos um artista/.test(await p.textContent('#dpErr')), 'sem dia, casa e artista não salva e diz o que falta');

@@ -60,7 +60,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(/Operador\(a\) de porta/.test(await p.textContent('#app')) && /Lista de entrada e cortesias/.test(await p.textContent('#app')), 'Minha função mostra o que a porta lê, recebe e devolve');
     // 3. A Central começa a trilha.
     await sair(); await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
-    await p.click('[data-aba="trilhas"]'); await p.waitForSelector('#triCasa');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'trilhas'); await p.waitForSelector('#triCasa');
     await p.fill('#triCasa', 'Casa Teste'); await p.fill('#triInicio', '2027-01-04'); await p.fill('#triNota', 'Combinado: piloto de 3 meses'); await p.click('#triOk');
     await p.waitForSelector('[data-tri-marco="Casa Teste|nota"]');
     ok(/a 12 jan/i.test(await p.textContent('#app')), 'trilha começada em 04/01/2027 fecha em 12/01 (7 dias úteis)');
