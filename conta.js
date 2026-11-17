@@ -322,11 +322,11 @@ const TQConta = (() => {
       async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
       async semanal() { const p = eu(); return (db.sem || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || (x.user_id && x.user_id === p?.id) || (x.casa_ref && x.casa_ref === p?.vinculo_nome)); },
-      async salvarSemanal(alvo, dias) {
-        const p = eu(), casa = alvo === "casa";
+      async salvarSemanal(alvo, dias, cidade = null) {
+        const p = eu(), casa = alvo === "casa", cid = casa ? null : (cidade || null);
         if (casa ? p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome : p?.tipo !== "artista") throw new Error("Só a própria casa (responsável) ou a própria artista marca os dias da semana.");
-        db.sem = (db.sem || []).filter((x) => !(casa ? x.casa_ref === p.vinculo_nome : x.user_id === p.id));
-        db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id }), dias: [...new Set(dias)].sort() }); gravar();
+        db.sem = (db.sem || []).filter((x) => !(casa ? x.casa_ref === p.vinculo_nome : x.user_id === p.id && (x.cidade || null) === cid));
+        if (casa || dias.length) db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id, cidade: cid }), dias: [...new Set(dias)].sort() }); gravar();
       },
       async dispArtistas() { const p = eu(); return (db.dispA || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.user_id === p?.id); },
       async marcarDispArtista(dia, situacao) {
@@ -673,12 +673,13 @@ const TQConta = (() => {
       async responderSolicitacao(sid, aprovar, resposta) { ok(await sb.rpc("responder_solicitacao_ficha", { sid, aprovar, resposta_: resposta || null })); },
       async definirCombinados(cid, c) { ok(await sb.rpc("definir_combinados", { cid, c })); },
       async definirAreas(conta, areas) { ok(await sb.rpc("definir_areas", { conta, novas: areas })); },
-      async semanal() { return ok(await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias")); },
-      async salvarSemanal(alvo, dias) {
-        const p = await this.sessao(), casa = alvo === "casa", base = sb.from("disponibilidade_semanal").select("id");
-        const atual = ok(await (casa ? base.eq("casa_ref", p.vinculo_nome) : base.eq("user_id", p.id)).maybeSingle());
+      async semanal() { const r = await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias,cidade"); return ok(r.error && /cidade/.test(r.error.message || "") ? await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias") : r); },
+      async salvarSemanal(alvo, dias, cidade = null) {
+        const p = await this.sessao(), casa = alvo === "casa", cid = casa ? null : (cidade || null), base = sb.from("disponibilidade_semanal").select("id");
+        const atual = ok(await (casa ? base.eq("casa_ref", p.vinculo_nome) : cid ? base.eq("user_id", p.id).eq("cidade", cid) : base.eq("user_id", p.id).is("cidade", null)).maybeSingle());
+        if (!casa && cid && !dias.length) { if (atual) ok(await sb.from("disponibilidade_semanal").delete().eq("id", atual.id)); return; }
         ok(atual ? await sb.from("disponibilidade_semanal").update({ dias }).eq("id", atual.id)
-          : await sb.from("disponibilidade_semanal").insert(casa ? { casa_ref: p.vinculo_nome, dias } : { user_id: p.id, dias }));
+          : await sb.from("disponibilidade_semanal").insert(casa ? { casa_ref: p.vinculo_nome, dias } : { user_id: p.id, dias, ...(cid ? { cidade: cid } : {}) }));
       },
       async dispArtistas() { return ok(await sb.from("disponibilidade_artista").select("user_id,dia,situacao,nota").gte("dia", hojeIso()).order("dia")); },
       async marcarDispArtista(dia, situacao) {
@@ -807,6 +808,7 @@ const TQConta = (() => {
     const cts = meusContratos(), ctOk = cts.length && cts.every((c) => c.status === "assinado" || arqsContrato(c).length);
     if (p.tipo === "artista") {
       const st = S.conta.insc?.status || "rascunho", enviada = st !== "rascunho", aprovada = st === "aprovada";
+      if (S.dispA === undefined && !S.dispACarregando) { S.dispACarregando = true; Promise.all([api.dispArtistas(), api.semanal().catch(() => [])]).then(([r, sm]) => { S.dispA = r; S.sem = sm; }, () => { S.dispA = null; }).finally(() => { S.dispACarregando = false; render(); }); }
       const disp = (S.dispA || []).some((x) => x.user_id === p.id && x.situacao === "disponivel") || semanaDe(S.sem, { userId: p.id }).length > 0;
       return [
         { k: "inscricao", titulo: "Preencher e enviar a sua ficha", feito: enviada, liberado: true },
@@ -817,6 +819,8 @@ const TQConta = (() => {
     }
     if (p.tipo === "casa") {
       const st = S.conta.casa?.status || "rascunho", enviada = !["rascunho", "incompleto"].includes(st), hab = st === "habilitada";
+      if (S.conta.equipe === undefined && p.vinculo_nome) carregarEquipeCasa();
+      if (S.disp === undefined && p.vinculo_nome) carregarDisp();
       const L = S.conta.equipe, eqOk = Array.isArray(L) && L.length && TQEquipe.cobertura(L).completa;
       const ref = (p.vinculo_nome || "").toLowerCase();
       const disp = (S.disp || []).some((x) => (x.casa_ref || "").toLowerCase() === ref && x.situacao === "disponivel") || semanaDe(S.sem, { casaRef: p.vinculo_nome, fichaDias: S.conta.casa?.dados?.dias_semana }).length > 0;
@@ -2945,14 +2949,31 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   const NOME_SEM = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
   const FICHA_DIA = { domingo: 0, segunda: 1, terca: 2, quarta: 3, quinta: 4, sexta: 5, sabado: 6 };
   const wdDe = (dia) => new Date(dia + "T12:00:00Z").getUTCDay();
-  function semanaDe(rows, { casaRef, userId, fichaDias }) {
-    const k = (x) => String(x || "").trim().toLowerCase();
+  function semanaDe(rows, { casaRef, userId, fichaDias, cidade, soGeral }) {
+    const k = (x) => String(x || "").trim().toLowerCase(), c1 = (x) => k(String(x || "").split("/")[0]);
+    if (!casaRef && userId) {
+      // Artista (v29): a linha sem cidade vale para qualquer cidade; com cidade, só para ela. Sem cidade pedida, soma todas.
+      const rs = (rows || []).filter((x) => x.user_id === userId && (soGeral ? !x.cidade : !x.cidade || cidade === undefined || c1(x.cidade) === c1(cidade)));
+      return [...new Set(rs.flatMap((x) => (x.dias || []).map(Number)))];
+    }
     const r = (rows || []).find((x) => casaRef ? x.casa_ref && k(x.casa_ref) === k(casaRef) : x.user_id && x.user_id === userId);
     return r ? (r.dias || []).map(Number) : (fichaDias || []).map((d) => FICHA_DIA[d]).filter((n) => n != null);
   }
   // disponivel | indisponivel | semana (livre pela semana fixa) | null
   const situacaoDia = (explicito, dias, dia) => explicito?.situacao || (dias.includes(wdDe(dia)) ? "semana" : null);
   const livreNo = (sit) => sit === "disponivel" || sit === "semana";
+  // Artista (v29): para cada cidade que ele escolheu, os dias da semana em que pode tocar ali; "Qualquer cidade" vale para todas.
+  function blocoSemanaCidades() {
+    const d = S.conta.insc?.dados || {}, eu = S.conta.perfil.id;
+    const cids = [...new Set([...(d.cidades_interesse || []), d.cidade_base, ...String(d.outras_cidades || "").split(/[,;]/)].map((x) => String(x || "").trim()).filter(Boolean))];
+    const linha = (cid) => { const dias = semanaDe(S.sem, cid ? { userId: eu, cidade: cid } : { userId: eu, soGeral: true }).filter((n) => cid ? (S.sem || []).some((x) => x.user_id === eu && x.cidade && x.cidade.toLowerCase() === cid.toLowerCase() && (x.dias || []).map(Number).includes(n)) : true);
+      return `<div class="sem-cid"><b>${cid ? esc(cid) : "Qualquer cidade"}</b><div class="fcidades">${SEM.map(([n, t]) => `<label><input type="checkbox" data-sem="artista" data-cid="${esc(cid)}" value="${n}"${dias.includes(n) ? " checked" : ""}> ${t}</label>`).join("")}</div></div>`; };
+    return `<div class="card" style="margin:0 0 12px"><b>Dias da semana em cada cidade</b>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Para cada cidade, marque os dias em que você pode tocar lá (ex.: São Paulo seg, ter e qua; Campinas ter e qua; BH qui ou sex). "Qualquer cidade" vale para todas. A Isa cruza isso com as casas de cada cidade. Exceções você marca no calendário abaixo.</p>
+      ${cids.map(linha).join("")}${linha("")}
+      ${cids.length ? "" : `<p class="muted" style="font-size:13px">Marque as cidades onde quer tocar na sua ficha para aparecerem aqui.</p>`}
+      <div class="err" role="status" aria-live="polite" id="semErr"></div></div>`;
+  }
   function blocoSemana(dias, alvo) {
     return `<div class="card" style="margin:0 0 12px"><b>Dias fixos da semana</b>
       <p class="muted" style="font-size:13px;margin:4px 0 8px">Marque os dias em que ${alvo === "casa" ? "a casa sempre pode receber" : "você sempre pode tocar"}: eles ficam verdes no calendário e já aparecem para a Isa. Para uma exceção (feriado, viagem), toque no dia no calendário.</p>
@@ -2974,7 +2995,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const evs = (S.pac?.eventos || []).filter((e) => !e.z && meu && (e.a || []).some((n) => k(n) === meu));
     const sem = semanaDe(S.sem, { userId: eu });
     const nLivres = S.dispA.filter((x) => x.user_id === eu && x.situacao === "disponivel" && x.dia >= hojeIso()).length;
-    return `${blocoSemana(sem, "artista")}
+    return `${blocoSemanaCidades()}
       <p class="muted" style="font-size:13px;margin:0 0 8px">No calendário: toque num dia para marcar <b>disponível</b> (verde), de novo para <b>indisponível</b> e de novo para limpar. A Isa cruza estes dias com as casas livres. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
       ${calendarioMes(mes, (dia) => { const r = S.dispA.find((x) => x.user_id === eu && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
         return { classe: e.length ? "cal-ev" : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-dispa-dia")}
@@ -2998,7 +3019,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const cs = casas.filter((c) => (!cid || c.cidade === cid) && !doDia.some((e) => e.casaId === c.id || casaRef(c).includes(e.casa))
         && livreNo(situacaoDia((E.disp || []).find((x) => x.dia === dia && casaRef(c).includes(k(x.casa_ref))), semCasa(c), dia)));
       const as = artistas.filter((a) => !doDia.some((e) => e.arts.includes(k(a.nome)) || (e.ids || []).includes(a.id))
-        && livreNo(situacaoDia((E.dispA || []).find((x) => x.user_id === a.id && x.dia === dia), a.sem, dia)))
+        && livreNo(situacaoDia((E.dispA || []).find((x) => x.user_id === a.id && x.dia === dia), cid ? semanaDe(E.sem, { userId: a.id, cidade: cid }) : a.sem, dia)))
         .map((a) => ({ ...a, quer: !!cidadeK && a.cidades.some((c) => c.includes(cidadeK)) }))
         .filter((a) => !soDaCidade || !cidadeK || a.quer || k(a.mora).includes(cidadeK)).sort((x, y) => (y.quer - x.quer) || (y.status === "aprovada") - (x.status === "aprovada"));
       return { cs, as, artistas };
@@ -3513,10 +3534,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (ev.target.matches?.("[data-dp-todas]")) { S.dpVerTodas = ev.target.checked; render(); return; }
     if (ev.target.matches?.("[data-gf]")) { (S.gf ||= {})[ev.target.dataset.gf] = ev.target.value; render(); return; }
     if (ev.target.matches?.("[data-sem]")) {
-      const alvo = ev.target.dataset.sem, dias = [...document.querySelectorAll(`[data-sem="${alvo}"]:checked`)].map((x) => Number(x.value)), err = $("#semErr");
+      const alvo = ev.target.dataset.sem, cid = ev.target.dataset.cid ?? null, err = $("#semErr");
+      const dias = [...document.querySelectorAll(`[data-sem="${alvo}"]:checked`)].filter((x) => cid === null || (x.dataset.cid ?? "") === cid).map((x) => Number(x.value));
       const caixa = ev.target, marcada = caixa.checked;
-      const r = await acao(caixa, async () => { await api.salvarSemanal(alvo, dias); S.sem = await api.semanal().catch(() => S.sem); render(); },
-        { st: err, ok: dias.length ? `Toda semana: ${[...dias].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((n) => NOME_SEM[n]).join(", ")}. Já aparece para a Isa.` : "Sem dias fixos. Valem só os dias marcados no calendário." });
+      const r = await acao(caixa, async () => { await api.salvarSemanal(alvo, dias, cid || null); S.sem = await api.semanal().catch(() => S.sem); render(); },
+        { st: err, ok: dias.length ? `${cid ? cid + ": " : ""}toda semana: ${[...dias].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((n) => NOME_SEM[n]).join(", ")}. Já aparece para a Isa.` : "Sem dias fixos. Valem só os dias marcados no calendário." });
       if (!r.ok && caixa.isConnected) caixa.checked = !marcada;
       return;
     }
