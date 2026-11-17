@@ -706,6 +706,57 @@ const TQConta = (() => {
     if (area === "contr_g") return fs ? [] : [["contratos_meus", "Contrato"], ["financeiro_casa", "Combinados e repasses"], ...(temBonif ? [["bonificacao", "Bonificações"]] : [])];
     return [];
   }
+  // ---------- trilha (pedido da Marina, 17/11/2026): o menu libera cada parte conforme o caminho anda ----------
+  // Artista: ficha → curadoria → disponibilidade → contrato → datas. Casa: cadastro → habilitação → equipe →
+  // disponibilidade → contrato → datas. Parte travada aparece no menu com cadeado e diz o que falta para liberar.
+  function trilhaDe() {
+    const p = S.conta?.perfil; if (!p || funcoesDe()) return null;
+    const cts = meusContratos(), ctOk = cts.length && cts.every((c) => c.status === "assinado" || arqsContrato(c).length);
+    if (p.tipo === "artista") {
+      const st = S.conta.insc?.status || "rascunho", enviada = st !== "rascunho", aprovada = st === "aprovada";
+      const disp = (S.dispA || []).some((x) => x.user_id === p.id && x.situacao === "disponivel") || semanaDe(S.sem, { userId: p.id }).length > 0;
+      return [
+        { k: "inscricao", titulo: "Preencher e enviar a sua ficha", feito: enviada, liberado: true },
+        { titulo: "Curadoria do Tranquilo", feito: aprovada, liberado: enviada, motivo: "libera quando você envia a ficha", nota: st === "ajustes" ? "A curadoria pediu ajustes na sua ficha." : st === "em_curadoria" ? "A Isa está olhando a sua ficha." : "" },
+        { k: "disp_artista", titulo: "Marcar onde e quando você pode tocar", feito: disp, liberado: aprovada, motivo: "libera quando a curadoria aprovar a sua ficha" },
+        { k: "contratos_meus", titulo: "Assinar o contrato da data", feito: !!ctOk, liberado: cts.length > 0, motivo: "libera quando a Isa fechar uma data com você" },
+      ];
+    }
+    if (p.tipo === "casa") {
+      const st = S.conta.casa?.status || "rascunho", enviada = !["rascunho", "incompleto"].includes(st), hab = st === "habilitada";
+      const L = S.conta.equipe, eqOk = Array.isArray(L) && L.length && TQEquipe.cobertura(L).completa;
+      const ref = (p.vinculo_nome || "").toLowerCase();
+      const disp = (S.disp || []).some((x) => (x.casa_ref || "").toLowerCase() === ref && x.situacao === "disponivel") || semanaDe(S.sem, { casaRef: p.vinculo_nome, fichaDias: S.conta.casa?.dados?.dias_semana }).length > 0;
+      return [
+        { k: "ficha", titulo: "Preencher e enviar o cadastro da casa", feito: enviada, liberado: true },
+        { titulo: "Habilitação pelo Gui (Operações)", feito: hab, liberado: enviada, motivo: "libera quando você envia o cadastro", nota: st === "ajustes" ? "O Gui pediu ajustes no cadastro." : st === "em_analise" ? "O Gui está olhando o cadastro." : "" },
+        { k: "equipe_g", titulo: "Montar a equipe da casa", feito: !!eqOk, liberado: enviada, motivo: "libera quando você envia o cadastro" },
+        { k: "disp_g", titulo: "Marcar a disponibilidade da casa", feito: disp, liberado: hab, motivo: "libera quando o Gui habilitar a casa" },
+        { k: "contr_g", titulo: "Assinar o contrato da parceria", feito: !!ctOk, liberado: cts.length > 0, motivo: "libera quando o Gui enviar o contrato" },
+      ];
+    }
+    return null;
+  }
+  /** Motivo de a parte do menu estar travada na trilha (ou null). */
+  function bloqueio(k) {
+    try { if (localStorage.getItem("tq-sem-trilha") === "1") return null; } catch { /* sem armazenamento: trilha ligada */ }
+    const t = trilhaDe(); if (!t) return null;
+    const passo = t.find((x) => x.k === k || (x.k && areaDe(k) === x.k));
+    return passo && !passo.liberado ? passo.motivo : null;
+  }
+  function telaTravada(k) {
+    const m = bloqueio(k); if (!m) return null;
+    const t = trilhaDe(), prox = t.find((x) => !x.feito);
+    return `<div class="tag">Ainda não liberado</div><h1>🔒 Essa parte vem depois</h1><p class="sub">Ela ${esc(m)}. A trilha vai liberando cada parte conforme o caminho anda.</p>${blocoTrilha()}${prox?.k && prox.liberado ? `<div class="barra-acoes"><button class="btn pri" data-ir="${prox.k}">Ir para o próximo passo →</button></div>` : ""}`;
+  }
+  function blocoTrilha() {
+    const t = trilhaDe(); if (!t) return "";
+    const feitos = t.filter((x) => x.feito).length, atual = t.find((x) => !x.feito);
+    if (feitos === t.length) return `<div class="alert good" style="margin-bottom:14px"><b>✓ Trilha completa</b>Tudo liberado. Agora é acompanhar cada data aqui embaixo.</div>`;
+    return `<div class="card trilha" style="margin-bottom:14px"><div class="row"><b>Sua trilha</b><span class="muted" style="font-size:13px">${feitos} de ${t.length}</span></div>
+      <ol class="trilha-lista">${t.map((x) => { const cls = x.feito ? "feito" : x === atual ? "atual" : !x.liberado ? "trava" : "";
+        return `<li class="${cls}"><span class="trilha-marca">${x.feito ? "✓" : !x.liberado ? "🔒" : x === atual ? "●" : "○"}</span><span><b>${esc(x.titulo)}</b>${x === atual && x.nota ? `<div class="muted" style="font-size:13px">${esc(x.nota)}</div>` : ""}${!x.liberado && !x.feito ? `<div class="muted" style="font-size:12px">${esc(x.motivo)}</div>` : ""}</span>${x === atual && x.k && x.liberado ? `<button class="btn sm pri" data-ir="${x.k}">Fazer agora</button>` : ""}</li>`; }).join("")}</ol></div>`;
+  }
   /** Área do portal da casa que contém a tela k (ou null). */
   function areaDe(k) {
     if (!k) return null;
@@ -1481,7 +1532,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
       if (aberto) return telaContrato(aberto);
-      return avisoContratos() + (p.tipo === "casa" ? passosCasa() : passosArtista());
+      return blocoTrilha() + avisoContratos() + (p.tipo === "casa" ? passosCasa() : passosArtista());
     },
     inscricao() {
       const i = S.conta.insc, d = i?.dados || {}, trav = i && !["rascunho", "ajustes"].includes(i.status);
@@ -3450,5 +3501,5 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   const noMenu = (k) => !comAreas() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
-  return { roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { bloqueio, telaTravada, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
