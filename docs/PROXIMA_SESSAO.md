@@ -24,3 +24,8 @@ Portal: marinacollier/tranquilo-rede (main → publica copiando src/ para gh-pag
 
 ## 5. Testes instáveis conhecidos
 - datas-portal (login no Cronograma) e equipe (trilha) às vezes falham na rodada completa e passam sozinhos.
+
+## 6. Pedidos de 17/11 à noite (não feitos)
+- **Marketing por função na casa (Produtor local, Anfitrião, Social media):** a Marina acha que é do artista, não da casa. Hoje está em Casa › Equipe. A fonte é o material do Bruno (Área do Franqueado, 11/11) e a decisão de 13/11 de pôr esse conteúdo no portal da casa. Confirmar com ela/Bruno antes de mover.
+- **Gui convida casas e Isa convida artistas** (não só adm): conferir em Convites se a equipe com área consegue convidar casa (Gui) e artista (Isa); liberar se não.
+- **Histórico das casas para o Gui (e dos artistas para a Isa):** hoje só aparece no pacote da administração (abas "casas" e "artistas" do PERFIS.adm em src/index.html; pacotes em scripts/build.mjs). Incluir esses dados no pacote da equipe e mostrar no menu do Gui (Casas) e da Isa (Curadoria/Artistas). A conta da equipe também precisa estar ligada ao código interno (Conta › colar código, ou Pessoas).
