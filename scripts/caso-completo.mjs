@@ -185,6 +185,21 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Curadoria mais leve (Marina, 17/11/2026): a Isa testa mais os matches de data e o contrato. Aprova as inscrições de
+  // teste que esperavam curadoria (fica só a Banda Eco para ela testar) e dá dias livres a quem ainda não tinha.
+  if (MODO === 'curadoria-leve') {
+    const central = (await sql(`select id from perfis where nome = 'Central (caso de teste)' limit 1`))[0]?.id;
+    const imp = `select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: central, role: 'authenticated' }))}, true), set_config('request.jwt.claim.sub', ${lit(central)}, true);`;
+    const ids = await sql(`select i.user_id id, coalesce(i.dados->>'nome_artistico', '') nome from inscricoes_artistas i join auth.users u on u.id = i.user_id
+      where u.email like '%@teste-e2e.invalid' and i.status = 'em_curadoria' and coalesce(i.dados->>'nome_artistico', '') not ilike 'Banda Eco%'`);
+    for (const x of ids) {
+      await sql(`${imp} update inscricoes_artistas set status = 'aprovada', parecer = 'Aprovada (TESTE).' where user_id = ${lit(x.id)};
+update perfis set vinculo_nome = coalesce(vinculo_nome, ${lit(x.nome)}) where id = ${lit(x.id)};
+insert into disponibilidade_semanal (user_id, dias, atualizado_por) select ${lit(x.id)}, '{4,5,6}', ${lit(x.id)} where not exists (select 1 from disponibilidade_semanal where user_id = ${lit(x.id)});`);
+    }
+    const n = await sql(`select count(*)::int n from inscricoes_artistas i join auth.users u on u.id = i.user_id where u.email like '%@teste-e2e.invalid' and i.status = 'em_curadoria'`);
+    ok(true, `${ids.length} inscrições de teste aprovadas (com dias livres); ${n[0].n} continua esperando a curadoria`);
+  }
   // Variedade para Gui e Isa testarem (pedido da Marina, 17/11/2026): 10 casas e 10 artistas de TESTE, fichas completas,
   // cidades e dias diferentes. Metade das casas espera a habilitação (Gui), metade habilitada; metade dos artistas espera
   // a curadoria (Isa), metade aprovada com disponibilidade. Recriar apaga a leva anterior (e-mails teste.*@teste-e2e.invalid).
