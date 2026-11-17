@@ -56,6 +56,13 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(ag.includes('datas_portal') && ag.includes('documentos') && !ag.includes('campanhas'), `Agenda: Criar datas e Documentos, sem Campanhas (${ag.join(', ')})`);
     await ir('materiais'); const tm = await p.textContent('#app');
     ok(!/Publicar/.test(tm), 'Materiais: Agenda só lê (sem publicar)');
+    await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.areas = ['operacoes']; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
+    await p.reload(); await p.waitForTimeout(800); await pular();
+    const op = await abas();
+    ok(op.includes('documentos') && !op.includes('datas_portal') && !op.includes('campanhas'), `Operações: Documentos e contratos (contrato com a casa), sem Criar datas e Campanhas (${op.join(', ')})`);
+    await ir('casas_cad'); await p.click('[data-click^="casacad:"]'); await p.waitForTimeout(500);
+    ok(!!(await p.$('#dlg [data-decisao="habilitada"]')) && !!(await p.$('#dlg [data-editar-ficha]')), 'Operações: Habilitar e Editar a Ficha');
+    await p.evaluate(() => document.querySelector('#dlg').close());
     await sair();
     // 6. Administração vê tudo.
     await entrar('adm'); const ad = await abas();

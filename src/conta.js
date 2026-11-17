@@ -421,7 +421,7 @@ const TQConta = (() => {
       async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
       // Administração edita a Ficha direto (Gui, 11/2026); o banco só deixa a adm.
       async historico() { return ok(await sb.from("auditoria").select("id,quando,quem_email,tabela,registro,operacao,antes,depois").order("id", { ascending: false }).limit(400)); },
-      async editarFichaCasa(cid, dados) { const r = ok(await sb.from("cadastros_casas").update({ dados }).eq("id", cid).select("dados")); if (!r?.length || JSON.stringify(r[0].dados) !== JSON.stringify(dados)) throw new Error("Só a administração edita a Ficha direto."); },
+      async editarFichaCasa(cid, dados) { const r = ok(await sb.from("cadastros_casas").update({ dados }).eq("id", cid).select("dados")); if (!r?.length || JSON.stringify(r[0].dados) !== JSON.stringify(dados)) throw new Error("Só a administração e a área de Operações editam a Ficha direto."); },
       async perfis() { return lerPerfis((x) => x.order("criado_em", { ascending: false })); },
       async atualizarPerfil(pid, campos) { ok(await sb.from("perfis").update(campos).eq("id", pid)); },
       async checklistTodos() { return ok(await sb.from("checklist").select("*")); },
@@ -699,7 +699,7 @@ const TQConta = (() => {
   const lerChecklist = () => (S.conta.perfil.tipo === "casa" ? api.checklistCasa() : api.meuChecklist());
   // Áreas da equipe do Tranquilo (banco v22, pedido da Marina, 17/11/2026). Administração vê tudo; equipe sem área marcada
   // também (como antes). Com área marcada, só as abas e os botões da área ficam visíveis.
-  const AREAS_EQ = [["operacoes", "Operações", "habilitar casas, editar Fichas, publicar guias"], ["agenda", "Agenda", "criar datas, documentos e contratos, decisões da curadoria de artistas"], ["marketing", "Marketing", "campanhas e documentos de marketing"]];
+  const AREAS_EQ = [["operacoes", "Operações", "casas: convites, Ficha do franqueado (habilitar e editar), contrato com a casa, publicar guias"], ["agenda", "Agenda", "artistas: curadoria, cruzar datas, criar datas, contrato do artista"], ["marketing", "Marketing", "campanhas e documentos de marketing"]];
   const nomesAreas = (as) => (as || []).map((a) => (AREAS_EQ.find(([k]) => k === a) || [, a])[1]).join(" · ");
   const comAreas = () => S.conta?.perfil.tipo === "equipe" && !!S.conta.perfil.areas?.length;
   function temArea(a) {
@@ -719,8 +719,8 @@ const TQConta = (() => {
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
-    const precisa = { datas_portal: "agenda", documentos: "agenda", campanhas: "marketing" }, soAdm = new Set(["prontidao", "relatos"]);
-    const visivel = base.filter(([k]) => (!precisa[k] || temArea(precisa[k])) && (!soAdm.has(k) || !comAreas()));
+    const precisa = { datas_portal: ["agenda"], documentos: ["agenda", "operacoes"], campanhas: ["marketing"] }, soAdm = new Set(["prontidao", "relatos"]);
+    const visivel = base.filter(([k]) => (!precisa[k] || precisa[k].some(temArea)) && (!soAdm.has(k) || !comAreas()));
     return [...visivel, ...doPac, ["conta", "Conta"]];
   }
   const rotuloQuem = () => `${ROTULO[S.conta.perfil.tipo]} · ${S.conta.perfil.vinculo_nome || S.conta.perfil.nome || S.conta.perfil.email}`;
@@ -970,7 +970,14 @@ const TQConta = (() => {
     const produto = /descubra/i.test(e.n || "") ? "Descubra" : /apresenta/i.test(e.n || "") ? "Apresenta" : e.m;
     const ord = [...conf].sort((a, b) => a.ordem - b.ordem), nomes = ord.map((a) => a.nome), apres = produto === "Apresenta";
     const tipo = apres ? (nomes.length === 2 ? "apresenta" : null) : nomes.length === 3 ? "descubra3" : nomes.length === 2 ? "descubra2" : null;
-    if (!tipo) return { bloqueada: true, avisos: [...avisos, `Formato sem modelo: ${produto || "sem formato"} com ${nomes.length} artista(s). Falar com a Operações.`], texto: "" };
+    if (!tipo) {
+      // Mensagem em linguagem da operação: o que falta para a mensagem sair, e com quem resolver.
+      const msg = produto === "Descubra" && nomes.length < 2 ? `Ainda não dá para montar o cronograma: o Descubra tem 2 ou 3 artistas e esta data só tem ${nomes.length === 1 ? "1 confirmado (" + nomes[0] + ")" : "nenhum confirmado"}. Quando a Isa completar o line-up, a mensagem aparece aqui.`
+        : produto === "Apresenta" && nomes.length < 2 ? `Ainda não dá para montar o cronograma: o Apresenta tem abertura e atração (2 artistas) e esta data só tem ${nomes.length === 1 ? "1 confirmado (" + nomes[0] + ")" : "nenhum confirmado"}. Quando a Isa completar o line-up, a mensagem aparece aqui.`
+        : !produto ? "Ainda não dá para montar o cronograma: falta dizer se a data é Descubra ou Apresenta. Fale com a Isa."
+        : `Ainda não temos modelo de cronograma para ${produto} com ${nomes.length} artistas. Fale com a Operações para montar este caso.`;
+      return { bloqueada: true, avisos: [...avisos, msg], texto: "" };
+    }
     const ini = N.inicio ? +N.inicio.slice(0, 2) * 60 + +N.inicio.slice(3, 5) : 19 * 60;
     if (!N.inicio) avisos.push("Horário de início não está no Notion: considerei abertura às 19h (a validar).");
     const blocos = BLOCOS_CRONO[tipo](...nomes);
@@ -2222,7 +2229,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     ${pedidos}
     ${futurasCasa.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasCasa.length} data${futurasCasa.length > 1 ? "s" : ""} futura${futurasCasa.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasCasa.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
     ${resp}
-    <div class="barra-acoes" style="margin:8px 0">${adm && EDITAR_FICHA_ATIVO ? `<button class="btn sm" data-editar-ficha="${c.id}">Editar a Ficha</button>` : ""}<button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
+    <div class="barra-acoes" style="margin:8px 0">${(adm || S.conta.perfil.areas?.includes("operacoes")) && EDITAR_FICHA_ATIVO ? `<button class="btn sm" data-editar-ficha="${c.id}">Editar a Ficha</button>` : ""}<button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
     ${combinados}
     <h3>Decisão</h3><label class="fcampo"><b>Classificação</b><select id="classe"><option value="">Sem classificação (antes da 1ª data)</option>${Object.entries(CLASSE).map(([k, t]) => `<option value="${k}"${c.classificacao === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>

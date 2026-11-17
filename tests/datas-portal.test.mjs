@@ -87,3 +87,9 @@ await como(art, async () => {
 });
 const dArt = (await q(`select dados, status::text s from inscricoes_artistas where user_id = $1`, [art])).rows[0];
 ok(dArt.dados.release === 'Texto novo de release' && dArt.dados.nome_artistico === 'Ana' && dArt.s === 'em_curadoria', 'artista em curadoria preenche campo vazio');
+// v26: Operações edita a Ficha da casa direto; Agenda e equipe sem área não.
+const op = await novo('op@x.com', 'artista'); await q(`update perfis set tipo = 'equipe', areas = array['operacoes'] where id = $1`, [op]);
+await como(op, async () => { await q(`update cadastros_casas set dados = dados || '{"palco":"pela operacoes"}' where id = $1`, [cid]); });
+ok((await q(`select dados->>'palco' p from cadastros_casas where id = $1`, [cid])).rows[0].p === 'pela operacoes', 'Operações edita a Ficha da casa direto');
+await como(eq, async () => { await q(`update cadastros_casas set dados = dados || '{"palco":"pela agenda"}' where id = $1`, [cid]); });
+ok((await q(`select dados->>'palco' p from cadastros_casas where id = $1`, [cid])).rows[0].p === 'pela operacoes', 'Agenda/Marketing não editam a Ficha da casa');

@@ -2582,3 +2582,55 @@ begin
   if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
   return new;
 end $$;
+
+-- =====================================================================
+-- v26: a área de Operações (Gui: convites, Ficha do franqueado, contrato com a casa) edita a Ficha da casa direto,
+-- como a administração (pedido da Marina, 17/11/2026). Equipe sem área marcada continua sem editar. Idempotente.
+-- =====================================================================
+create or replace function tem_area(a text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from perfis where id = auth.uid() and (tipo = 'adm' or (tipo = 'equipe' and a = any(coalesce(areas, '{}'::text[])))))
+$$;
+revoke all on function tem_area(text) from public, anon;
+grant execute on function tem_area(text) to authenticated;
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- A equipe não edita os dados da casa; só aplica um pedido aprovado (responder_solicitacao_ficha liga "aplicando").
+    -- A administração e a Operações (v26) editam a Ficha direto; o resto da equipe só aplica pedido aprovado.
+    if not (eh_adm() or tem_area('operacoes')) and not exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto) then
+      new.dados := old.dados;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status::text in ('em_analise', 'habilitada', 'suspensa', 'encerrada') and new.dados is distinct from old.dados
+       and (old.status::text in ('suspensa', 'encerrada') or not so_preenche_vazios(old.dados, new.dados)) then
+      raise exception 'O que já foi enviado ao Tranquilo muda por "Solicitar atualização". Campos vazios você preenche direto.' using errcode = '42501';
+    end if;
+    if old.status::text in ('habilitada', 'suspensa', 'encerrada') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
