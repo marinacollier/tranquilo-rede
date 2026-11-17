@@ -65,7 +65,7 @@ E por estarem de acordo, assinam.`;
     await p.fill('#ctNome', 'Ana Contrato Silva'); await p.click('#ctAssinar'); await p.waitForSelector('[data-ct-voltar]'); await p.waitForTimeout(300);
     ok(/Contrato assinado/.test(await p.textContent('#app')) && /Ana Contrato Silva/.test(await p.textContent('#app')), 'assinatura confirmada com nome e código de verificação');
     const [pop] = await Promise.all([ctx.waitForEvent('page'), p.click('[data-ct-ver]')]); await pop.waitForLoadState();
-    ok(/Assinado por/.test(await pop.textContent('body')) && /SHA-256 [0-9a-f]{64}/.test(await pop.textContent('body')), 'cópia para imprimir traz o registro da assinatura');
+    ok(/Assinado por/.test(await pop.textContent('body')) && /SHA-256\s*[0-9a-f]{64}/.test(await pop.textContent('body')), 'cópia para imprimir traz o registro da assinatura');
     await pop.close(); await sair();
     // equipe vê assinado
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector('[data-ct-ver]');

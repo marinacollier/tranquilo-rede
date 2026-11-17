@@ -43,7 +43,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('[data-tour="pular"]').catch(() => {});
     await ir('cronograma');
     const t = await p.innerText('#app');
-    ok(/Ana Teste/.test(t) && /Banda Dois/.test(t), 'a casa vê a data nos Cronogramas, com o line-up');
+    ok(/Ana Teste/.test(t) && /Banda Dois/.test(t), 'a casa vê a data nos Cronogramas, com o line-up ' + (/Ana Teste/.test(t) ? '' : JSON.stringify([await p.evaluate(() => [S.aba, S.sub, TQConta.areaDe('cronograma')]), t.slice(0, 300)])));
     ok(/20h/.test(t) && /Quem toca por último passa o som primeiro/.test(t), 'mensagem de cronograma sai com a abertura das 20h');
     ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   } catch (e) { ok(false, 'erro no teste: ' + e.message); }
