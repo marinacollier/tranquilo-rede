@@ -886,9 +886,10 @@ const TQConta = (() => {
     const nome = { lider: "Produtor local (Líder Local)", anfitriao: "Anfitrião(ã)", social_media: "Social media" }[f] || F[1];
     return `<div class="tag">Marketing</div><h1>${esc(nome)}</h1>
       <p class="sub">${esc(F[2])}</p>
+      ${!H ? carregando("os documentos") : mats.length ? `<div class="list">${mats.map((m) => cartaoDoc(H, m)).join("")}</div>` : `<div class="alert warn"><b>⚠ Atenção: os documentos desta função ainda não foram publicados no portal.</b>A equipe do Tranquilo publica em Materiais.</div>`}
+      <h2>O que a função faz</h2>
       <div class="alert warn" style="margin-bottom:12px"><b>Obrigações de marketing ${A_VALIDAR_HTML}</b>A lista abaixo vem do que a Operações combinou para cada função. O texto final das obrigações de marketing vem do Gui e do Bruno.</div>
-      <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div class="card"><b>${t}</b><ul class="passos">${(xs || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
-      ${mats.length ? `<h2>Documentos</h2><div class="list">${mats.map((m) => `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b>${DOCS[m.slug]?.desc ? `<div class="muted" style="font-size:13px">${esc(DOCS[m.slug].desc)}</div>` : ""}</div>${botaoLer(H, m)}</div></div>`).join("")}</div>` : H ? `<div class="alert warn" style="margin-top:12px"><b>⚠ Atenção: os documentos desta função ainda não foram publicados no portal.</b>A equipe do Tranquilo publica em Materiais.</div>` : ""}
+      <div class="grid g2">${[["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div class="card"><b>${t}</b><ul class="passos">${(xs || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div>
       <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`;
   }
   // Mensagem de alinhamento de cronograma (modelo da Operações, 12/11/2026). Quem recebe: o contato da casa.
@@ -1146,6 +1147,19 @@ const TQConta = (() => {
     const v = (H?.versoes || []).find((x) => x.material_id === m.id), url = v?.url || m.fonte_url;
     return url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>';
   }
+  /** Cartão único de documento (Guia, manuais, documentos do marketing): título, descrição, versão e "Ler" na página. */
+  function cartaoDoc(H, m, titulo, desc) {
+    const v = versaoComConteudo(H, m) || (m && (H?.versoes || []).find((x) => x.material_id === m.id));
+    return `<div class="card"><div class="row"><div><b>${esc(titulo || m?.titulo || "")}</b><div class="muted" style="font-size:13px">${esc(desc || DOCS[m?.slug]?.desc || "")}${v?.versao ? ` · versão ${esc(v.versao)}` : ""}</div></div>${botaoLer(H, m || (MANUAIS_SLUG[titulo] && { slug: MANUAIS_SLUG[titulo] }))}</div></div>`;
+  }
+  // Nome de leitura citado em texto (ex.: "“O anfitrião da noite”") vira link para o documento no mesmo leitor.
+  const LEITURAS = [[/Guia do Franqueado/i, "guia-do-franqueado"], [/anfitri[ãa]o da noite/i, "briefing-anfitriao"], [/social media da noite/i, "semana-social-media"],
+    [/Briefing do L[íi]der Local/i, "semana-lideranca-local"], [/Sobre o Tranquilo/i, "comece-por-aqui"]];
+  function leituraComLink(x) {
+    const m = /Manual (da noite|do Tranquilo)/i.test(x) ? ["manual", "Apresenta"] : (LEITURAS.find(([re]) => re.test(x)) || [])[1];
+    if (!m) return esc(x);
+    return Array.isArray(m) ? `<button class="link-doc" data-manual="${m[1]}">${esc(x)}</button>` : `<button class="link-doc" data-ler="${m}">${esc(x)}</button>`;
+  }
   function abrirLeitor(alvo) {
     S.lendo = { ...alvo, aba: S.aba, sub: S.sub?.[S.aba], y: scrollY };
     TQDiario.registrar("leu_documento", { doc: alvo.slug || alvo.manual });
@@ -1379,8 +1393,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     guia() {
       const H = S.hub; if (!H) { carregarHub(); return carregando("o Guia"); }
       const pega = (slug) => (H.materiais || []).find((m) => m.slug === slug);
-      const doc = (m, titulo, desc) => { const v = versaoComConteudo(H, m) || (m && (H.versoes || []).find((x) => x.material_id === m.id));
-        return `<div class="card"><div class="row"><div><b>${esc(titulo)}</b><div class="muted" style="font-size:13px">${esc(desc)}${v?.versao ? ` · versão ${esc(v.versao)}` : ""}</div></div>${botaoLer(H, m || (MANUAIS_SLUG[titulo] && { slug: MANUAIS_SLUG[titulo] }))}</div></div>`; };
+      const doc = (m, titulo, desc) => cartaoDoc(H, m, titulo, desc);
       return `<div class="tag">Operações</div><h1>Guia do franqueado</h1>
       <p class="sub">O escopo todo do Tranquilo e o fio condutor do modelo. Comece por aqui; os manuais de cada produto vêm logo abaixo.</p>
       <div class="list">${doc(pega("guia-do-franqueado"), "Guia do Franqueado", "Como a unidade funciona, os compromissos, a semana de cada evento e o fechamento")}
@@ -1436,7 +1449,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <p class="sub">Você faz parte da equipe de ${esc(S.conta.perfil.vinculo_nome || "uma casa da rede")}. Aqui está o que é seu: o que ler uma vez, o que chega a cada show e o que você devolve. Quem muda a sua função é o responsável da casa.</p>
       ${fs.map((f) => { const d = TQEquipe.PERFIL[f], F = TQEquipe.FUNCOES.find((x) => x[0] === f); if (!d || !F) return "";
         return `<div class="card" style="margin-bottom:12px"><h3 style="margin-top:0">${esc(F[1])}</h3><p class="muted" style="margin:0 0 8px">${esc(F[2])} <b>Quando:</b> ${esc(F[3])}.</p>
-        <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div><b>${t}</b><ul class="passos">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></div>`).join("")}</div></div>`; }).join("")}
+        <div class="grid g3">${[["Leia uma vez", d.le], ["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => `<div><b>${t}</b><ul class="passos">${xs.map((x) => `<li>${t === "Leia uma vez" ? leituraComLink(x) : esc(x)}</li>`).join("")}</ul></div>`).join("")}</div></div>`; }).join("")}
       <div class="alert"><b>O que não muda em nenhuma casa</b>Silêncio durante o show, público sentado, formato enxuto (voz e um instrumento, duo ou trio), som confortável e bar longe do palco.</div>
       <div class="barra-acoes"><button class="btn pri" data-ir="passos">Ver os passos de cada data →</button></div>`;
     },
