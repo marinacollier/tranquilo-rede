@@ -9,10 +9,11 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
   await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
   const pular = async () => { try { await p.waitForSelector('.tour-caixa', { timeout: 2500 }); await p.click((await p.$('[data-tour="pular"]')) ? '[data-tour="pular"]' : '[data-tour="avancar"]'); } catch {} };
-  const abas = () => p.evaluate(() => TQConta.abas().map(([k]) => k));
+  // Menu da equipe com área: itens que agrupam telas (como as áreas da casa); a lista aqui abre os grupos nas telas de dentro.
+  const abas = () => p.evaluate(() => TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [k]).filter((k, i, xs) => xs.indexOf(k) === i));
   const entrar = async (tipo) => { await p.click('#entrar'); await p.click(`[data-demo="${tipo}"]`); await pular(); await p.waitForTimeout(400); };
   const sair = async () => { await p.evaluate(() => { S.aba = 'conta'; render(); }); await p.click('#sairConta'); await p.waitForTimeout(400); };
-  const ir = async (k) => { await p.evaluate((k) => { S.aba = k; render(); }, k); await p.waitForTimeout(700); };
+  const ir = async (k) => { await p.evaluate((k) => { const g = TQConta.areaDe?.(k); if (g) { S.sub = S.sub || {}; S.sub[g] = k; S.aba = g; } else S.aba = k; render(); }, k); await p.waitForTimeout(700); };
   try {
     await p.goto(B); await p.waitForSelector('.cidade'); await p.keyboard.press('Escape');
     // 1. Equipe sem área: vê tudo, como antes.
@@ -42,10 +43,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'materiais', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
     await ir('hoje');
     const menu = await p.$$eval('#tabs [data-aba]', (xs) => xs.map((x) => x.dataset.aba));
-    ok(JSON.stringify(menu.sort()) === JSON.stringify(['conta', 'feito', 'geral', 'hoje']), `menu só com A fazer, Feito, Visão geral e Conta (${menu.join(', ')})`);
-    ok(/Oi/.test(await p.textContent('#app')) && /na área de Marketing/.test(await p.textContent('#app')), 'A fazer mostra o que é da área de Marketing');
-    await ir('geral'); ok(/Próximas datas da rede/.test(await p.textContent('#app')) && /Só para consultar/.test(await p.textContent('#app')), 'Visão geral (só leitura) abre');
-    await ir('feito'); ok(/O que você fez/.test(await p.textContent('#app')), 'Feito abre');
+    ok(JSON.stringify(menu) === JSON.stringify(['g_hoje', 'g_campanhas', 'g_materiais', 'conta']), `menu simples: Hoje, Campanhas, Materiais e Conta (${menu.join(', ')})`);
+    ok(/Oi/.test(await p.textContent('#app')) && /em Marketing/.test(await p.textContent('#app')), 'A fazer mostra o que é da área de Marketing');
+    await ir('geral'); ok(/Próximas datas da rede/.test(await p.textContent('#app')) && /pra você se situar/.test(await p.textContent('#app')), 'Visão geral (só leitura) abre');
+    await ir('feito'); ok(/Seu histórico/.test(await p.textContent('#app')), 'Feito abre');
     // Cadastros de casas e Curadoria: só visualizar (sem Habilitar nem Aprovar).
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.casas = d.casas || {}; d.casas.x = { id: 'casa-x', user_id: 'u-x', status: 'em_analise', dados: { nome: 'Casa X', cidade_uf: 'Recife/PE' }, criado_em: new Date().toISOString(), atualizado_em: new Date().toISOString() }; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
     await p.reload(); await p.waitForTimeout(800); await pular();
