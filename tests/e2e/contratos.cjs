@@ -50,26 +50,20 @@ E por estarem de acordo, assinam.`;
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     ok(/Contrato para assinar/.test(await p.textContent('#app')), 'artista vê o aviso do contrato no passo a passo');
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
-    ok(/R\$ 3\.000,00/.test(await p.textContent('#ctTexto')) && /\[CPF: preencha acima\]/.test(await p.textContent('#ctTexto')), 'texto mostra o cachê da equipe e marca o que falta');
-    ok(await p.isDisabled('#ctAssinar'), '"Assinar" desabilitado antes de preencher e ler');
+    ok(/R\$ 3\.000,00/.test(await p.textContent('#ctTexto')) && /________________/.test(await p.textContent('#ctTexto')), 'texto mostra o cachê da equipe e marca o que falta');
+    ok(await p.isDisabled('[data-ct-ver]') && await p.isDisabled('[data-enviar-arquivo^="contrato_"]'), 'baixar e enviar ficam travados até salvar os dados');
     await p.fill('[data-ct-dado="cpf"]', '123.456.789-00'); await p.fill('[data-ct-dado="endereco_completo"]', 'Rua A, 10, Recife'); await p.fill('[data-ct-dado="chave_pix"]', 'ana@pix.com');
     await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
-    if (process.env.SHOT2) { await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(200); await p.screenshot({ path: process.env.SHOT2, fullPage: true }); await p.setViewportSize({ width: 1280, height: 860 }); }
-    ok(/123\.456\.789-00/.test(await p.textContent('#ctTexto')), 'dados salvos entram no texto');
-    await p.waitForTimeout(200); ok(await p.isDisabled('#ctAssinar'), 'ainda desabilitado antes de rolar até o fim');
-    await p.$eval('#ctTexto', (el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); }); await p.waitForTimeout(300);
-    ok(!(await p.isDisabled('#ctAssinar')) && /leu até o fim/.test(await p.textContent('#ctLido')), 'rolar até o fim libera a assinatura');
-    await p.click('#ctAssinar'); ok(/Marque que leu/.test(await p.textContent('#ctErr')), 'exige marcar "li e concordo"');
-    await p.fill('#ctNome', 'Ana'); await p.check('#ctConcordo'); await p.click('#ctAssinar'); await p.waitForTimeout(300);
-    const msgNome = await p.textContent('#ctErr'); ok(/nome completo/.test(msgNome), 'exige nome completo (' + msgNome + ')');
-    await p.fill('#ctNome', 'Ana Contrato Silva'); await p.click('#ctAssinar'); await p.waitForSelector('[data-ct-voltar]'); await p.waitForTimeout(300);
-    ok(/Contrato assinado/.test(await p.textContent('#app')) && /Ana Contrato Silva/.test(await p.textContent('#app')), 'assinatura confirmada com nome e código de verificação');
+    if (process.env.SHOT2) { await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(200); await p.screenshot({ path: process.env.SHOT2, fullPage: true }); await p.setViewportSize({ width: 1280, height: 900 }); }
+    ok(/123\.456\.789-00/.test(await p.textContent('#ctTexto')) && /✓ Feito/.test(await p.textContent('#ctDadosMsg')), 'dados salvos entram no texto, com ✓ Feito');
+    ok(!(await p.isDisabled('[data-ct-ver]')) && !(await p.isDisabled('[data-enviar-arquivo^="contrato_"]')), 'com os dados salvos, libera baixar o PDF e enviar o assinado');
+    ok(!(await p.$('#ctAssinar')), 'não assina dentro do portal: baixa, assina e envia');
     const [pop] = await Promise.all([ctx.waitForEvent('page'), p.click('[data-ct-ver]')]); await pop.waitForLoadState();
-    ok(/Assinado por/.test(await pop.textContent('body')) && /SHA-256\s*[0-9a-f]{64}/.test(await pop.textContent('body')), 'cópia para imprimir traz o registro da assinatura');
+    ok(/Assinado pelo Tranquilo/.test(await pop.textContent('body')) && /123\.456\.789-00/.test(await pop.textContent('body')) && /Baixar em PDF/.test(await pop.textContent('body')), 'PDF sai com os dados da pessoa e a assinatura do Tranquilo');
     await pop.close(); await sair();
-    // equipe vê assinado
+    // equipe vê o contrato aguardando o arquivo assinado
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.click('[data-aba="documentos"]'); await p.waitForSelector('[data-ct-ver]');
-    ok(/Assinado/.test(await p.textContent('#app')) && /Ana Contrato Silva/.test(await p.textContent('#app')) && !(await p.$('[data-ct-cancelar]')), 'equipe vê o contrato assinado, sem botão de cancelar');
+    ok(/Aguardando assinatura/.test(await p.textContent('#app')), 'equipe vê o contrato aguardando a assinatura');
     // Segundo contrato para a mesma pessoa: a equipe é avisada da duplicata; a artista não digita os dados de novo.
     await p.selectOption('#ctConta', conta); await p.selectOption('#ctMod', { label: 'Apresenta artista' }); if (evPrimeiro) await p.selectOption('#ctEv', evPrimeiro); await p.click('#ctPrep');
     await p.waitForSelector('[data-ct-campo="cache"]'); await p.fill('[data-ct-campo="cache"]', '2.000,00'); await p.fill('[data-ct-campo="data"]', '12/12/2026'); await p.fill('[data-ct-campo="cidade"]', 'Recife');

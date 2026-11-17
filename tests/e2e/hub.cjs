@@ -18,7 +18,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('label:has(input[name="tipoNovo"][value="casa"])'); await p.waitForTimeout(200);
     await p.fill('#enome', 'Rooftap Teste'); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
     // "Pular tutorial" (Esc só pausa: o tutorial voltaria depois do recarregar e cobriria a tela).
-    await p.waitForSelector('[data-aba="marketing"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
+    await p.waitForSelector('[data-aba="datas_casa"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
     await abrirAba('campanha'); await p.waitForSelector('.camp-dia', { timeout: 5000 });
     ok((await p.$$('.camp-dia')).length === 10, 'casa vê os 10 dias da campanha do Rooftap');
     ok(/0 de 10 dias feitos/.test(await p.innerText('#app')), 'progresso começa em 0 de 10');
@@ -82,7 +82,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/Função da fotografia/.test(await p.innerText('#app')) && /Ciência da versão 1: 0 pessoas/.test(await p.innerText('#app')), 'material novo aparece com ciência pedida');
     await p.click('#sair'); await p.waitForTimeout(500);
     await p.click('#entrar'); await p.waitForTimeout(300); if (await p.isVisible('[data-entrada="entrar"]')) await p.click('[data-entrada="entrar"]'); await p.waitForSelector('#email'); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
-    await p.waitForSelector('[data-aba="operacoes"]', { timeout: 8000 }); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
+    await p.waitForSelector('[data-aba="datas_casa"]', { timeout: 8000 }); await p.keyboard.press('Escape'); await p.waitForTimeout(200);
     await abrirAba('materiais'); await p.waitForSelector('[data-ciencia]', { timeout: 5000 });
     ok(/4 materiais pedem sua confirmação/.test(await p.innerText('#app')), `casa volta a ter pendência: nova versão + material novo (${(await p.innerText('.alert.warn')).slice(0, 60)})`);
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }

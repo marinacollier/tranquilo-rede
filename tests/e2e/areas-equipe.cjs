@@ -40,7 +40,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('equipe');
     const mk = await abas();
     ok(mk.includes('campanhas') && !mk.includes('datas_portal') && !mk.includes('documentos') && !mk.includes('prontidao') && !mk.includes('relatos'), `Marketing: abas da área (${mk.join(', ')})`);
-    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'materiais', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
+    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'campanhas', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
     await ir('hoje');
     const menu = await p.$$eval('#tabs [data-aba]', (xs) => xs.map((x) => x.dataset.aba));
     ok(JSON.stringify(menu) === JSON.stringify(['g_hoje', 'g_campanhas', 'g_materiais', 'conta']), `menu simples: Hoje, Campanhas, Materiais e Conta (${menu.join(', ')})`);

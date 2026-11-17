@@ -24,7 +24,7 @@ async function confere(p, roteiro, rotulo) {
   ok(r.pontos === r.n && /^Tutorial/.test(r.tag), `${rotulo}: abre sozinho no primeiro acesso com ${r.n} passos`);
   // Percorre até o fim: todo atalho "Abrir…" leva para uma aba que existe.
   for (let i = 0; i < r.n; i++) {
-    const ir = await p.$('.tour-caixa [data-tour="ir"]'); if (ir) { const aba = await ir.getAttribute('data-aba-tour'); if (!r.abas.includes(aba)) ok(false, `${rotulo}: atalho para aba inexistente ${aba}`); }
+    const ir = await p.$('.tour-caixa [data-tour="ir"]'); if (ir) { const aba = await ir.getAttribute('data-aba-tour'); if (!r.abas.includes(aba) && !(await p.evaluate((x) => !!window.TQConta?.areaDe?.(x), aba))) ok(false, `${rotulo}: atalho para aba inexistente ${aba}`); }
     await p.click('.tour-caixa [data-tour="avancar"]'); await p.waitForTimeout(60);
   }
   ok(!(await p.$('.tour-caixa')), `${rotulo}: "Concluir" fecha o tutorial`);

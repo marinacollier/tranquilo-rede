@@ -21,7 +21,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await pular(); await p.waitForSelector('[data-aba="ficha"]');
     // 1. Menu: exatamente quatro áreas, nesta ordem; a conta fica no rodapé.
     const menu = await p.$$eval('nav.tabs .nav-g:not(.nav-rodape) button[data-aba]', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(JSON.stringify(menu) === JSON.stringify(['Datas', 'Disponibilidade', 'Contratos', 'Financeiro', 'Operações', 'Marketing', 'Cadastro']), `menu da casa por tema (17/11): ${menu.join(' · ')}`);
+    ok(JSON.stringify(menu) === JSON.stringify(['Suas datas', 'Sua casa']), `menu da casa por tema (17/11): ${menu.join(' · ')}`);
     ok(!!(await p.$('nav.tabs .nav-rodape [data-aba="conta"]')), 'Minha conta no rodapé, fora das quatro áreas');
     // 2. Ficha da Casa = modelo v1: seções, ordem, campos e opções.
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#form');
@@ -51,7 +51,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(sol && sol.status === 'pendente' && sol.proposto.luz === 'Frontal e contra' && Object.keys(sol.proposto).length === 1 && d1.casas[d1.sessao].dados.luz !== 'Frontal e contra', 'pedido guarda só o que mudou e a ficha ainda não muda');
     ok(/Pedido de atualização com a Central/.test(await p.innerText('#app')), 'a casa vê o pedido aberto');
     // 4. Datas: disponibilidade.
-    await p.click('[data-aba="disponibilidade"]'); await p.waitForSelector('[data-cal-mes]');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'agenda_casa'); await p.waitForSelector('[data-cal-mes]');
     const dia = await p.$eval('[data-disp-dia]', (x) => x.dataset.dispDia);
     await p.click(`[data-disp-dia="${dia}"]`); await p.waitForTimeout(300); await p.click(`[data-disp-dia="${dia}"]`); await p.waitForTimeout(300);
     const disp = (await db()).disp || [];

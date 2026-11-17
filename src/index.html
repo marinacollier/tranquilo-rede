@@ -601,6 +601,8 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+.dlg-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer;display:grid;place-items:center}.dlg-x:hover{border-color:var(--violet)}
+#dlg{position:fixed}
 /* Caixas de escolha com cara de clicável (pedido da Marina, 17/11/2026): seta sempre visível, mãozinha e borda ao passar. */
 select{cursor:pointer;background-repeat:no-repeat;background-position:right 13px center;background-size:12px 8px}
 select:hover:not(:disabled){border-color:var(--violet)}
@@ -784,7 +786,7 @@ function rodape() {
 // ---------- estado ----------
 const S = { pub: null, pac: null, aba: null, filtros: { periodo: "12m", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
 const PERFIS = {
-  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Artistas"],["casas","Casas"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
+  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Histórico dos artistas (Notion)"],["casas","Histórico das casas (Notion)"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
   equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["base","Base de conhecimento"],["metodo","Método"]] },
   artista: { rotulo: "Artista", abas: [["agenda","Minha agenda"],["pracas","Praças da rede"],["duvidas","Dúvidas frequentes"]] },
   casa: { rotulo: "Casa", abas: [["minhas","Minhas datas"],["roteiro","Roteiro da noite"],["duvidas","Dúvidas frequentes"]] },
@@ -1034,6 +1036,12 @@ function passosLeitura(evs, modelo, hoje) {
   }).join("")}</div>`;
 }
 // ---------- abas internas ----------
+// Base de conhecimento e Método para todo mundo (referencia.json, gerado no build a partir do retrato público do Notion).
+function referencia() {
+  if (S.ref) return S.ref;
+  if (!S.refPedido) { S.refPedido = true; fetch("referencia.json?v=" + Date.now().toString(36).slice(0, 5)).then((r) => r.json()).then((j) => { S.ref = j; render(); }).catch(() => { S.ref = { base: [], metodo: "Não foi possível carregar agora. Recarregue a página." }; render(); }); }
+  return null;
+}
 const TELAS = {
   duvidas() {
     const tipo = S.conta ? S.conta.perfil.tipo : S.pac.perfil;
@@ -1151,7 +1159,8 @@ const TELAS = {
     ], linhas, { i: 2, dir: -1 })}`;
   },
   base() {
-    const P = S.pac, q = (S.bq || "").toLowerCase();
+    const P = S.pac?.base ? S.pac : referencia(), q = (S.bq || "").toLowerCase();
+    if (!P) return `<div class="tag">Base de conhecimento</div><p class="muted">Carregando…</p>`;
     const itens = P.base.filter((b) => !q || b.q.toLowerCase().includes(q));
     const prontos = P.base.filter((b) => b.s === "Pronto para uso").length;
     return `<div class="tag">Base de conhecimento</div><h1>${P.base.length} artigos</h1><p class="sub">${prontos} prontos para uso. O artigo abre no Notion (precisa de login da equipe).</p>
@@ -1159,7 +1168,9 @@ const TELAS = {
     <div class="list">${itens.map((b) => `<a class="card row" href="${notion(b.id)}" target="_blank" rel="noopener" style="text-decoration:none"><span>${esc(b.q)}</span><span class="badge ${b.s === "Pronto para uso" ? "b-good" : b.s === "Em revisão" ? "b-warn" : ""}">${esc(b.s)}</span></a>`).join("")}</div>`;
   },
   metodo() {
-    return `<div class="row"><div class="tag">Método</div><a class="btn sm" href="${notion("ddd0e9fd76994af0b100dcc6e026f7bc")}" target="_blank" rel="noopener">Documento completo no Notion</a></div><div class="card md" style="margin-top:10px">${markdown(S.pac.metodo)}</div>`;
+    const P = S.pac?.metodo ? S.pac : referencia();
+    if (!P) return `<div class="tag">Método</div><p class="muted">Carregando…</p>`;
+    return `<div class="row"><div class="tag">Método</div><a class="btn sm" href="${notion("ddd0e9fd76994af0b100dcc6e026f7bc")}" target="_blank" rel="noopener">Documento completo no Notion</a></div><div class="card md" style="margin-top:10px">${markdown(P.metodo)}</div>`;
   },
   acessos() {
     const P = S.pac, url = location.origin + location.pathname, f = S.acf || "";
@@ -1255,7 +1266,8 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Sua casa", ["datas_casa", "disponibilidade", "contratos", "financeiro", "operacoes", "marketing", "ficha"]],
+  ["Sua casa", ["datas_casa", "ficha"]],
+  ["Sua área", ["art_datas", "art_cad"]],
   ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_materiais"]],
   ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "passos", "contratos_meus", "disp_artista", "trilha", "campanha", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "convites", "prontidao", "documentos", "pessoas", "historico"]],
@@ -1282,6 +1294,8 @@ const ICONES = {
   disponibilidade: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
   contratos: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
   contratos_meus: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
+  art_datas: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
+  art_cad: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/>'),
   financeiro: ic('<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5v1.5M12 16v1.5"/>'),
   disp_artista: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
   g_hoje: ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),

@@ -39,7 +39,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.$eval('#ctEv', (s) => s.value.startsWith('p:')), '"Preparar contrato" abre o contrato já com a data');
     await p.click('#sair'); await p.waitForTimeout(500);
     // a casa vê a data
-    await p.click('#entrar'); await p.fill('#email', 'agenda@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await p.waitForTimeout(1200);
+    await p.click('#entrar'); await p.fill('#email', 'agenda@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await p.waitForSelector('#side:not([hidden])', { timeout: 10000 }).catch(() => {}); await p.waitForTimeout(600);
     await p.click('[data-tour="pular"]').catch(() => {});
     await ir('cronograma');
     const t = await p.innerText('#app');

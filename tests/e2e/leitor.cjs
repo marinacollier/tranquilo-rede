@@ -28,7 +28,7 @@ const D = __dirname + '/dados/';
     await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
     await p.click('label:has(input[name="tipoNovo"][value="casa"])'); await p.waitForTimeout(200);
     await p.fill('#enome', 'Casa Leitora'); await p.fill('#email', 'leitora@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
-    await p.waitForSelector('[data-aba="operacoes"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
+    await p.waitForSelector('[data-aba="datas_casa"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
     await abrirAba('guia'); await p.waitForSelector('[data-ler="guia-do-franqueado"]', { timeout: 5000 });
     ok(!(await p.$('#app a[target="_blank"][href*="exemplo"]')), 'Guia não manda para outro link');
     await p.click('[data-ler="guia-do-franqueado"]'); await p.waitForSelector('#leitorDoc', { timeout: 5000 });
