@@ -1,0 +1,27 @@
+name: Excluir conta do portal
+
+# Só roda à mão. Recebe a impressão SHA-256 do e-mail (não o e-mail), para o e-mail não aparecer no repositório público.
+# Primeiro rode com modo "ensaio" (mostra o que muda e desfaz); depois com "excluir".
+on:
+  workflow_dispatch:
+    inputs:
+      email_sha256:
+        description: SHA-256 do e-mail em minúsculas
+        required: true
+      modo:
+        description: ensaio ou excluir
+        default: ensaio
+
+jobs:
+  excluir:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/excluir-conta.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          EMAIL_SHA256: ${{ inputs.email_sha256 }}
+          MODO: ${{ inputs.modo }}
