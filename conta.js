@@ -680,7 +680,8 @@ const TQConta = (() => {
   // Marketing (campanhas). Cada informação tem uma tela dona (docs/INFORMATION_OWNERSHIP.md); as outras só apontam para ela.
   // Documento do Gui de 11/11/2026: Operações (Guia primeiro), Datas, Cronogramas, Marketing (por função) e Bonificações.
   // A Ficha é a porta de entrada: fica por último no menu e abre primeiro enquanto não foi enviada.
-  const AREAS_CASA = [["operacoes", "Operações"], ["datas_casa", "Datas"], ["cronogramas", "Cronogramas"], ["marketing", "Marketing"], ["bonificacoes", "Bonificações"], ["ficha", "Ficha da Casa"]];
+  // Por tema (pedido da Marina, 17/11/2026): datas, disponibilidade, contratos, financeiro, operações, marketing e cadastro.
+  const AREAS_CASA = [["datas_casa", "Datas"], ["disponibilidade", "Disponibilidade"], ["contratos", "Contratos"], ["financeiro", "Financeiro"], ["operacoes", "Operações"], ["marketing", "Marketing"], ["ficha", "Cadastro"]];
   const MKT_FUNCOES = [["mkt_produtor", "lider", "Produtor local"], ["mkt_anfitriao", "anfitriao", "Anfitrião"], ["mkt_social", "social_media", "Social media"]];
   function subsDaArea(area) {
     if (S.conta?.perfil.tipo !== "casa") return [];
@@ -690,11 +691,12 @@ const TQConta = (() => {
     if (area === "ficha") return fs ? (A.equipe ? [["equipe_casa", "Equipe da casa"]] : []) : [["cadastro_casa", "Ficha da unidade"], ["equipe_casa", "Equipe da casa"]];
     if (area === "operacoes") return [["guia", "Guia do franqueado"], ...(fs ? [["minha_funcao", "Minha função"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
       ["materiais", "Materiais"], ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ["duvidas", "Dúvidas"]];
-    if (area === "datas_casa") return [...(fs ? [] : [["agenda_casa", "Disponibilidade"]]), ["passos", "Passo a passo das datas"],
+    if (area === "datas_casa") return [["passos", "Passo a passo das datas"], ...(!fs || fs.includes("lider") ? [["cronograma", "Cronogramas"]] : []),
       ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
-    if (area === "cronogramas") return !fs || fs.includes("lider") ? [["cronograma", "Cronogramas"]] : [];
+    if (area === "disponibilidade") return fs ? [] : [["agenda_casa", "Disponibilidade"]];
+    if (area === "contratos") return fs ? [] : [["contratos_meus", "Contratos"]];
+    if (area === "financeiro") return fs ? [] : [["financeiro_casa", "Combinados e repasses"], ["bonificacao", "Bonificações"]];
     if (area === "marketing") return [...MKT_FUNCOES.filter(([, f]) => !fs || fs.includes(f)).map(([k, , t]) => [k, t]), ...(!fs || A.campanha ? [["campanha", "Campanhas"]] : [])];
-    if (area === "bonificacoes") return fs ? [] : [["bonificacao", "Bonificações"]];
     return [];
   }
   /** Área do portal da casa que contém a tela k (ou null). */
@@ -757,7 +759,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha inscrição"], ["disp_artista", "Disponibilidade"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
+    if (t === "artista") return [["passos", "Próximos passos"], ["contratos_meus", "Contratos"], ["inscricao", "Minha inscrição"], ["disp_artista", "Disponibilidade"], ...doPac, ["materiais", "Materiais"], ...duv, ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["relatos", "Relatos"]];
@@ -1122,7 +1124,7 @@ const TQConta = (() => {
       </div><div class="barra-acoes"><button class="btn" id="ctPrep">Preparar contrato</button></div>
       ${prep ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
         <label class="fcampo"><b>Nome do contrato</b><input id="ctTit" maxlength="160" value="${esc(prep.titulo)}"></label>
-        <p style="margin:10px 0 6px"><b>Campos do modelo</b> <span class="muted" style="font-size:13px">· em branco = a pessoa preenche</span></p>
+        <p style="margin:10px 0 6px"><b>Campos do modelo</b> <span class="muted" style="font-size:13px">· em branco = a pessoa preenche</span></p>${prep.daFicha ? `<div class="alert good" style="margin:0 0 10px"><b>${prep.daFicha} ${prep.daFicha === 1 ? "campo veio" : "campos vieram"} da Ficha</b>Confira antes de enviar. O que ficou em branco não está na Ficha: a pessoa completa na hora de assinar.</div>` : ""}
         <div class="grid g2">${prep.campos.map((c) => `<label class="fcampo"><b>${esc(c.rotulo)}</b><input data-ct-campo="${esc(c.chave)}" maxlength="300" value="${esc(prep.valores[c.chave] || "")}" placeholder="a pessoa preenche"></label>`).join("") || `<p class="muted">Este modelo não tem campos: o texto vai como está.</p>`}</div>
         <div class="barra-acoes"><button class="btn pri" id="ctEnviar">Enviar para assinatura</button><button class="btn" id="ctDescartar">Descartar</button></div></div>` : ""}
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>
@@ -1409,7 +1411,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   const TELAS = {
     ...Object.fromEntries(Object.keys(GRUPOS_EQ).map((g) => [g, () => telaGrupo(g)])),
-    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), cronogramas: () => telaArea("cronogramas"), bonificacoes: () => telaArea("bonificacoes"),
+    ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), disponibilidade: () => telaArea("disponibilidade"), contratos: () => telaArea("contratos"), financeiro: () => telaArea("financeiro"),
     passos() {
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
@@ -1627,7 +1629,32 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     },
     // ---------- Disponibilidade da artista (banco v24): a artista marca os dias; a Isa cruza com as casas em Criar datas ----------
     disp_artista() {
-      return `<div class="tag">Disponibilidade</div><h1>Dias em que você pode tocar</h1>${calendarioArtista()}`;
+      const d = S.conta.insc?.dados || {}, cids = [...(d.cidades_interesse || []), ...(d.outras_cidades ? [d.outras_cidades] : [])];
+      return `<div class="tag">Disponibilidade</div><h1>Onde e quando você pode tocar</h1>
+      <div class="card" style="margin-bottom:14px"><div class="row"><div><b>Cidades</b><div class="muted" style="font-size:14px">${cids.length ? esc(cids.join(", ")) : "Nenhuma cidade marcada ainda."}</div></div><button class="btn sm" data-ir="inscricao">${cids.length ? "Ver na inscrição" : "Marcar cidades"}</button></div>${d.disponibilidade ? `<div class="muted" style="font-size:13px;margin-top:6px">Observação: ${esc(d.disponibilidade)}</div>` : ""}</div>
+      <h2>Dias</h2>${calendarioArtista()}`;
+    },
+    // Contratos da conta (artista e casa): todos num lugar, com o pendente primeiro.
+    contratos_meus() {
+      const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
+      if (aberto) return telaContrato(aberto);
+      const L = meusContratos().sort((a, b) => (a.status === "enviado" ? 0 : 1) - (b.status === "enviado" ? 0 : 1) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
+      const casa = S.conta.perfil.tipo === "casa";
+      return `<div class="tag">Contratos</div><h1>Seus contratos</h1>
+      <p class="sub">Aqui ficam todos os contratos ${casa ? "da casa com o Tranquilo" : "das suas datas"}: o que falta assinar aparece primeiro. Você lê, completa os dados e assina aqui mesmo, sem imprimir.</p>
+      ${L.length ? `<div class="list">${L.map((c) => { const si = TQContrato.situacao(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${c.status === "enviado" ? " pri" : ""}" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Ler e assinar →"}</button></div>`; }).join("")}</div>`
+        : vazio("Nenhum contrato por enquanto", casa ? "Quando a equipe do Tranquilo enviar o contrato da parceria, ele aparece aqui para você ler e assinar." : "Quando uma data for confirmada, a equipe do Tranquilo prepara o contrato e ele aparece aqui para você ler e assinar.", "", "contratos_meus")}`;
+    },
+    // Financeiro da casa: combinados registrados pela Central e situação dos dados de repasse.
+    financeiro_casa() {
+      const c = S.conta.casa, cb = c?.combinados || {}, d = c?.dados || {}, nada = '<span class="muted">Ainda não registrado pela Operações</span>';
+      const pct = (v) => (v != null && v !== "" ? `${esc(String(v))}%` : nada);
+      const rep = ["rep_titular", "rep_documento", "rep_banco", "rep_agencia", "rep_conta"].every((k) => String(d[k] ?? "").trim()) || String(d.rep_pix ?? "").trim();
+      return `<div class="tag">Financeiro</div><h1>Combinados e repasses</h1>
+      <p class="sub">Como a receita de cada noite é dividida e para onde vai a parte da casa. Quem registra os combinados é a Operações.</p>
+      <div class="card"><h3 style="margin-top:0">Bilheteria</h3><dl class="kv"><dt>Casa</dt><dd>${pct(cb.bilheteria?.casa)}</dd><dt>Artistas</dt><dd>${pct(cb.bilheteria?.artista)}</dd><dt>Tranquilo</dt><dd>${pct(cb.bilheteria?.tranquilo)}</dd></dl></div>
+      <div class="card" style="margin-top:12px"><h3 style="margin-top:0">Alimentos e bebidas</h3><dl class="kv"><dt>Casa</dt><dd>${pct(cb.aeb?.casa)}</dd><dt>Tranquilo</dt><dd>${pct(cb.aeb?.tranquilo)}</dd></dl></div>
+      <div class="card" style="margin-top:12px"><div class="row"><div><h3 style="margin:0">Conta para repasses</h3><div class="muted" style="font-size:14px;margin-top:4px">${rep ? "✓ Dados da conta informados na Ficha." : "Ainda faltam os dados da conta que recebe a parte da casa."}</div></div><button class="btn sm${rep ? "" : " pri"}" data-sub="ficha|cadastro_casa">${rep ? "Ver no Cadastro" : "Informar no Cadastro"}</button></div></div>`;
     },
     // ---------- Datas: disponibilidade da casa (a casa informa; a Isa consulta em Agenda das casas) ----------
     agenda_casa() {
@@ -2488,7 +2515,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // ---------- eventos ----------
   async function cliquesContrato(t) {
     const erro = (m) => { const e = $("#ctErr") || $("#mcErr"); if (e) diz(e, m); };
-    const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; irPara("passos"); render(); scrollTo(0, 0); return true; }
+    const ab = t.closest("[data-ct-abrir]"); if (ab) { S.contrAberto = ab.dataset.ctAbrir; if (!["contratos", "contratos_meus"].includes(S.aba)) irPara("passos"); render(); scrollTo(0, 0); return true; }
     if (t.closest("[data-ct-voltar]")) { S.contrAberto = null; render(); scrollTo(0, 0); return true; }
     const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c); return true; }
     const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
@@ -2505,7 +2532,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const m = S.eq.modContr.find((x) => x.id === modelo), p0 = S.eq.perfis.find((x) => x.id === conta), p = { ...p0, vinculo_nome: nomeDaConta(p0) };
       const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev);
       const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
-      S.cPrep = { conta, ev, modelo, texto, campos, valores: Object.fromEntries(campos.map((c) => [c.chave, sug[c.chave] || ""])),
+      // O que já está no portal: Ficha da casa (ou inscrição da artista) e o que a pessoa preencheu em contratos anteriores.
+      const ehCasa = p0?.tipo === "casa", ficha = ehCasa ? (S.eq.casas || []).find((c) => c.user_id === conta || (p0.vinculo_nome && (c.dados?.nome === p0.vinculo_nome || c.perfil?.vinculo_nome === p0.vinculo_nome))) : (S.eq.insc || []).find((i) => i.user_id === conta);
+      // O que a pessoa preencheu em contratos anteriores ela mesma confere na hora de assinar (dadosAnteriores).
+      const cad = TQContrato.doCadastro(campos, ehCasa ? "casa" : "artista", ficha?.dados, { combinados: ficha?.combinados, email: p0?.email });
+      S.cPrep = { conta, ev, modelo, texto, campos, daFicha: Object.keys(cad).length, valores: Object.fromEntries(campos.map((c) => [c.chave, sug[c.chave] || cad[c.chave] || ""])),
         titulo: `${m.nome} · ${p.vinculo_nome || p.nome || p.email}${e ? ` · ${e.c} ${dt(e.d).slice(0, 5)}` : ""}`.slice(0, 160) };
       render(); $("#ctTit")?.scrollIntoView({ block: "center" }); return true;
     }

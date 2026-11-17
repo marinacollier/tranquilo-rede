@@ -448,7 +448,7 @@ h1 em,h2 em{color:var(--city)}
 td .badge{letter-spacing:.06em}
 .pill{border-radius:999px}
 .chip::before{background:var(--city);box-shadow:0 0 0 3px var(--violet-soft)}
-select,.filters select,.filters input,.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]),textarea{background:#101116;border-color:var(--line-2);border-radius:10px}
+select,.filters select,.filters input,.fcampo input,.fcampo select,.fcampo textarea,.login input:not([type=checkbox]):not([type=radio]),textarea{background-color:#101116;border-color:var(--line-2);border-radius:10px}
 .card,.tbl,.stats,.vazio,.ev,.tempo{border-color:var(--line)}
 /* logo em texto, como no site: T. (o ponto ganha a cor da cidade) */
 .tl{font-family:var(--serif);font-weight:900;font-size:34px;line-height:1;letter-spacing:-.02em;color:#fff}
@@ -601,6 +601,10 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+/* Caixas de escolha com cara de clicável (pedido da Marina, 17/11/2026): seta sempre visível, mãozinha e borda ao passar. */
+select{cursor:pointer;background-repeat:no-repeat;background-position:right 13px center;background-size:12px 8px}
+select:hover:not(:disabled){border-color:var(--violet)}
+select:disabled{cursor:not-allowed;opacity:.6}
 /* Arquivo: o botão nativo vira um botão do portal */
 input[type=file]{font-size:13.5px;color:var(--ink-3);max-width:100%}
 input[type=file]::file-selector-button{font:500 13.5px var(--sans);color:var(--ink);background:var(--raised);border:1px solid var(--line-2);border-radius:999px;padding:7px 14px;margin-right:12px;cursor:pointer}
@@ -658,15 +662,15 @@ th,td{padding:12px 14px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1794934826"></script>
-<script src="diario.js?v=1794934826"></script>
-<script src="regras.js?v=1794934826"></script>
-<script src="tour.js?v=1794934826"></script>
-<script src="campanha.js?v=1794934826"></script>
-<script src="equipe.js?v=1794934826"></script>
-<script src="operacao.js?v=1794934826"></script>
-<script src="contrato.js?v=1794934826"></script>
-<script src="conta.js?v=1794934826"></script>
+<script src="config.js?v=1794935960"></script>
+<script src="diario.js?v=1794935960"></script>
+<script src="regras.js?v=1794935960"></script>
+<script src="tour.js?v=1794935960"></script>
+<script src="campanha.js?v=1794935960"></script>
+<script src="equipe.js?v=1794935960"></script>
+<script src="operacao.js?v=1794935960"></script>
+<script src="contrato.js?v=1794935960"></script>
+<script src="conta.js?v=1794935960"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
@@ -1251,9 +1255,9 @@ function fichaPor(tipo, nome) {
 // ---------- render ----------
 // Menu lateral: as abas de cada perfil agrupadas pelo que a pessoa vai fazer.
 const GRUPOS = [
-  ["Sua casa", ["operacoes", "datas_casa", "cronogramas", "marketing", "bonificacoes", "ficha"]],
+  ["Sua casa", ["datas_casa", "disponibilidade", "contratos", "financeiro", "operacoes", "marketing", "ficha"]],
   ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_materiais"]],
-  ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "passos", "trilha", "campanha", "operacao", "agenda", "minhas"]],
+  ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "passos", "contratos_meus", "disp_artista", "trilha", "campanha", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "convites", "prontidao", "documentos", "pessoas", "historico"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa", "equipe_casa"]],
@@ -1275,6 +1279,11 @@ const GRUPOS_CENTRAL = [
 const gruposAtuais = () => { const t = S.conta ? S.conta.perfil.tipo : S.pac?.perfil; return t === "adm" || (t === "equipe" && !S.conta?.perfil.areas?.length) ? GRUPOS_CENTRAL : GRUPOS; };
 const ic = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
 const ICONES = {
+  disponibilidade: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
+  contratos: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
+  contratos_meus: ic('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 17c1.5-2 2.5-2 3.5 0s2 1 3-1"/>'),
+  financeiro: ic('<circle cx="12" cy="12" r="9"/><path d="M15 9.5c-.5-1-1.6-1.5-3-1.5-1.7 0-3 .9-3 2s1.3 1.7 3 2 3 .9 3 2-1.3 2-3 2c-1.4 0-2.5-.5-3-1.5M12 6.5v1.5M12 16v1.5"/>'),
+  disp_artista: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 15l2 2 4-4"/>'),
   g_hoje: ic('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>'),
   g_datas: ic('<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'),
   g_artistas: ic('<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>'),
