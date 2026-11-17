@@ -1,4 +1,4 @@
-name: Excluir conta do portal
+name: Excluir ou confirmar conta do portal
 
 # Só roda à mão. Recebe a impressão SHA-256 do e-mail (não o e-mail), para o e-mail não aparecer no repositório público.
 # Primeiro rode com modo "ensaio" (mostra o que muda e desfaz); depois com "excluir".
@@ -9,7 +9,7 @@ on:
         description: SHA-256 do e-mail em minúsculas
         required: true
       modo:
-        description: ensaio ou excluir
+        description: ensaio, excluir ou confirmar
         default: ensaio
 
 jobs:

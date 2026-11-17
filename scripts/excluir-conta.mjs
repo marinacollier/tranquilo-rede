@@ -1,14 +1,24 @@
 // Exclui uma conta do portal (login, perfil e convite antigo) para a pessoa poder entrar de novo por convite.
 // A conta é achada pela impressão SHA-256 do e-mail (minúsculo): o e-mail nunca aparece no repositório nem no log.
 // MODO=ensaio mostra o que seria afetado e desfaz; MODO=excluir grava. Não exclui a última conta de administração.
+// MODO=confirmar marca o e-mail como confirmado (conta de teste com e-mail que não recebe mensagem).
 // Uso (Actions): EMAIL_SHA256=<hash> MODO=ensaio|excluir node scripts/excluir-conta.mjs · precisa do SUPABASE_ACCESS_TOKEN.
 import { readFile } from 'node:fs/promises';
 
 const tok = process.env.SUPABASE_ACCESS_TOKEN, hash = (process.env.EMAIL_SHA256 || '').trim().toLowerCase(), modo = process.env.MODO || 'ensaio';
-if (!tok || !/^[0-9a-f]{64}$/.test(hash) || !['ensaio', 'excluir'].includes(modo)) { console.error('::error::Falta o token, a impressão do e-mail (64 caracteres) ou o modo.'); process.exit(1); }
+if (!tok || !/^[0-9a-f]{64}$/.test(hash) || !['ensaio', 'excluir', 'confirmar'].includes(modo)) { console.error('::error::Falta o token, a impressão do e-mail (64 caracteres) ou o modo.'); process.exit(1); }
 const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 const fim = modo === 'excluir' ? 'commit' : 'rollback';
+if (modo === 'confirmar') {
+  const q = `update auth.users set email_confirmed_at = coalesce(email_confirmed_at, now()) where encode(extensions.digest(lower(email), 'sha256'), 'hex') = '${hash}' returning (select tipo::text from perfis where perfis.id = auth.users.id) tipo`;
+  const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
+  const t = await r.text();
+  if (!r.ok) { console.error(`::error::Não confirmou (HTTP ${r.status}): ${t.replace(/[^\s@]+@[^\s@]+/g, '[e-mail]').slice(0, 400)}`); process.exit(1); }
+  const l = JSON.parse(t);
+  console.log(l.length ? `CONFIRMADA: conta de ${l[0].tipo || 'tipo ainda sem perfil'}. Já dá para entrar com e-mail e senha.` : 'Nenhuma conta com esse e-mail.');
+  process.exit(l.length ? 0 : 1);
+}
 const sql = `begin;
 create temp table relato (passo text, n int) on commit drop;
 do $$
