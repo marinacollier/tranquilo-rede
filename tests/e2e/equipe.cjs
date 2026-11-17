@@ -48,7 +48,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
       const ps = TQTour.passosDe('casa_equipe', (a) => abas.includes(a)); const ex = new Set(ps.flatMap((x) => [...(x.cobre || []), ...(x.ir ? [x.ir[0]] : [])]));
       return { abas, faltam: abas.filter((a) => !ex.has(a)) }; }, SUBS);
     ok(/Equipe da casa/.test(tag) && !cob.faltam.length, `primeiro acesso da equipe abre o tutorial dela, cobrindo as ${cob.abas.length} abas${cob.faltam.length ? ' (faltam ' + cob.faltam.join(', ') + ')' : ''}`);
-    ok(cob.abas[0] === 'operacoes' && cob.abas.includes('minha_funcao') && !cob.abas.includes('ficha') && !cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'porta vê Minha função, sem a equipe, o cadastro e as métricas da casa');
+    ok(['datas_casa', 'operacoes'].includes(cob.abas[0]) && cob.abas.includes('minha_funcao') && !cob.abas.includes('ficha') && !cob.abas.includes('equipe_casa') && !cob.abas.includes('cadastro_casa') && !cob.abas.includes('minhas'), 'porta vê Minha função, sem a equipe, o cadastro e as métricas da casa');
     await pular(); await abrirAba('minha_funcao');
     ok(/Operador\(a\) de porta/.test(await p.textContent('#app')) && /Lista de entrada e cortesias/.test(await p.textContent('#app')), 'Minha função mostra o que a porta lê, recebe e devolve');
     // 3. A Central começa a trilha.

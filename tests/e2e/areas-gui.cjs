@@ -25,11 +25,11 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     const casa = linhas.find(([t, , n]) => t === 'casa' && !/^Casa (em|da rede)/.test(n));
     await conta('casa', 'Dono Áreas', 'dono@areas.com', casa[1], casa[2]);
     const menu = await p.$$eval('nav.tabs .nav-g:not(.nav-rodape) button[data-aba]', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(menu.join('|') === 'Operações|Datas|Cronogramas|Marketing|Bonificações|Ficha da Casa', `menu da casa: ${menu.join(' · ')}`);
+    ok(menu.join('|') === 'Datas|Disponibilidade|Contratos|Financeiro|Operações|Marketing|Cadastro', `menu da casa: ${menu.join(' · ')}`);
     ok(!!(await p.$('#form')), 'Ficha ainda não enviada: a casa entra pela Ficha (porta de entrada)');
     await p.click('[data-aba="operacoes"]'); await p.waitForTimeout(400);
     ok(/Guia do franqueado/.test(await app()) && /Manual do Tranquilo Apresenta/.test(await app()) && /Manual do Tranquilo Descubra/.test(await app()), 'Operações abre no Guia do franqueado, com os manuais do Apresenta e do Descubra');
-    await p.click('[data-aba="cronogramas"]'); await p.waitForTimeout(300);
+    await p.click('[data-aba="datas_casa"]'); await p.waitForTimeout(300); await p.click('[data-sub="datas_casa|cronograma"]'); await p.waitForTimeout(300);
     const cr = await app();
     ok(/Datas fechadas/.test(cr) && (/Nenhuma data fechada/.test(cr) || /Mensagem de alinhamento do cronograma/.test(cr)), 'Cronogramas: datas fechadas com mensagem pronta (texto a validar)');
     const mk = await p.evaluate(() => [...document.querySelectorAll('[data-aba="marketing"]')].length);
@@ -37,7 +37,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     const subsMk = await p.$$eval('[data-sub^="marketing|"]', (xs) => xs.map((x) => x.textContent.trim()));
     ok(mk && subsMk.join('|') === 'Produtor local|Anfitrião|Social media|Campanhas', `Marketing por função: ${subsMk.join(' · ')}`);
     ok(/Obrigações de marketing\s*a validar/i.test(await app()), 'obrigações de marketing marcadas "a validar"');
-    await p.click('[data-aba="bonificacoes"]'); await p.waitForTimeout(300);
+    await p.click('[data-aba="financeiro"]'); await p.waitForTimeout(300); ok(/Combinados e repasses/.test(await app()) && /Conta para repasses/.test(await app()), 'Financeiro: combinados e conta para repasses'); await p.click('[data-sub="financeiro|bonificacao"]'); await p.waitForTimeout(300);
     ok(/Bonificação da casa/.test(await app()) && /Estrella Galicia/.test(await app()) && /a validar/i.test(await app()), 'Bonificações: marca, período e combinados, com a regra dos parceiros do Guia');
     await sub('marketing', 'campanha'); await p.reload(); await pular(); await p.waitForTimeout(500);
     ok(/#\/campanha$/.test(p.url()) && !!(await p.$('[data-sub="marketing|campanha"][aria-current="page"]')), 'recarregar mantém a parte aberta da área (#/campanha)');

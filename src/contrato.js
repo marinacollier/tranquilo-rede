@@ -59,6 +59,39 @@ const TQContrato = (() => {
     return s;
   }
 
+  // Preenche o contrato com o que já está no portal (pedido da Marina, 17/11/2026): Ficha da casa (empresa, Dono A,
+  // combinados), inscrição da artista e contratos anteriores da mesma pessoa. A equipe confere antes de enviar.
+  // tipo = "casa" | "artista"; dados = Ficha ou inscrição; extra = { combinados, email, anteriores }.
+  function doCadastro(campos, tipo, dados, extra = {}) {
+    const d = dados || {}, cb = extra.combinados || {}, ant = extra.anteriores || {}, r = {};
+    const cep = (t) => (String(t || "").match(/\b\d{5}-?\d{3}\b/) || [""])[0];
+    const casa = [
+      [/razao social/, () => d.razao_social], [/nome fantasia|nome da casa/, () => d.nome], [/^cnpj/, () => d.cnpj],
+      [/inscri|municipal|estadual/, () => d.inscricao], [/^cep/, () => cep(d.endereco)],
+      [/endereco (completo|da casa|comercial|do estabelecimento)|sede/, () => d.endereco],
+      [/^endereco|residencial/, () => d.dono_endereco], [/nome completo|responsavel|representante|socio/, () => d.dono_nome],
+      [/^rg/, () => d.dono_rg], [/^cpf/, () => d.dono_cpf], [/nascimento/, () => d.dono_nascimento],
+      [/e-?mail/, () => d.dono_email || extra.email], [/telefone|whatsapp|celular/, () => d.whatsapp || d.telefone],
+      [/^cidade/, () => d.cidade_uf], [/instagram/, () => d.instagram],
+      [/(a ?& ?b|alimentos|bebida).*(tranquilo)|tranquilo.*(a ?& ?b|alimentos|bebida)/, () => cb.aeb?.tranquilo],
+      [/(a ?& ?b|alimentos|bebida)|percentual da casa/, () => cb.aeb?.casa],
+      [/bilheteria.*tranquilo/, () => cb.bilheteria?.tranquilo], [/bilheteria.*artista/, () => cb.bilheteria?.artista], [/bilheteria/, () => cb.bilheteria?.casa],
+      [/titular/, () => d.rep_titular], [/^banco/, () => d.rep_banco], [/agencia/, () => d.rep_agencia], [/^conta/, () => d.rep_conta], [/pix/, () => d.rep_pix],
+    ];
+    const artista = [
+      [/nome artistico|nome do artista/, () => d.nome_artistico], [/whatsapp|telefone|celular/, () => d.whatsapp],
+      [/e-?mail/, () => extra.email], [/instagram/, () => d.instagram], [/^cidade/, () => [d.cidade_base, d.estado].filter(Boolean).join("/")],
+      [/integrantes|pessoas no palco/, () => d.integrantes],
+    ];
+    for (const c of campos) {
+      const nome = semAcento(c.rotulo || c.chave);
+      let v = ant[c.chave];
+      if (!v) for (const [re, f] of tipo === "casa" ? casa : artista) if (re.test(nome)) { v = f(); break; }
+      if (v != null && String(v).trim()) r[c.chave] = String(v).trim();
+    }
+    return r;
+  }
+
   async function hash(texto) {
     const b = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(texto));
     return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -90,6 +123,6 @@ ${c.status === "assinado" ? `<div class="ass"><div><b>Assinado por</b> ${escapar
 </body></html>`;
   }
 
-  return { campos, preencher, sugestoes, hash, situacao, paginaImpressao, DA_EQUIPE };
+  return { campos, doCadastro, preencher, sugestoes, hash, situacao, paginaImpressao, DA_EQUIPE };
 })();
 if (typeof module !== "undefined") module.exports = TQContrato;
