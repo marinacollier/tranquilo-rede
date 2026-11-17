@@ -580,6 +580,7 @@ const TQConta = (() => {
     if (/otp_expired|expired|invalid.*(link|token)|Token has expired/i.test(m)) return "esse link já venceu ou já foi usado. Peça um novo e use o mais recente.";
     if (/JWT expired|invalid JWT|session.*(missing|expired)|refresh token/i.test(m)) return "sua sessão expirou. Saia e entre de novo; o que estava salvo continua lá.";
     if (/duplicate key/i.test(m)) return "isso já estava salvo. Recarregue a página para ver.";
+    if (/^Não habilitada: /.test(m)) return m.replace(/^Não habilitada: /, "não dá para habilitar: ");
     if (/invalid input syntax|out of range|violates check constraint/i.test(m)) return "algum campo tem um valor que não dá para salvar (confira números e datas). Nada foi salvo.";
     if (/Failed to fetch|NetworkError|Load failed|network/i.test(m)) return "sem conexão com a internet agora. Nada foi salvo. Confira a rede e tente de novo.";
     if (/upstream|Bad Gateway|Service Unavailable|Gateway|timeout|statement timeout|5\d\d/i.test(m)) return "o servidor ficou instável. Nada foi salvo. Tente de novo em instantes.";
@@ -1153,7 +1154,72 @@ const TQConta = (() => {
   function fecharLeitor() { const y = S.lendo?.y || 0; S.lendo = null; render(); scrollTo(0, y); }
   // Página do documento: script pequeno que informa a altura (a página do portal rola, não o quadro), leva os
   // links internos (#seção) para a rolagem da página e abre outro documento do catálogo (#tq:slug) no mesmo leitor.
+  // Todo documento (Guia do Gui, documentos do Bruno, manuais) abre com a mesma cara: o visual próprio de cada um
+  // sai (estilos, menus laterais, rodapés) e entra o padrão de leitura do portal, com "Nesta página" no topo.
+  const CSS_LEITURA = `:root{color-scheme:dark}*{box-sizing:border-box}
+html,body{margin:0;background:#000201;color:#c3cddd;font:400 16px/1.7 "Lexend Deca",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+.tq-doc{max-width:760px;margin:0 auto;padding:36px 28px 72px;overflow-wrap:anywhere}
+h1,h2,h3,h4{color:#e2edff;line-height:1.2;text-wrap:balance}
+h1{font:900 clamp(30px,5.4vw,46px)/1.08 "Playfair Display",Georgia,serif;margin:6px 0 14px;letter-spacing:-.01em}
+h2{font:700 clamp(22px,3.4vw,28px)/1.2 "Playfair Display",Georgia,serif;margin:52px 0 14px;padding-top:28px;border-top:1px solid #1d1f25;scroll-margin-top:24px}
+h3{font-size:18px;font-weight:600;margin:28px 0 8px}
+h4{font-size:12.5px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#8d96a6;margin:22px 0 8px}
+p{margin:0 0 14px}ul,ol{margin:0 0 16px;padding-left:22px}li{margin:6px 0}li::marker{color:#7c8ff3}
+strong,b{color:#e2edff;font-weight:600}em{color:#e2edff}
+a{color:#a5b4fc;text-underline-offset:3px}a:hover{color:#c7d2fe}
+hr{border:0;border-top:1px solid #1d1f25;margin:32px 0}
+img,video{max-width:100%;height:auto;border-radius:12px;display:block;margin:10px 0}
+.tq-tab{overflow-x:auto;margin:12px 0 22px;border:1px solid #1d1f25;border-radius:12px}table{width:100%;border-collapse:collapse;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:10px 14px;border-bottom:1px solid #1d1f25}
+th{background:#0b0c0f;color:#8d96a6;font-size:11.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}
+tr:last-child td{border-bottom:0}
+blockquote,details,article,aside,.card,.aviso,.callout{display:block;background:#0b0c0f;border:1px solid #1d1f25;border-radius:14px;padding:14px 18px;margin:14px 0}
+blockquote{border-left:3px solid #7c8ff3}
+details summary{cursor:pointer;font-weight:600;color:#e2edff}details[open] summary{margin-bottom:8px}
+pre{white-space:pre-wrap;background:#0b0c0f;border:1px solid #1d1f25;border-radius:12px;padding:12px 14px;font:13.5px/1.55 ui-monospace,Menlo,monospace}
+code{font-family:ui-monospace,Menlo,monospace;font-size:.92em}
+button.copiar{font:inherit;font-size:12.5px;font-weight:600;border:1px solid #2c2f37;background:none;color:#c3cddd;border-radius:999px;padding:3px 12px;cursor:pointer;margin:2px 0 10px}
+.tq-toc{background:#0b0c0f;border:1px solid #1d1f25;border-radius:14px;padding:14px 20px;margin:18px 0 8px;font-size:14.5px}
+.tq-toc b{display:block;font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:#8d96a6;margin-bottom:6px}
+.tq-toc ol{margin:0;padding-left:20px}.tq-toc li{margin:3px 0}.tq-toc a{color:#c3cddd;text-decoration:none}.tq-toc a:hover{color:#e2edff;text-decoration:underline}
+section,header,main{display:block}
+dl{margin:0 0 16px}dt{color:#e2edff;font-weight:600;margin-top:8px}dd{margin:2px 0 8px 0}
+@media (max-width:600px){.tq-doc{padding:24px 16px 56px}}`;
+  function padronizarDoc(html) {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    doc.querySelectorAll("script,style,link,meta,nav,footer,iframe,object,embed,form,input,select,textarea,[hidden],[aria-hidden=\"true\"]").forEach((e) => e.remove());
+    doc.querySelectorAll("aside").forEach((e) => { if (e.querySelector("ol a,ul a") && !e.querySelector("p")) e.remove(); });   // menu lateral
+    doc.querySelectorAll("button:not(.copiar)").forEach((e) => e.remove());
+    doc.querySelectorAll("[style]").forEach((e) => e.removeAttribute("style"));
+    doc.querySelectorAll("[class]").forEach((e) => { if (!e.matches("button.copiar")) e.removeAttribute("class"); });
+    // Sem o visual de origem, rótulos e valores que vinham lado a lado (ex.: "Objetivo" + texto, "Reels" + "8h") colam:
+    // separa com dois-pontos, espaço ou ponto médio.
+    const INL = "SPAN,STRONG,B,A,SMALL,EM,I,TIME,CODE,MARK";
+    doc.body.querySelectorAll(INL.toLowerCase()).forEach((el) => {
+      const prox = el.nextSibling;
+      if (!prox || /\s$/.test(el.textContent) || !el.textContent.trim()) return;
+      const txt = prox.nodeType === 3 ? prox.textContent : prox.nodeType === 1 && INL.includes(prox.tagName) ? prox.textContent : null;
+      if (txt == null || !txt.trim() || /^[\s.,;:!?)]/.test(txt)) return;
+      const rotulo = /^(STRONG|B)$/.test(el.tagName) && !el.previousSibling?.textContent?.trim() && !/[:.!?]$/.test(el.textContent.trim());
+      el.after(doc.createTextNode(rotulo ? ": " : prox.nodeType === 1 && el.tagName === "A" && prox.tagName === "A" ? " · " : " "));
+    });
+    const corpo = doc.querySelector("main") || doc.body;
+    corpo.querySelectorAll("table").forEach((t) => { const w = doc.createElement("div"); w.setAttribute("class", "tq-tab"); t.replaceWith(w); w.append(t); });
+    // Sumário "Nesta página" a partir dos títulos de seção, quando há mais de dois.
+    const h2s = [...corpo.querySelectorAll("h2")];
+    h2s.forEach((h, i) => { if (!h.id) h.id = "secao-" + (i + 1); });
+    const toc = h2s.length > 2 ? `<div class="tq-toc"><b>Nesta página</b><ol>${h2s.map((h) => `<li><a href="#${h.id}">${esc(h.textContent.replace(/\s+/g, " ").trim())}</a></li>`).join("")}</ol></div>` : "";
+    // O sumário entra logo depois do título principal (ou no começo).
+    let miolo = corpo.innerHTML;
+    const h1 = corpo.querySelector("h1");
+    if (toc && h1) { const marca = "<!--tq-toc-->"; h1.insertAdjacentHTML("afterend", marca); miolo = corpo.innerHTML.replace(marca, toc); }
+    else miolo = toc + miolo;
+    return `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Lexend+Deca:wght@400;600;700&display=swap">
+<style>${CSS_LEITURA}</style></head><body><div class="tq-doc">${miolo}</div></body></html>`;
+  }
   function paginaDoc(html, chave) {
+    html = padronizarDoc(html);
     const ajuda = `<base target="_blank"><script>(function(){var K=${JSON.stringify(chave)};function alt(){parent.postMessage({tqDoc:K,altura:Math.max(document.documentElement.scrollHeight,document.body?document.body.scrollHeight:0)},"*")}
 addEventListener("load",alt);setTimeout(alt,400);setTimeout(alt,1500);if(window.ResizeObserver)new ResizeObserver(alt).observe(document.documentElement);
 document.addEventListener("click",function(e){var b=e.target.closest&&e.target.closest("button.copiar[data-copiar]");if(b){e.preventDefault();e.stopImmediatePropagation();parent.postMessage({tqDoc:K,copiar:b.getAttribute("data-copiar")},"*");var o=b.textContent;b.textContent="copiado";setTimeout(function(){b.textContent=o},1400);return}
@@ -1175,8 +1241,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   function leitor() {
     const L = S.lendo, H = S.hub;
     const voltar = `<button class="btn sm" data-ler-voltar>← Voltar</button>`;
-    if (L.manual) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="tag">Operações</div><h1>Manual do Tranquilo ${esc(L.manual)}</h1>
-      <p class="sub">Cronograma hora a hora, rider, camarim e funções da equipe.</p><div class="list">${TQOperacao.manual(L.manual)}</div><div class="barra-acoes" style="margin-top:16px">${voltar}</div>`;
+    if (L.manual) {
+      L.slug ||= "manual-" + L.manual.toLowerCase();
+      L.html ??= `<main><h1>Manual do Tranquilo ${esc(L.manual)}</h1><p>Cronograma hora a hora, rider, camarim e funções da equipe.</p>${TQOperacao.manual(L.manual).replace(/<div class="card">\s*<h2[^>]*>/g, "<h2>").replace(/<\/div>\s*(?=<div class="card">|<p class="muted")/g, "")}</main>`;
+      return quadroLeitura(L, `Manual do Tranquilo ${L.manual}`, "versão " + TQOperacao.VERSAO, voltar, "");
+    }
     if (!H) { carregarHub(); return carregando("o documento"); }
     const m = (H.materiais || []).find((x) => x.slug === L.slug), v = versaoComConteudo(H, m), cat = DOCS[L.slug] || {};
     if (!m || !v) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="alert warn"><b>⚠ Atenção: este documento ainda não foi publicado no portal.</b>Avise a equipe do Tranquilo pelo grupo da unidade.</div>`;
@@ -1187,11 +1256,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (!L.html) return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}</div><div class="alert crit"><b>✕ Erro: o documento não abriu.</b>${esc(L.erro || "O conteúdo veio vazio.")} Tente de novo em instantes.</div>`;
     const vig = (H.versoes || []).find((x) => x.material_id === m.id), pend = vig?.exige_ciencia && (H.pendentes || []).some((p) => p.versao_id === vig.id);
+    return quadroLeitura(L, m.titulo, "versão " + v.versao, voltar,
+      pend ? `<div class="alert warn" style="margin-top:12px"><b>Leia e confirme</b>Esta versão muda o que a casa faz.<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-ciencia="${vig.id}">Li e estou ciente</button></div></div>` : "");
+  }
+  // Moldura única de leitura: barra com Voltar, título e versão; o documento no padrão do portal; Voltar no fim.
+  function quadroLeitura(L, titulo, versao, voltar, depois) {
     queueMicrotask(() => { const f = document.getElementById("leitorDoc"); if (f && !f.dataset.pronto) { f.dataset.pronto = "1"; f.srcdoc = paginaDoc(L.html, L.slug); } });
-    return `<div class="barra-acoes" style="margin-bottom:12px">${voltar}<span class="muted" style="font-size:13px">${esc(m.titulo)} · versão ${esc(v.versao)}</span></div>
-      <iframe id="leitorDoc" title="${esc(m.titulo)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" style="display:block;width:100%;height:80vh;border:0;border-radius:16px;background:#000201"></iframe>
-      ${pend ? `<div class="alert warn" style="margin-top:12px"><b>Leia e confirme</b>Esta versão muda o que a casa faz.<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-ciencia="${vig.id}">Li e estou ciente</button></div></div>` : ""}
-      <div class="barra-acoes" style="margin-top:16px">${voltar}${cat.desc ? "" : ""}</div>`;
+    return `<div class="leitor-barra">${voltar}<div><b>${esc(titulo)}</b><span class="muted">${esc(versao)}</span></div></div>
+      <iframe id="leitorDoc" title="${esc(titulo)}" sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox" class="leitor-doc"></iframe>
+      ${depois}<div class="barra-acoes" style="margin-top:16px">${voltar}</div>`;
   }
 
   const TELAS = {
@@ -2543,6 +2616,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (status) campos.status = status;
       if (tipo === "casa") campos.classificacao = $("#classe").value || null;
       if (status === "ajustes" && !campos.parecer) { diz($("#derr"), "Escreva na mensagem o que precisa ser ajustado."); return; }
+      // Habilitar só com a Ficha mínima completa (o banco confere de novo, v19).
+      if (tipo === "casa" && status === "habilitada") { const c = (S.eq?.casas || []).find((x) => x.id === id), f = R.pendenciasCasa(c?.dados || {}).habilitacao;
+        if (f.length) { diz($("#derr"), `Não dá para habilitar: falta preencher na Ficha ${f.join(", ")}. Peça ajustes à casa com a lista do que falta.`); return; } }
       // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
       if (status === "reprovada" && !campos.parecer) { diz($("#derr"), "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."); $("#parecer").focus(); return; }
       if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;

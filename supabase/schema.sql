@@ -2286,3 +2286,22 @@ do $$ begin
   alter table material_versoes add constraint conteudo_html_tamanho check (conteudo_html is null or length(conteudo_html) <= 4000000);
 exception when duplicate_object then null; end $$;
 alter table material_versoes add column if not exists tem_conteudo boolean generated always as (conteudo_html is not null) stored;
+
+-- =====================================================================
+-- v19: só habilita casa com a Ficha mínima completa (pedido da Marina, 17/11/2026). Idempotente.
+-- Vale para a equipe e para a administração; casas já habilitadas não mudam (só a passagem para "habilitada").
+-- =====================================================================
+create or replace function casa_habilitar_completa() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare falta text;
+begin
+  if new.status = 'habilitada' and (tg_op = 'INSERT' or old.status is distinct from 'habilitada') then
+    select string_agg(x, ', ') into falta from jsonb_array_elements_text(coalesce(pendencias_casa(new.dados) -> 'habilitacao', '[]')) x;
+    if falta is not null then
+      raise exception 'Não habilitada: falta preencher na Ficha: %.', falta using errcode = 'check_violation';
+    end if;
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_casa_zzhabilitar on cadastros_casas;
+create trigger trg_casa_zzhabilitar before insert or update on cadastros_casas for each row execute function casa_habilitar_completa();

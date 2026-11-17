@@ -268,7 +268,11 @@ code.cod{font:600 14px ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacin
 /* formulários */
 .fsec{padding:24px}
 .fsec h3{font-family:var(--serif);font-weight:400;font-size:22px;margin-bottom:14px}
-.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px 18px}
+.fgrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px;align-items:start;max-width:920px}
+@media (max-width:720px){.fgrid{grid-template-columns:minmax(0,1fr)}}
+.fgrid .fcampo:has(textarea),.fgrid .fcampo:has(.fcheck),.fgrid .fcampo:has(.fchips){grid-column:1/-1}
+.fcampo>small,.fcampo .dica{color:var(--ink-4);font-size:12.5px;line-height:1.45}
+option{background:var(--raised);color:var(--ink)}
 .fcampo{display:flex;flex-direction:column;gap:6px;font-size:14px}
 .fcampo b{font-weight:600;color:var(--ink-2);font-size:13.5px}
 .fcampo input,.fcampo select,.fcampo textarea{width:100%}
@@ -390,6 +394,9 @@ td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/ta
 .camp-dia.atrasado{border-color:rgba(238,127,108,.45)}
 .camp-dia.hoje{border-color:var(--violet)}
 .faq{max-width:860px}
+.leitor-barra{display:flex;align-items:center;gap:14px;margin:0 0 14px;flex-wrap:wrap}
+.leitor-barra>div{display:flex;flex-direction:column;min-width:0}.leitor-barra b{color:var(--ink);font-size:15px}.leitor-barra .muted{font-size:12.5px}
+.leitor-doc{display:block;width:100%;height:80vh;border:1px solid var(--line);border-radius:16px;background:#000201}
 .campo-falta{border-color:var(--red)!important;box-shadow:0 0 0 3px var(--red-soft)!important}
 .faq details{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:8px;background:var(--surface)}
 .faq summary{cursor:pointer;font-weight:700;color:var(--ink);font-size:15px;list-style:none;display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
