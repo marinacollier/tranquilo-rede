@@ -23,8 +23,69 @@ const TQConta = (() => {
     const r = t.replace(/^✕\s*(Erro:\s*)?/, "");
     el.textContent = "✕ Erro: " + r.charAt(0).toUpperCase() + r.slice(1);
   }
-  const comErro = (t) => { const r = String(t ?? "").trim(); return "✕ Erro: " + r.charAt(0).toUpperCase() + r.slice(1); };
   window.TQDiz = diz;
+  // ---------- status de toda ação que muda dados (pedido da Marina, 17/11/2026) ----------
+  // "Nada pode ser alterado sem status": a ação mostra "Salvando…" na hora, trava o botão até o banco responder
+  // e termina com "✓ Feito: …" ou "✕ Erro: …" perto do botão. Se a tela foi redesenhada, a mensagem vai para o
+  // botão equivalente na tela nova; se ele sumiu (ou está num diálogo fechado), para o aviso fixo no pé da tela.
+  const visivel = (el) => !!el?.isConnected && el.getClientRects().length > 0;
+  function avisoGeral(texto) {
+    let el = document.getElementById("tqAviso");
+    if (!el) { el = document.createElement("div"); el.id = "tqAviso"; el.className = "err aviso-geral"; el.setAttribute("role", "status"); el.setAttribute("aria-live", "polite"); document.body.append(el); }
+    diz(el, texto); clearTimeout(el._t);
+    if (texto && !/…$/.test(String(texto).trim())) el._t = setTimeout(() => diz(el, ""), /^✓/.test(texto) ? 6000 : 15000);
+  }
+  function seletorDe(el) {
+    if (!el?.getAttribute) return null;
+    if (el.id) return "#" + CSS.escape(el.id);
+    for (const a of el.attributes) if (a.name.startsWith("data-") && !["data-ocupado", "data-st"].includes(a.name)) return `[${a.name}="${CSS.escape(a.value)}"]`;
+    return null;
+  }
+  // Lugar da mensagem logo depois do botão (ou da caixa de marcar); cria um se não houver.
+  function statusPerto(el) {
+    if (!visivel(el)) return null;
+    const ancora = el.closest(".barra-acoes") || (el.matches("input, select, textarea") ? el.closest("label") || el : el.parentElement?.style?.display === "flex" ? el.parentElement : el);
+    const prox = ancora.nextElementSibling;
+    if (prox?.matches(".err")) return prox;
+    const st = document.createElement("div"); st.className = "err"; st.setAttribute("role", "status"); st.setAttribute("aria-live", "polite"); st.dataset.st = "1";
+    ancora.after(st); return st;
+  }
+  const carregandoAlgo = () => S.eqCarregando || S.hubCarregando || S.triCarregando || S.eqcCarregando || S.dispCarregando || S.dispACarregando;
+  // acao(botão, função que salva, { ok, espera, st, erro }) → { ok: true, r } ou { erro }. Nunca usa alert().
+  // st: lugar fixo da mensagem (elemento ou seletor). ok: texto (ou função do resultado) depois de "✓".
+  async function acao(el, fn, { ok = "Salvo.", espera = "Salvando…", st = null, erro = null } = {}) {
+    const sel = seletorDe(el), stSel = typeof st === "string" ? st : st?.id ? "#" + CSS.escape(st.id) : null;
+    const fixo = () => { const x = (stSel && document.querySelector(stSel)) || (typeof st === "object" && st?.isConnected ? st : null); return visivel(x) ? x : null; };
+    const inicio = fixo() || statusPerto(el);
+    if (inicio) diz(inicio, espera); else avisoGeral(espera);
+    const trava = !!el && "disabled" in el && !el.disabled;
+    if (trava) el.disabled = true; el?.setAttribute?.("aria-busy", "true");
+    let r, falhou = null;
+    try { r = await fn(); } catch (e) { falhou = e; console.warn(e); }
+    if (trava) el.disabled = false; el?.removeAttribute?.("aria-busy");
+    // A tela pode estar recarregando os dados (lista zerada): espera para a mensagem não sumir no redesenho.
+    await new Promise((res) => setTimeout(res, 0));
+    for (let i = 0; i < 150 && carregandoAlgo(); i++) await new Promise((res) => setTimeout(res, 100));
+    const texto = falhou ? (erro ? erro(falhou) : traduz(falhou.message || "")) : "✓ " + (typeof ok === "function" ? ok(r) : ok);
+    const fim = fixo() || (sel && statusPerto(document.querySelector(sel))) || (visivel(inicio) ? inicio : null);
+    if (fim) diz(fim, texto); else avisoGeral(texto);
+    return falhou ? { erro: falhou } : { ok: true, r };
+  }
+  // Campo obrigatório ou fora do formato: marca em vermelho, leva o cursor até ele e explica. Nada é salvo.
+  function marcar(...campos) {
+    campos.flat().filter(Boolean).forEach((c) => { c.classList.add("campo-falta"); const sai = () => c.classList.remove("campo-falta"); c.addEventListener("input", sai, { once: true }); c.addEventListener("change", sai, { once: true }); });
+    const p = campos.flat().find(Boolean); if (p) { p.scrollIntoView?.({ block: "center" }); p.focus?.({ preventScroll: true }); }
+  }
+  // Confere uma lista [[elemento, problema?], …]: marca os que têm problema e escreve todos de uma vez.
+  function barrar(st, regras, prefixo = "Não salvou") {
+    document.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
+    const ruins = regras.filter(([, p]) => p);
+    if (!ruins.length) return false;
+    marcar(ruins.map(([el]) => el));
+    diz(st, `${prefixo}: ${ruins.map(([, p]) => p).join("; ")}.`);
+    return true;
+  }
+  const minimo = (el, n, nome) => { const t = (el?.value || "").trim().length; return t < n ? (t ? `${nome}: escreva pelo menos ${n} caracteres (agora tem ${t})` : `${nome}: preencha`) : null; };
   let api = null;
 
   const hubDemo = () => { try { return JSON.parse(localStorage.getItem("tq-demo-hub") || "{}"); } catch { return {}; } };
@@ -190,9 +251,9 @@ const TQConta = (() => {
       async salvarModeloContrato(m) { exigeEquipe(); if (m.id) Object.assign(db.modContr.find((x) => x.id === m.id), m); else db.modContr.unshift({ ...m, id: id(), ativo: true, criado_em: agora() }); gravar(); },
       async contratos() { const p = eu(); return db.contr.filter((c) => ["equipe", "adm"].includes(p?.tipo) || c.user_id === db.sessao); },
       async criarContrato(c) { exigeEquipe(); const n = { ...c, id: id(), status: "enviado", dados: {}, lido_fim_em: null, criado_por: db.sessao, criado_em: agora() }; db.contr.unshift(n); gravar(); return n; },
-      async cancelarContrato(cid) { exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (c?.status === "enviado") { c.status = "cancelado"; gravar(); } },
+      async cancelarContrato(cid) { exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (c?.conferido_em) throw new Error("Contrato já conferido pela equipe não pode ser alterado."); if (c?.status === "enviado") { c.status = "cancelado"; gravar(); } },
       async contratoSalvarDados(cid, d) {
-        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado"); if (!c) throw new Error("Contrato não encontrado ou já assinado.");
+        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado" && !x.conferido_em); if (!c) throw new Error("Contrato não encontrado, já assinado ou já conferido pela equipe.");
         for (const [k, v] of Object.entries(d)) { if (!c.campos.some((x) => x.chave === k)) throw new Error(`Campo ${k} não existe neste contrato.`); if (typeof v !== "string" || v.length > 300 || /[{}]{2}/.test(v)) throw new Error(`Valor inválido em ${k}.`); }
         c.dados = d; c.lido_fim_em = null; gravar();
       },
@@ -293,10 +354,34 @@ const TQConta = (() => {
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
-      async meusArquivos() { return {}; },
-      async enviarArquivo() { throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração)."); },
+      // Arquivos: no modo demonstração só o contrato assinado "chega" (fica o nome, não o conteúdo), para testar a conferência.
+      async meusArquivos() { const out = {}; for (const f of (db.arqs || []).filter((x) => x.user_id === db.sessao)) (out[f.evento_id] ||= []).unshift(f); return out; },
+      async enviarArquivo(eventoId, arquivo) {
+        if (!/^contrato_/.test(eventoId)) throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração).");
+        const nome = `${Date.now()}-${String(arquivo?.name || "contrato.pdf").replace(/[^\w.-]+/g, "_").slice(-80)}`;
+        (db.arqs ||= []).push({ user_id: db.sessao, evento_id: eventoId, nome, caminho: `${db.sessao}/${eventoId}/${nome}`, em: agora() }); gravar();
+      },
       async linkArquivo() { return null; },
-      async arquivosTodos() { return []; },
+      async arquivosTodos() { exigeEquipe(); return [...(db.arqs || [])].sort((a, b) => b.em.localeCompare(a.em)); },
+      // Conferir o contrato assinado enviado (mesmas regras do banco, schema v28).
+      async conferirContrato(cid, aceitar, motivo) {
+        exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (!c) throw new Error("Contrato não encontrado.");
+        const p = eu(), area = db.usuarios[c.user_id]?.perfil.tipo === "casa" ? "operacoes" : "agenda";
+        if (p.tipo !== "adm" && p.areas?.length && !p.areas.includes(area)) throw new Error(`Este contrato é conferido pela área de ${area === "operacoes" ? "Operações" : "Agenda"} (ou pela administração).`);
+        if (c.status === "cancelado") throw new Error("Contrato cancelado: não há o que conferir.");
+        if (c.status === "assinado") throw new Error("Este contrato foi assinado dentro do portal: não precisa conferir.");
+        if (c.conferido_em) throw new Error("Este contrato já foi conferido.");
+        const ultimo = (db.arqs || []).filter((f) => f.user_id === c.user_id && f.evento_id === "contrato_" + c.id).map((f) => f.em).sort().pop();
+        if (!ultimo) throw new Error("O arquivo assinado ainda não chegou: não há o que conferir.");
+        if (c.devolvido_em && ultimo <= c.devolvido_em) throw new Error("O arquivo novo ainda não chegou: a pessoa precisa enviar de novo antes.");
+        if (aceitar) Object.assign(c, { conferido_em: agora(), conferido_por: db.sessao, devolvido_em: null, devolvido_por: null, devolvido_motivo: null });
+        else {
+          motivo = String(motivo || "").replace(/\s+/g, " ").trim(); if (motivo.length < 5) throw new Error("Escreva o motivo: a pessoa vai ler o que precisa corrigir.");
+          Object.assign(c, { devolvido_em: agora(), devolvido_por: db.sessao, devolvido_motivo: motivo.slice(0, 500) });
+          if (c.evento_id) db.chk = db.chk.filter((x) => !(x.user_id === c.user_id && x.evento_id === c.evento_id && x.item === "contrato"));
+        }
+        gravar(); return { ...c };
+      },
     };
   }
 
@@ -479,6 +564,12 @@ const TQConta = (() => {
       async contratoSalvarDados(cid, d) { ok(await sb.rpc("contrato_salvar_dados", { cid, d })); },
       async contratoLido(cid) { ok(await sb.rpc("contrato_li_ate_o_fim", { cid })); },
       async assinarContrato(cid, nome, h) { return ok(await sb.rpc("assinar_contrato", { cid, nome, h })); },
+      // Equipe confere o arquivo assinado enviado: aceitar (conferido) ou pedir de novo com o motivo (schema v28).
+      async conferirContrato(cid, aceitar, motivo) {
+        const r = await sb.rpc("conferir_contrato", { cid, aceitar, motivo: motivo || null });
+        if (r.error && /PGRST202|Could not find the function/i.test(`${r.error.code} ${r.error.message}`)) throw new Error("A conferência de contratos ainda não está ligada no banco (rode o supabase/schema.sql, parte v28).");
+        return ok(r);
+      },
       async apagarDocumento(id) { ok(await sb.from("documentos").delete().eq("id", id)); },
       // Materiais enviados (rider, mapa de palco, fotos): pasta privada <conta>/<data>/ no armazenamento "materiais".
       async meusArquivos() {
@@ -878,27 +969,36 @@ const TQConta = (() => {
       if (t.length < 2) return { erro: `${rotulo}: preencha direitinho` };
       return { v: t };
     }
-    return { cpf, cnpj, doc, pix, email, tel, cep, fCpf, fCnpj, fDoc, fPix, fTel, fCep, porRotulo };
+    return { cpf, cnpj, doc, pix, email, tel, cep, nome, fCpf, fCnpj, fDoc, fPix, fTel, fCep, porRotulo };
   })();
   window.TQVal = VAL;
+  // Devolve a lista de problemas (texto para a pessoa) e, em .chaves, os campos com problema (para marcar em vermelho).
   function conferirFormato(d) {
-    const e = [], url = (k, nome) => { if (d[k] && !/^https?:\/\/\S+\.\S+/i.test(String(d[k]).trim())) e.push(`${nome} precisa ser um link começando com https://`); };
-    url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto");
-    if (d.estado && !/^[A-Za-z]{2}$/.test(String(d.estado).trim())) e.push("Estado: use a sigla com 2 letras (ex.: PE)");
-    if (d.whatsapp) { const n = String(d.whatsapp).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.whatsapp)) e.push("WhatsApp: só números, com DDD (ex.: 81 99999-9999)"); }
-    if (d.telefone) { const n = String(d.telefone).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.telefone)) e.push("Telefone da casa: só números, com DDD"); }
-    for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) e.push(`${nome}: confira o endereço (ex.: nome@casa.com.br)`);
-    if (d.dono_nascimento && !/^\d{2}\/\d{2}\/\d{4}$/.test(String(d.dono_nascimento).trim())) e.push("Data de nascimento: use dd/mm/aaaa");
-    if (d.dono_cpf && !VAL.cpf(d.dono_cpf)) e.push("CPF do Dono A inválido: confira os 11 números");
-    if (d.cnpj && !VAL.cnpj(d.cnpj)) e.push("CNPJ inválido: confira os 14 números");
-    if (d.rep_documento && !VAL.doc(d.rep_documento)) e.push("CPF ou CNPJ do titular da conta inválido");
-    if (d.rep_pix && !VAL.pix(d.rep_pix)) e.push("Chave Pix: use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória");
+    const e = [], ch = e.chaves = [], add = (k, m) => { e.push(m); ch.push(k); };
+    const url = (k, nome) => { if (d[k] && !/^https?:\/\/\S+\.\S+/i.test(String(d[k]).trim())) add(k, `${nome} precisa ser um link começando com https://`); };
+    url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto"); url("rider_link", "Link do rider técnico");
+    if (d.estado && !/^[A-Za-z]{2}$/.test(String(d.estado).trim())) add("estado", "Estado: use a sigla com 2 letras (ex.: PE)");
+    if (d.whatsapp) { const n = String(d.whatsapp).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.whatsapp)) add("whatsapp", "WhatsApp: só números, com DDD (ex.: 81 99999-9999)"); }
+    if (d.telefone) { const n = String(d.telefone).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.telefone)) add("telefone", "Telefone da casa: só números, com DDD"); }
+    for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) add(k, `${nome}: confira o endereço (ex.: nome@casa.com.br)`);
+    if (d.dono_nascimento && !/^\d{2}\/\d{2}\/\d{4}$/.test(String(d.dono_nascimento).trim())) add("dono_nascimento", "Data de nascimento: use dd/mm/aaaa");
+    if (d.dono_cpf && !VAL.cpf(d.dono_cpf)) add("dono_cpf", "CPF do Dono A inválido: confira os 11 números");
+    if (d.cnpj && !VAL.cnpj(d.cnpj)) add("cnpj", "CNPJ inválido: confira os 14 números");
+    if (d.rep_documento && !VAL.doc(d.rep_documento)) add("rep_documento", "CPF ou CNPJ do titular da conta inválido");
+    if (d.rep_pix && !VAL.pix(d.rep_pix)) add("rep_pix", "Chave Pix: use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória");
     // Mínimo de caracteres: nunca deixa seguir sem (pedido da Marina, 17/11/2026).
-    for (const [k, nome, min] of [["release", "Release curto", 200]]) { const n = String(d[k] ?? "").trim().length; if (n && n < min) e.push(`${nome}: escreva pelo menos ${min} caracteres (agora tem ${n})`); }
-    for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"]]) {
-      if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) e.push(`${nome}: só números, sem sinal de menos`);
+    for (const [k, nome, min] of MINIMOS) { const n = String(d[k] ?? "").trim().length; if (n && n < min) add(k, `${nome}: escreva pelo menos ${min} caracteres (agora tem ${n})`); }
+    for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"], ["equipe_viagem", "Quantas pessoas viajam"]]) {
+      if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) add(k, `${nome}: só números, sem sinal de menos`);
     }
     return e;
+  }
+  // Campos de texto livre com mínimo de caracteres (o aviso "Pelo menos N caracteres" aparece embaixo do campo).
+  const MINIMOS = [["release", "Release curto", 200]];
+  // Marca em vermelho os campos com formato errado (depois de conferirFormato).
+  function marcarFormato(raiz, erros) {
+    const els = (erros.chaves || []).map((k) => raiz?.querySelector(`[data-k="${k}"]`)).filter(Boolean);
+    if (els.length) marcar(els);
   }
   const F_ARTISTA = [
     ["Quem é você", [
@@ -1180,8 +1280,9 @@ const TQConta = (() => {
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     // Contrato da data: assinado conta como feito; enviado ganha o botão no próprio passo; sem contrato, a vez é da equipe.
-    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !arqsContrato(c).length);
-    if (ctData.some((c) => c.status === "assinado" || arqsContrato(c).length)) feitos.contrato = true;
+    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !ctRecebido(c));
+    if (ctData.some((c) => c.status === "assinado" || ctRecebido(c))) feitos.contrato = true;
+    else if (ctData.some(ctPedidoDeNovo)) feitos.contrato = false;   // a equipe pediu o arquivo de novo: o passo volta a pendente
     const fs = funcoesDe();
     const ps = R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
@@ -1247,19 +1348,26 @@ const TQConta = (() => {
         <p class="muted" style="font-size:12px;margin:4px 0 0">Mudar o modelo não muda contratos já enviados.</p>
       </details></div>
       ${semContrato.length ? `<h2>Datas dos próximos 60 dias sem contrato (${semContrato.length})</h2><p class="sub">Nenhum contrato gerado nem anexado para estas datas.</p><div class="list">${semContrato.slice(0, 30).map((e) => { const c = contaDe(e); return `<div class="row card" style="padding:10px 14px"><span><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc((e.a || []).join(", ") || e.m)}${e.h ? " · " + esc(e.h) : ""}</span>${c ? "" : ` <span class="muted" style="font-size:12px">· sem conta ligada no site</span>`}</span><button class="btn sm" data-ct-pre="${esc(e.id)}|${c ? c.id : ""}">Preparar contrato</button></div>`; }).join("")}</div>` : ""}
-      <h2>Contratos para assinar</h2>${tabela("contr", [
+      <h2>Contratos para assinar</h2><div class="err" role="status" aria-live="polite" id="ctConfMsg"></div>${tabela("contr", [
         { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
         { t: "Data", v: (c) => c.evento_id || "", h: (c) => c.evento_id ? esc(dataTxt(c.evento_id)) : "–" },
-        { t: "Situação", v: (c) => c.status + (c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
-        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}</div>` },
+        { t: "Situação", v: (c) => c.status + (c.conferido_em || c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.conferido_em ? `<div class="muted" style="font-size:12px">conferido por ${esc(nomeConta[c.conferido_por] || "equipe")} · ${new Date(c.conferido_em).toLocaleString("pt-BR")}</div>` : c.devolvido_em ? `<div class="muted" style="font-size:12px">${ctPedidoDeNovo(c) ? "aguardando o arquivo novo" : "arquivo novo depois do pedido"} · pedido por ${esc(nomeConta[c.devolvido_por] || "equipe")}: ${esc(c.devolvido_motivo || "")}</div>` : c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}${botoesConferir(c)}</div>` },
       ], lista, { i: 3, dir: 1 }, vazio("Nenhum contrato gerado ainda", "Prepare o primeiro contrato acima: ele aparece na área da artista ou da casa para assinar.", "", "documentos"))}`;
+  }
+  // Conferir o arquivo assinado recebido (banco v28): "Conferir e confirmar" ou "Pedir de novo" com o motivo (a pessoa lê).
+  function botoesConferir(c) {
+    if (c.status !== "enviado" || c.conferido_em || !arqsNovos(c).length) return "";
+    if (S.ctDevolver === c.id) return `<div style="flex-basis:100%;margin-top:6px"><label class="fcampo" style="margin:0"><b>O que a pessoa precisa corrigir?</b><textarea id="ctMotivo" rows="2" maxlength="500" placeholder="ex.: faltou a assinatura na página 2"></textarea></label>
+      <div class="barra-acoes" style="margin-top:6px"><button class="btn sm pri" data-ct-devolver-ok="${c.id}">Enviar o pedido</button><button class="btn sm" data-ct-devolver="">Desistir</button></div></div>`;
+    return `<button class="btn sm pri" data-ct-conferir="${c.id}">Conferir e confirmar</button><button class="btn sm" data-ct-devolver="${c.id}">Pedir de novo</button>`;
   }
   // Artista e casa: contratos pendentes no topo do passo a passo e a tela de leitura e assinatura.
   const meusContratos = () => (S.conta.contr || []).filter((c) => c.status !== "cancelado");
   function avisoContratos() {
-    const pend = meusContratos().filter((c) => c.status === "enviado" && !arqsContrato(c).length);
-    return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
+    const pend = meusContratos().filter((c) => c.status === "enviado" && !ctRecebido(c));
+    return pend.map((c) => ctPedidoDeNovo(c) ? `<div class="alert crit" style="margin-bottom:12px"><b>Contrato: envie o arquivo assinado de novo · ${esc(c.titulo)}</b>A equipe do Tranquilo pediu outro arquivo. O motivo: <q>${esc(c.devolvido_motivo || "")}</q><div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>` : `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
   }
   // Dados que a pessoa já deu em outro contrato (mesma chave de campo), do mais recente para o mais antigo:
   // ela preenche uma vez e só confere nos próximos (pedido da Isa, 17/11/2026).
@@ -1270,9 +1378,16 @@ const TQConta = (() => {
   }
   // Arquivo assinado que a pessoa enviou (pasta contrato_<id> no armazenamento). Pessoa: S.conta.arqs; equipe: S.eq.arqs.
   const arqsContrato = (c) => S.eq?.arqs ? S.eq.arqs.filter((f) => f.evento_id === "contrato_" + c.id) : ((S.conta?.arqs || {})["contrato_" + c.id] || []);
-  // Situação para a tela: assinado no portal, assinado com arquivo enviado, ou o que falta.
+  // Conferência pela equipe (banco v28): depois de "Pedir de novo", só conta o arquivo enviado depois do pedido.
+  const arqsNovos = (c) => { const a = arqsContrato(c), d = c.devolvido_em && Date.parse(c.devolvido_em); return d ? a.filter((f) => f.em && Date.parse(f.em) > d) : a; };
+  const ctRecebido = (c) => !!c.conferido_em || (c.status === "enviado" && arqsNovos(c).length > 0);   // arquivo assinado recebido (ou já conferido)
+  const ctPedidoDeNovo = (c) => c.status === "enviado" && !c.conferido_em && !!c.devolvido_em && !arqsNovos(c).length;
+  const ctAssinado = (c) => c.status === "assinado" || !!c.conferido_em;   // assinado de vez: no portal ou arquivo conferido
+  // Situação para a tela: assinado no portal, conferido, arquivo recebido, pedido de novo, ou o que falta.
   function situacaoCt(c) {
-    if (c.status !== "assinado" && arqsContrato(c).length) return { rotulo: "Assinado · arquivo recebido", classe: "b-good" };
+    if (c.conferido_em) return { rotulo: "✓ Assinado e conferido", classe: "b-good" };
+    if (c.status !== "assinado" && arqsNovos(c).length) return { rotulo: "Assinado · arquivo recebido", classe: "b-good" };
+    if (ctPedidoDeNovo(c)) return { rotulo: "Arquivo pedido de novo", classe: "b-crit" };
     const si = TQContrato.situacao(c);
     return si.falta ? si : c.status === "enviado" ? { rotulo: "Aguardando assinatura", classe: "b-warn" } : si;
   }
@@ -1280,20 +1395,23 @@ const TQConta = (() => {
   // Contrato (pedido da Marina, 17/11/2026): o Tranquilo já manda assinado; a pessoa completa os dados, baixa o PDF,
   // assina (à mão ou gov.br) e envia o arquivo de volta. O envio marca o passo "contrato" da data sozinho.
   function telaContrato(c) {
-    const si = TQContrato.situacao(c), assinado = c.status === "assinado", env = arqsContrato(c);
+    const si = TQContrato.situacao(c), conferido = !!c.conferido_em, assinado = c.status === "assinado" || conferido, env = arqsNovos(c), deNovo = ctPedidoDeNovo(c);
     const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
     const completo = !si.falta, n0 = c.campos.length ? 1 : 0;
     const passo = (n, titulo, corpo, feito) => `<div class="card"><h3 style="margin-top:0">${feito ? "✓ " : `${n}. `}${titulo}</h3>${corpo}</div>`;
+    const arqTxt = (f) => `${esc(f.nome.replace(/^\d+-/, ""))}${f.em ? ` · ${dt(f.em.slice(0, 10))}` : ""}`;
     return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
-      ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}.<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
-        : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${esc(env[0].nome.replace(/^\d+-/, ""))}${env[0].em ? ` · ${dt(env[0].em.slice(0, 10))}` : ""}. Está tudo certo: a equipe do Tranquilo já recebeu.</div>`
+      ${conferido ? `<div class="alert good"><b>✓ Contrato assinado e conferido</b>A equipe do Tranquilo conferiu o arquivo que você enviou em ${new Date(c.conferido_em).toLocaleString("pt-BR")}. Não precisa fazer mais nada.<div class="barra-acoes" style="margin-top:10px">${arqsContrato(c)[0] ? `<a class="btn" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o arquivo enviado</a>` : ""}<button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
+        : assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}.<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
+        : deNovo ? `<div class="alert crit" id="ctDeNovo"><b>Envie o contrato assinado de novo</b>A equipe do Tranquilo conferiu o arquivo que você mandou e pediu outro. O motivo: <q>${esc(c.devolvido_motivo || "")}</q> Corrija, assine e envie o arquivo novo no passo ${n0 + 2} abaixo.</div>`
+        : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${arqTxt(env[0])}. Está tudo certo: a equipe do Tranquilo já recebeu e vai conferir.</div>`
         : `<p class="sub">O contrato já vai assinado pelo Tranquilo. ${c.campos.length ? "Complete os seus dados, baixe" : "Baixe"} o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>`}
       ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
         ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
         <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><div class="err" role="status" aria-live="polite" id="ctDadosMsg">${completo ? "✓ Feito: dados salvos." : ""}</div>`, completo) : ""}
       ${assinado ? "" : passo(n0 + 1, "Baixe o contrato", `<p class="muted" style="font-size:14px;margin:0 0 10px">${completo ? "O PDF já sai com os seus dados e a assinatura do Tranquilo." : "Salve os seus dados primeiro: eles entram no PDF."}</p><div class="barra-acoes"><button class="btn${completo && !env.length ? " pri" : ""}" data-ct-ver="${c.id}"${completo ? "" : " disabled"}>Baixar PDF</button></div>`)}
       ${assinado ? "" : passo(n0 + 2, "Assine e envie de volta", `<p class="muted" style="font-size:14px;margin:0 0 10px">Assine no campo indicado no PDF (à mão e escaneie ou fotografe, ou pelo gov.br) e envie o arquivo aqui. Aceita PDF ou foto.</p>
-        <label class="fcampo"><b>${env.length ? "Enviar outra versão" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
+        <label class="fcampo"><b>${env.length ? "Enviar outra versão" : deNovo ? "Arquivo assinado novo" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
         <div class="err" role="status" aria-live="polite" id="arqErr-contrato_${esc(c.id)}">${env.length ? "✓ Feito: contrato assinado recebido." : ""}</div>`, !!env.length)}
       <div class="card"><h3 style="margin-top:0">Texto do contrato</h3><div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(textoContrato(c))}</div></div>
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
@@ -1580,7 +1698,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
       ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
-        : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou (opcional)</b><textarea id="solMsg" rows="2" maxlength="1000"></textarea></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
+        : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou e por quê <span class="muted">*</span></b><textarea id="solMsg" rows="2" maxlength="1000"></textarea><div class="muted" style="font-size:12px;margin-top:3px">Pelo menos 10 caracteres. É o que a Central lê para aprovar.</div></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
         : ["suspensa", "encerrada"].includes(c.status) ? "" : `<p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. Para mudar o que já foi respondido, use Solicitar atualização.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button><button class="btn" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
       <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
@@ -1757,11 +1875,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     contratos_meus() {
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
       if (aberto) return telaContrato(aberto);
-      const L = meusContratos().sort((a, b) => (a.status === "enviado" ? 0 : 1) - (b.status === "enviado" ? 0 : 1) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
+      const pendente = (c) => c.status === "enviado" && !ctRecebido(c) ? 0 : 1;
+      const L = meusContratos().sort((a, b) => pendente(a) - pendente(b) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
       const casa = S.conta.perfil.tipo === "casa";
       return `<div class="tag">Contratos</div><h1>Seus contratos</h1>
       <p class="sub">Aqui ficam todos os contratos ${casa ? "da casa com o Tranquilo" : "das suas datas"}: o que falta assinar aparece primeiro. Você completa os dados, baixa o PDF (já assinado pelo Tranquilo), assina e envia o arquivo de volta.</p>
-      ${L.length ? `<div class="list">${L.map((c) => { const si = situacaoCt(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${c.status === "enviado" ? " pri" : ""}" data-ct-abrir="${c.id}">${c.status === "assinado" || arqsContrato(c).length ? "Ver" : "Abrir e assinar →"}</button></div>`; }).join("")}</div>`
+      ${L.length ? `<div class="list">${L.map((c) => { const si = situacaoCt(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${pendente(c) ? "" : " pri"}" data-ct-abrir="${c.id}">${c.status === "assinado" || ctRecebido(c) ? "Ver" : ctPedidoDeNovo(c) ? "Enviar de novo →" : "Abrir e assinar →"}</button></div>`; }).join("")}</div>`
         : vazio("Nenhum contrato por enquanto", casa ? "Quando a equipe do Tranquilo enviar o contrato da parceria, ele aparece aqui para você ler e assinar." : "Quando uma data for confirmada, a equipe do Tranquilo prepara o contrato e ele aparece aqui para você ler e assinar.", "", "contratos_meus")}`;
     },
     // Financeiro da casa: combinados registrados pela Central e situação dos dados de repasse.
@@ -1843,7 +1962,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="row" style="margin-top:22px"><h2 style="margin:0">Datas criadas no portal</h2><label class="fcheck"><input type="checkbox" data-dp-todas${S.dpVerTodas ? " checked" : ""}> <span>mostrar as passadas</span></label></div>
       ${lista.length ? `<div class="list" style="margin-top:10px">${lista.map((x) => { const e = eventoDoPortal(x), cs = contrDe(x);
         return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(x.casa_nome)}</b> <span class="badge ${x.status === "cancelada" ? "b-crit" : "b-good"}">${x.status === "cancelada" ? "cancelada" : esc(x.produto)}</span>
-          <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · contrato: ${cs.map((c) => c.status === "assinado" ? "assinado" : "para assinar").join(", ")}` : " · sem contrato"}</div></div>
+          <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · contrato: ${cs.map((c) => ctAssinado(c) ? "assinado" : "para assinar").join(", ")}` : " · sem contrato"}</div></div>
           <div class="barra-acoes" style="margin:0">${x.status === "cancelada" ? "" : `<button class="btn sm pri" data-dp-contrato="${x.id}">Preparar contrato</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button>`}</div></div></div>`; }).join("")}</div>`
         : vazio("Nenhuma data criada no portal ainda", "Crie a primeira acima: ela aparece na hora para a casa e para as artistas.", "", "datas_portal")}`;
     },
@@ -1865,7 +1984,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Quando quiser, dá pra aprovar, pedir ajustes ou não seguir por lá.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
         const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
         if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
-        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && c.status === "assinado"));
+        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && ctAssinado(c)));
         if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Quando quiser adiantar, o contrato do artista fica em Contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
         const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
         const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
@@ -1918,7 +2037,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const cidades = [...new Set(evs.map((e) => e.c).filter(Boolean))].sort();
       const lista = evs.filter((e) => !f.cidade || e.c === f.cidade).slice(0, 80);
       const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
-      const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every((c) => c.status === "assinado") ? "✓ assinado" : "aguardando"; };
+      const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every(ctAssinado) ? "✓ assinado" : "aguardando"; };
       return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Um panorama das próximas datas da rede, pra você se situar.</p>
       <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
       ${tabela("geral", [
@@ -2640,15 +2759,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ver = t.closest("[data-ct-ver]"); if (ver) { const c = [...(S.eq?.contr || []), ...(S.conta.contr || [])].find((x) => x.id === ver.dataset.ctVer); if (c) abrirImpressao(c.status === "assinado" ? c : { ...c, texto: textoContrato(c) }); return true; }
     const me = t.closest("[data-ct-mod-editar]"); if (me) { S.cModEd = me.dataset.ctModEditar || null; S.cModAberto = true; render(); $("#mcNome")?.focus(); return true; }
     if (t.id === "mcOk") {
-      const nome = $("#mcNome").value.trim(), texto = $("#mcTexto").value.trim(), em = $("#mcErr");
-      if (nome.length < 2) { diz(em, "Dê um nome ao modelo."); return true; }
-      if (texto.length < 50) { diz(em, "Cole o texto completo do modelo."); return true; }
-      await api.salvarModeloContrato({ id: S.cModEd || undefined, nome, texto }); S.cModEd = null; S.cModAberto = true; S.eq = null; render(); return true;
+      const nome = $("#mcNome").value.trim(), texto = $("#mcTexto").value.trim(), em = $("#mcErr"), era = S.cModEd;
+      if (barrar(em, [[$("#mcNome"), nome.length < 2 && "dê um nome ao modelo (pelo menos 2 letras)"], [$("#mcTexto"), texto.length < 50 && `cole o texto completo do modelo (pelo menos 50 caracteres; agora tem ${texto.length})`]])) return true;
+      await acao(t, async () => { await api.salvarModeloContrato({ id: era || undefined, nome, texto }); S.cModEd = null; S.cModAberto = true; S.eq = null; render(); },
+        { st: "#mcErr", ok: era ? "Modelo atualizado." : "Modelo salvo. Já aparece na lista de modelos." });
+      return true;
     }
     if (t.id === "ctPrep") {
       const conta = $("#ctConta").value, ev = $("#ctEv").value, modelo = $("#ctMod").value;
-      if (!conta) return erro("Escolha a conta da artista ou da casa."), true;
-      if (!modelo) return erro("Escolha um modelo de contrato."), true;
+      if (barrar($("#ctErr"), [[$("#ctConta"), !conta && "escolha a conta da artista ou da casa"], [$("#ctMod"), !modelo && "escolha um modelo de contrato"]], "Falta escolher")) return true;
       const m = S.eq.modContr.find((x) => x.id === modelo), p0 = S.eq.perfis.find((x) => x.id === conta), p = { ...p0, vinculo_nome: nomeDaConta(p0) };
       const e = (S.pub?.agenda || []).find((x) => x.id === ev) || S.pac?.eventos?.find((x) => x.id === ev) || (S.eq.datasP || []).map(eventoDoPortal).find((x) => x.id === ev);
       const { texto, campos } = TQContrato.campos(m.texto), sug = TQContrato.sugestoes(e, p);
@@ -2676,8 +2795,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (dm.dataset.dispaMes === "semana" && !lerDiasSemana().length) { diz($("#dispaErr"), "⚠ Marque antes, na Ficha, os dias da semana em que você pode tocar."); return true; }
       const modo = dm.dataset.dispaMes, mes = S.dispMes || hojeIso().slice(0, 7), [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate(), eu = S.conta.perfil.id;
       const evs = new Set((S.pac?.eventos || []).filter((e) => !e.z).map((e) => e.d));
-      diz($("#dispaErr"), "Salvando…");
-      try {
+      await acao(dm, async () => {
         for (let d = 1; d <= total; d++) {
           const dia = `${mes}-${String(d).padStart(2, "0")}`, wd = new Date(dia + "T12:00:00Z").getUTCDay(), atual = S.dispA.find((x) => x.user_id === eu && x.dia === dia);
           if (dia < hojeIso()) continue;
@@ -2687,22 +2805,22 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           await api.marcarDispArtista(dia, quer); S.dispA = S.dispA.filter((x) => x !== atual); if (quer) S.dispA.push({ user_id: eu, dia, situacao: quer });
         }
         TQDiario.registrar("disponibilidade_artista", { mes: modo }); render();
-        diz($("#dispaErr"), modo === "limpar" ? "✓ Mês limpo." : modo === "todos" ? "✓ Todos os dias deste mês marcados como disponíveis." : modo === "semana" ? "✓ Dias da semana da Ficha marcados como disponíveis neste mês." : "✓ Quintas a domingos marcados como disponíveis.");
-      } catch (x) { render(); diz($("#dispaErr"), traduz(x.message || "")); }
+      }, { st: "#dispaErr", ok: modo === "limpar" ? "Mês limpo." : modo === "todos" ? "Todos os dias deste mês marcados como disponíveis." : modo === "semana" ? "Dias da semana da Ficha marcados como disponíveis neste mês." : "Quintas a domingos marcados como disponíveis.",
+        erro: (x) => { render(); return traduz(x.message || "") + " O que já tinha sido marcado continua marcado."; } });
       return true;
     }
     const dad = t.closest("[data-dispa-dia]"); if (dad) {
       const dia = dad.dataset.dispaDia, atual = (S.dispA || []).find((x) => x.user_id === S.conta.perfil.id && x.dia === dia);
       const naSemana = semanaDe(S.sem, { userId: S.conta.perfil.id }).includes(wdDe(dia));
       const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
-      try { await api.marcarDispArtista(dia, prox); S.dispA = (S.dispA || []).filter((x) => x !== atual); if (prox) S.dispA.push({ user_id: S.conta.perfil.id, dia, situacao: prox }); TQDiario.registrar("disponibilidade_artista", { situacao: prox || "limpa" }); render(); }
-      catch (x) { diz($("#dispaErr"), traduz(x.message || "")); }
+      await acao(dad, async () => { await api.marcarDispArtista(dia, prox); S.dispA = (S.dispA || []).filter((x) => x !== atual); if (prox) S.dispA.push({ user_id: S.conta.perfil.id, dia, situacao: prox }); TQDiario.registrar("disponibilidade_artista", { situacao: prox || "limpa" }); render(); },
+        { st: "#dispaErr", ok: `${dt(dia)}: ${prox === "disponivel" ? "disponível" : prox === "indisponivel" ? "indisponível" : "sem marcação"}.` });
       return true;
     }
     const dpe = t.closest("[data-dp-editar]"); if (dpe) { S.dpEd = dpe.dataset.dpEditar; S.dpPre = null; render(); $("#dpForm")?.scrollIntoView({ block: "start" }); return true; }
     const dpc = t.closest("[data-dp-cancelar]"); if (dpc) {
       if (!confirm("Cancelar esta data? Ela some das áreas da casa e das artistas. Contratos já gerados continuam na lista para você cancelar.")) return true;
-      try { await api.salvarDataPortal({ id: dpc.dataset.dpCancelar, status: "cancelada" }); S.eq = null; render(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
+      await acao(dpc, async () => { await api.salvarDataPortal({ id: dpc.dataset.dpCancelar, status: "cancelada" }); S.eq = null; render(); }, { ok: "Data cancelada. Ela saiu das áreas da casa e das artistas." });
       return true;
     }
     const dpk = t.closest("[data-dp-contrato]"); if (dpk) {
@@ -2721,7 +2839,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           const w = c && ((E.insc || []).find((x) => x.user_id === c.id)?.dados?.whatsapp || c.whatsapp);
           return { ...a, ordem: i + 1, ...(c ? { user_id: c.id } : {}), ...(w ? { whatsapp: VAL.tel(w) ? VAL.fTel(w) : w } : {}) }; });
       const falta = [!v("#dpDia") && "o dia", !casa && "a casa", !artistas.length && "pelo menos um artista"].filter(Boolean);
-      if (falta.length) return diz(err, `Não salvou: falta ${falta.join(", ")}.`), true;
+      if (falta.length) { document.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta")); marcar([!v("#dpDia") && $("#dpDia"), !casa && $("#dpCasa"), !artistas.length && $('[data-dp-art="0"]')]); return diz(err, `Não salvou: falta ${falta.join(", ")}.`), true; }
+      if (!v("#dpAbre")) { marcar($("#dpAbre")); return diz(err, "Não salvou: falta o horário de abertura da casa."), true; }
       if (!S.dpExc) {
         const ed = S.dpEd ? (E.datasP || []).find((x) => x.id === S.dpEd) : null, mesmoDia = ed && String(ed.dia).slice(0, 10) === v("#dpDia");
         const cs = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || c.perfil?.nome || "Casa sem nome", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
@@ -2730,18 +2849,17 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         const fora = artistas.filter((a) => !L.as.some((x) => k(x.nome) === k(a.nome)) && !(mesmoDia && (ed.artistas || []).some((x) => k(x.nome) === k(a.nome)))).map((a) => a.nome);
         if (!casaOk || fora.length) return diz(err, `Não salvou: ${[!casaOk && `a casa não marcou ${dt(v("#dpDia"))} como livre (ou já tem show)`, fora.length && `${fora.join(", ")} não ${fora.length > 1 ? "marcaram" : "marcou"} esse dia como livre`].filter(Boolean).join("; ")}. Se já confirmaram por fora, marque "Exceção".`), true;
       }
-      if (v("#dpLink") && !/^https:\/\//i.test(v("#dpLink"))) return diz(err, "Não salvou: o link de ingressos precisa começar com https://"), true;
+      if (v("#dpLink") && !/^https:\/\/\S+\.\S+/i.test(v("#dpLink"))) { marcar($("#dpLink")); return diz(err, "Não salvou: o link de ingressos precisa ser um endereço completo, começando com https://"), true; }
       if (v("#dpDia") < hojeIso() && !confirm("Essa data já passou. Salvar mesmo assim?")) return true;
-      diz(err, "Salvando…");
-      try {
+      const era = S.dpEd;
+      const semConta = artistas.filter((a) => !a.user_id).map((a) => a.nome);
+      await acao(t.closest("[data-dp-salvar]"), async () => {
         await api.salvarDataPortal({ ...(S.dpEd ? { id: S.dpEd } : {}), dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: casa.id,
           casa_nome: casa.dados?.nome || casa.perfil?.vinculo_nome || casa.perfil?.nome || "Casa", cidade: v("#dpCidade") || casa.dados?.cidade_uf || null,
           artistas, link_ingressos: v("#dpLink") || null, observacao: v("#dpObs") || null });
-        const semConta = artistas.filter((a) => !a.user_id).map((a) => a.nome);
         TQDiario.registrar("data_portal", { editou: !!S.dpEd, artistas: artistas.length });
-        const era = S.dpEd; S.dpEd = null; S.dpPre = null; S.eq = null; await carregarEquipe(); render();
-        diz($("#dpErr"), `✓ Data ${era ? "atualizada" : "criada"}. Já aparece para a casa${artistas.some((a) => a.user_id) ? " e para as artistas com conta" : ""}.${semConta.length ? ` ${semConta.join(", ")} ainda não tem conta no portal: convide em Convites para ver a data e assinar o contrato.` : ""}`);
-      } catch (x) { diz(err, traduz(x.message || "")); }
+        S.dpEd = null; S.dpPre = null; S.eq = null; await carregarEquipe(); render();
+      }, { st: "#dpErr", ok: `Data ${era ? "atualizada" : "criada"}. Já aparece para a casa${artistas.some((a) => a.user_id) ? " e para as artistas com conta" : ""}.${semConta.length ? ` ${semConta.join(", ")} ainda não tem conta no portal: convide em Convites para ver a data e assinar o contrato.` : ""}` });
       return true;
     }
     const pr = t.closest("[data-ct-pre]"); if (pr) {
@@ -2752,38 +2870,55 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const P = S.cPrep; if (!P) return true;
       document.querySelectorAll("[data-ct-campo]").forEach((i) => { P.valores[i.dataset.ctCampo] = i.value.trim(); });
       P.titulo = $("#ctTit").value.trim();
-      if (P.titulo.length < 2) return erro("Dê um nome ao contrato."), true;
-      if (Object.values(P.valores).some((v) => /[{}]{2}/.test(v))) return erro("Os valores não podem ter {{ ou }}."), true;
+      const chaves = [...document.querySelectorAll("[data-ct-campo]")].filter((i) => /[{}]{2}/.test(i.value));
+      if (barrar($("#ctErr"), [[$("#ctTit"), P.titulo.length < 2 && "dê um nome ao contrato (pelo menos 2 letras)"], ...chaves.map((i) => [i, "os campos não podem ter {{ ou }}"])], "Não enviou")) return true;
       const daEquipe = P.campos.filter((c) => P.valores[c.chave]), daPessoa = P.campos.filter((c) => !P.valores[c.chave]);
       const texto = TQContrato.preencher(P.texto, daEquipe, P.valores);
       if (texto.length < 50) return erro("O texto do modelo está curto demais."), true;
       const igual = (S.eq?.contr || []).find((x) => x.user_id === P.conta && (x.evento_id || null) === (P.ev || null) && x.modelo_id === P.modelo && x.status !== "cancelado");
       if (igual && !confirm(`Já existe um contrato deste modelo para esta pessoa${P.ev ? " nesta data" : ""} (${igual.status === "assinado" ? "assinado" : "aguardando assinatura"}). Criar outro mesmo assim?`)) return true;
       if (P.enviando) return true; P.enviando = true;
-      try { await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa }); }
-      catch (e) { P.enviando = false; throw e; }
-      TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
-      S.cPrep = null; S.cPre = null; S.eq = null; render(); return true;
+      await acao(t, async () => {
+        await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa });
+        TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
+        S.cPrep = null; S.cPre = null; S.eq = null; render();
+      }, { st: "#ctErr", espera: "Enviando…", ok: "Contrato enviado para assinatura. A pessoa já vê o pedido na área dela." });
+      P.enviando = false; return true;
+    }
+    const dv = t.closest("[data-ct-devolver]"); if (dv) { S.ctDevolver = dv.dataset.ctDevolver || null; render(); $("#ctMotivo")?.focus(); return true; }
+    const cf = t.closest("[data-ct-conferir], [data-ct-devolver-ok]"); if (cf) {
+      const aceitar = !!cf.dataset.ctConferir, cid = cf.dataset.ctConferir || cf.dataset.ctDevolverOk, motivo = aceitar ? null : ($("#ctMotivo")?.value || "").trim();
+      const c = (S.eq?.contr || []).find((x) => x.id === cid), msg = $("#ctConfMsg");
+      if (!c) return true;
+      if (!aceitar && motivo.length < 5) { diz(msg, "Escreva o motivo: a pessoa vai ler o que precisa corrigir."); $("#ctMotivo")?.focus(); return true; }
+      if (aceitar && !confirm(`Confirmar que o arquivo assinado de "${c.titulo}" está certo? Depois de conferido, o contrato não muda mais.`)) return true;
+      diz(msg, "Salvando…"); cf.disabled = true;
+      try {
+        const r = await api.conferirContrato(cid, aceitar, motivo), quem = (S.eq?.perfis || []).find((x) => x.id === c.user_id); Object.assign(c, r || {}); S.ctDevolver = null;
+        TQDiario.registrar(aceitar ? "contrato_conferido" : "contrato_pedido_de_novo", { contrato: cid });
+        render(); diz($("#ctConfMsg"), aceitar ? `✓ Contrato conferido e confirmado: ${c.titulo}.` : `✓ Pedido enviado: ${quem ? nomeDaConta(quem) : "a pessoa"} vai ver o motivo na tela do contrato e enviar o arquivo de novo.`);
+      } catch (x) { cf.disabled = false; diz(msg, traduz(x.message || "")); }
+      return true;
     }
     const can = t.closest("[data-ct-cancelar]"); if (can) {
       if (!confirm("Cancelar este contrato? A pessoa deixa de ver o pedido de assinatura.")) return true;
-      await api.cancelarContrato(can.dataset.ctCancelar); S.eq = null; render(); return true;
+      await acao(can, async () => { await api.cancelarContrato(can.dataset.ctCancelar); S.eq = null; render(); }, { ok: "Contrato cancelado. A pessoa não vê mais o pedido de assinatura." }); return true;
     }
     if (t.id === "ctSalvarDados") {
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
       const d = {}, erros = []; document.querySelectorAll("[data-ct-dado]").forEach((i) => { const campo = c.campos.find((x) => x.chave === i.dataset.ctDado), r = VAL.porRotulo(campo?.rotulo || i.dataset.ctDado, i.value);
         i.classList.toggle("campo-falta", !!r.erro); if (r.erro) erros.push(r.erro); else { d[i.dataset.ctDado] = r.v; i.value = r.v; } });
       const msg = $("#ctDadosMsg");
-      if (erros.length) { diz(msg, `✕ Não salvou. Corrija: ${erros.join("; ")}.`); document.querySelector(".campo-falta")?.focus(); return true; }
-      diz(msg, "Salvando…");
-      try { await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); diz($("#ctDadosMsg"), "✓ Feito: dados salvos. Agora baixe o PDF."); } catch (x) { diz($("#ctDadosMsg"), traduz(x.message || "")); }
+      if (erros.length) { diz(msg, `✕ Não salvou. Corrija: ${erros.join("; ")}.`); marcar([...document.querySelectorAll("[data-ct-dado].campo-falta")]); return true; }
+      await acao(t, async () => { await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); }, { st: "#ctDadosMsg", ok: "Dados salvos. Agora baixe o PDF." });
       return true;
     }
     if (t.id === "ctAssinar") {
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
-      if (!$("#ctConcordo").checked) return erro("Marque que leu e concorda com os termos."), true;
+      if (barrar($("#ctErr"), [[$("#ctConcordo"), !$("#ctConcordo")?.checked && "marque que leu e concorda com os termos"], [$("#ctNome"), !VAL.nome($("#ctNome")?.value) && "escreva o seu nome completo (nome e sobrenome)"]], "Não assinou")) return true;
       const h = await TQContrato.hash(TQContrato.preencher(c.texto, c.campos, c.dados));
-      await api.assinarContrato(c.id, $("#ctNome").value, h);
+      const r = await acao(t, () => api.assinarContrato(c.id, $("#ctNome").value, h), { st: "#ctErr", espera: "Assinando…", ok: "Contrato assinado." });
+      if (!r.ok) return true;
       TQDiario.registrar("contrato_assinado", { contrato: c.id });
       S.conta.contr = await api.contratos(); render(); scrollTo(0, 0); return true;
     }
@@ -2923,58 +3058,59 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "eqcOk") {
       const err = $("#eqcErr"), funcoes = [...document.querySelectorAll("[data-eqc-funcao]")].filter((x) => x.checked).map((x) => x.dataset.eqcFuncao);
       const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), instagram: $("#eqcInsta").value.trim(), observacao: $("#eqcObs").value.trim(), funcoes, reserva: $("#eqcReserva").checked };
-      if (!m.nome) { diz(err, "Coloque o nome da pessoa."); return true; }
-      if (m.email && !EMAIL_OK.test(m.email)) { diz(err, "Esse e-mail não parece válido. Confira se está escrito certo."); return true; }
-      const e = TQEquipe.funcoesErro(funcoes); if (e) { diz(err, e); return true; }
-      diz(err, "Salvando…");
-      try { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.conta.equipe = undefined; await carregarEquipeCasa(); }
-      catch (x) { diz(err, /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "")); }
+      const fe = TQEquipe.funcoesErro(funcoes);
+      if (barrar(err, [[$("#eqcNome"), m.nome.length < 2 && "coloque o nome da pessoa"], [document.querySelector("[data-eqc-funcao]"), fe && fe.replace(/\.$/, "")],
+        [$("#eqcWa"), m.whatsapp && !VAL.tel(m.whatsapp) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"], [$("#eqcEmail"), m.email && !VAL.email(m.email) && "esse e-mail não parece válido. Confira se está escrito certo (ex.: nome@gmail.com)"]])) return true;
+      if (m.whatsapp) m.whatsapp = VAL.fTel(m.whatsapp);
+      await acao(t, async () => { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.conta.equipe = undefined; await carregarEquipeCasa(); },
+        { st: "#eqcErr", ok: m.id ? `${m.nome}: alterações salvas.` : `${m.nome} entrou na equipe.`, erro: (x) => /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "") });
       return true;
     }
     const rm = t.closest("[data-eqc-remover]"); if (rm) {
       const m = (S.conta.equipe || []).find((x) => x.id === rm.dataset.eqcRemover);
       if (!m || !confirm(`Tirar ${m.nome} da equipe?${m.acesso === "ativo" ? " A conta dessa pessoa deixa de ver a casa." : ""}`)) return true;
-      try { await api.removerMembro(m.id); TQDiario.registrar("equipe_casa", { acao: "tirou" }); S.conta.equipe = undefined; await carregarEquipeCasa(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
+      await acao(rm, async () => { await api.removerMembro(m.id); TQDiario.registrar("equipe_casa", { acao: "tirou" }); S.conta.equipe = undefined; await carregarEquipeCasa(); }, { espera: "Tirando…", ok: `${m.nome} saiu da equipe.` });
       return true;
     }
     const cv = t.closest("[data-eqc-convidar]"); if (cv) {
       const m = (S.conta.equipe || []).find((x) => x.id === cv.dataset.eqcConvidar); if (!m) return true;
-      try {
-        const r = await api.convidarMembro(m.id, m.email, m.nome); TQDiario.registrar("equipe_convite", { funcoes: m.funcoes });
-        const site = location.origin + location.pathname, criar = `${site}#criar&email=${encodeURIComponent(m.email)}&tipo=casa`;
-        const zap = `Oi, ${m.nome}! Você entrou na equipe de ${S.conta.perfil.vinculo_nome} na Rede Tranquilo (${nomesFuncoes(m.funcoes)}). Mandei um link de acesso para ${m.email}. Se não chegar, crie a sua senha com esse mesmo e-mail aqui: ${criar}\n\nNo primeiro acesso, um tutorial mostra o que é seu.`;
-        if (r.ja) alert(`${m.nome} já tem acesso.`);
-        else { navigator.clipboard?.writeText(zap).catch(() => {}); alert(`${r.enviado ? `Link de acesso enviado para ${m.email}.` : `O e-mail não saiu${r.erro ? ` (${r.erro})` : ""}.`} A mensagem para o WhatsApp foi copiada:\n\n${zap}`); }
-        S.conta.equipe = undefined; await carregarEquipeCasa();
-      } catch (x) { alert(comErro(traduz(x.message || ""))); }
+      const site = location.origin + location.pathname, criar = `${site}#criar&email=${encodeURIComponent(m.email)}&tipo=casa`;
+      const zap = `Oi, ${m.nome}! Você entrou na equipe de ${S.conta.perfil.vinculo_nome} na Rede Tranquilo (${nomesFuncoes(m.funcoes)}). Mandei um link de acesso para ${m.email}. Se não chegar, crie a sua senha com esse mesmo e-mail aqui: ${criar}\n\nNo primeiro acesso, um tutorial mostra o que é seu.`;
+      const res = await acao(cv, async () => { const r = await api.convidarMembro(m.id, m.email, m.nome); TQDiario.registrar("equipe_convite", { funcoes: m.funcoes }); S.conta.equipe = undefined; await carregarEquipeCasa(); return r; },
+        { espera: "Enviando…", ok: (r) => r.ja ? `${m.nome} já tem acesso.` : `Acesso de ${m.nome} criado.` });
+      if (res.ok && !res.r?.ja) dialogoEnvio({ titulo: `Acesso de ${m.nome}`, texto: zap, email: m.email, whatsapp: m.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Link de acesso") });
       return true;
     }
     if (t.dataset?.trilhaCasa) {
       const etapa = t.dataset.trilhaCasa;
-      try { await api.trilhaMarcarCasa(etapa, t.checked); TQDiario.registrar("trilha_casa", { etapa, feito: t.checked }); S.conta.trilha = await api.minhaTrilha(); const y = scrollY; render(); scrollTo(0, y); }
-      catch (x) { alert(comErro(traduz(x.message || ""))); t.checked = !t.checked; }
+      const feito = t.checked;
+      const r = await acao(t, async () => { await api.trilhaMarcarCasa(etapa, feito); TQDiario.registrar("trilha_casa", { etapa, feito }); S.conta.trilha = await api.minhaTrilha(); const y = scrollY; render(); scrollTo(0, y); },
+        { ok: feito ? "Etapa marcada como feita." : "Etapa desmarcada." });
+      if (!r.ok && t.isConnected) t.checked = !feito;
       return true;
     }
     // Central: trilhas das casas novas.
     if (t.dataset?.triMarco) {
       const v = t.dataset.triMarco, i = v.lastIndexOf("|"), ref = v.slice(0, i), etapa = v.slice(i + 1); S.triAberta = ref;
-      try { await api.marcarTrilha(ref, etapa, t.checked); TQDiario.registrar("trilha_marco", { etapa, feito: t.checked }); const y = scrollY; S.tri = null; await carregarTrilhas(); scrollTo(0, y); }
-      catch (x) { alert(comErro(traduz(x.message || ""))); t.checked = !t.checked; }
+      const feito = t.checked;
+      const r = await acao(t, async () => { await api.marcarTrilha(ref, etapa, feito); TQDiario.registrar("trilha_marco", { etapa, feito }); const y = scrollY; S.tri = null; await carregarTrilhas(); scrollTo(0, y); },
+        { ok: feito ? "Etapa marcada como feita." : "Etapa desmarcada." });
+      if (!r.ok && t.isConnected) t.checked = !feito;
       return true;
     }
     const te = t.closest("[data-tri-editar]"); if (te) { S.triEd = te.dataset.triEditar || null; render(); $("#triForm")?.scrollIntoView({ block: "center" }); return true; }
     if (t.id === "triOk") {
       const err = $("#triErr"), casa_ref = $("#triCasa").value.trim(), inicio = $("#triInicio").value, nota = $("#triNota").value.trim();
-      if (!casa_ref || !/^\d{4}-\d{2}-\d{2}$/.test(inicio)) { diz(err, "Escolha a casa e o dia 1."); return true; }
-      if (!S.triEd && S.tri.trilhas.some((x) => x.casa_ref.toLowerCase() === casa_ref.toLowerCase())) { diz(err, "Esta casa já tem trilha: use \"Editar dia 1 e nota\"."); return true; }
-      diz(err, "Salvando…");
-      try { await api.salvarTrilha({ casa_ref, inicio, nota }); TQDiario.registrar("trilha", { acao: S.triEd ? "editou" : "comecou" }); S.triEd = null; S.triAberta = casa_ref; S.tri = null; await carregarTrilhas(); }
-      catch (x) { diz(err, traduz(x.message || "")); }
+      if (barrar(err, [[$("#triCasa"), casa_ref.length < 2 && "escolha a casa"], [$("#triInicio"), !/^\d{4}-\d{2}-\d{2}$/.test(inicio) && "escolha o dia 1"]])) return true;
+      if (!S.triEd && S.tri.trilhas.some((x) => x.casa_ref.toLowerCase() === casa_ref.toLowerCase())) { marcar($("#triCasa")); diz(err, "Esta casa já tem trilha: use \"Editar dia 1 e nota\"."); return true; }
+      const era = S.triEd;
+      await acao(t, async () => { await api.salvarTrilha({ casa_ref, inicio, nota }); TQDiario.registrar("trilha", { acao: S.triEd ? "editou" : "comecou" }); S.triEd = null; S.triAberta = casa_ref; S.tri = null; await carregarTrilhas(); },
+        { st: "#triErr", ok: era ? `Trilha de ${casa_ref} salva.` : `Trilha de ${casa_ref} começou.` });
       return true;
     }
     const ta = t.closest("[data-tri-apagar]"); if (ta) {
       if (!confirm(`Apagar a trilha de ${ta.dataset.triApagar}? As etapas marcadas também saem.`)) return true;
-      try { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
+      await acao(ta, async () => { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); }, { espera: "Apagando…", ok: `Trilha de ${ta.dataset.triApagar} apagada.` });
       return true;
     }
     return false;
@@ -2986,16 +3122,16 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const ref = S.conta.perfil.vinculo_nome, dia = dd.dataset.dispDia, atual = (S.disp || []).find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia);
       const naSemana = semanaDe(S.sem, { casaRef: ref, fichaDias: S.conta.casa?.dados?.dias_semana }).includes(wdDe(dia));
       const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
-      try { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); }
-      catch (x) { const e = $("#dispErr"); if (e) diz(e, traduz(x.message || "")); }
+      await acao(dd, async () => { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); },
+        { st: "#dispErr", ok: `${dt(dia)}: ${prox === "disponivel" ? "disponível" : prox === "indisponivel" ? "indisponível" : "sem marcação"}.` });
       return true;
     }
     if (t.closest("[data-disp-semana]")) {
       const ref = S.conta.perfil.vinculo_nome, mes = S.dispMes || hojeIso().slice(0, 7), quer = S.conta.casa?.dados?.dias_semana || [];
       const nomes = ["domingo", "segunda", "terca", "quarta", "quinta", "sexta", "sabado"], [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate();
-      try { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || (S.pac?.eventos || []).some((e) => !e.z && e.d === dia) || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
+      await acao(t.closest("[data-disp-semana]"), async () => { for (let d = 1; d <= total; d++) { const dia = `${mes}-${String(d).padStart(2, "0")}`; if (dia < hojeIso() || (S.pac?.eventos || []).some((e) => !e.z && e.d === dia) || !quer.includes(nomes[new Date(dia + "T12:00:00Z").getUTCDay()]) || (S.disp || []).some((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia)) continue;
           await api.marcarDisponibilidade(ref, dia, "disponivel"); S.disp.push({ casa_ref: ref, dia, situacao: "disponivel" }); }
-        render(); } catch (x) { const e = $("#dispErr"); if (e) diz(e, traduz(x.message || "")); }
+        render(); }, { st: "#dispErr", ok: "Dias da semana da Ficha marcados como disponíveis neste mês.", erro: (x) => { render(); return traduz(x.message || ""); } });
       return true;
     }
     return false;
@@ -3004,7 +3140,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // Central: responder pedido de atualização e salvar combinados.
     const sr = t.closest("[data-sol-responder]"); if (sr) {
       const [sid, ap] = sr.dataset.solResponder.split("|"), resp = document.querySelector(`[data-sol-resp="${sid}"]`)?.value || "";
-      try { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); } catch (x) { diz($("#derr"), traduz(x.message || "")); }
+      await acao(sr, async () => { await api.responderSolicitacao(sid, ap === "1", resp); TQDiario.registrar("ficha_pedido_resposta", { aprovado: ap === "1" }); $("#dlg").close(); S.eq = null; render(); },
+        { st: "#derr", ok: ap === "1" ? "Pedido aprovado. A Ficha da casa já foi atualizada." : "Pedido recusado. A casa vê a sua resposta." });
       return true;
     }
     if (t.closest("[data-hist-recarregar]")) { S.hist = undefined; render(); return true; }
@@ -3012,8 +3149,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const sf = t.closest("[data-salvar-ficha]"); if (sf) {
       const c = S.eq.casas.find((x) => x.id === sf.dataset.salvarFicha); if (!c) return true;
       const dados = { ...(c.dados || {}), ...lerForm($("#formCentral")) }, erros = conferirFormato(dados);
-      if (erros.length) { diz($("#derr"), `Confira: ${erros.join("; ")}.`); return true; }
-      try { await api.editarFichaCasa(c.id, dados); c.dados = dados; c.pendencias = R.pendenciasCasa(dados); S.fichaEdit = null; fichaCasa(c.id); } catch (x) { diz($("#derr"), traduz(x.message || "")); }
+      if (erros.length) { marcarFormato($("#formCentral"), erros); diz($("#derr"), `Não salvou. Confira: ${erros.join("; ")}.`); return true; }
+      await acao(sf, async () => { await api.editarFichaCasa(c.id, dados); c.dados = dados; c.pendencias = R.pendenciasCasa(dados); S.fichaEdit = null; fichaCasa(c.id); }, { st: "#derr", ok: "Ficha salva." });
       return true;
     }
     const cpm = t.closest("[data-copiar-msg]"); if (cpm) {
@@ -3036,26 +3173,30 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const cb = {}; for (const el of document.querySelectorAll("[data-cb]")) { const v = el.value.trim(); if (!v) continue; const [a, b] = el.dataset.cb.split("."); (cb[a] ||= {})[b] = /^\d+([.,]\d+)?$/.test(v) && !["contatos", "bonificacao"].includes(a) ? Number(v.replace(",", ".")) : v; }
       for (const [g, nome] of [["bilheteria", "Bilheteria"], ["aeb", "Alimentos e bebidas"]]) {
         const vs = Object.values(cb[g] || {}); if (!vs.length) continue;
-        if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { diz($("#derr"), `${nome}: use só números de 0 a 100.`); return true; }
-        const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { diz($("#derr"), `${nome}: os percentuais somam ${soma}%, precisam somar 100%.`); return true; }
+        const els = [...document.querySelectorAll(`[data-cb^="${g}."]`)].filter((el) => el.value.trim());
+        if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { marcar(els.filter((el) => { const n = Number(el.value.trim().replace(",", ".")); return !/^\d+([.,]\d+)?$/.test(el.value.trim()) || n > 100; })); diz($("#derr"), `Não salvou. ${nome}: use só números de 0 a 100.`); return true; }
+        const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { marcar(els); diz($("#derr"), `Não salvou. ${nome}: os percentuais somam ${soma}%, precisam somar 100%.`); return true; }
       }
-      try { await api.definirCombinados(cs.dataset.cbSalvar, cb); diz($("#derr"), "✓ Combinados salvos."); const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; } catch (x) { diz($("#derr"), traduz(x.message || "")); }
+      await acao(cs, async () => { await api.definirCombinados(cs.dataset.cbSalvar, cb); const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; }, { st: "#derr", ok: "Combinados salvos." });
       return true;
     }
     if (t.id === "solPedir") { S.fichaPedido = true; render(); $("#form [data-k]")?.focus(); return true; }
     if (t.id === "solVoltar") { S.fichaPedido = false; render(); return true; }
     if (t.id === "solEnviar") {
       const err = $("#ferr"), novo = lerForm($("#form")), erros = conferirFormato(novo);
-      if (erros.length) { diz(err, `Confira antes de enviar: ${erros.join("; ")}.`); return true; }
-      diz(err, "Enviando…");
-      try { await api.solicitarAtualizacao(novo, $("#solMsg")?.value || ""); TQDiario.registrar("ficha_pedido", {});
-        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); diz($("#ferr"), "✓ Pedido enviado. A Central confere e a Ficha muda quando for aprovado."); }
-      catch (x) { diz(err, traduz(x.message || "")); }
+      if (erros.length) { marcarFormato($("#form"), erros); diz(err, `Não enviado. Confira antes de enviar: ${erros.join("; ")}.`); return true; }
+      // Pedido sem nenhuma mudança não vai para a Central.
+      const atual = S.conta.casa?.dados || {}, mudou = Object.entries(novo).some(([k, v]) => JSON.stringify(vazioV(v) ? "" : v) !== JSON.stringify(vazioV(valorCasa(atual, k)) ? "" : valorCasa(atual, k)));
+      if (!mudou) { diz(err, "⚠ Você ainda não mudou nenhum campo. Altere o que precisa mudar e toque em \"Enviar pedido de atualização\" de novo."); return true; }
+      const msgSol = ($("#solMsg")?.value || "").trim();
+      if (msgSol.length < 10) { marcar($("#solMsg")); diz(err, `Não enviado: conte em "O que mudou" o que mudou e por quê (pelo menos 10 caracteres${msgSol.length ? `; agora tem ${msgSol.length}` : ""}). É o que a Central lê para aprovar.`); return true; }
+      await acao(t, async () => { await api.solicitarAtualizacao(novo, msgSol); TQDiario.registrar("ficha_pedido", {});
+        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); }, { st: "#ferr", espera: "Enviando…", ok: "Pedido enviado. A Central confere e a Ficha muda quando for aprovado." });
       return true;
     }
     const sc = t.closest("[data-sol-cancelar]"); if (sc) {
       if (!confirm("Cancelar o pedido de atualização?")) return true;
-      try { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); } catch (x) { alert(comErro(traduz(x.message || ""))); }
+      await acao(sc, async () => { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); }, { st: "#ferr", ok: "Pedido de atualização cancelado. A Ficha continua como estava." });
       return true;
     }
     if (t.id === "copiarFicha") {
@@ -3088,38 +3229,39 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return aposEntrar(await api.sessao());
     }
     if (t.id === "eok") {
-      const email = $("#email").value.trim(), senha = $("#esenha").value, err = $("#eerr");
-      diz(err, "Entrando…");
+      const email = $("#email").value.trim(), senha = $("#esenha").value, err = $("#eerr"), criar = (S.entrada || "entrar") === "criar";
+      if (criar ? barrar(err, [[$("#enome"), ($("#enome")?.value || "").trim().length < 2 && "escreva o seu nome"], [$("#email"), !email ? "escreva o seu e-mail" : !EMAIL_OK.test(email) && "esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)"], [$("#esenha"), senha.length < 8 && `a senha precisa ter pelo menos 8 caracteres${senha.length ? ` (agora tem ${senha.length})` : ""}`]], "Não criou a conta")
+        : barrar(err, [[$("#email"), !email && "escreva o seu e-mail"], [$("#esenha"), !senha && "escreva a sua senha"]], "Falta preencher")) return;
+      diz(err, criar ? "Criando a conta…" : "Entrando…");
       try {
-        if ((S.entrada || "entrar") === "criar") {
+        if (criar) {
           const nome = $("#enome").value.trim();
-          if (!nome || !email || senha.length < 8) { diz(err, "Preencha nome, e-mail e uma senha com pelo menos 8 caracteres."); return; }
-          if (!EMAIL_OK.test(email)) { diz(err, "Esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)."); $("#email").focus(); return; }
           const r = await api.cadastrar({ email, senha, nome, tipo: S.tipoNovo || "artista" });
           if (r.confirmar) { diz(err, ""); $("#eok").outerHTML = `<div class="alert good"><b>Confira seu e-mail</b>Enviamos um link de confirmação para ${esc(email)}. Depois de confirmar, entre com e-mail e senha.</div>`; return; }
           return aposEntrar(r.perfil);
         }
         return aposEntrar(await api.entrar(email, senha));
-      } catch (e) { diz(err, e.message); }
+      } catch (e) { diz(err, traduz(e.message || "")); }
       return;
     }
     if (t.id === "esqueci") {
       ev.preventDefault(); const email = $("#email").value.trim();
-      if (!email) { diz($("#eerr"), "Escreva seu e-mail acima e clique de novo."); return; }
-      await api.recuperar(email); diz($("#eerr"), REAL ? "✓ Se existir conta com esse e-mail, o link para trocar a senha chega em até 2 minutos. Olhe também o spam." : "⚠ No modo demonstração não há envio de e-mail.");
+      if (!EMAIL_OK.test(email)) { marcar($("#email")); diz($("#eerr"), email ? "Esse e-mail parece incompleto. Confira se tem @ e o final (ex.: nome@gmail.com)." : "Escreva seu e-mail acima e clique de novo."); return; }
+      diz($("#eerr"), "Enviando…");
+      try { await api.recuperar(email); diz($("#eerr"), REAL ? "✓ Se existir conta com esse e-mail, o link para trocar a senha chega em até 2 minutos. Olhe também o spam." : "⚠ No modo demonstração não há envio de e-mail."); }
+      catch (e) { diz($("#eerr"), traduz(e.message || "")); }
       return;
     }
     if (t.id === "salvarVazios") {
       const casa = S.conta.perfil.tipo === "casa", atual = casa ? S.conta.casa : S.conta.insc, err = $("#ferr");
       const d = { ...(atual?.dados || {}), ...Object.fromEntries(Object.entries(lerForm($("#form"))).filter(([k, v]) => vazioV(atual?.dados?.[k]) && !vazioV(v))) };
       if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Você ainda não escreveu nada nos campos em branco. Preencha um deles e toque em \"Salvar o que preenchi\" de novo."), undefined;
-      const erros = conferirFormato(d); if (erros.length) return diz(err, `✕ Não salvou. Corrija: ${erros.join("; ")}.`), undefined;
-      diz(err, "Salvando…");
-      try {
+      const erros = conferirFormato(d); if (erros.length) { marcarFormato($("#form"), erros); return diz(err, `✕ Não salvou. Corrija: ${erros.join("; ")}.`), undefined; }
+      await acao(t, async () => {
         if (casa) S.conta.casa = await api.salvarCasa(d, { enviar: false, ja_parceira: atual.ja_parceira, notion_casa_id: atual.notion_casa_id });
         else S.conta.insc = await api.salvarInscricao(d, false);
-        TQDiario.registrar("ficha_vazios", { casa }); render(); diz($("#ferr"), "✓ Salvo. O que você preencheu já chegou ao Tranquilo.");
-      } catch (e) { diz(err, traduz(e.message || "")); }
+        TQDiario.registrar("ficha_vazios", { casa }); render();
+      }, { st: "#ferr", ok: "Salvo. O que você preencheu já chegou ao Tranquilo." });
       return;
     }
     if (t.id === "salvar" || t.id === "enviar") {
@@ -3130,40 +3272,45 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       // Enviar exige os campos com * (casa e artista). O rascunho salva sem eles, para ninguém perder o que digitou.
       if (enviar && falta.length) { marcarFaltando(raiz, casa ? F_CASA : F_ARTISTA, d); const rot = casa && R.pendenciasCasa(d).habilitacao.length ? R.pendenciasCasa(d).habilitacao : falta; diz(err, `Não enviado: falta preencher ${rot.join(", ").replace(/\.+$/, "")}. Os campos obrigatórios estão marcados em vermelho. O que você já digitou fica salvo como rascunho.`); return; }
       const erros = enviar ? conferirFormato(d) : [];
-      if (erros.length) { diz(err, `Confira antes de enviar: ${erros.join("; ")}.`); return; }
-      diz(err, "Salvando…");
-      try {
+      if (erros.length) { document.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta")); marcarFormato(raiz, erros); diz(err, `Não enviado. Confira antes de enviar: ${erros.join("; ")}. O que você já digitou fica salvo como rascunho.`); return; }
+      if (casa && document.querySelector('input[name="parceira"]:checked')?.value === "sim" && !$("#casaNotion")?.value && enviar) { marcar($("#casaNotion")); diz(err, "Não enviado: escolha a sua casa na lista (ou \"Minha casa não aparece na lista\")."); return; }
+      clearTimeout(S.tauto); S.tauto = null;
+      const r = await acao(t, async () => {
         if (casa) {
           const parceira = document.querySelector('input[name="parceira"]:checked')?.value === "sim";
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
-        diz(err, "");
-        if (enviar && casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
-        else if (enviar) { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); } else { render(); diz($("#ferr"), "✓ Rascunho salvo. Você pode continuar depois."); }
-      } catch (e) { diz(err, e.message); }
+      }, { st: "#ferr", espera: enviar ? "Enviando…" : "Salvando…", ok: enviar ? "Enviado." : "Rascunho salvo. Você pode continuar depois." });
+      if (!r.ok || !enviar) return;
+      if (casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
+      else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. A equipe confere e responde aqui." : "✓ Inscrição enviada para a curadoria. A resposta aparece aqui."); }
       return;
     }
     if (t.id === "vok") {
-      const cod = $("#vcod").value, err = $("#verr"); diz(err, "Conferindo…");
+      const cod = $("#vcod").value, err = $("#verr");
+      if (normCod(cod).length < 12) { marcar($("#vcod")); diz(err, "Não vinculou: cole o código completo, no formato XXXX-XXXX-XXXX."); return; }
+      diz(err, "Conferindo…");
       try {
         const pac = await abrirPacote(cod);
         if (pac.perfil !== S.conta.perfil.tipo) { diz(err, `Este código é de ${PERFIS[pac.perfil].rotulo.toLowerCase()}, e a conta é de ${ROTULO[S.conta.perfil.tipo].toLowerCase()}.`); return; }
         await api.vincularCodigo(normCod(cod).replace(/(.{4})(.{4})(.{4})/, "$1-$2-$3"), pac.nome);
         return recarregar();
-      } catch (e) { diz(err, e.message); }
+      } catch (e) { diz(err, traduz(e.message || "")); }
       return;
     }
     if (t.id === "sairConta") { await sairDeTudo(); return; }
     const reg = t.closest("[data-registrar]"); if (reg) return fichaRegistro(reg.dataset.registrar);
     if (t.id === "rsalvar") {
       const eventoId = $("#dlg").dataset.alvo.slice(4), pub = inteiroBR($("#rpub").value);
-      if (pub !== "" && (+pub < 0 || +pub > 20000)) { diz($("#derr"), "Confira o público: um número entre 0 e 20.000 pessoas."); $("#rpub").focus(); return; }
-      try {
-        await api.registrar(eventoId, { publico: pub === "" ? null : +pub, ocorrencia: $("#rocc").value.trim() || null, gravidade: $("#rgrav").value, como_resolveu: $("#rres").value.trim() || null });
+      const occ = $("#rocc").value.trim(), grave = $("#rgrav").value === "excecao";
+      if (barrar($("#derr"), [[$("#rpub"), pub !== "" && (+pub < 0 || +pub > 20000) ? "confira o público: um número entre 0 e 20.000 pessoas" : pub === "" && !occ && "escreva o público presente (ou conte a ocorrência)"],
+        [$("#rocc"), grave && occ.length < 10 && "exceção crítica: conte em Ocorrência o que aconteceu (pelo menos 10 caracteres)"]])) return;
+      await acao(t, async () => {
+        await api.registrar(eventoId, { publico: pub === "" ? null : +pub, ocorrencia: occ || null, gravidade: $("#rgrav").value, como_resolveu: $("#rres").value.trim() || null });
         S.conta.reg = await api.meusRegistros();
         const chk = S.conta.chk; if (!chk.some((c) => c.evento_id === eventoId && c.item === "publico")) { await api.marcar(eventoId, "publico", true); S.conta.chk = await lerChecklist(); }
         $("#dlg").close(); render();
-      } catch (e) { diz($("#derr"), e.message); }
+      }, { st: "#derr", ok: "Noite registrada." });
       return;
     }
     if (t.closest("[data-hub-recarregar]")) { S.hub = null; render(); return; }
@@ -3179,52 +3326,49 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.closest("[data-camp-importar]") && S.campPrevia) {
       const err = $("#camperr"); diz(err, "");
       const casa = $("#cfCasa").value.trim(), slug = slugDe($("#cfSlug").value), titulo = $("#cfTit").value.trim() || "Campanha", fonte = $("#cfFonte").value.trim();
-      if (!casa) { diz(err, "Escreva o nome da casa exatamente como no convite (é assim que a casa passa a ver a campanha)."); $("#cfCasa").focus(); return; }
-      if (slug.length < 3) { diz(err, "Dê um identificador curto, por exemplo rooftap-nov26."); $("#cfSlug").focus(); return; }
-      if (fonte && !/^https:\/\//i.test(fonte)) { diz(err, "O link da página precisa começar com https://"); $("#cfFonte").focus(); return; }
+      if (barrar(err, [[$("#cfCasa"), casa.length < 2 && "escreva o nome da casa exatamente como no convite (é assim que a casa passa a ver a campanha)"],
+        [$("#cfSlug"), slug.length < 3 && "dê um identificador curto, com pelo menos 3 letras ou números (ex.: rooftap-nov26)"],
+        [$("#cfFonte"), fonte && !/^https:\/\/\S+\.\S+/i.test(fonte) && "o link da página precisa ser um endereço completo, começando com https://"]], "Não carregou")) return;
       const semConvite = !(S.eq?.conv || []).some((c) => c.tipo === "casa" && (c.vinculo_nome || "").toLowerCase() === casa.toLowerCase());
       if (semConvite && !confirm(`Nenhum convite de casa está ligado a "${casa}". A campanha fica carregada, mas ninguém da casa vê até receber um convite com esse nome. Continuar?`)) return;
       const d = { slug, titulo, casa, fonte_url: fonte || null, itens: S.campPrevia.itens.map(({ chave, dia, rotulo, acoes }) => ({ chave, dia, rotulo, acoes })) };
       const cie = $("#cfCie").checked;
-      try {
+      await acao(t.closest("[data-camp-importar]"), async () => {
         await api.importarCampanha(d);
         if (cie) await pedirCienciaCampanha(d);
         TQDiario.registrar("campanha_importada", { dias: d.itens.length });
-        S.campPrevia = null; S.hub = null; await carregarHub();
-        alert(`Campanha de ${casa} carregada: ${d.itens.length} dias.${cie ? " A casa vai ver o pedido de confirmação de leitura em Materiais." : ""}`);
-      } catch (e) { diz(err, traduz(e.message || "")); }
+        S.campPrevia = null; S.campAberto = true; S.hub = null; await carregarHub();
+      }, { st: "#camperr", espera: "Carregando a campanha…", ok: `Campanha de ${casa} carregada: ${d.itens.length} dias.${cie ? " A casa vai ver o pedido de confirmação de leitura em Materiais." : ""}` });
       return;
     }
     if (t.closest("[data-mat-versao], [data-mat-novo]")) {
       const err = $("#materr"); diz(err, ""); S.matAberto = true;
-      const url = (s) => s.trim();
-      try {
-        if (t.closest("[data-mat-versao]")) {
-          const versao = $("#mvVer").value.trim(), u = url($("#mvUrl").value);
-          if (!versao) { diz(err, "Dê um nome à versão (ex.: 2)."); $("#mvVer").focus(); return; }
-          if (u && !/^https:\/\//i.test(u)) { diz(err, "O link precisa começar com https://"); $("#mvUrl").focus(); return; }
-          const pede = $("#mvCie").checked;
-          if (!confirm(pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?")) return;
-          await api.publicarVersao({ material_id: $("#mvMat").value, versao, resumo: $("#mvRes").value.trim() || null, url: u || null, exige_ciencia: pede });
-        } else {
-          const titulo = $("#mnTit").value.trim(), u = url($("#mnUrl").value), publico = [$("#mnCasa").checked && "casa", $("#mnArt").checked && "artista"].filter(Boolean);
-          if (titulo.length < 3) { diz(err, "Escreva o título do material."); $("#mnTit").focus(); return; }
-          if (!/^https:\/\//i.test(u)) { diz(err, "Cole o link do material (começando com https://)."); $("#mnUrl").focus(); return; }
-          if (!publico.length) { diz(err, "Escolha quem vê: casas, artistas ou os dois."); return; }
-          const ref = $("#mnRef").value.trim();
-          const slug = (titulo + (ref ? "-" + ref : "")).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
-          await api.novoMaterial({ slug, titulo, tipo_material: $("#mnTipo").value, publico, fonte_url: u, casa_ref: ref || null, fonte_tipo: "link" },
-            { versao: "1", resumo: "Primeira versão", exige_ciencia: $("#mnCie").checked });
-        }
-        TQDiario.registrar("material_publicado", {});
-        S.hub = null; await carregarHub();
-      } catch (e) { diz(err, /duplicate|unique|já foi salvo/i.test(e.message) ? "Já existe uma versão (ou um material) com esse nome. Use outro." : traduz(e.message || "")); }
+      const LINK = /^https:\/\/\S+\.\S+/i, botao = t.closest("[data-mat-versao], [data-mat-novo]");
+      let salvar, ok;
+      if (t.closest("[data-mat-versao]")) {
+        const versao = $("#mvVer").value.trim(), u = $("#mvUrl").value.trim();
+        if (barrar(err, [[$("#mvVer"), !versao && "dê um nome à versão (ex.: 2)"], [$("#mvUrl"), u && !LINK.test(u) && "o link precisa ser um endereço completo, começando com https://"]], "Não publicou")) return;
+        const pede = $("#mvCie").checked;
+        if (!confirm(pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?")) return;
+        const dados = { material_id: $("#mvMat").value, versao, resumo: $("#mvRes").value.trim() || null, url: u || null, exige_ciencia: pede };
+        salvar = () => api.publicarVersao(dados); ok = `Versão ${versao} publicada.${pede ? " Todos vão confirmar a leitura de novo." : ""}`;
+      } else {
+        const titulo = $("#mnTit").value.trim(), u = $("#mnUrl").value.trim(), publico = [$("#mnCasa").checked && "casa", $("#mnArt").checked && "artista"].filter(Boolean);
+        if (barrar(err, [[$("#mnTit"), titulo.length < 3 && "escreva o título do material (pelo menos 3 letras)"], [$("#mnUrl"), !LINK.test(u) && "cole o link completo do material, começando com https://"],
+          [$("#mnCasa"), !publico.length && "escolha quem vê: casas, artistas ou os dois"]], "Não cadastrou")) return;
+        const ref = $("#mnRef").value.trim();
+        const slug = (titulo + (ref ? "-" + ref : "")).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 80);
+        const m = { slug, titulo, tipo_material: $("#mnTipo").value, publico, fonte_url: u, casa_ref: ref || null, fonte_tipo: "link" }, v = { versao: "1", resumo: "Primeira versão", exige_ciencia: $("#mnCie").checked };
+        salvar = () => api.novoMaterial(m, v); ok = `Material "${titulo}" cadastrado.`;
+      }
+      await acao(botao, async () => { await salvar(); TQDiario.registrar("material_publicado", {}); S.hub = null; await carregarHub(); },
+        { st: "#materr", espera: "Publicando…", ok, erro: (e) => /duplicate|unique|já foi salvo/i.test(e.message) ? "Já existe uma versão (ou um material) com esse nome. Use outro." : traduz(e.message || "") });
       return;
     }
     const cie = t.closest("[data-ciencia]"); if (cie) {
       if (!confirm("Confirmar que você leu esta versão do material? A confirmação fica registrada com data e hora.")) return;
-      try { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
-      catch (e) { alert(comErro(traduz(e.message || ""))); }
+      await acao(cie, async () => { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); },
+        { espera: "Registrando…", ok: "Leitura confirmada, com data e hora." });
       return;
     }
     const arq = t.closest("[data-arquivo]"); if (arq) {
@@ -3237,22 +3381,22 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const vc = t.closest("[data-vinculo-confirmar], [data-vinculo-recusar]"); if (vc) {
       const pid = vc.dataset.vinculoConfirmar || vc.dataset.vinculoRecusar, p = (S.eq?.perfis || []).find((x) => x.id === pid); if (!p) return;
       const a = vc.dataset.vinculoConfirmar && (S.pac?.acessos || []).find((x) => x.codigo === p.vinculo_pedido && x.tipo === p.tipo);
-      await api.atualizarPerfil(pid, a ? { codigo_acesso: a.codigo, vinculo_nome: a.nome, vinculo_pedido: null, vinculo_pedido_nome: null } : { vinculo_pedido: null, vinculo_pedido_nome: null });
-      S.eq = null; render(); return;
+      await acao(vc, async () => { await api.atualizarPerfil(pid, a ? { codigo_acesso: a.codigo, vinculo_nome: a.nome, vinculo_pedido: null, vinculo_pedido_nome: null } : { vinculo_pedido: null, vinculo_pedido_nome: null }); S.eq = null; render(); },
+        { ok: a ? `Vínculo com ${a.nome} confirmado.` : "Pedido de vínculo recusado." });
+      return;
     }
     const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
       if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
-      try { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
+      await acao(docDel, async () => { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); }, { espera: "Removendo…", ok: "Documento removido. A pessoa não vê mais o link." });
       return;
     }
     if (t.id === "docOk") {
       const err = $("#docErr"), url = $("#docUrl").value.trim(), titulo = $("#docTit").value.trim(), tipo = $("#docTipo").value;
       const [user_id, evento_id] = [$("#docConta").value || null, $("#docEv").value || null];
-      if (!/^https:\/\//i.test(url)) { diz(err, "Cole o link completo, começando com https:// (Drive, Dropbox, DocuSign…)."); return; }
-      if (titulo.length < 2) { diz(err, "Dê um nome curto ao documento."); return; }
-      if (tipo === "contrato" && (!user_id || !evento_id)) { diz(err, "Contrato precisa da conta e da data."); return; }
-      try { await api.criarDocumento({ tipo, titulo, url, user_id: tipo === "modelo" ? null : user_id, evento_id: tipo === "modelo" ? null : evento_id }); S.eq = null; render(); }
-      catch (e) { diz(err, e.message); }
+      if (barrar(err, [[$("#docUrl"), !/^https:\/\/\S+\.\S+/i.test(url) && "cole o link completo, começando com https:// (Drive, Dropbox, DocuSign…)"], [$("#docTit"), titulo.length < 2 && "dê um nome curto ao documento"],
+        [$("#docConta"), tipo === "contrato" && !user_id && "contrato precisa da conta"], [$("#docEv"), tipo === "contrato" && !evento_id && "contrato precisa da data"]], "Não anexou")) return;
+      await acao(t, async () => { await api.criarDocumento({ tipo, titulo, url, user_id: tipo === "modelo" ? null : user_id, evento_id: tipo === "modelo" ? null : evento_id }); S.eq = null; render(); },
+        { st: "#docErr", ok: `Documento "${titulo}" anexado.` });
       return;
     }
     const dec = t.closest("[data-decisao]"); if (dec) {
@@ -3260,23 +3404,24 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const campos = { parecer: $("#parecer").value.trim() || null, nota_interna: $("#nota").value.trim() || null };
       if (status) campos.status = status;
       if (tipo === "casa") campos.classificacao = $("#classe").value || null;
-      if (status === "ajustes" && !campos.parecer) { diz($("#derr"), "Escreva na mensagem o que precisa ser ajustado."); return; }
+      if (status === "ajustes" && (campos.parecer || "").length < 10) { marcar($("#parecer")); diz($("#derr"), "Não enviou: escreva na mensagem o que precisa ser ajustado (pelo menos 10 caracteres). É o que a pessoa vai ler."); return; }
       // Habilitar só com a Ficha mínima completa (o banco confere de novo, v19).
       if (tipo === "casa" && status === "habilitada") { const c = (S.eq?.casas || []).find((x) => x.id === id), f = R.pendenciasCasa(c?.dados || {}).habilitacao;
         if (f.length) { diz($("#derr"), `Não dá para habilitar: falta preencher na Ficha ${f.join(", ")}. Peça ajustes à casa com a lista do que falta.`); return; } }
       // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
-      if (status === "reprovada" && !campos.parecer) { diz($("#derr"), "Escreva uma mensagem para a artista explicando que, por agora, não vai seguir."); $("#parecer").focus(); return; }
+      if (status === "reprovada" && (campos.parecer || "").length < 10) { marcar($("#parecer")); diz($("#derr"), "Não enviou: escreva uma mensagem para a artista explicando que, por agora, não vai seguir (pelo menos 10 caracteres)."); return; }
       if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;
-      if (status === "encerrada" && !campos.parecer) { diz($("#derr"), "Escreva na mensagem o motivo do encerramento: é o que a pessoa vai ler."); $("#parecer").focus(); return; }
+      if (status === "encerrada" && (campos.parecer || "").length < 10) { marcar($("#parecer")); diz($("#derr"), "Não encerrou: escreva na mensagem o motivo do encerramento (pelo menos 10 caracteres). É o que a pessoa vai ler."); return; }
       if (status === "encerrada" && !confirm(tipo === "casa"
         ? "Encerrar a parceria com esta casa? A equipe da casa perde o acesso, o dono vê só a sua mensagem e a Ficha. Nada é apagado. As datas futuras precisam ser canceladas no Notion."
         : "Encerrar a participação desta artista? Ela perde o acesso às datas e vê a sua mensagem. Nada é apagado. As datas futuras precisam ser canceladas no Notion (Line-up).")) return;
-      try {
+      const OK = { aprovada: "Inscrição aprovada.", habilitada: "Casa habilitada.", ajustes: "Pedido de ajustes enviado. A pessoa vê a sua mensagem.", reprovada: "Inscrição encerrada. A artista vê a sua mensagem.", encerrada: "Encerrado. A pessoa vê a sua mensagem." };
+      await acao(dec, async () => {
         if (tipo === "insc") await api.avaliarInscricao(id, campos); else await api.avaliarCasa(id, campos);
         const v = $("#dlg").querySelector("[data-vinculo]");
         if (v) { const [codigo, nome] = v.value ? v.value.split("|") : [null, null]; const p = (S.eq.perfis || []).find((x) => x.id === v.dataset.vinculo); if (p && p.codigo_acesso !== codigo) await api.atualizarPerfil(p.id, { codigo_acesso: codigo, vinculo_nome: nome }); }
         $("#dlg").close(); S.eq = null; render();
-      } catch (e) { diz($("#derr"), e.message); }
+      }, { st: "#derr", ok: OK[status] || "Avaliação salva." });
       return;
     }
     if (t.closest("[data-copiar-ficha]")) {
@@ -3290,42 +3435,39 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "nsdepois" || t.closest?.("[data-ns-fechar]")) { S.senhaDepois = true; $("#dlg").close(); primeiroAcesso(); return; }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
-      if (a.length < 8) { diz(err, "Use pelo menos 8 caracteres."); return; }
-      if (a !== b) { diz(err, "As duas senhas não são iguais."); return; }
-      diz(err, "Salvando…");
-      try { await api.definirSenha(a); S.conta.perfil.senha_definida = true; diz(err, "✓ senha salva."); setTimeout(() => { $("#dlg").close(); primeiroAcesso(); }, 1200); } catch (e) { diz(err, e.message); }
+      if (barrar(err, [[$("#ns1"), a.length < 8 && `use pelo menos 8 caracteres${a.length ? ` (agora tem ${a.length})` : ""}`], [$("#ns2"), a.length >= 8 && a !== b && "as duas senhas não são iguais. Escreva a mesma senha nos dois campos"]])) return;
+      const r = await acao(t, async () => { await api.definirSenha(a); S.conta.perfil.senha_definida = true; }, { st: "#nserr", ok: "senha salva." });
+      if (r.ok) setTimeout(() => { $("#dlg").close(); primeiroAcesso(); }, 1200);
       return;
     }
     if (t.id === "cvOk") {
       const err = $("#cverr"), email = $("#cvEmail").value.trim().toLowerCase(), nome = $("#cvNome").value.trim();
-      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { diz(err, "Escreva um e-mail válido."); return; }
+      const wa = $("#cvWa").value.trim();
+      if (barrar(err, [[$("#cvEmail"), !VAL.email(email) && (email ? "esse e-mail não parece válido. Confira se está escrito certo (ex.: nome@gmail.com)" : "escreva o e-mail da pessoa")],
+        [$("#cvWa"), wa && !VAL.tel(wa) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"]], "Não enviou")) return;
       const [codigo_acesso, vinculo_nome] = ($("#cvVinc")?.value || "").split("|");
       const areas = (S.convTipo === "equipe") ? [...document.querySelectorAll("[data-cv-area]:checked")].map((x) => x.value) : [];
       const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
-      diz(err, "Enviando…");
-      try {
-        const r = await api.convidar(c); diz(err, ""); S.convPre = null; S.eq = null; render();
-        dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Convite") });
-      } catch (e) { diz(err, e.message); }
+      const res = await acao(t, async () => { const r = await api.convidar(c); S.convPre = null; S.eq = null; render(); return r; },
+        { st: "#cverr", espera: "Enviando…", ok: `Convite para ${c.nome || c.email} criado.` });
+      if (res.ok) dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Convite") });
       return;
     }
     const rc = t.closest("[data-reconvidar]"); if (rc) {
       const c = (S.eq?.conv || []).find((x) => x.email === rc.dataset.reconvidar); if (!c) return;
-      rc.textContent = "Enviando…";
-      try { const r = await api.convidar(c); dialogoEnvio({ titulo: `Acesso de ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(r, "Link de acesso") }); }
-      catch (e) { alert(comErro(e.message)); }
-      S.eq = null; render(); return;
+      const res = await acao(rc, async () => { const r = await api.convidar(c); S.eq = null; render(); return r; }, { espera: "Enviando…", ok: `Acesso de ${c.nome || c.email} enviado.` });
+      if (res.ok) dialogoEnvio({ titulo: `Acesso de ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Link de acesso") });
+      return;
     }
     const cc = t.closest("[data-cancelar-convite]"); if (cc) {
       if (!confirm(`Cancelar o convite de ${cc.dataset.cancelarConvite}?`)) return;
-      try { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
+      await acao(cc, async () => { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); }, { espera: "Cancelando…", ok: "Convite cancelado." });
       return;
     }
     const et = t.closest("[data-enviar-tutorial]"); if (et) { const [tipo, email, nome, wa] = et.dataset.enviarTutorial.split("|"); enviarTutorial(tipo, nome, email, wa); return; }
     const ls = t.closest("[data-link-senha]"); if (ls) {
-      ls.textContent = "Enviando…";
-      try { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); ls.textContent = r.enviado ? "✓ Link enviado" : "✕ Não enviado"; if (!r.enviado) alert(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); }
-      catch (e) { ls.textContent = "✕ Não enviado"; alert("✕ Erro: o link não foi enviado. " + e.message); }
+      await acao(ls, async () => { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); if (!r.enviado) throw new Error(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); },
+        { espera: "Enviando…", ok: "Link para criar a senha enviado por e-mail.", erro: (e) => "o link não foi enviado. " + traduz(e.message || "") });
       return;
     }
     if (t.closest("[data-envio]")) { try { S.aoEnviar?.(); } catch { /* registro opcional */ } return; }
@@ -3356,11 +3498,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (ev.target.matches?.("[data-gf]")) { (S.gf ||= {})[ev.target.dataset.gf] = ev.target.value; render(); return; }
     if (ev.target.matches?.("[data-sem]")) {
       const alvo = ev.target.dataset.sem, dias = [...document.querySelectorAll(`[data-sem="${alvo}"]:checked`)].map((x) => Number(x.value)), err = $("#semErr");
-      diz(err, "Salvando…");
-      try {
-        await api.salvarSemanal(alvo, dias); S.sem = await api.semanal().catch(() => S.sem); render();
-        diz($("#semErr"), dias.length ? `✓ Toda semana: ${dias.sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((n) => NOME_SEM[n]).join(", ")}. Já aparece para a Isa.` : "✓ Sem dias fixos. Valem só os dias marcados no calendário.");
-      } catch (x) { ev.target.checked = !ev.target.checked; diz(err, traduz(x.message || "")); }
+      const caixa = ev.target, marcada = caixa.checked;
+      const r = await acao(caixa, async () => { await api.salvarSemanal(alvo, dias); S.sem = await api.semanal().catch(() => S.sem); render(); },
+        { st: err, ok: dias.length ? `Toda semana: ${[...dias].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((n) => NOME_SEM[n]).join(", ")}. Já aparece para a Isa.` : "Sem dias fixos. Valem só os dias marcados no calendário." });
+      if (!r.ok && caixa.isConnected) caixa.checked = !marcada;
       return;
     }
     if (ev.target.id === "dpDia" || ev.target.matches?.("[data-dp-exc]")) { S.dpPre = lerFormDp(); if (ev.target.matches("[data-dp-exc]")) S.dpExc = ev.target.checked; render(); return; }
@@ -3400,41 +3541,47 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (t.dataset?.enviarArquivo && t.files?.[0]) {
       const ev = t.dataset.enviarArquivo, msg = $(`#arqErr-${CSS.escape(ev)}`);
-      if (msg) diz(msg, "Enviando…");
-      try { await api.enviarArquivo(ev, t.files[0]); S.conta.arqs = await api.meusArquivos();
+      if (msg) diz(msg, "Enviando…"); else avisoGeral("Enviando…");
+      t.disabled = true;
+      try { await api.enviarArquivo(ev, t.files[0]); t.disabled = false; S.conta.arqs = await api.meusArquivos();
         // Contrato assinado enviado: o passo "contrato" da data fica feito sozinho.
         const ctId = ev.startsWith("contrato_") && ev.slice(9), ct = ctId && meusContratos().find((x) => x.id === ctId);
-        if (ct?.evento_id) { try { await api.marcar(ct.evento_id, "contrato", true); S.conta.chk = await lerChecklist(); } catch { /* o arquivo já foi; o passo aparece feito pelo arquivo */ } } TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
-      catch (e) { if (msg) diz(msg, e.message); t.value = ""; }
+        if (ct?.evento_id) { try { await api.marcar(ct.evento_id, "contrato", true); S.conta.chk = await lerChecklist(); } catch { /* o arquivo já foi; o passo aparece feito pelo arquivo */ } } TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); else avisoGeral("✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
+      catch (e) { t.disabled = false; const m = (msg?.isConnected && msg) || $(`#arqErr-${CSS.escape(ev)}`); const tx = traduz(e.message || "") + " O arquivo não foi enviado: escolha de novo."; if (m) diz(m, tx); else avisoGeral(tx); t.value = ""; }
       return;
     }
     if (t.dataset?.campFeito) {
-      try { await api.marcarCampanha(t.dataset.campFeito, t.checked); TQDiario.registrar("campanha_feito", { item: t.dataset.campFeito, feito: t.checked }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); }
-      catch (e) { alert(comErro(traduz(e.message || ""))); t.checked = !t.checked; }
+      const feito = t.checked;
+      const r = await acao(t, async () => { await api.marcarCampanha(t.dataset.campFeito, feito); TQDiario.registrar("campanha_feito", { item: t.dataset.campFeito, feito }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); },
+        { ok: feito ? "Marcado como feito." : "Desmarcado." });
+      if (!r.ok && t.isConnected) t.checked = !feito;
       return;
     }
     const ps = t.dataset?.passo; if (ps) {
-      const [eventoId, item] = ps.split("|");
-      try { if (!t.checked && S.conta.perfil.tipo === "casa") await api.desmarcarCasa(eventoId, item); else await api.marcar(eventoId, item, t.checked); S.conta.chk = await lerChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); }
-      catch (e) { alert(comErro(e.message)); t.checked = !t.checked; }
+      const [eventoId, item] = ps.split("|"), feito = t.checked;
+      const r = await acao(t, async () => { if (!feito && S.conta.perfil.tipo === "casa") await api.desmarcarCasa(eventoId, item); else await api.marcar(eventoId, item, feito); S.conta.chk = await lerChecklist(); const aberto = t.closest("details")?.open; render(); if (aberto) document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-passo^="${eventoId}|"]`)) d.open = true; }); },
+        { ok: feito ? "Passo marcado como feito." : "Passo desmarcado." });
+      if (!r.ok && t.isConnected) t.checked = !feito;
       return;
     }
     if (t.dataset?.areaConta) {
-      const pid = t.dataset.areaConta, areas = [...document.querySelectorAll(`[data-area-conta="${pid}"]:checked`)].map((x) => x.value);
-      try { await api.definirAreas(pid, areas); const p = (S.eq?.perfis || []).find((x) => x.id === pid); if (p) p.areas = areas.length ? areas : null; diz(t.closest("td")?.querySelector(".err"), `✓ ${areas.length ? nomesAreas(areas) : "sem área: vê tudo da equipe"}`); }
-      catch (e) { alert(comErro(e.message)); t.checked = !t.checked; }
+      const pid = t.dataset.areaConta, areas = [...document.querySelectorAll(`[data-area-conta="${pid}"]:checked`)].map((x) => x.value), feito = t.checked;
+      const r = await acao(t, async () => { await api.definirAreas(pid, areas); const p = (S.eq?.perfis || []).find((x) => x.id === pid); if (p) p.areas = areas.length ? areas : null; },
+        { st: t.closest("td")?.querySelector(".err"), ok: areas.length ? nomesAreas(areas) : "sem área: vê tudo da equipe" });
+      if (!r.ok && t.isConnected) t.checked = !feito;
       return;
     }
     if (t.dataset?.tipo) {
       // Mudar perfil muda o que a pessoa vê (e pode dar acesso de equipe): só com confirmação.
       const nome = t.closest("tr")?.querySelector("b")?.textContent || "esta conta";
       if (!confirm(`Mudar o perfil de ${nome} de ${ROTULO[t.dataset.antes] || t.dataset.antes} para ${ROTULO[t.value]}? O vínculo com o histórico atual é desfeito.`)) { t.value = t.dataset.antes; return; }
-      try { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value, codigo_acesso: null, vinculo_nome: null }); S.eq = null; render(); document.querySelector(`[data-tipo="${t.dataset.tipo}"]`)?.focus(); } catch (e) { alert(comErro(e.message)); t.value = t.dataset.antes; }
+      const r = await acao(t, async () => { await api.atualizarPerfil(t.dataset.tipo, { tipo: t.value, codigo_acesso: null, vinculo_nome: null }); S.eq = null; render(); }, { ok: `Perfil de ${nome} mudou para ${ROTULO[t.value]}.` });
+      if (r.ok) document.querySelector(`[data-tipo="${t.dataset.tipo}"]`)?.focus(); else if (t.isConnected) t.value = t.dataset.antes;
       return;
     }
     if (t.dataset?.vinculo && !t.closest("dialog")) {
       const [codigo, nome] = t.value ? t.value.split("|") : [null, null];
-      try { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); } catch (e) { alert(comErro(e.message)); }
+      await acao(t, async () => { await api.atualizarPerfil(t.dataset.vinculo, { codigo_acesso: codigo, vinculo_nome: nome }); S.eq = null; render(); }, { ok: nome ? `Conta ligada a ${nome}.` : "Vínculo removido." });
       return;
     }
     if (t.id === "histFiltro") { S.histFiltro = t.value; render(); return; }
@@ -3469,21 +3616,21 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       p = api.salvarInscricao(d, false).then((i) => { S.conta.insc = i; });
     }
     msg("Salvando…");
-    return p.then(() => msg(`✓ Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não salvou automaticamente. ${e.message} Clique em "Salvar rascunho" para tentar de novo.`));
+    return p.then(() => msg(`✓ Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não salvou automaticamente: ${traduz(e.message || "")} Toque em "Salvar rascunho" para tentar de novo.`));
   }
 
   // ---------- público: "me avise de shows na minha cidade" ----------
   async function avisarCidade() {
     const err = $("#averr"), sel = $("#avCidade").value, cidade = (sel === "__outra" ? $("#avOutra").value : sel).trim(), contato = $("#avContato").value.trim();
-    if (cidade.length < 2) { diz(err, "Escolha ou escreva a sua cidade."); return; }
+    if (cidade.length < 2) { marcar(sel === "__outra" ? $("#avOutra") : $("#avCidade")); diz(err, "Escolha ou escreva a sua cidade."); return; }
     const email = /@/.test(contato), digitos = contato.replace(/\D/g, "");
-    if (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contato) : digitos.length < 10) { diz(err, "Escreva um e-mail ou um WhatsApp com DDD."); return; }
-    if (!$("#avOk2").checked) { diz(err, "Marque a autorização para podermos avisar você."); return; }
+    if (email ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contato) : digitos.length < 10) { marcar($("#avContato")); diz(err, "Escreva um e-mail ou um WhatsApp com DDD."); return; }
+    if (!$("#avOk2").checked) { marcar($("#avOk2")); diz(err, "Marque a autorização para podermos avisar você."); return; }
     diz(err, "Enviando…");
     try {
       await api.avisar({ cidade, contato: email ? contato.toLowerCase() : digitos, canal: email ? "email" : "whatsapp" });
       $("#avForm").innerHTML = `<div class="alert good"><b>Pronto! Vamos te avisar.</b>Quando abrir show em ${esc(cidade)}, você fica sabendo antes.${REAL ? "" : " (Modo demonstração: o pedido ficou só neste navegador.)"}</div>`;
-    } catch (e) { diz(err, e.message); }
+    } catch (e) { diz(err, traduz(e.message || "")); }
   }
   function formAviso(cidades, sel = "") {
     return `<div id="avForm"><div class="fgrid">
