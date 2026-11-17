@@ -24,12 +24,12 @@ const PROTEGIDOS = ['casa.teste@tranquilo.com.br', 'artista.teste@tranquilo.com.
 if (MODO === 'listar') {
   const pem = Buffer.from(process.env.CHAVE_PUBLICA || '', 'base64').toString('utf8');
   if (!/BEGIN PUBLIC KEY/.test(pem)) { console.error('::error::CHAVE_PUBLICA ausente.'); process.exit(1); }
-  const linhas = await sql(`select p.id, u.email, p.nome, p.tipo, p.vinculo_nome, u.created_at::date criado, to_char(u.last_sign_in_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultimo, (select count(*) from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours') acoes_6h, (select json_agg(x) from (select to_char(d.criado_em at time zone 'America/Sao_Paulo', 'HH24:MI') h, d.acao, d.tela from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours' order by d.criado_em desc limit 12) x) recentes,
+  const linhas = await sql(`select p.id, u.email, p.nome, p.tipo, p.vinculo_nome, u.created_at::date criado, to_char(u.last_sign_in_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultimo, (select count(*) from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours') acoes_6h, (select json_agg(x) from (select to_char(d.criado_em at time zone 'America/Sao_Paulo', 'HH24:MI') h, d.acao, d.tela from diario d where d.user_id = p.id and d.criado_em > now() - interval '6 hours' order by d.criado_em desc limit 6) x) recentes,
     (select count(*) from inscricoes_artistas where user_id = p.id) insc, (select count(*) from cadastros_casas where user_id = p.id) ficha,
     (select count(*) from contratos where user_id = p.id) contratos, (select count(*) from checklist where user_id = p.id) passos,
     (select count(*) from disponibilidade_artista where user_id = p.id) disp_art,
     (select count(*) from datas_portal d where d.criado_por = p.id) datas_criadas
-    from perfis p join auth.users u on u.id = p.id order by u.created_at`);
+    from perfis p join auth.users u on u.id = p.id where u.email not like '%@teste-e2e.invalid' order by u.last_sign_in_at desc nulls last`);
   const extra = await sql(`select (select count(*) from datas_portal) datas, (select count(*) from disponibilidade_casa) disp_casa, (select count(*) from equipe_casa) equipe_casa,
     (select count(*) from trilhas) trilhas, (select count(*) from convites) convites, (select count(*) from modelos_contrato) modelos, (select json_agg(casa_nome) from datas_portal) datas_casas,
     (select json_agg(distinct casa_ref) from disponibilidade_casa) disp_casas, (select json_agg(distinct casa_ref) from equipe_casa) eq_casas`);
