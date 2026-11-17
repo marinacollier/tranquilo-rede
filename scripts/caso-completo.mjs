@@ -185,6 +185,8 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     await sql(`insert into checklist (user_id, evento_id, item, feito, atualizado_em) values ${linhas.join(', ')} on conflict do nothing;`);
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
+  // Nome da conta de administração da Marina (pedido dela, 17/11/2026).
+  if (MODO === 'arrumar') { const r = await sql(`update perfis set nome = 'Marina Collier' where tipo = 'adm' and lower(nome) = 'marina teste artista' returning id`); ok(r.length === 1, `nome da administração atualizado (${r.length})`); }
   // Arrumação pedida pela Marina: sai o modelo de contrato de teste dela; contratos pendentes ganham os dados da Ficha/inscrição.
   if (MODO === 'criar' || MODO === 'arrumar') {
     const r = await sql(`do $$ begin
@@ -197,7 +199,7 @@ delete from modelos_contrato where nome ilike 'Artista teste%' returning id;`);
     global.window = {}; if (!global.TQC) eval((await readFile(new URL('../src/contrato.js', import.meta.url), 'utf8')) + ';global.TQC = TQContrato;');
     const pend = await sql(`select c.id, c.campos, c.dados, p.tipo, p.email, i.dados ins, k.dados ficha, k.combinados
       from contratos c join perfis p on p.id = c.user_id left join inscricoes_artistas i on i.user_id = c.user_id left join cadastros_casas k on k.user_id = c.user_id
-      where c.status = 'enviado'`);
+      where c.status = 'enviado' and (c.titulo ilike '%teste%' or p.email like '%teste%')`);  // só contratos de teste: nada real é mexido
     let n = 0;
     for (const c of pend) {
       const tipo = c.tipo === 'casa' ? 'casa' : 'artista', campos = c.campos || [];

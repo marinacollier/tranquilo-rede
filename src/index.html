@@ -1268,24 +1268,23 @@ function fichaPor(tipo, nome) {
 const GRUPOS = [
   ["Sua casa", ["datas_casa", "ficha"]],
   ["Sua área", ["art_datas", "art_cad"]],
-  ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_materiais"]],
+  ["Seu trabalho", ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas"]],
   ["Agora", ["hoje", "feito", "geral", "inicio", "painel", "datas_portal", "lado_a_lado", "minha_funcao", "passos", "contratos_meus", "disp_artista", "trilha", "campanha", "operacao", "agenda", "minhas"]],
   ["Entrada na rede", ["curadoria", "casas_cad", "trilhas", "agenda_casas", "convites", "prontidao", "documentos", "pessoas", "historico"]],
   ["A rede", ["estrategia", "datas", "artistas", "casas", "pracas", "demanda", "campanhas", "relatos"]],
   ["Seu cadastro", ["inscricao", "cadastro_casa", "equipe_casa"]],
-  ["Referência", ["materiais", "roteiro", "duvidas", "base", "metodo", "acessos"]],
+  ["Referência", ["materiais", "base", "metodo", "roteiro", "duvidas", "acessos"]],
   ["Conta", ["conta"]],
 ];
 // Administração e equipe sem área (pedido da Marina, 17/11/2026): menu separado por assunto, como a rede pensa.
 const GRUPOS_CENTRAL = [
-  ["Início", ["inicio", "painel", "estrategia"]],
-  ["Datas", ["datas_portal", "lado_a_lado", "agenda_casas", "datas", "operacao"]],
-  ["Artistas", ["curadoria", "artistas", "pracas"]],
-  ["Casas", ["casas_cad", "trilhas", "prontidao", "casas"]],
-  ["Contratos", ["documentos"]],
-  ["Marketing", ["campanhas", "demanda", "materiais"]],
-  ["Pessoas e acessos", ["convites", "pessoas", "relatos", "historico", "acessos"]],
-  ["Referência", ["base", "metodo", "roteiro", "duvidas"]],
+  // Menu da administração por acesso (pedido da Marina, 17/11/2026): o que todos veem, depois o bloco de cada pessoa.
+  ["Para todos", ["inicio", "painel", "agenda_casas", "convites"]],
+  ["Gui · Casas e franqueados", ["casas_cad", "trilhas", "casas", "documentos"]],
+  ["Isa · Artistas e datas", ["datas_portal", "lado_a_lado", "curadoria", "artistas", "datas", "operacao"]],
+  ["Bruno · Marketing", ["campanhas", "demanda"]],
+  ["Só administração", ["estrategia", "pessoas", "prontidao", "relatos", "historico", "acessos"]],
+  ["Referência", ["materiais", "base", "metodo", "roteiro", "duvidas"]],
   ["Conta", ["conta"]],
 ];
 const gruposAtuais = () => { const t = S.conta ? S.conta.perfil.tipo : S.pac?.perfil; return t === "adm" || (t === "equipe" && !S.conta?.perfil.areas?.length) ? GRUPOS_CENTRAL : GRUPOS; };

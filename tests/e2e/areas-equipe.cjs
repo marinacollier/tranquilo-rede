@@ -45,7 +45,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
       ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Marketing: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('hoje');
     const menu = await p.$$eval('#tabs [data-aba]', (xs) => xs.map((x) => x.dataset.aba));
-    ok(JSON.stringify(menu) === JSON.stringify(['g_hoje', 'g_campanhas', 'g_materiais', 'conta']), `menu simples: Hoje, Campanhas, Materiais e Conta (${menu.join(', ')})`);
+    ok(JSON.stringify(menu) === JSON.stringify(['g_hoje', 'g_campanhas', 'materiais', 'base', 'metodo', 'conta']), `menu simples: Hoje, Campanhas, Materiais e Conta (${menu.join(', ')})`);
     ok(/Oi/.test(await p.textContent('#app')) && /em Marketing/.test(await p.textContent('#app')), 'A fazer mostra o que é da área de Marketing');
     await ir('geral'); ok(/Próximas datas da rede/.test(await p.textContent('#app')) && /pra você se situar/.test(await p.textContent('#app')), 'Visão geral (só leitura) abre');
     await ir('feito'); ok(/Seu histórico/.test(await p.textContent('#app')), 'Feito abre');
@@ -81,7 +81,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('adm'); const ad = await abas();
     ok(['datas_portal', 'documentos', 'campanhas', 'prontidao', 'relatos', 'pessoas', 'historico'].every((k) => ad.includes(k)), 'Administração vê tudo, com Pessoas e Histórico');
     const titulos = await p.$$eval('#tabs .nav-t', (xs) => xs.map((x) => x.textContent));
-    ok(['Início', 'Datas', 'Artistas', 'Casas', 'Contratos', 'Marketing', 'Pessoas e acessos'].every((t) => titulos.includes(t)), 'menu da administração separado por assunto: ' + titulos.join(' · '));
+    ok(['Para todos', 'Gui · Casas e franqueados', 'Isa · Artistas e datas', 'Bruno · Marketing', 'Só administração', 'Referência'].every((t) => titulos.includes(t)), 'menu da administração por acesso: ' + titulos.join(' · '));
     // Conta: mudar a senha (com Cancelar) e salvar.
     await ir('conta'); await p.click('[data-mudar-senha]'); await p.waitForTimeout(300);
     ok(await p.isVisible('#nsdepois') && /Cancelar/.test(await p.textContent('#nsdepois')), 'Conta: Mudar a senha abre com Cancelar');

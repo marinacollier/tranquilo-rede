@@ -59,6 +59,8 @@ export async function baseDoRetrato() {
 // ---------- API do Notion ----------
 const NOTION_VERSAO = '2025-09-03';
 async function notion(token, metodo, rota, corpo) {
+  // O portal só LÊ o Notion: qualquer escrita é recusada aqui (casos reais nunca são alterados).
+  if (!(metodo === 'GET' || (metodo === 'POST' && /^data_sources\/[^/]+\/query$/.test(rota)))) throw new Error(`Notion: escrita bloqueada (${metodo} ${rota}). O portal só lê o Notion.`);
   for (let tentativa = 1; ; tentativa++) {
     const r = await fetch(`https://api.notion.com/v1/${rota}`, {
       method: metodo,
