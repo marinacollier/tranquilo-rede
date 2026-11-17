@@ -34,12 +34,19 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(/Escolha a função/.test(await p.textContent('#eqcErr')), 'sem função escolhida, o site explica e não salva');
     ok(await p.$$eval('[data-eqc-funcao]', (xs) => xs.every((x) => x.type === 'radio')), 'uma função por pessoa (Guia v1.5): a escolha é única');
     await p.check('[data-eqc-funcao="porta"]');
+    await p.fill('#eqcWa', '123'); await p.click('#eqcOk');
+    ok(/WhatsApp: número com DDD/.test(await p.textContent('#eqcErr')) && await p.$eval('#eqcWa', (e) => e.classList.contains('campo-falta')), 'WhatsApp incompleto é barrado e o campo fica em vermelho');
+    await p.fill('#eqcWa', '');
     await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]');
+    ok(/✓ Feito: Ana entrou na equipe/.test(await p.textContent('#eqcErr')), 'salvar a pessoa termina com "✓ Feito"');
     const txt = await p.textContent('#app');
     ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Falta Líder Local/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
     await p.click('[data-eqc-convidar]'); await p.waitForTimeout(400);
     const cv = (await db()).conv['ana@casa.com'];
     ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta', '"Dar acesso" cria o convite ligado à casa, com a função');
+    ok(await p.isVisible('#dlg[open]') && /Acesso de Ana/.test(await p.textContent('#dlg')) && /Oi, Ana!/.test(await p.inputValue('#envTxt')), '"Dar acesso" abre a mensagem pronta para WhatsApp ou e-mail (sem alert)');
+    await p.click('#dlg button:has-text("Fechar")');
+    ok(/✓ Feito: Acesso de Ana criado/.test(await p.textContent('#app')), '"Dar acesso" termina com status ✓ Feito na tela');
     // 2. A pessoa da equipe entra só com a função dela.
     await sair(); await criar('casa', 'Ana', 'ana@casa.com');
     await p.waitForSelector('.tour-caixa', { timeout: 8000 });
@@ -67,6 +74,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(!/Combinado: piloto/.test(await p.textContent('#app')), 'a casa não vê a nota de passagem');
     await p.click('[data-trilha-casa="leitura"]'); await p.waitForTimeout(400);
     ok(!!(await db()).tri['Casa Teste'].marcos.leitura && !(await p.$('[data-trilha-casa="nota"]')), 'a casa confirma a leitura do Guia e não marca etapa da Central');
+    ok(/✓ Feito: Etapa marcada como feita/.test(await p.textContent('#app')), 'marcar a etapa mostra "✓ Feito" ao lado');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

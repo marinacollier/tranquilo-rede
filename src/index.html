@@ -285,6 +285,8 @@ option{background:var(--raised);color:var(--ink)}
 .fgrid .fcheck,.fgrid .fcampo:has(.fcidades){grid-column:1/-1}
 .barra-acoes{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
 .err{color:var(--red);font-size:14px;min-height:20px;margin:8px 0}
+.err[data-st]:empty{min-height:0;margin:0}.aviso-geral{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:60;max-width:min(560px,calc(100vw - 32px));margin:0;padding:10px 14px;border:1px solid var(--line-2);border-radius:12px;background:var(--raised);box-shadow:0 6px 24px rgba(0,0,0,.35)}.aviso-geral:empty{display:none}
+button[aria-busy="true"]{cursor:progress;opacity:.7}
 .dp-zona{position:relative;display:flex;flex-direction:column;align-items:center;gap:4px;padding:28px 16px;border:2px dashed var(--line-2,#3f3f46);border-radius:16px;cursor:pointer;text-align:center}.dp-zona:hover,.dp-zona.sobre{border-color:var(--accent,#7c8ff3);background:rgba(124,143,243,.08)}.err.feito{color:var(--green)}.err.espera{color:var(--ink-3)}.err.atencao{color:var(--sun)}
 .login{max-width:440px}
 .login input:not([type=checkbox]):not([type=radio]){width:100%;font-size:16px;padding:12px 14px}
@@ -1462,7 +1464,7 @@ $("#relatar").onclick = () => {
   dlg.setAttribute("aria-labelledby", "relTit"); dlg.showModal(); $("#relTxt").focus();
   $("#relOk").onclick = async () => {
     const txt = $("#relTxt").value.trim();
-    if (txt.length < 5) { TQDiz($("#relErr"), "Escreva um pouquinho mais sobre o que aconteceu."); $("#relTxt").focus(); return; }
+    if (txt.length < 5) { const c = $("#relTxt"); c.classList.add("campo-falta"); c.addEventListener("input", () => c.classList.remove("campo-falta"), { once: true }); TQDiz($("#relErr"), "Não enviou: escreva um pouquinho mais sobre o que aconteceu (pelo menos 5 caracteres)."); c.focus(); return; }
     $("#relOk").disabled = true; TQDiz($("#relErr"), "Enviando…");
     const foi = await TQDiario.relatar(txt, $("#relCont")?.value || "");
     $("#dlgIn").innerHTML = `<h2 style="margin-top:0">${foi ? "Recebido, obrigado!" : "Não deu para enviar daqui"}</h2><p class="sub">${foi ? "A equipe vai olhar com a tela e os erros que vieram junto." : "Mande pelo WhatsApp da equipe, com um print da tela."}</p><div class="barra-acoes"><button class="btn pri" onclick="dlg.close()">Fechar</button></div>`;

@@ -57,6 +57,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.fill('#cfCasa', 'Rooftap'); await p.fill('#cfSlug', 'rooftap-nov26'); await p.dispatchEvent('#cfSlug', 'input'); await p.waitForTimeout(100);
     ok(/9 dias e 24 ações/.test(await p.innerText('#app')), 'página HTML: prévia da versão nova (9 dias, 24 ações)');
     await p.check('#cfCie'); await p.click('[data-camp-importar]'); await p.waitForTimeout(600);
+    ok(/✓ Feito: Campanha de Rooftap carregada: 9 dias/.test(await p.textContent('#camperr')), 'carregar a campanha termina com "✓ Feito" na tela (sem alert)');
     const and = await p.innerText('table[data-tbl="andcamp"]');
     ok(/Rooftap[\s\S]*1\/9/.test(and), `reimportar: dia retirado sai e o feito continua (${and.replace(/\s+/g, ' ').slice(0, 140)})`);
     await abrirAba('materiais'); await p.waitForTimeout(500);
