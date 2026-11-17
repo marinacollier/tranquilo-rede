@@ -2678,3 +2678,92 @@ drop trigger if exists trg_disp_sem on disponibilidade_semanal;
 create trigger trg_disp_sem before insert or update on disponibilidade_semanal for each row execute function disp_semanal_carimbo();
 drop trigger if exists trg_auditoria on disponibilidade_semanal;
 create trigger trg_auditoria after insert or update or delete on disponibilidade_semanal for each row execute function registrar_auditoria();
+
+-- =====================================================================
+-- v28: a equipe confere o contrato assinado que a pessoa enviou (pedido da Marina, 17/11/2026). Idempotente.
+-- O Tranquilo manda o contrato já assinado; a artista ou a casa completa os dados, baixa o PDF, assina fora do portal
+-- e envia o arquivo (armazenamento "materiais", pasta <conta>/contrato_<id>/). A equipe abre o arquivo e:
+--   · "Conferir e confirmar": guarda quem conferiu e quando; o contrato fica "Assinado e conferido" e não muda mais;
+--   · "Pedir de novo": guarda o motivo; a pessoa vê o pedido na tela do contrato e envia outro arquivo.
+-- Quem confere: contrato de casa → área Operações (Gui); de artista → área Agenda (Isa); administração sempre.
+-- Equipe sem área marcada continua vendo e fazendo tudo de contrato (como na tela). A auditoria (v17) já registra a mudança.
+-- =====================================================================
+alter table contratos add column if not exists conferido_em timestamptz;
+alter table contratos add column if not exists conferido_por uuid;
+alter table contratos add column if not exists devolvido_em timestamptz;
+alter table contratos add column if not exists devolvido_por uuid;
+alter table contratos add column if not exists devolvido_motivo text;
+do $$ begin
+  alter table contratos add constraint contratos_devolvido_motivo check (devolvido_motivo is null or length(devolvido_motivo) <= 500);
+exception when duplicate_object then null; end $$;
+-- A equipe cria o contrato sem conferência nem pedido de novo (esses campos só mudam por conferir_contrato).
+drop policy if exists contratos_criar on contratos;
+create policy contratos_criar on contratos for insert with check (eh_equipe() and criado_por = auth.uid() and status = 'enviado'
+  and assinado_em is null and texto_final is null and lido_fim_em is null and dados = '{}'::jsonb
+  and conferido_em is null and conferido_por is null and devolvido_em is null and devolvido_por is null and devolvido_motivo is null);
+-- Depois de conferido, nada muda (como o assinado no portal), nem é apagado.
+create or replace function contrato_travado() returns trigger language plpgsql as $$
+begin
+  if old.status = 'assinado' then raise exception 'Contrato assinado não pode ser alterado.'; end if;
+  if old.status = 'cancelado' then raise exception 'Contrato cancelado não pode ser alterado.'; end if;
+  if old.conferido_em is not null then raise exception 'Contrato já conferido pela equipe não pode ser alterado.'; end if;
+  if tg_op = 'DELETE' then return old; end if;
+  if new.user_id <> old.user_id or new.texto <> old.texto or new.campos <> old.campos or new.criado_por is distinct from old.criado_por then
+    raise exception 'O texto e a pessoa do contrato não mudam depois de enviado. Cancele e gere outro.';
+  end if;
+  return new;
+end $$;
+drop trigger if exists trg_contrato_apagar on contratos;
+create trigger trg_contrato_apagar before delete on contratos for each row when (old.status = 'assinado' or old.conferido_em is not null) execute function contrato_travado();
+-- Os dados da pessoa não mudam depois de conferido.
+create or replace function contrato_salvar_dados(cid uuid, d jsonb) returns void language plpgsql security definer set search_path = public as $$
+declare k record; c contratos;
+begin
+  select * into c from contratos where id = cid and user_id = auth.uid() and status = 'enviado' and conferido_em is null;
+  if not found then raise exception 'Contrato não encontrado, já assinado ou já conferido pela equipe.'; end if;
+  if jsonb_typeof(d) <> 'object' then raise exception 'Dados inválidos.'; end if;
+  for k in select * from jsonb_each(d) loop
+    if not exists (select 1 from jsonb_array_elements(c.campos) x where x->>'chave' = k.key) then raise exception 'Campo % não existe neste contrato.', k.key; end if;
+    if jsonb_typeof(k.value) <> 'string' or length(k.value #>> '{}') > 300 or (k.value #>> '{}') ~ '[{}]{2}' then raise exception 'Valor inválido em %.', k.key; end if;
+  end loop;
+  update contratos set dados = d, lido_fim_em = null where id = cid;   -- mudou o texto: precisa ler de novo até o fim
+end $$;
+-- aceitar = true: confere e confirma. aceitar = false: pede o arquivo de novo, com o motivo (a pessoa vê).
+create or replace function conferir_contrato(cid uuid, aceitar boolean, motivo text default null) returns contratos
+language plpgsql security definer set search_path = public as $$
+declare c contratos; dono text; area text; ultimo timestamptz; prefixo text;
+begin
+  if not eh_equipe() then raise exception 'Só a equipe do Tranquilo confere contratos.' using errcode = '42501'; end if;
+  select * into c from contratos where id = cid for update;
+  if not found then raise exception 'Contrato não encontrado.'; end if;
+  select tipo into dono from perfis where id = c.user_id;
+  area := case when dono = 'casa' then 'operacoes' else 'agenda' end;
+  if not exists (select 1 from perfis p where p.id = auth.uid() and (p.tipo = 'adm' or (p.tipo = 'equipe'
+      and (coalesce(cardinality(p.areas), 0) = 0 or area = any(p.areas))))) then
+    raise exception 'Este contrato é conferido pela área de % (ou pela administração).', case area when 'operacoes' then 'Operações' else 'Agenda' end using errcode = '42501';
+  end if;
+  if c.status = 'cancelado' then raise exception 'Contrato cancelado: não há o que conferir.'; end if;
+  if c.status = 'assinado' then raise exception 'Este contrato foi assinado dentro do portal: não precisa conferir.'; end if;
+  if c.conferido_em is not null then raise exception 'Este contrato já foi conferido.'; end if;
+  -- Arquivo assinado enviado pela pessoa (com o armazenamento do Supabase; no banco de teste sem ele, a checagem fica de fora).
+  if to_regclass('storage.objects') is not null then
+    prefixo := c.user_id::text || '/contrato_' || c.id::text || '/';
+    execute 'select max(created_at) from storage.objects where bucket_id = ''materiais'' and left(name, length($1)) = $1' into ultimo using prefixo;
+    if ultimo is null then raise exception 'O arquivo assinado ainda não chegou: não há o que conferir.'; end if;
+    if c.devolvido_em is not null and ultimo <= c.devolvido_em then raise exception 'O arquivo novo ainda não chegou: a pessoa precisa enviar de novo antes.'; end if;
+  end if;
+  if aceitar then
+    update contratos set conferido_em = now(), conferido_por = auth.uid(), devolvido_em = null, devolvido_por = null, devolvido_motivo = null
+      where id = cid returning * into c;
+  else
+    motivo := btrim(regexp_replace(coalesce(motivo, ''), '\s+', ' ', 'g'));
+    if length(motivo) < 5 then raise exception 'Escreva o motivo: a pessoa vai ler o que precisa corrigir.'; end if;
+    update contratos set devolvido_em = now(), devolvido_por = auth.uid(), devolvido_motivo = left(motivo, 500)
+      where id = cid returning * into c;
+    -- O passo "contrato" da data volta a ficar pendente até chegar o arquivo novo.
+    if c.evento_id is not null then delete from checklist where user_id = c.user_id and evento_id = c.evento_id and item = 'contrato'; end if;
+  end if;
+  return c;
+end $$;
+revoke all on function conferir_contrato(uuid, boolean, text) from public, anon;
+grant execute on function conferir_contrato(uuid, boolean, text) to authenticated;

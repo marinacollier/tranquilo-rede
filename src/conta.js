@@ -190,9 +190,9 @@ const TQConta = (() => {
       async salvarModeloContrato(m) { exigeEquipe(); if (m.id) Object.assign(db.modContr.find((x) => x.id === m.id), m); else db.modContr.unshift({ ...m, id: id(), ativo: true, criado_em: agora() }); gravar(); },
       async contratos() { const p = eu(); return db.contr.filter((c) => ["equipe", "adm"].includes(p?.tipo) || c.user_id === db.sessao); },
       async criarContrato(c) { exigeEquipe(); const n = { ...c, id: id(), status: "enviado", dados: {}, lido_fim_em: null, criado_por: db.sessao, criado_em: agora() }; db.contr.unshift(n); gravar(); return n; },
-      async cancelarContrato(cid) { exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (c?.status === "enviado") { c.status = "cancelado"; gravar(); } },
+      async cancelarContrato(cid) { exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (c?.conferido_em) throw new Error("Contrato já conferido pela equipe não pode ser alterado."); if (c?.status === "enviado") { c.status = "cancelado"; gravar(); } },
       async contratoSalvarDados(cid, d) {
-        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado"); if (!c) throw new Error("Contrato não encontrado ou já assinado.");
+        const c = db.contr.find((x) => x.id === cid && x.user_id === db.sessao && x.status === "enviado" && !x.conferido_em); if (!c) throw new Error("Contrato não encontrado, já assinado ou já conferido pela equipe.");
         for (const [k, v] of Object.entries(d)) { if (!c.campos.some((x) => x.chave === k)) throw new Error(`Campo ${k} não existe neste contrato.`); if (typeof v !== "string" || v.length > 300 || /[{}]{2}/.test(v)) throw new Error(`Valor inválido em ${k}.`); }
         c.dados = d; c.lido_fim_em = null; gravar();
       },
@@ -293,10 +293,34 @@ const TQConta = (() => {
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
-      async meusArquivos() { return {}; },
-      async enviarArquivo() { throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração)."); },
+      // Arquivos: no modo demonstração só o contrato assinado "chega" (fica o nome, não o conteúdo), para testar a conferência.
+      async meusArquivos() { const out = {}; for (const f of (db.arqs || []).filter((x) => x.user_id === db.sessao)) (out[f.evento_id] ||= []).unshift(f); return out; },
+      async enviarArquivo(eventoId, arquivo) {
+        if (!/^contrato_/.test(eventoId)) throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração).");
+        const nome = `${Date.now()}-${String(arquivo?.name || "contrato.pdf").replace(/[^\w.-]+/g, "_").slice(-80)}`;
+        (db.arqs ||= []).push({ user_id: db.sessao, evento_id: eventoId, nome, caminho: `${db.sessao}/${eventoId}/${nome}`, em: agora() }); gravar();
+      },
       async linkArquivo() { return null; },
-      async arquivosTodos() { return []; },
+      async arquivosTodos() { exigeEquipe(); return [...(db.arqs || [])].sort((a, b) => b.em.localeCompare(a.em)); },
+      // Conferir o contrato assinado enviado (mesmas regras do banco, schema v28).
+      async conferirContrato(cid, aceitar, motivo) {
+        exigeEquipe(); const c = db.contr.find((x) => x.id === cid); if (!c) throw new Error("Contrato não encontrado.");
+        const p = eu(), area = db.usuarios[c.user_id]?.perfil.tipo === "casa" ? "operacoes" : "agenda";
+        if (p.tipo !== "adm" && p.areas?.length && !p.areas.includes(area)) throw new Error(`Este contrato é conferido pela área de ${area === "operacoes" ? "Operações" : "Agenda"} (ou pela administração).`);
+        if (c.status === "cancelado") throw new Error("Contrato cancelado: não há o que conferir.");
+        if (c.status === "assinado") throw new Error("Este contrato foi assinado dentro do portal: não precisa conferir.");
+        if (c.conferido_em) throw new Error("Este contrato já foi conferido.");
+        const ultimo = (db.arqs || []).filter((f) => f.user_id === c.user_id && f.evento_id === "contrato_" + c.id).map((f) => f.em).sort().pop();
+        if (!ultimo) throw new Error("O arquivo assinado ainda não chegou: não há o que conferir.");
+        if (c.devolvido_em && ultimo <= c.devolvido_em) throw new Error("O arquivo novo ainda não chegou: a pessoa precisa enviar de novo antes.");
+        if (aceitar) Object.assign(c, { conferido_em: agora(), conferido_por: db.sessao, devolvido_em: null, devolvido_por: null, devolvido_motivo: null });
+        else {
+          motivo = String(motivo || "").replace(/\s+/g, " ").trim(); if (motivo.length < 5) throw new Error("Escreva o motivo: a pessoa vai ler o que precisa corrigir.");
+          Object.assign(c, { devolvido_em: agora(), devolvido_por: db.sessao, devolvido_motivo: motivo.slice(0, 500) });
+          if (c.evento_id) db.chk = db.chk.filter((x) => !(x.user_id === c.user_id && x.evento_id === c.evento_id && x.item === "contrato"));
+        }
+        gravar(); return { ...c };
+      },
     };
   }
 
@@ -479,6 +503,12 @@ const TQConta = (() => {
       async contratoSalvarDados(cid, d) { ok(await sb.rpc("contrato_salvar_dados", { cid, d })); },
       async contratoLido(cid) { ok(await sb.rpc("contrato_li_ate_o_fim", { cid })); },
       async assinarContrato(cid, nome, h) { return ok(await sb.rpc("assinar_contrato", { cid, nome, h })); },
+      // Equipe confere o arquivo assinado enviado: aceitar (conferido) ou pedir de novo com o motivo (schema v28).
+      async conferirContrato(cid, aceitar, motivo) {
+        const r = await sb.rpc("conferir_contrato", { cid, aceitar, motivo: motivo || null });
+        if (r.error && /PGRST202|Could not find the function/i.test(`${r.error.code} ${r.error.message}`)) throw new Error("A conferência de contratos ainda não está ligada no banco (rode o supabase/schema.sql, parte v28).");
+        return ok(r);
+      },
       async apagarDocumento(id) { ok(await sb.from("documentos").delete().eq("id", id)); },
       // Materiais enviados (rider, mapa de palco, fotos): pasta privada <conta>/<data>/ no armazenamento "materiais".
       async meusArquivos() {
@@ -1127,8 +1157,9 @@ const TQConta = (() => {
   function blocoPassos(e, modelo) {
     const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     // Contrato da data: assinado conta como feito; enviado ganha o botão no próprio passo; sem contrato, a vez é da equipe.
-    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !arqsContrato(c).length);
-    if (ctData.some((c) => c.status === "assinado" || arqsContrato(c).length)) feitos.contrato = true;
+    const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !ctRecebido(c));
+    if (ctData.some((c) => c.status === "assinado" || ctRecebido(c))) feitos.contrato = true;
+    else if (ctData.some(ctPedidoDeNovo)) feitos.contrato = false;   // a equipe pediu o arquivo de novo: o passo volta a pendente
     const fs = funcoesDe();
     const ps = R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
@@ -1194,19 +1225,26 @@ const TQConta = (() => {
         <p class="muted" style="font-size:12px;margin:4px 0 0">Mudar o modelo não muda contratos já enviados.</p>
       </details></div>
       ${semContrato.length ? `<h2>Datas dos próximos 60 dias sem contrato (${semContrato.length})</h2><p class="sub">Nenhum contrato gerado nem anexado para estas datas.</p><div class="list">${semContrato.slice(0, 30).map((e) => { const c = contaDe(e); return `<div class="row card" style="padding:10px 14px"><span><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc((e.a || []).join(", ") || e.m)}${e.h ? " · " + esc(e.h) : ""}</span>${c ? "" : ` <span class="muted" style="font-size:12px">· sem conta ligada no site</span>`}</span><button class="btn sm" data-ct-pre="${esc(e.id)}|${c ? c.id : ""}">Preparar contrato</button></div>`; }).join("")}</div>` : ""}
-      <h2>Contratos para assinar</h2>${tabela("contr", [
+      <h2>Contratos para assinar</h2><div class="err" role="status" aria-live="polite" id="ctConfMsg"></div>${tabela("contr", [
         { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
         { t: "Data", v: (c) => c.evento_id || "", h: (c) => c.evento_id ? esc(dataTxt(c.evento_id)) : "–" },
-        { t: "Situação", v: (c) => c.status + (c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
-        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}</div>` },
+        { t: "Situação", v: (c) => c.status + (c.conferido_em || c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.conferido_em ? `<div class="muted" style="font-size:12px">conferido por ${esc(nomeConta[c.conferido_por] || "equipe")} · ${new Date(c.conferido_em).toLocaleString("pt-BR")}</div>` : c.devolvido_em ? `<div class="muted" style="font-size:12px">${ctPedidoDeNovo(c) ? "aguardando o arquivo novo" : "arquivo novo depois do pedido"} · pedido por ${esc(nomeConta[c.devolvido_por] || "equipe")}: ${esc(c.devolvido_motivo || "")}</div>` : c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}${botoesConferir(c)}</div>` },
       ], lista, { i: 3, dir: 1 }, vazio("Nenhum contrato gerado ainda", "Prepare o primeiro contrato acima: ele aparece na área da artista ou da casa para assinar.", "", "documentos"))}`;
+  }
+  // Conferir o arquivo assinado recebido (banco v28): "Conferir e confirmar" ou "Pedir de novo" com o motivo (a pessoa lê).
+  function botoesConferir(c) {
+    if (c.status !== "enviado" || c.conferido_em || !arqsNovos(c).length) return "";
+    if (S.ctDevolver === c.id) return `<div style="flex-basis:100%;margin-top:6px"><label class="fcampo" style="margin:0"><b>O que a pessoa precisa corrigir?</b><textarea id="ctMotivo" rows="2" maxlength="500" placeholder="ex.: faltou a assinatura na página 2"></textarea></label>
+      <div class="barra-acoes" style="margin-top:6px"><button class="btn sm pri" data-ct-devolver-ok="${c.id}">Enviar o pedido</button><button class="btn sm" data-ct-devolver="">Desistir</button></div></div>`;
+    return `<button class="btn sm pri" data-ct-conferir="${c.id}">Conferir e confirmar</button><button class="btn sm" data-ct-devolver="${c.id}">Pedir de novo</button>`;
   }
   // Artista e casa: contratos pendentes no topo do passo a passo e a tela de leitura e assinatura.
   const meusContratos = () => (S.conta.contr || []).filter((c) => c.status !== "cancelado");
   function avisoContratos() {
-    const pend = meusContratos().filter((c) => c.status === "enviado" && !arqsContrato(c).length);
-    return pend.map((c) => `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
+    const pend = meusContratos().filter((c) => c.status === "enviado" && !ctRecebido(c));
+    return pend.map((c) => ctPedidoDeNovo(c) ? `<div class="alert crit" style="margin-bottom:12px"><b>Contrato: envie o arquivo assinado de novo · ${esc(c.titulo)}</b>A equipe do Tranquilo pediu outro arquivo. O motivo: <q>${esc(c.devolvido_motivo || "")}</q><div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>` : `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
   }
   // Dados que a pessoa já deu em outro contrato (mesma chave de campo), do mais recente para o mais antigo:
   // ela preenche uma vez e só confere nos próximos (pedido da Isa, 17/11/2026).
@@ -1217,9 +1255,16 @@ const TQConta = (() => {
   }
   // Arquivo assinado que a pessoa enviou (pasta contrato_<id> no armazenamento). Pessoa: S.conta.arqs; equipe: S.eq.arqs.
   const arqsContrato = (c) => S.eq?.arqs ? S.eq.arqs.filter((f) => f.evento_id === "contrato_" + c.id) : ((S.conta?.arqs || {})["contrato_" + c.id] || []);
-  // Situação para a tela: assinado no portal, assinado com arquivo enviado, ou o que falta.
+  // Conferência pela equipe (banco v28): depois de "Pedir de novo", só conta o arquivo enviado depois do pedido.
+  const arqsNovos = (c) => { const a = arqsContrato(c), d = c.devolvido_em && Date.parse(c.devolvido_em); return d ? a.filter((f) => f.em && Date.parse(f.em) > d) : a; };
+  const ctRecebido = (c) => !!c.conferido_em || (c.status === "enviado" && arqsNovos(c).length > 0);   // arquivo assinado recebido (ou já conferido)
+  const ctPedidoDeNovo = (c) => c.status === "enviado" && !c.conferido_em && !!c.devolvido_em && !arqsNovos(c).length;
+  const ctAssinado = (c) => c.status === "assinado" || !!c.conferido_em;   // assinado de vez: no portal ou arquivo conferido
+  // Situação para a tela: assinado no portal, conferido, arquivo recebido, pedido de novo, ou o que falta.
   function situacaoCt(c) {
-    if (c.status !== "assinado" && arqsContrato(c).length) return { rotulo: "Assinado · arquivo recebido", classe: "b-good" };
+    if (c.conferido_em) return { rotulo: "✓ Assinado e conferido", classe: "b-good" };
+    if (c.status !== "assinado" && arqsNovos(c).length) return { rotulo: "Assinado · arquivo recebido", classe: "b-good" };
+    if (ctPedidoDeNovo(c)) return { rotulo: "Arquivo pedido de novo", classe: "b-crit" };
     const si = TQContrato.situacao(c);
     return si.falta ? si : c.status === "enviado" ? { rotulo: "Aguardando assinatura", classe: "b-warn" } : si;
   }
@@ -1227,20 +1272,23 @@ const TQConta = (() => {
   // Contrato (pedido da Marina, 17/11/2026): o Tranquilo já manda assinado; a pessoa completa os dados, baixa o PDF,
   // assina (à mão ou gov.br) e envia o arquivo de volta. O envio marca o passo "contrato" da data sozinho.
   function telaContrato(c) {
-    const si = TQContrato.situacao(c), assinado = c.status === "assinado", env = arqsContrato(c);
+    const si = TQContrato.situacao(c), conferido = !!c.conferido_em, assinado = c.status === "assinado" || conferido, env = arqsNovos(c), deNovo = ctPedidoDeNovo(c);
     const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
     const completo = !si.falta, n0 = c.campos.length ? 1 : 0;
     const passo = (n, titulo, corpo, feito) => `<div class="card"><h3 style="margin-top:0">${feito ? "✓ " : `${n}. `}${titulo}</h3>${corpo}</div>`;
+    const arqTxt = (f) => `${esc(f.nome.replace(/^\d+-/, ""))}${f.em ? ` · ${dt(f.em.slice(0, 10))}` : ""}`;
     return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
-      ${assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}.<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
-        : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${esc(env[0].nome.replace(/^\d+-/, ""))}${env[0].em ? ` · ${dt(env[0].em.slice(0, 10))}` : ""}. Está tudo certo: a equipe do Tranquilo já recebeu.</div>`
+      ${conferido ? `<div class="alert good"><b>✓ Contrato assinado e conferido</b>A equipe do Tranquilo conferiu o arquivo que você enviou em ${new Date(c.conferido_em).toLocaleString("pt-BR")}. Não precisa fazer mais nada.<div class="barra-acoes" style="margin-top:10px">${arqsContrato(c)[0] ? `<a class="btn" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o arquivo enviado</a>` : ""}<button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
+        : assinado ? `<div class="alert good"><b>Contrato assinado</b>Por ${esc(c.assinado_nome)} em ${new Date(c.assinado_em).toLocaleString("pt-BR")}.<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-ct-ver="${c.id}">Baixar PDF</button></div></div>`
+        : deNovo ? `<div class="alert crit" id="ctDeNovo"><b>Envie o contrato assinado de novo</b>A equipe do Tranquilo conferiu o arquivo que você mandou e pediu outro. O motivo: <q>${esc(c.devolvido_motivo || "")}</q> Corrija, assine e envie o arquivo novo no passo ${n0 + 2} abaixo.</div>`
+        : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${arqTxt(env[0])}. Está tudo certo: a equipe do Tranquilo já recebeu e vai conferir.</div>`
         : `<p class="sub">O contrato já vai assinado pelo Tranquilo. ${c.campos.length ? "Complete os seus dados, baixe" : "Baixe"} o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>`}
       ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
         ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
         <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><div class="err" role="status" aria-live="polite" id="ctDadosMsg">${completo ? "✓ Feito: dados salvos." : ""}</div>`, completo) : ""}
       ${assinado ? "" : passo(n0 + 1, "Baixe o contrato", `<p class="muted" style="font-size:14px;margin:0 0 10px">${completo ? "O PDF já sai com os seus dados e a assinatura do Tranquilo." : "Salve os seus dados primeiro: eles entram no PDF."}</p><div class="barra-acoes"><button class="btn${completo && !env.length ? " pri" : ""}" data-ct-ver="${c.id}"${completo ? "" : " disabled"}>Baixar PDF</button></div>`)}
       ${assinado ? "" : passo(n0 + 2, "Assine e envie de volta", `<p class="muted" style="font-size:14px;margin:0 0 10px">Assine no campo indicado no PDF (à mão e escaneie ou fotografe, ou pelo gov.br) e envie o arquivo aqui. Aceita PDF ou foto.</p>
-        <label class="fcampo"><b>${env.length ? "Enviar outra versão" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
+        <label class="fcampo"><b>${env.length ? "Enviar outra versão" : deNovo ? "Arquivo assinado novo" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
         <div class="err" role="status" aria-live="polite" id="arqErr-contrato_${esc(c.id)}">${env.length ? "✓ Feito: contrato assinado recebido." : ""}</div>`, !!env.length)}
       <div class="card"><h3 style="margin-top:0">Texto do contrato</h3><div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(textoContrato(c))}</div></div>
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
@@ -1704,11 +1752,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     contratos_meus() {
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
       if (aberto) return telaContrato(aberto);
-      const L = meusContratos().sort((a, b) => (a.status === "enviado" ? 0 : 1) - (b.status === "enviado" ? 0 : 1) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
+      const pendente = (c) => c.status === "enviado" && !ctRecebido(c) ? 0 : 1;
+      const L = meusContratos().sort((a, b) => pendente(a) - pendente(b) || String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
       const casa = S.conta.perfil.tipo === "casa";
       return `<div class="tag">Contratos</div><h1>Seus contratos</h1>
       <p class="sub">Aqui ficam todos os contratos ${casa ? "da casa com o Tranquilo" : "das suas datas"}: o que falta assinar aparece primeiro. Você completa os dados, baixa o PDF (já assinado pelo Tranquilo), assina e envia o arquivo de volta.</p>
-      ${L.length ? `<div class="list">${L.map((c) => { const si = situacaoCt(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${c.status === "enviado" ? " pri" : ""}" data-ct-abrir="${c.id}">${c.status === "assinado" || arqsContrato(c).length ? "Ver" : "Abrir e assinar →"}</button></div>`; }).join("")}</div>`
+      ${L.length ? `<div class="list">${L.map((c) => { const si = situacaoCt(c); return `<div class="card row"><span><b>${esc(c.titulo)}</b><div style="margin-top:4px"><span class="badge ${si.classe}">${si.rotulo}</span>${c.assinado_em ? ` <span class="muted" style="font-size:13px">· assinado em ${dt(c.assinado_em.slice(0, 10))}</span>` : ""}</div></span><button class="btn sm${pendente(c) ? "" : " pri"}" data-ct-abrir="${c.id}">${c.status === "assinado" || ctRecebido(c) ? "Ver" : ctPedidoDeNovo(c) ? "Enviar de novo →" : "Abrir e assinar →"}</button></div>`; }).join("")}</div>`
         : vazio("Nenhum contrato por enquanto", casa ? "Quando a equipe do Tranquilo enviar o contrato da parceria, ele aparece aqui para você ler e assinar." : "Quando uma data for confirmada, a equipe do Tranquilo prepara o contrato e ele aparece aqui para você ler e assinar.", "", "contratos_meus")}`;
     },
     // Financeiro da casa: combinados registrados pela Central e situação dos dados de repasse.
@@ -1790,7 +1839,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="row" style="margin-top:22px"><h2 style="margin:0">Datas criadas no portal</h2><label class="fcheck"><input type="checkbox" data-dp-todas${S.dpVerTodas ? " checked" : ""}> <span>mostrar as passadas</span></label></div>
       ${lista.length ? `<div class="list" style="margin-top:10px">${lista.map((x) => { const e = eventoDoPortal(x), cs = contrDe(x);
         return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(x.casa_nome)}</b> <span class="badge ${x.status === "cancelada" ? "b-crit" : "b-good"}">${x.status === "cancelada" ? "cancelada" : esc(x.produto)}</span>
-          <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · contrato: ${cs.map((c) => c.status === "assinado" ? "assinado" : "para assinar").join(", ")}` : " · sem contrato"}</div></div>
+          <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · contrato: ${cs.map((c) => ctAssinado(c) ? "assinado" : "para assinar").join(", ")}` : " · sem contrato"}</div></div>
           <div class="barra-acoes" style="margin:0">${x.status === "cancelada" ? "" : `<button class="btn sm pri" data-dp-contrato="${x.id}">Preparar contrato</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button>`}</div></div></div>`; }).join("")}</div>`
         : vazio("Nenhuma data criada no portal ainda", "Crie a primeira acima: ela aparece na hora para a casa e para as artistas.", "", "datas_portal")}`;
     },
@@ -1812,7 +1861,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Quando quiser, dá pra aprovar, pedir ajustes ou não seguir por lá.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
         const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
         if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
-        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && c.status === "assinado"));
+        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && ctAssinado(c)));
         if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Quando quiser adiantar, o contrato do artista fica em Contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
         const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
         const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
@@ -1865,7 +1914,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const cidades = [...new Set(evs.map((e) => e.c).filter(Boolean))].sort();
       const lista = evs.filter((e) => !f.cidade || e.c === f.cidade).slice(0, 80);
       const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
-      const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every((c) => c.status === "assinado") ? "✓ assinado" : "aguardando"; };
+      const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every(ctAssinado) ? "✓ assinado" : "aguardando"; };
       return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Um panorama das próximas datas da rede, pra você se situar.</p>
       <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
       ${tabela("geral", [
@@ -2711,6 +2760,21 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       catch (e) { P.enviando = false; throw e; }
       TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
       S.cPrep = null; S.cPre = null; S.eq = null; render(); return true;
+    }
+    const dv = t.closest("[data-ct-devolver]"); if (dv) { S.ctDevolver = dv.dataset.ctDevolver || null; render(); $("#ctMotivo")?.focus(); return true; }
+    const cf = t.closest("[data-ct-conferir], [data-ct-devolver-ok]"); if (cf) {
+      const aceitar = !!cf.dataset.ctConferir, cid = cf.dataset.ctConferir || cf.dataset.ctDevolverOk, motivo = aceitar ? null : ($("#ctMotivo")?.value || "").trim();
+      const c = (S.eq?.contr || []).find((x) => x.id === cid), msg = $("#ctConfMsg");
+      if (!c) return true;
+      if (!aceitar && motivo.length < 5) { diz(msg, "Escreva o motivo: a pessoa vai ler o que precisa corrigir."); $("#ctMotivo")?.focus(); return true; }
+      if (aceitar && !confirm(`Confirmar que o arquivo assinado de "${c.titulo}" está certo? Depois de conferido, o contrato não muda mais.`)) return true;
+      diz(msg, "Salvando…"); cf.disabled = true;
+      try {
+        const r = await api.conferirContrato(cid, aceitar, motivo), quem = (S.eq?.perfis || []).find((x) => x.id === c.user_id); Object.assign(c, r || {}); S.ctDevolver = null;
+        TQDiario.registrar(aceitar ? "contrato_conferido" : "contrato_pedido_de_novo", { contrato: cid });
+        render(); diz($("#ctConfMsg"), aceitar ? `✓ Contrato conferido e confirmado: ${c.titulo}.` : `✓ Pedido enviado: ${quem ? nomeDaConta(quem) : "a pessoa"} vai ver o motivo na tela do contrato e enviar o arquivo de novo.`);
+      } catch (x) { cf.disabled = false; diz(msg, traduz(x.message || "")); }
+      return true;
     }
     const can = t.closest("[data-ct-cancelar]"); if (can) {
       if (!confirm("Cancelar este contrato? A pessoa deixa de ver o pedido de assinatura.")) return true;
