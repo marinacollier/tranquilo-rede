@@ -698,7 +698,36 @@ const TQConta = (() => {
     return [];
   }
   /** Área do portal da casa que contém a tela k (ou null). */
-  function areaDe(k) { if (!k || S.conta?.perfil.tipo !== "casa") return null; for (const [a] of AREAS_CASA) if (subsDaArea(a).some(([x]) => x === k)) return a; return null; }
+  function areaDe(k) {
+    if (!k) return null;
+    if (comAreas()) { for (const [g] of gruposEquipe()) if (subsDoGrupo(g).some(([x]) => x === k)) return g; return null; }
+    if (S.conta?.perfil.tipo !== "casa") return null; for (const [a] of AREAS_CASA) if (subsDaArea(a).some(([x]) => x === k)) return a; return null;
+  }
+  // Equipe com área (Gui, Isa, Bruno): menu simples como o da casa, poucos itens com o trabalho de cada um e as partes dentro.
+  const GRUPOS_EQ = {
+    g_hoje: ["Início", [["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"]]],
+    g_datas: ["Datas", [["datas_portal", "Criar datas"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
+    g_artistas: ["Artistas", [["curadoria", "Curadoria"], ["convites", "Convidar"]]],
+    g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["trilhas", "Treinamentos"], ["convites", "Convidar"]]],
+    g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
+    g_campanhas: ["Campanhas", [["campanhas", "Campanhas"]]],
+    g_materiais: ["Materiais", [["materiais", "Guias e materiais"]]],
+  };
+  const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos"], operacoes: ["g_casas", "g_contratos", "g_materiais"], marketing: ["g_campanhas", "g_materiais"] };
+  function gruposEquipe() {
+    const gs = ["g_hoje", ...new Set((S.conta?.perfil.areas || []).flatMap((a) => GRUPOS_DA_AREA[a] || []))];
+    return gs.map((g) => [g, GRUPOS_EQ[g][0]]);
+  }
+  function subsDoGrupo(g) {
+    const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
+    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => k !== "datas" || pac.includes("datas"));
+  }
+  function telaGrupo(g) {
+    const subs = subsDoGrupo(g); if (!subs.length) return "";
+    S.sub ||= {}; let k = S.sub[g]; if (!subs.some(([x]) => x === k)) k = subs[0][0]; S.sub[g] = k;
+    const nav = subs.length > 1 ? `<nav class="subnav" aria-label="Partes de ${esc(GRUPOS_EQ[g][0])}">${subs.map(([x, t]) => `<button class="${x === k ? "on" : ""}"${x === k ? ' aria-current="page"' : ""} data-sub="${g}|${x}">${esc(t)}</button>`).join("")}</nav>` : "";
+    return nav + (TELAS[k] || window.TQ_TELAS?.[k])();
+  }
   function irPara(k) { const a = areaDe(k); if (a) { (S.sub ||= {})[a] = k; S.aba = a; } else S.aba = k; }
   function telaArea(area) {
     const subs = subsDaArea(area); if (!subs.length) return "";
@@ -738,7 +767,7 @@ const TQConta = (() => {
       const POR_AREA = { agenda: ["datas_portal", "curadoria", "agenda_casas", "documentos", "convites"], operacoes: ["casas_cad", "convites", "documentos", "painel", "trilhas", "materiais"], marketing: ["campanhas", "materiais"] };
       const quer = new Set(S.conta.perfil.areas.flatMap((a) => POR_AREA[a] || []));
       const pac = doPac.filter(([k]) => k === "datas" && (quer.has("datas_portal") || quer.has("casas_cad")));
-      return [["hoje", "A fazer"], ["feito", "Feito"], ["geral", "Visão geral"], ...base.filter(([k]) => quer.has(k)), ...pac, ["conta", "Conta"]];
+      return [...gruposEquipe(), ["conta", "Conta"]];
     }
     const precisa = { datas_portal: ["agenda"], documentos: ["agenda", "operacoes"], campanhas: ["marketing"] }, soAdm = new Set(["prontidao", "relatos"]);
     const visivel = base.filter(([k]) => (!precisa[k] || precisa[k].some(temArea)) && (!soAdm.has(k) || !comAreas()));
@@ -1375,6 +1404,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
 
   const TELAS = {
+    ...Object.fromEntries(Object.keys(GRUPOS_EQ).map((g) => [g, () => telaGrupo(g)])),
     ficha: () => telaArea("ficha"), operacoes: () => telaArea("operacoes"), datas_casa: () => telaArea("datas_casa"), marketing: () => telaArea("marketing"), cronogramas: () => telaArea("cronogramas"), bonificacoes: () => telaArea("bonificacoes"),
     passos() {
       const p = S.conta.perfil;
@@ -1676,43 +1706,43 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
       const nome = String(S.conta.perfil.nome || "").split(" ")[0];
       const cards = [];
-      const card = (urg, titulo, txt, aba, lista = []) => cards.push({ urg, html: `<div class="card"><div class="row"><div><b>${urg ? "🔴 " : ""}${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : ""}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${l}</li>`).join("")}${lista.length > 6 ? `<li class="muted">e mais ${lista.length - 6}</li>` : ""}</ul>` : ""}</div>` });
+      const card = (urg, titulo, txt, aba, lista = []) => cards.push({ urg, html: `<div class="card"><div class="row"><div><b>${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : ""}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${l}</li>`).join("")}${lista.length > 6 ? `<li class="muted">e mais ${lista.length - 6}</li>` : ""}</ul>` : ""}</div>` });
       const evsNotion = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hoje), evsPortal = (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hoje).map(eventoDoPortal);
       const proximas = (n) => [...evsNotion, ...evsPortal].filter((e) => e.d <= mais(n)).sort((a, b) => a.d.localeCompare(b.d));
       const ondeDe = (e) => [e.h, e.c].filter(Boolean).join(" · ");
       if (areas.includes("agenda")) {
         const curad = (E.insc || []).filter((i) => i.status === "em_curadoria");
-        if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Aprovar, pedir ajustes ou não seguir.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
+        if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Quando quiser, dá pra aprovar, pedir ajustes ou não seguir por lá.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
         const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
-        if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Sem o line-up completo, a casa não recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
         const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && c.status === "assinado"));
-        if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Prepare o contrato do artista em Documentos e contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Quando quiser adiantar, o contrato do artista fica em Contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
         const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
         const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
-        card(false, dias.length ? `${dias.length} ${dias.length === 1 ? "dia" : "dias"} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Abra Criar datas para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`));
+        card(false, dias.length ? `${dias.length} ${dias.length === 1 ? "dia" : "dias"} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Em Criar datas dá para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`));
       }
       if (areas.includes("operacoes")) {
         const analise = (E.casas || []).filter((c) => c.status === "em_analise");
-        if (analise.length) card(true, `${analise.length} ${analise.length === 1 ? "Ficha espera" : "Fichas esperam"} a sua análise`, "Habilitar ou pedir ajustes.", "casas_cad", analise.map((c) => `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` · ${esc(c.dados.cidade_uf)}` : ""}`));
+        if (analise.length) card(true, `${analise.length} ${analise.length === 1 ? "Ficha espera" : "Fichas esperam"} a sua análise`, "Dá pra habilitar ou pedir ajustes em Fichas das casas.", "casas_cad", analise.map((c) => `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` · ${esc(c.dados.cidade_uf)}` : ""}`));
         const sol = (E.sol || []).filter((x) => x.status === "pendente");
         if (sol.length) card(true, `${sol.length} ${sol.length === 1 ? "pedido de atualização de Ficha" : "pedidos de atualização de Ficha"}`, "A casa pediu para mudar dados que já tinha enviado.", "casas_cad");
         const semFicha = proximas(14).filter((e) => !(E.casas || []).some((c) => (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h)) && c.status === "habilitada"));
-        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${semFicha.length} ${semFicha.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com casa sem Ficha habilitada`, "Chame a casa para completar a Ficha ou convide pela aba Convites.", "casas_cad", semFicha.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${semFicha.length} ${semFicha.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com casa sem Ficha habilitada`, "Talvez valha chamar a casa para completar a Ficha ou mandar um convite.", "casas_cad", semFicha.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
         const convAntigos = (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3));
-        if (convAntigos.length) card(false, `${convAntigos.length} ${convAntigos.length === 1 ? "casa convidada ainda não entrou" : "casas convidadas ainda não entraram"} (mais de 3 dias)`, "Reenvie o convite ou mande o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)));
+        if (convAntigos.length) card(false, `${convAntigos.length} ${convAntigos.length === 1 ? "casa convidada ainda não entrou" : "casas convidadas ainda não entraram"} (mais de 3 dias)`, "Se ajudar, dá pra reenviar o convite ou mandar o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)));
       }
       if (areas.includes("marketing")) {
         const H = S.hub, atras = (H?.andamento || []).filter((a) => a.atrasados > 0);
         if (!H) card(false, "Carregando as campanhas…", "", null);
-        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que já passaram sem \"Feito\" da casa.", "campanhas", atras.map((a) => `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}`));
+        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que passaram sem \"Feito\" da casa; talvez valha um alô.", "campanhas", atras.map((a) => `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}`));
         const semCamp = proximas(30).filter((e) => !(H?.campanhas || []).some((c) => k(c.casa_ref) === k(e.h)));
-        if (H && semCamp.length) card(false, `${semCamp.length} ${semCamp.length === 1 ? "data nos próximos 30 dias" : "datas nos próximos 30 dias"} sem campanha carregada`, "Carregue a campanha da casa em Campanhas.", "campanhas", semCamp.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        if (H && semCamp.length) card(false, `${semCamp.length} ${semCamp.length === 1 ? "data nos próximos 30 dias" : "datas nos próximos 30 dias"} sem campanha carregada`, "Quando der, a campanha entra em Campanhas.", "campanhas", semCamp.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
       }
       const urg = cards.filter((c) => c.urg), resto = cards.filter((c) => !c.urg);
-      return `<div class="tag">A fazer</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
-      <p class="sub">O que precisa de você agora, ${areas.length === 3 ? "em todas as áreas" : "na área de " + esc(nomesAreas(areas))}. O mais urgente vem primeiro.</p>
-      ${urg.length ? `<h2>Para resolver primeiro</h2><div class="list">${urg.map((c) => c.html).join("")}</div>` : `<div class="alert good"><b>✓ Nada urgente agora</b>Tudo em dia na sua área.</div>`}
-      ${resto.length ? `<h2>Para acompanhar</h2><div class="list">${resto.map((c) => c.html).join("")}</div>` : ""}`;
+      return `<div class="tag">Para você</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
+      <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, pra você não precisar procurar. Vai no seu ritmo: o resto do portal está no menu.</p>
+      ${urg.length ? `<h2>Vale olhar primeiro</h2><div class="list">${urg.map((c) => c.html).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}
+      ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((c) => c.html).join("")}</div>` : ""}`;
     },
     // "Feito": o que a própria pessoa fez nos últimos 30 dias (quem fez vem do banco: avaliado_por, criado_por, revisado_por).
     feito() {
@@ -1726,9 +1756,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         ...(E.contr || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Contrato", `${esc(c.titulo)} · ${c.status === "assinado" ? "assinado" : c.status === "cancelado" ? "cancelado" : "aguardando assinatura"}`]),
         ...(E.conv || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Convite", `${esc(c.vinculo_nome || c.nome || c.email)}${c.aceito_em ? " · já entrou" : ""}`]),
       ].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
-      return `<div class="tag">Feito</div><h1>O que você fez</h1><p class="sub">Últimos 30 dias, do mais recente para o mais antigo.</p>
+      return `<div class="tag">Feito</div><h1>Seu histórico</h1><p class="sub">O que você fez nos últimos 30 dias, pra ter tudo à mão.</p>
       ${linhas.length ? `<div class="list">${linhas.map(([q, t, txt]) => `<div class="card" style="padding:10px 14px"><div class="row"><div><b>${t}</b><div class="muted" style="font-size:13px">${txt}</div></div><span class="muted" style="font-size:12px">${dt(String(q).slice(0, 10))}</span></div></div>`).join("")}</div>`
-        : vazio("Nada por aqui ainda", "O que você aprovar, criar ou enviar aparece aqui.", `<button class="btn" data-ir="hoje">Ver o que tem para fazer</button>`, "feito")}`;
+        : vazio("Nada por aqui ainda", "Quando você aprovar, criar ou enviar algo, fica guardado aqui.", `<button class="btn" data-ir="hoje">Voltar ao início</button>`, "feito")}`;
     },
     // "Visão geral" (só leitura): todas as próximas datas da rede, com cidade, casa, line-up, contrato e Ficha da casa.
     geral() {
@@ -1739,7 +1769,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const lista = evs.filter((e) => !f.cidade || e.c === f.cidade).slice(0, 80);
       const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
       const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every((c) => c.status === "assinado") ? "✓ assinado" : "aguardando"; };
-      return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Só para consultar. Para agir, use "A fazer".</p>
+      return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Um panorama das próximas datas da rede, pra você se situar.</p>
       <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
       ${tabela("geral", [
         { t: "Data", v: (e) => e.d, h: (e) => `<b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))}, ${dt(e.d)}</b>` },
@@ -3301,6 +3331,6 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
 
   async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
-  const noMenu = (k) => !comAreas() || ["hoje", "feito", "geral", "conta"].includes(k);
-  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  const noMenu = (k) => !comAreas() || k === "conta" || k in GRUPOS_EQ;
+  return { get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
