@@ -65,7 +65,7 @@ const TQOperacao = (() => {
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const lista = (xs) => `<ul class="passos">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`;
   const tabela = (linhas, cab) => `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>${esc(cab[0])}</th><th>${esc(cab[1])}</th></tr></thead><tbody>${linhas.map(([a, b]) => `<tr><td style="white-space:nowrap"><b>${esc(a)}</b></td><td>${esc(b)}</td></tr>`).join("")}</tbody></table></div>`;
-  const produto = (modelo) => /apresenta/i.test(modelo || "") ? "Apresenta" : /descubra/i.test(modelo || "") ? "Descubra" : null;
+  const produto = (modelo) => (typeof TQRegras !== "undefined" && TQRegras.produtoBase(modelo)) || (/apresenta/i.test(modelo || "") ? "Apresenta" : /descubra/i.test(modelo || "") ? "Descubra" : null);
   // Sábado e domingo usam o cronograma de fim de semana do Apresenta.
   const fimDeSemana = (iso) => { const d = new Date(iso + "T12:00:00Z").getUTCDay(); return d === 0 || d === 6; };
 

@@ -27,6 +27,8 @@ await como(eq, async () => {
   ok(!!id, 'equipe cria a data com casa e artistas');
   await q(`update datas_portal set abertura = '20:00' where id = $1`, [id]);
   ok((await q(`select abertura::text from datas_portal where id = $1`, [id])).rows[0].abertura === '20:00:00', 'equipe muda o horário');
+  const tur = await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, artistas) values ('2026-12-21', 'Turnê', null, 'Casa Dois', '[{"nome":"Ana"}]') returning id`);
+  ok(!!tur.rows[0]?.id && /check|violates/i.test(await tenta(() => q(`update datas_portal set produto = 'Raiz' where id = $1`, [tur.rows[0].id])) || ''), 'v32: Turnê e Noite Tranquilo são formatos válidos; formato desconhecido não entra');
 });
 await como(casa, async () => { ok((await q(`select id from datas_portal`)).rows.length === 1, 'a casa da data vê a data'); });
 await como(art, async () => { ok((await q(`select id from datas_portal`)).rows.length === 1, 'a artista da data vê a data'); });

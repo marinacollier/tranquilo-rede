@@ -224,10 +224,13 @@ insert into disponibilidade_semanal (user_id, cidade, dias, atualizado_por) valu
     const casos = [['TESTE · Bar do Farol', 'em dia'], ['TESTE · Quintal Azul', 'atrasada'], ['TESTE · Galpão Maré', 'começando'], ['Casa Aurora (teste)', 'concluída']];
     await sql(`delete from campanhas where slug like 'teste-%'`);
     for (const [i, [casa, sit]] of casos.entries()) {
-      const dono = (await sql(`select id from perfis where tipo = 'casa' and vinculo_nome = ${lit(casa)} limit 1`))[0]?.id;
-      if (!dono) { ok(false, `campanha ${casa}: casa sem conta`); continue; }
+      // A casa vê a campanha quando o nome normalizado (chave_casa, schema v32) bate com o vínculo da conta dela.
+      // casa_ref recebe o vínculo exato da conta dona (sem função na equipe), para a equipe e a casa verem o mesmo nome.
+      const d0 = (await sql(`select id, vinculo_nome from perfis where tipo = 'casa' and funcoes is null and chave_casa(vinculo_nome) = chave_casa(${lit(casa)}) order by criado_em limit 1`))[0];
+      const dono = d0?.id;
+      if (!dono) { ok(false, `campanha ${casa}: casa sem conta (rode antes o modo casas-leve ou variedade)`); continue; }
       const ini = sit === 'concluída' ? -12 : sit === 'começando' ? -1 : -6;
-      const c = (await sql(`insert into campanhas (slug, titulo, casa_ref) values (${lit(`teste-campanha-${i + 1}`)}, ${lit(`TESTE · Campanha ${casa.replace('TESTE · ', '')}`)}, ${lit(casa)}) returning id`))[0].id;
+      const c = (await sql(`insert into campanhas (slug, titulo, casa_ref) values (${lit(`teste-campanha-${i + 1}`)}, ${lit(`TESTE · Campanha ${casa.replace('TESTE · ', '')}`)}, ${lit(d0.vinculo_nome)}) returning id`))[0].id;
       const its = Array.from({ length: 10 }, (_, j) => dia(ini + j));
       const ids = await sql(`insert into campanha_itens (campanha_id, chave, dia, rotulo, acoes) values ${its.map((d, j) => `(${lit(c)}, ${lit('d' + d.replace(/-/g, ''))}, ${lit(d)}, ${lit(rot(d))}, ${js(ACOES[j % ACOES.length])})`).join(', ')} returning id, dia::text dia`);
       const hoje = dia(0), passados = ids.filter((x) => x.dia < hoje);

@@ -28,14 +28,18 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.evaluate((cod) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); Object.assign(d.usuarios[d.sessao].perfil, { vinculo_nome: 'Casa Teste', codigo_acesso: cod }); localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, COD.casa);
     await p.reload(); await pular(); await p.waitForTimeout(500);
     ok((await abas()).includes('equipe_casa') && !(await abas()).includes('trilha'), 'dono vê a aba Equipe da casa (e ainda não a Trilha)');
-    await abrirAba('equipe_casa'); await p.waitForSelector('#eqcFaltam');
-    // Experiência guiada (18/11): um cartão por função que falta, "+ Adicionar mais um membro" sempre à vista e "Faltam: …".
-    const cartoes = await p.$$eval('#eqcFaltam [data-eqc-nova]', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(JSON.stringify(cartoes) === JSON.stringify(['Adicionar Líder Local', 'Adicionar Anfitrião', 'Adicionar Social Media', 'Adicionar Técnico de som', 'Adicionar Porta', 'Adicionar Reserva']) && !(await p.$('#eqcNome')),
-      `equipe vazia: um cartão por função que falta, formulário fechado (${cartoes.join(' · ')})`);
-    ok(/Faltam: Líder Local, Anfitrião, Social Media, Técnico de som, Porta e Reserva/.test(await p.textContent('#eqcFalta')) && !!(await p.$('[data-eqc-nova=""]')), '"Faltam: …" claro e botão "+ Adicionar mais um membro" à vista');
+    await abrirAba('equipe_casa'); await p.waitForSelector('.eqlista');
+    // Uma lista só (pedido da Marina, 18/11): uma linha por função, "Falta" com "Adicionar", o bar informativo e "Faltam 6 de 6" no topo.
+    const linhas = await p.$$eval('#app details.eqlin', (xs) => xs.map((x) => ({ k: x.dataset.eqlin, t: x.querySelector('summary b').textContent.trim(), add: !!x.querySelector('summary [data-eqc-nova]'), aberta: x.open })));
+    ok(JSON.stringify(linhas.map((l) => l.t)) === JSON.stringify(['Líder Local', 'Anfitrião', 'Social Media', 'Técnico de som', 'Porta', 'Reserva', 'Bar']) && linhas.slice(0, 6).every((l) => l.add && !l.aberta) && !linhas[6].add,
+      `equipe vazia: uma linha fechada por função, cada uma com "Adicionar"; o bar só informa (${linhas.map((l) => l.t).join(' · ')})`);
+    ok(!/O que falta|Quem ocupa cada função|Pessoas \(/.test(await p.innerText('#app')) && (await p.$$('[data-eqc-nova=""]')).length === 1 && !(await p.$('#eqcNome')), 'sem blocos repetidos: um só "+ Adicionar mais um membro" e o formulário fechado');
+    ok(/Faltam 6 de 6/.test(await p.textContent('#eqcFalta')) && /Líder Local, Anfitrião, Social Media, Técnico de som, Porta e Reserva/.test(await p.textContent('#eqcFalta')), '"Faltam 6 de 6" no topo, com o que falta');
+    ok(/responsabilidade do dono, sem acesso ao portal/.test(await p.textContent('[data-eqlin="eqc:bar"]')), 'Bar aparece como informativo');
+    await p.click('[data-eqlin="eqc:lider"] summary b'); await p.waitForTimeout(150);
+    ok(await p.$eval('[data-eqlin="eqc:lider"]', (d) => d.open) && /Quando:/.test(await p.innerText('[data-eqlin="eqc:lider"]')), 'a linha abre e mostra o que a função faz e o "Quando"');
     await p.click('[data-eqc-nova="som"]'); await p.waitForSelector('#eqcNome');
-    ok(await p.isChecked('[data-eqc-funcao="som"]') && /Adicionar Técnico de som/.test(await p.textContent('#eqcForm h3')), '"Adicionar Técnico de som" abre o formulário com a função já escolhida');
+    ok(await p.isChecked('[data-eqc-funcao="som"]') && /Adicionar Técnico de som/.test(await p.textContent('#eqcForm h3')) && !!(await p.$('[data-eqlin="eqc:som"][open] #eqcForm')), '"Adicionar" do Técnico de som abre o formulário dentro da linha, com a função já escolhida');
     await p.click('[data-eqc-nova="reserva"]'); await p.waitForTimeout(150);
     ok(await p.isChecked('#eqcReserva'), '"Adicionar Reserva" já marca a reserva');
     await p.click('[data-eqc-nova=""]'); await p.waitForTimeout(150);
@@ -51,7 +55,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]'); await p.waitForFunction(() => /Feito/.test(document.querySelector('#eqcErr')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
     ok(/✓ Feito: Ana entrou na equipe\. Faltam: Líder Local/.test(await p.textContent('#eqcErr')) && !(await p.$('#eqcForm')), 'salvar a pessoa termina com "✓ Feito", diz o que ainda falta e fecha o formulário');
     const txt = await p.textContent('#app');
-    ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Faltam: Líder Local, Anfitrião, Social Media, Técnico de som e Reserva/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
+    ok(/Ana/.test(await p.textContent('[data-eqlin="eqc:porta"] summary')) && /Faltam 5 de 6/.test(txt) && /Líder Local, Anfitrião, Social Media, Técnico de som e Reserva/.test(txt) && await p.$eval('[data-eqlin="eqc:porta"]', (d) => d.open && d.classList.contains('eqlin-ok')), 'pessoa entra na linha da função (✓, aberta) e o topo diz "Faltam 5 de 6"');
     await p.click('[data-eqc-convidar]'); await p.waitForTimeout(400);
     const cv = (await db()).conv['ana@casa.com'];
     ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta', '"Dar acesso" cria o convite ligado à casa, com a função');
@@ -77,6 +81,8 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(/a 12 jan/i.test(await p.textContent('#app')), 'trilha começada em 04/01/2027 fecha em 12/01 (7 dias úteis)');
     await p.click('[data-tri-marco="Casa Teste|nota"]'); await p.waitForTimeout(400);
     ok(!!(await db()).tri['Casa Teste'].marcos.nota, 'Central marca a etapa dela (nota de passagem)');
+    { const r = await p.evaluate(() => { const d = document.querySelector('[data-eqlin="tri:casa teste:porta"]'); return { tem: !!d, ana: /Ana/.test(d?.querySelector('summary')?.textContent || ''), frase: /Faltam 5 de 6/.test(document.querySelector('#app').textContent), add: !!document.querySelector('#app details.eqlin [data-eqc-nova]') }; });
+      ok(r.tem && r.ana && r.frase && !r.add, 'Central vê a equipe da casa na mesma lista por função (Ana em Porta, "Faltam 5 de 6"), sem botões de editar'); }
     // 4. A casa vê a trilha e confirma a leitura.
     await sair(); await p.click('#entrar'); await p.fill('#email', 'dono@casa.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await pular();
     await p.waitForFunction(() => window.TQConta?.areaDe?.('trilha'), null, { timeout: 10000 }).catch(() => {}); await pular();

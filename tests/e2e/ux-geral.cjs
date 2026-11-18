@@ -26,8 +26,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 2. Ficha: Parte 1, "O que falta" e "Sua equipe" começam recolhidas com uma linha de resumo; a primeira parte pendente vem aberta.
     await ir('ficha'); await p.waitForSelector('#form');
     const fechado = (id) => p.$eval(`[data-dobra="${id}"]`, (d) => !d.open);
-    ok(await fechado('ficha-parte1') && await fechado('ficha-falta') && await fechado('ficha-equipe'), 'Ficha: Parte 1, "O que falta" e "Sua equipe" começam recolhidas');
-    ok(/para habilitar/.test(await p.innerText('[data-dobra="ficha-falta"] summary')) && /de 4 funções com nome/.test(await p.innerText('[data-dobra="ficha-equipe"] summary')), 'cada bloco recolhido diz o que é e o status numa linha');
+    ok(await fechado('ficha-parte1') && await fechado('ficha-falta') && (await p.$$eval('#form details.eqlin', (xs) => xs.length && xs.every((d) => !d.open))), 'Ficha: Parte 1, "O que falta" e as linhas de "Sua equipe" começam recolhidas');
+    ok(/para habilitar/.test(await p.innerText('[data-dobra="ficha-falta"] summary')), 'cada bloco recolhido diz o que é e o status numa linha');
     ok(await p.$eval('#form details[data-parte="0"]', (d) => d.open) && !(await p.$eval('#form details[data-parte="1"]', (d) => d.open)), 'a primeira parte pendente vem aberta, as outras recolhidas');
     await p.click('[data-dobra="ficha-parte1"] summary'); await p.evaluate(() => render()); await p.waitForTimeout(200);
     ok(await p.$eval('[data-dobra="ficha-parte1"]', (d) => d.open) && /Divisão das receitas/.test(await p.innerText('#app')), 'abre ao tocar e continua aberta depois de redesenhar a tela');

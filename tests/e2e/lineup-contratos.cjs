@@ -55,7 +55,8 @@ Casa: [PREENCHER RAZÃO SOCIAL], CNPJ [PREENCHER CNPJ]. Data {{data}}, cidade {{
     let d0 = await db(); const dp = d0.datasP[0];
     ok(dp && dp.artistas.map((a) => `${a.ordem}.${a.nome}.${a.user_id}`).join() === '1.Ana Line.ana,2.Bia Line.bia,3.Caio Line.caio', 'data salva com 3 artistas, na ordem e ligados às contas');
     // 2. Quadro "Line-up e contratos" na data e "Preparar contratos do line-up".
-    await p.click(`[data-lp-det="${dp.id}"] > summary`); await p.waitForTimeout(200);
+    // A data criada já abre (compacta nas outras vezes): dia, casa, formato e "contratos 0/4" no resumo.
+    ok(await p.$eval(`[data-lp-det="${dp.id}"]`, (d) => d.open) && /Descubra/.test(await p.textContent(`[data-lp-det="${dp.id}"] > summary`)) && /contratos 0\/4/.test(await p.textContent(`[data-lp-det="${dp.id}"] [data-dp-resumo]`)), 'a data criada abre na lista; o resumo diz "contratos 0/4"');
     const quadro = () => p.textContent(`[data-lp-det="${dp.id}"]`);
     ok(/Falta(m)? 4/.test(await quadro()) && (await p.$$(`[data-lp-det="${dp.id}"] [data-lp-linha]`)).length === 4 && /Sem contrato/.test(await quadro()), 'quadro da data: os 3 artistas e a casa, todos "Sem contrato"');
     await p.click(`[data-lp-abrir="${dp.id}"]`); await p.waitForSelector('[data-lp-gerar]');
@@ -88,7 +89,12 @@ Casa: [PREENCHER RAZÃO SOCIAL], CNPJ [PREENCHER CNPJ]. Data {{data}}, cidade {{
     ok(/passos: 1\/\d+ feitos/.test(await linha('ana')) && /passos: 0\/\d+ feitos/.test(await linha('bia')), 'cada artista com os próprios passos no quadro (Ana 1 feito, Bia 0)');
     ok(!(await p.$(`[data-lp-det="${dp.id}"] [data-lp-linha="casa"]`)), 'Agenda vê os artistas; o contrato da casa fica com a Operações');
     // 5. Tirar artista do line-up cancela o contrato dela, com confirmação na página.
-    await ir('datas_portal'); await p.click(`[data-dp-editar="${dp.id}"]`); await p.waitForTimeout(300);
+    await ir('datas_portal');
+    ok(!(await p.$eval(`[data-lp-det="${dp.id}"]`, (d) => d.open)) && !(await p.isVisible(`[data-dp-editar="${dp.id}"]`)), 'Datas criadas no portal: a data começa compacta, sem os botões à vista');
+    await p.click(`[data-lp-det="${dp.id}"] > summary`); await p.waitForTimeout(200);
+    const caixa = await p.$eval(`[data-lp-det="${dp.id}"]`, (d) => { const r = d.getBoundingClientRect(), bs = [...d.querySelectorAll('.dp-acoes .btn')].map((b) => b.getBoundingClientRect()); return { dentro: bs.every((b) => b.right <= r.right + 1 && b.left >= r.left - 1), umaLinha: new Set(bs.map((b) => Math.round(b.top))).size === 1, direita: Math.abs(r.right - bs[bs.length - 1].right) < 40 }; });
+    ok(caixa.dentro && caixa.umaLinha && caixa.direita, 'aberta: botões numa linha, alinhados à direita, dentro do cartão ' + JSON.stringify(caixa));
+    await p.click(`[data-dp-editar="${dp.id}"]`); await p.waitForTimeout(300);
     const nDialogos = dialogos.length;
     await p.click('[data-dp-rem="1"]'); await p.waitForTimeout(200); await p.click('[data-dp-salvar]'); await p.waitForTimeout(300);
     ok(await p.$('#dpConf') && /Bia Line/.test(await p.textContent('#dpConf')) && dialogos.length === nDialogos && (await db()).datasP[0].artistas.length === 3, 'tirar a Bia pede confirmação na própria página (sem janela do navegador) e ainda não salvou');

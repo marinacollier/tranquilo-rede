@@ -31,15 +31,16 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.isVisible('.consent'), 'aviso de privacidade volta quando o tutorial fecha'); await p.click('[data-consent="ok"]');
     // Aba do menu ou, no portal da casa, a parte de uma das quatro áreas.
     const ir = async (aba) => { await p.evaluate((a) => { const b = document.querySelector(`[data-aba="${a}"]`); if (b) return b.click(); const ar = window.TQConta.areaDe(a); document.querySelector(`[data-aba="${ar}"]`).click(); document.querySelector(`[data-sub="${ar}|${a}"]`)?.click(); }, aba); await p.waitForTimeout(600); };
-    await ir('campanha'); await p.waitForSelector('.camp-dia'); await largura('casa-campanha');
+    await ir('campanha'); await p.waitForSelector('details.camp-casa'); await largura('casa-campanha'); await p.click('details.camp-casa summary'); await p.waitForSelector('.camp-dia'); await largura('casa-campanha-aberta');
     await ir('duvidas'); ok(/Google Agenda/.test(await p.innerText('#app')) && /Li e estou ciente/.test(await p.innerText('#app')), 'casa: dúvidas novas aparecem (campanha, agenda, ciência)'); await largura('casa-duvidas');
     await ir('cadastro_casa'); await largura('casa-ficha'); await ir('agenda_casa'); await p.waitForTimeout(300); await largura('casa-disponibilidade');
     await p.evaluate(() => document.querySelector('#sair')?.click()); await p.waitForTimeout(500);
     await p.evaluate(() => document.querySelector('#entrar')?.click()); await p.waitForTimeout(300); await p.click('[data-demo="equipe"]'); await p.waitForSelector('.tour-caixa', { timeout: 8000 }); await p.click('[data-tour="pular"]');
     await ir('campanhas'); await p.waitForSelector('#cfArq', { state: 'attached' }); await p.click('details:has(#cfArq) summary');
     await p.setInputFiles('#cfArq', __dirname + '/dados/casa-nova.json'); await p.waitForTimeout(400); await largura('equipe-campanhas');
-    const cel = await p.$eval('table[data-tbl="andcamp"] tbody td b', (b) => b.getClientRects().length);
-    ok(cel === 1, 'nome da casa na tabela não quebra no meio da palavra');
+    await p.click('details.camp-casa summary'); await p.waitForSelector('.camp-dia [data-camp-ajustar]'); await largura('equipe-campanha-aberta');
+    const quebra = await p.$$eval('.camp-casa .camp-acoes .btn', (bs) => bs.filter((b) => b.scrollWidth > b.clientWidth + 1).length);
+    ok(quebra === 0, 'ações do dia (cobrar, feito pela casa, ajustar) cabem no celular');
     await ir('materiais'); await p.click('details:has([data-mat-versao]) summary'); await largura('equipe-materiais');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
