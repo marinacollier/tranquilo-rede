@@ -25,9 +25,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(!!(await p.$('nav.tabs .nav-rodape [data-aba="conta"]')), 'Minha conta no rodapé, fora das quatro áreas');
     // 2. Ficha da Casa = modelo v1: seções, ordem, campos e opções.
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#form');
-    // As seções agora são partes recolhíveis (details.fsec, pedido da Marina, 18/11/2026); "Sua equipe" continua um cartão.
+    // As seções agora são partes recolhíveis (details.fsec, pedido da Marina, 18/11/2026); "Sua equipe" continua um cartão, com uma linha por função que abre (18/11).
     const tela = await p.evaluate(() => [...document.querySelectorAll('#form section.fsec, #form details.fsec')].map((s) => ({ titulo: s.querySelector('h3').textContent.trim(), desc: (s.querySelector('.fsec-desc') || s.querySelector('h3 + p'))?.textContent.trim() || '',
-      campos: [...s.querySelectorAll('.fcampo, .card > b')].map((c) => ({ rot: (c.querySelector('b') || c).textContent.replace(/\s*\*$/, '').trim(), ops: [...c.querySelectorAll('option')].filter((o) => o.value).map((o) => o.textContent.trim()).concat([...c.querySelectorAll('label')].map((l) => l.textContent.trim())) })) })));
+      campos: [...s.querySelectorAll('.fcampo, .card > b, .eqlin > summary > b')].map((c) => ({ rot: (c.querySelector('b') || c).textContent.replace(/\s*\*$/, '').trim(), ops: [...c.querySelectorAll('option')].filter((o) => o.value).map((o) => o.textContent.trim()).concat([...c.querySelectorAll('label')].map((l) => l.textContent.trim())) })) })));
     ok(JSON.stringify(tela.map((s) => s.titulo)) === JSON.stringify(INV.secoes.map((s) => s.titulo)), `seções na ordem do modelo: ${tela.map((s) => s.titulo).join(' · ')}`);
     const dif = [];
     for (const sec of INV.secoes) {
