@@ -28,7 +28,17 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
       await linha.focus(); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
       ok(await p.evaluate(() => S.ctFoco === 'ct-x' && S.sub[S.aba] === 'documentos'), nome + ': Enter na linha abre Contratos com aquele contrato em foco');
       await p.evaluate(() => { S.aba = 'inicio'; (S.sub ||= {})[TQConta.areaDe('inicio')] = 'inicio'; S.aba = TQConta.areaDe('inicio'); render(); });
-      await p.evaluate(() => { S.eq.contr = []; S.eq.arqs = []; render(); });
+      // Linhas do mesmo evento ficam juntas: cabeçalho da data (abre o line-up e contratos) e, com mais de 3, recolhidas.
+      await p.evaluate(() => { const d = new Date().toISOString().slice(0, 10); S.eq.contr = []; S.eq.arqs = [];
+        S.eq.datasP = [...(S.eq.datasP || []), { id: 'dp-grupo', dia: d, casa_nome: 'TESTE Sala Jabuticaba', cidade: 'Recife/PE', produto: 'Descubra', status: 'confirmada', abertura: '19:00:00', artistas: ['Duo Maré Alta', 'Nina Sol', 'Duo Brisa', 'Lia Mar'].map((nome, i) => ({ nome, ordem: i + 1, user_id: 'u-g' + i })) }];
+        S.aba = TQConta.areaDe('inicio') || 'inicio'; render(); });
+      const bloco = '#filaPrimeiro .bloco-acao:has(h3:has-text("Preparar contrato de artista"))';
+      await p.$$eval(bloco + ' details.pend-mais', (xs) => xs.forEach((x) => (x.open = true)));
+      const grupo = await p.$(bloco + ' .pend-grupo:has(.pend-ev[data-abrir="lp:dp-grupo"])');
+      ok(!!grupo && /Sala Jabuticaba · Descubra · 4 artistas sem contrato/.test(await grupo.textContent()) && !!(await grupo.$('details.pend-exp')) && !(await grupo.$('details.pend-exp[open]')), nome + ': artistas da mesma data juntos sob um cabeçalho ("4 artistas sem contrato"), recolhidos por ter mais de 3');
+      await grupo.$eval('.pend-ev', (x) => x.click()); await p.waitForTimeout(300);
+      ok(await p.evaluate(() => S.lpAberto === 'dp-grupo' && S.sub[S.aba] === 'documentos'), nome + ': o cabeçalho do evento abre o quadro Line-up e contratos da data');
+      await p.evaluate(() => { S.eq.datasP = S.eq.datasP.filter((x) => x.id !== 'dp-grupo'); S.aba = TQConta.areaDe('inicio') || 'inicio'; render(); });
     }
     await p.click('.atalho:nth-child(3)'); await p.waitForTimeout(300);
     ok(/Chamar quem já está na rede/.test(await p.textContent('#app')), nome + ': atalho abre Convites');

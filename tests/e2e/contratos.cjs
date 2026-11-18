@@ -90,6 +90,10 @@ E por estarem de acordo, assinam.`;
     await p.evaluate(() => { S.conta.perfil.areas = ['agenda']; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="ct:"]');
     const vale = await p.textContent('#app');
     ok(/Vale olhar primeiro/.test(vale) && /Conferir contrato assinado \(1\)/.test(vale) && /Ana Contrato/.test(await p.textContent(`[data-abrir="ct:${ctId}"]`)), 'Para você (Agenda): bloco "Conferir contrato assinado" com a linha de quem assinou');
+    // Com o pacote interno (datas do Notion), o contrato aparece sob o cabeçalho da data dele.
+    const codEq = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acessos.tsv', 'utf8').trim().split('\n').map((l) => l.split('\t')).find(([t]) => t === 'equipe')?.[1];
+    if (codEq) { await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); render(); }, codEq); await p.waitForTimeout(300); }
+    ok(await p.$eval(`[data-abrir="ct:${ctId}"]`, (x) => { const g = x.closest('.pend-grupo'); return !!g && /\d{2}\/\d{2} · .+ · 1 contrato para conferir/.test(g.querySelector('.pend-ev')?.textContent || '') && !!x.closest('ul.pend-sub'); }), 'Para você: o contrato fica sob o cabeçalho da data ("1 contrato para conferir"), recuado');
     await p.click(`[data-abrir="ct:${ctId}"]`); await p.waitForSelector(`tr.foco [data-ct-conferir="${ctId}"]`);
     ok(true, 'o item abre Contratos com a linha do contrato em destaque e o botão "Conferir e confirmar"');
     const linhaCt = () => p.textContent(`tr:has([data-ct-ver="${ctId}"])`);
