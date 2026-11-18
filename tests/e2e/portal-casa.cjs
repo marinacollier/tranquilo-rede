@@ -66,7 +66,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(400);
     await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'casas_cad'); await p.waitForSelector('table[data-tbl="casc"] tbody tr'); await p.click('table[data-tbl="casc"] tbody tr'); await p.waitForSelector('[data-sol-responder]');
     ok(/Instalamos luz nova/.test(await p.innerText('#dlgIn')) && /Frontal e contra/.test(await p.innerText('#dlgIn')), 'Central vê o pedido com o antes e o proposto');
-    ok(/só a administração vê/.test(await p.innerText('#dlgIn')), 'equipe não vê dados pessoais e bancários do Dono A');
+    ok(/só a administração vê/.test(await p.textContent('#dlgIn')), 'equipe não vê dados pessoais e bancários do Dono A');
     await p.click('[data-sol-responder$="|1"]'); await p.waitForTimeout(500);
     const d2 = await db(), casa = Object.values(d2.casas)[0];
     ok(casa.dados.luz === 'Frontal e contra' && d2.sol[0].status === 'aprovada', 'pedido aprovado atualiza a ficha');

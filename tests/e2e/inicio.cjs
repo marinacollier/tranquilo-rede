@@ -17,6 +17,13 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
     await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); render(); }, cod); await p.waitForTimeout(400);
     ok(/de 50 datas este mês/.test(await p.textContent('#app')), nome + ': mostra datas do mês e alertas');
     await p.screenshot({ path: out + '/inicio-' + nome + '.png', fullPage: true });
+    if (demo === 'adm') {
+      // A pendência mais importante primeiro: contrato assinado esperando "Conferir e confirmar" abre a fila.
+      await p.evaluate(() => { const ag = new Date().toISOString(); S.eq.contr = [{ id: 'ct-x', user_id: 'u-x', titulo: 'Contrato X', status: 'enviado', campos: [], dados: {} }]; S.eq.arqs = [{ evento_id: 'contrato_ct-x', nome: '1-a.pdf', caminho: 'a', em: ag }]; render(); });
+      const prim = await p.$$eval('#filaPrimeiro button', (xs) => xs.map((x) => x.textContent));
+      ok(/Conferir e confirmar/.test(prim[0] || ''), nome + ': "Vale olhar primeiro" começa pelo contrato assinado esperando conferência (' + prim.join(' | ') + ')');
+      await p.evaluate(() => { S.eq.contr = []; S.eq.arqs = []; render(); });
+    }
     await p.click('.atalho:nth-child(3)'); await p.waitForTimeout(300);
     ok(/Chamar quem já está na rede/.test(await p.textContent('#app')), nome + ': atalho abre Convites');
     await c.close();
