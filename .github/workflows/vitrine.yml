@@ -1,0 +1,27 @@
+name: Vitrine de demonstração
+
+# Só roda à mão. Cria (ou recria) uma conta fictícia em cada etapa do fluxo (casas e artistas), para demonstração.
+# O hash bcrypt da senha entra como parâmetro: a senha não passa pelo repositório.
+on:
+  workflow_dispatch:
+    inputs:
+      senha_hash:
+        description: Hash bcrypt da senha das contas
+        required: false
+      modo:
+        description: criar ou apagar
+        default: criar
+
+jobs:
+  caso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/vitrine.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SENHA_HASH: ${{ inputs.senha_hash }}
+          MODO: ${{ inputs.modo }}
