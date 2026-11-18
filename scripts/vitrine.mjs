@@ -95,6 +95,8 @@ delete from solicitacoes_ficha where casa_id in (select id from cadastros_casas 
 delete from inscricoes_artistas where user_id in (select id from vit_ids);
 delete from cadastros_casas where user_id in (select id from vit_ids);
 delete from convites where email in (select email from auth.users where id in (select id from vit_ids));
+delete from convites where aceito_em is null and (nome ilike 'TESTE%' or nome ilike '%(teste)%' or email like '%@tranquilo.teste');
+delete from datas_portal where casa_nome ilike 'TESTE%' and criado_por not in (select id from perfis where tipo in ('equipe', 'adm')) ;
 do $$ declare fk record; begin
   for fk in select c.conrelid::regclass tabela, a.attname coluna, a.attnotnull obrig
             from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1]
