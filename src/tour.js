@@ -243,7 +243,7 @@ const TQTour = (() => {
   function avisar(txt) {
     document.querySelector(".tour-aviso")?.remove();
     const a = document.createElement("div"); a.className = "tour-aviso"; a.setAttribute("role", "status"); a.textContent = txt;
-    document.body.appendChild(a); setTimeout(() => a.remove(), 7000);
+    a.title = "Toque para fechar"; a.addEventListener("click", () => a.remove()); document.body.appendChild(a); setTimeout(() => a.remove(), 4500);
   }
 
   function teclas(ev) {

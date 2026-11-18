@@ -249,25 +249,38 @@ try {
     await p.context().close();
   });
 
-  // 6. Artista lê até o fim e assina
-  await passo('artista assina o contrato', async () => {
+  // 6. Contrato: a artista completa os dados (validados), baixa e envia o PDF assinado; a equipe confere (v28).
+  await passo('artista envia o contrato assinado e a equipe confere', async () => {
     const p = await entrar('artista');
-    await abrirAba(p, 'passos'); await p.waitForSelector('[data-ct-abrir]', { timeout: 10000 });
+    await abrirAba(p, 'contratos_meus'); await p.waitForSelector('[data-ct-abrir]', { timeout: 10000 });
     await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
-    const dados = await p.$$('[data-ct-dado]');
-    for (const d of dados) await d.fill('Teste 000');
-    if (dados.length) { await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto'); await p.waitForTimeout(1200); }
-    await p.$eval('#ctTexto', (el) => { el.scrollTop = el.scrollHeight; el.dispatchEvent(new Event('scroll')); }); await p.waitForTimeout(1500);
-    await p.fill('#ctNome', 'Artista Teste Ponta A Ponta'); await p.check('#ctConcordo'); await p.click('#ctAssinar');
-    await p.waitForSelector('[data-ct-voltar]').catch(() => {}); await p.waitForTimeout(1500);
-    const c = await um(`select status, (lido_fim_em is not null) lido, (hash is not null) h from contratos where user_id = ${lit(contas.artista)}`);
-    reg('artista vê, lê até o fim e assina (assinado no banco, com hash)', c.status === 'assinado' && c.lido && c.h, `status ${c.status} lido=${c.lido}${(await p.$('#ctErr')) ? ' · ' + (await texto(p, '#ctErr')).slice(0, 160) : ''}`);
+    for (const d of await p.$$('[data-ct-dado]')) {
+      const rot = (await d.evaluate((x) => x.closest('label')?.querySelector('b')?.textContent || '')).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+      await d.fill(/pix/.test(rot) ? 'artista.teste@exemplo.com' : /cpf\s*\/\s*cnpj|cpf ou cnpj|documento|cpf/.test(rot) ? '529.982.247-25' : /cnpj/.test(rot) ? '11.222.333/0001-81'
+        : /e-?mail/.test(rot) ? 'artista.teste@exemplo.com' : /telefone|celular|whats/.test(rot) ? '(11) 98888-7777' : /^cep/.test(rot) ? '01310-100'
+        : /nome completo|razao social/.test(rot) ? 'Artista Teste Completo' : /^rg/.test(rot) ? '12.345.678-9' : 'Teste de produção');
+    }
+    if (await p.$('#ctSalvarDados')) { await p.click('#ctSalvarDados'); await p.waitForTimeout(2000); }
+    const msg = (await p.$('#ctDadosMsg')) ? await texto(p, '#ctDadosMsg') : '';
+    reg('dados do contrato validados e salvos (✓ Feito)', /✓ Feito/.test(msg) || !(await p.$('[data-ct-dado]')), msg.slice(0, 160));
+    const pdf = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+    const campo = await p.$('[data-enviar-arquivo^="contrato_"]');
+    if (campo) { await campo.setInputFiles({ name: 'contrato-assinado.pdf', mimeType: 'application/pdf', buffer: pdf }); await p.waitForTimeout(3500); }
+    const arq = await um(`select count(*)::int n from storage.objects where bucket_id = 'materiais' and name like ${lit(contas.artista + '/contrato_%')}`);
+    reg('artista envia o PDF assinado (arquivo guardado)', arq.n > 0, `${arq.n} arquivo(s)${(await p.$('[id^="arqErr-contrato_"]')) ? ' · ' + (await texto(p, '[id^="arqErr-contrato_"]')).slice(0, 120) : ''}`);
     await p.context().close();
+    const e = await entrar('equipe');
+    await abrirAba(e, 'documentos'); await e.waitForTimeout(1500);
+    const bt = await e.$('[data-ct-conferir]');
+    if (bt) { await bt.click(); await e.waitForTimeout(2500); }
+    const c = await um(`select (conferido_em is not null) ok from contratos where user_id = ${lit(contas.artista)}`);
+    reg('equipe confere o contrato recebido (conferido no banco)', !!c?.ok, bt ? '' : 'botão Conferir não apareceu');
+    await e.context().close();
   });
 
   // 7. Casa recebe o contrato; documentos dentro da página
   await passo('casa recebe o contrato e lê os documentos', async () => {
-    const p = await entrar('casa');
+    let p = await entrar('casa');
     await abrirAba(p, 'passos'); await p.waitForTimeout(800);
     reg('casa vê o contrato para assinar', await p.$('[data-ct-abrir]') !== null && /Contrato para assinar/.test(await texto(p)));
     await abrirAba(p, 'guia'); await p.waitForSelector('[data-ler]', { timeout: 10000 }).catch(() => {});
@@ -278,7 +291,10 @@ try {
       const n = await p.frameLocator('#leitorDoc').locator('body').innerText({ timeout: 10000 }).then((t) => t.length).catch(() => 0);
       reg('Operações › Guia abre dentro da página', n > 500, `${n} caracteres`);
     }
-    await abrirAba(p, 'mkt_produtor'); await p.waitForTimeout(600);
+    await p.context().close();
+    // A Divulgação do Bruno é do artista (17/11/2026).
+    p = await entrar('artista');
+    await abrirAba(p, 'mkt_produtor'); await p.waitForTimeout(800);
     const lerMkt = await p.$('[data-ler]');
     if (!lerMkt) reg('Marketing: documento abre dentro da página', false, 'nenhum documento para ler');
     else {

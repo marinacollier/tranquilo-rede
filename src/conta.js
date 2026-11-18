@@ -1337,8 +1337,8 @@ const TQConta = (() => {
     const ate = new Date(Date.now() + 60 * 864e5).toISOString().slice(0, 10), hoje = new Date().toISOString().slice(0, 10);
     const semContrato = datas.filter((e) => e.d >= hoje && e.d <= ate && !comContrato.has(e.id));
     const contaDe = (e) => (e.au?.length && contas.find((p) => p.id === e.au[0])) || contas.find((p) => p.vinculo_nome && (e.a || []).some((a) => a.toLowerCase() === p.vinculo_nome.toLowerCase()));
-    return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Contrato para assinar no site</h3>
-      <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa preenche antes de assinar (CPF, endereço, Pix…).</p>
+    return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Preparar contrato</h3>
+      <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa completa (CPF, endereço, Pix…). O contrato vai já assinado pelo Tranquilo: a pessoa baixa o PDF, assina e envia de volta, e você confere aqui.</p>
       <div class="grid g3">
         <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${pre.conta === p.id ? " selected" : ""}>${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${pre.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
@@ -2239,7 +2239,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" autocomplete="off"></label>
         <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" autocomplete="off"></label>
       </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk">Enviar convite</button></div>
-      <p class="muted" style="font-size:13px;margin-bottom:0">Os e-mails saem pelo Supabase. Sem um servidor de e-mail próprio (SMTP) configurado, o Supabase só entrega para e-mails da equipe do projeto e poucos por hora. Por isso cada convite também tem a mensagem pronta para WhatsApp.</p></div>
+      <p class="muted" style="font-size:13px;margin-bottom:0">O convite sai por e-mail e também fica com a mensagem pronta para mandar pelo WhatsApp.</p></div>
       <h2>Convites enviados</h2>
       ${tabela("conv", [
         { t: "Pessoa", v: (c) => c.nome || c.email, h: (c) => `<b>${esc(c.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(c.email)}</div>` },
@@ -2318,7 +2318,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const datasP = (E.datasP || []).map(eventoDoPortal).filter((e) => !e.z);
       const datas = [...(S.pub?.agenda || []).filter((e) => e.id), ...datasP].sort((a, b) => a.d.localeCompare(b.d));
       const dataTxt = (id) => { const e = datas.find((x) => x.id === id) || S.pac?.eventos?.find((x) => x.id === id); return e ? `${dt(e.d)} · ${e.c || e.h}` : id ? id.slice(0, 8) : "–"; };
-      return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Gere o contrato de cada data para a artista ou a casa assinar aqui mesmo, ou anexe um contrato pronto (link). Os dois aparecem no passo a passo dela, em "Contrato e materiais". Abaixo, os arquivos que artistas e casas enviaram.</p>
+      return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Gere o contrato de cada data para a artista ou a casa (vai já assinado pelo Tranquilo; a pessoa assina e envia de volta), ou anexe um contrato pronto (link). Os dois aparecem no passo a passo dela, em "Contrato e materiais". Abaixo, os arquivos que artistas e casas enviaram.</p>
       ${secaoContratos(E, contas, datas, dataTxt, nomeConta)}
       <div class="card"><h3 style="margin-top:0">Anexar documento pronto (link)</h3><div class="grid g2">
         <label class="fcampo"><b>Tipo</b><select id="docTipo"><option value="contrato">Contrato de uma data</option><option value="modelo">Modelo de contrato (para todos)</option><option value="outro">Outro documento de uma data</option></select></label>

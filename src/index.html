@@ -603,6 +603,9 @@ body:has(.tour) .consent{display:none}
 /* Select ainda em "Escolha" fica mais apagado, como um campo vazio */
 select:has(option[value=""]:checked){color:var(--ink-4)}
 select option{color:var(--ink)}
+/* Celular: o "Algo deu errado?" vira um botão pequeno e não cobre o conteúdo; o aviso do tutorial fica acima dele */
+@media (max-width:640px){.relatar{font-size:0!important;padding:0!important;width:44px;height:44px;min-height:44px;right:10px;bottom:10px;display:grid;place-items:center;opacity:.92}.relatar::before{content:"?";font:800 18px/1 system-ui,sans-serif}#app{padding-bottom:72px}.tour-aviso{bottom:64px!important}}
+.tour-aviso{cursor:pointer}
 .sem-cid{padding:8px 0;border-top:1px solid var(--line-2)}.sem-cid:first-of-type{border-top:0}.sem-cid b{display:block;margin-bottom:4px}
 /* Dados de teste em destaque */
 .eh-teste{box-shadow:inset 4px 0 0 #f5b301;background-image:linear-gradient(rgba(245,179,1,.08),rgba(245,179,1,.08))!important;position:relative}
