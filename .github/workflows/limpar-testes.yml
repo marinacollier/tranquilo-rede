@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       modo:
-        description: listar, acessos, ensaio ou limpar
+        description: listar, acessos, aparelhos, ensaio ou limpar
         default: listar
       chave_publica:
         description: Chave pública (PEM em base64) para cifrar a listagem

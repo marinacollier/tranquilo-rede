@@ -21,6 +21,23 @@ async function sql(q) {
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
 const PROTEGIDOS = ['casa.teste@tranquilo.com.br', 'artista.teste@tranquilo.com.br'];
 
+if (MODO === 'aparelhos') {
+  // Quantos aparelhos diferentes usaram o portal (pelo navegador/sistema), quando e com que tipo de conta. Sem nomes.
+  const r = await sql(`with s as (
+      select d.sessao, min(d.criado_em) ini, max(d.criado_em) fim, count(*) n, max(d.navegador) nav, max(d.pagina) pag,
+        string_agg(distinct coalesce(p.tipo::text, d.perfil, 'visitante') || coalesce('(' || array_to_string(p.areas, '+') || ')', ''), ' ') contas
+      from diario d left join perfis p on p.id = d.user_id left join auth.users u on u.id = d.user_id
+      where coalesce(u.email, '') not like '%@teste-e2e.invalid'
+      group by d.sessao)
+    select case when nav ~* 'headless' then 'robô de teste' when nav ~* 'iphone|ipad' then 'iPhone/iPad' when nav ~* 'android' then 'Android'
+        when nav ~* 'mac os' then 'Mac' when nav ~* 'windows' then 'Windows' when nav ~* 'linux' then 'Linux' else 'outro' end sistema,
+      case when nav ~* 'edg/' then 'Edge' when nav ~* 'chrome|crios' then 'Chrome' when nav ~* 'firefox|fxios' then 'Firefox' when nav ~* 'safari' then 'Safari' else '?' end navegador,
+      count(*) sessoes, to_char(min(ini) at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') primeira, to_char(max(fim) at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultima,
+      sum(n) acoes, string_agg(distinct contas, ' ') contas, string_agg(distinct substring(pag from '^https?://([^/]+)'), ' ') sites
+    from s group by 1, 2 order by sessoes desc`);
+  for (const x of r) console.log(`APARELHO ${x.sistema} · ${x.navegador} · ${x.sessoes} sessões · ${x.acoes} ações · de ${x.primeira} a ${x.ultima} · contas: ${String(x.contas || '').slice(0, 160)} · site: ${x.sites || '-'}`);
+  process.exit(0);
+}
 if (MODO === 'acessos') {
   // Só a função (nunca nome ou e-mail: o log é público), o último acesso e as ações de hoje.
   const r = await sql(`select p.tipo, coalesce(array_to_string(p.areas, '+'), '') areas, to_char(u.last_sign_in_at at time zone 'America/Sao_Paulo', 'DD/MM HH24:MI') ultimo,
