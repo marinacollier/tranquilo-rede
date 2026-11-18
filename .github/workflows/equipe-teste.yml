@@ -4,6 +4,9 @@ name: Contas de equipe para testar (homolog)
 on:
   workflow_dispatch:
     inputs:
+      alvo:
+        description: homolog ou prd
+        default: homolog
       email_base_b64:
         description: E-mail base em base64 (opcional)
         required: false
@@ -23,5 +26,6 @@ jobs:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SENHA_HASH: ${{ inputs.senha_hash }}
           EMAIL_BASE_B64: ${{ inputs.email_base_b64 }}
+          ALVO: ${{ inputs.alvo }}
 
 
