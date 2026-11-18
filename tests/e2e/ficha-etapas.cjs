@@ -44,6 +44,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(!ab2[0] && ab2[1], 'a parte completa fecha e abre a próxima incompleta');
     ok(/^1 de 8 partes completas$/.test((await progresso()).trim()), `progresso atualiza (${(await progresso()).trim()})`);
     ok((Object.values((await db()).casas)[0]?.dados || {}).razao_social === 'Casa Etapas Ltda', 'a parte vai para o banco como rascunho');
+    ok((Object.values((await db()).casas)[0]?.dados || {}).cidade_uf === 'Recife/PE' && await p.inputValue('#form [data-fcid-uf]') === 'PE' && await p.inputValue('#form [data-k="cidade_uf"]') === 'Recife', 'Cidade/UF: colar "Recife/PE" escolhe PE no estado e grava "Recife/PE" como antes');
     ok(Object.values((await db()).casas)[0]?.status === 'rascunho', 'salvar a parte não envia a Ficha');
     // CNPJ inválido também segura o envio.
     await abrirTudo();
@@ -75,6 +76,17 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.isDisabled('#enviar') && /Nome artístico/.test(await p.textContent('#faltaEnviar')), 'artista: Enviar desabilitado dizendo o que falta');
     await p.fill('#form [data-k="nome_artistico"]', 'Bia Etapas'); await p.waitForTimeout(1600);
     ok((Object.values((await db()).insc)[0]?.dados || {}).nome_artistico === 'Bia Etapas' && Object.values((await db()).insc)[0]?.status === 'rascunho', 'artista: rascunho salvo sozinho no banco, sem enviar');
+    // "Salvar esta parte" incompleta: guarda o rascunho, mas avisa em amarelo o que falta pelo nome e marca em vermelho.
+    await p.fill('#form [data-k="release"]', 'x'); await p.click('[data-parte="0"] [data-salvar-parte]'); await p.waitForTimeout(700);
+    const msgP = await p.textContent('[data-parte="0"] [data-parte-msg]');
+    ok(/^⚠ Atenção: Rascunho salvo às \d\d:\d\d\. Para completar esta parte: /.test(msgP) && /Release curto precisa de pelo menos 200 caracteres \(agora tem 1\)/.test(msgP) && /escolha a cidade onde mora/.test(msgP) && !/Feito/.test(msgP)
+      && await p.$eval('[data-parte="0"] [data-parte-msg]', (e) => e.classList.contains('atencao')), `parte incompleta: rascunho salvo, em amarelo, dizendo o que falta pelo nome (${msgP.slice(0, 160)}…)`);
+    ok(await p.$eval('#form [data-k="release"]', (e) => e.classList.contains('campo-falta')) && await p.$eval('#form [data-k="estado"]', (e) => e.classList.contains('campo-falta')), 'parte incompleta: os campos que faltam ficam em vermelho');
+    ok((await p.textContent('[data-parte="0"] [data-parte-n]')).trim() === '1' && /Release curto precisa/.test(await p.textContent('#faltaEnviar')) && await p.isDisabled('#enviar'), 'mínimo de caracteres conta como incompleto na parte e no Enviar');
+    ok((Object.values((await db()).insc)[0]?.dados || {}).release === 'x', 'mesmo incompleta, a parte foi guardada como rascunho');
+    await p.$eval('#form [data-parte="4"]', (d) => { d.open = true; }); await p.click('[data-parte="4"] [data-salvar-parte]'); await p.waitForTimeout(700);
+    const msgC = await p.textContent('[data-parte="4"] [data-parte-msg]');
+    ok(/marque a autorização de uso dos dados/.test(msgC) && await p.$eval('#form [data-k="aceite"]', (e) => e.closest('.fcheck').classList.contains('campo-falta')) && /Autorizo o Tranquilo/.test(await p.textContent('#faltaEnviar')), `caixa obrigatória: conta como falta e fica em vermelho (${msgC.slice(0, 120)}…)`);
     // Valor antigo da observação de disponibilidade não se perde ao salvar.
     await p.evaluate(() => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); Object.values(d.insc)[0].dados.disponibilidade = 'Só a partir de março'; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); });
     await p.reload(); await pular(); await ir('inscricao'); await p.waitForSelector('#form details[data-parte]');

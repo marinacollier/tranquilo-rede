@@ -25,6 +25,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(!(await p.$eval('[data-k="nome"]', (e) => e.classList.contains('campo-falta'))), 'ao digitar, o campo sai do vermelho');
     await p.waitForTimeout(1800);
     ok(/Salvo automaticamente/.test(await p.textContent('#ferr')), 'o rascunho continua salvando sozinho');
+    // "Salvar rascunho" com obrigatório faltando: guarda, mas em amarelo e dizendo o que falta (nada de "✓ Feito").
+    await p.click('#salvar'); await p.waitForTimeout(700);
+    const ms = await p.textContent('#ferr');
+    ok(/^⚠ Atenção: Rascunho salvo\. Para enviar, ainda faltam \d+ itens: /.test(ms) && /Razão social/.test(ms) && !/Feito/.test(ms) && await p.$eval('#ferr', (e) => e.classList.contains('atencao')), `Salvar rascunho incompleto avisa em amarelo o que falta (${ms.slice(0, 90)}…)`);
     ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   } catch (e) { ok(false, 'erro no teste: ' + e.message); }
   finally { await b.close(); console.log(res.join('\n')); }
