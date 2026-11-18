@@ -122,7 +122,7 @@ update perfis set nome = ${lit(ARTISTA)}, whatsapp = '11 96666-5555', senha_defi
     // Curadoria: a artista envia; a Central aprova.
     const imp = `select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub: id.central, role: 'authenticated' }))}, true), set_config('request.jwt.claim.sub', ${lit(id.central)}, true);`;
     await sql(`insert into inscricoes_artistas (user_id, dados, status) values (${lit(id.artista)}, ${js(INSC)}, 'em_curadoria');`);
-    await sql(`${imp} update inscricoes_artistas set status = 'aprovada', parecer = 'Inscrição aprovada! Repertório autoral forte e rider circulável. Bem-vinda à Rede Tranquilo 🌿' where user_id = ${lit(id.artista)};`);
+    await sql(`${imp} set session_replication_role = replica; update inscricoes_artistas set status = 'aprovada', avaliado_em = now(), parecer = 'Inscrição aprovada! Repertório autoral forte e rider circulável. Bem-vinda à Rede Tranquilo 🌿' where user_id = ${lit(id.artista)}; set session_replication_role = origin;`);
     const ins = await sql(`select status, score from inscricoes_artistas where user_id = ${lit(id.artista)}`);
     ok(ins[0]?.status === 'aprovada', `inscrição enviada e aprovada na curadoria (pré-curadoria ${ins[0]?.score ?? '?'})`);
 
