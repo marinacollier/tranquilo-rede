@@ -19,7 +19,7 @@ export const MANTER = ['central.caso-teste@teste-e2e.invalid', 'casa.teste@tranq
 const BASE = (() => { try { const e = Buffer.from(process.env.EMAIL_BASE_B64 || '', 'base64').toString('utf8').trim().toLowerCase(); return /^[^@\s+]+@[^@\s]+$/.test(e) ? e.split('@') : null; } catch { return null; } })();
 if (BASE) console.log(`::add-mask::${BASE[0]}`);
 export const emailDe = (tipo, user) => BASE ? `${BASE[0]}+${tipo}-${user}@${BASE[1]}` : `${tipo}.${user}@${DOM}`;
-const DE_BASE = BASE ? ` or (u.email like '${BASE[0]}+%@${BASE[1]}' and u.email !~ '\\+(maritaka|analu|ratazana)@')` : '';
+const DE_BASE = BASE ? ` or (u.email like '${BASE[0]}+%@${BASE[1]}' and u.email !~ '\\+(maritaka|analu|ratazana|aurora|lia)@')` : '';
 export const E_TESTE = `(u.email like '%@${DOM}' or u.email like 'teste.%@teste-e2e.invalid' or u.email like 'curadoria.%@teste-e2e.invalid'${DE_BASE})`;
 
 const lit = (s) => (s == null ? 'null' : `'${String(s).replace(/'/g, "''")}'`);
