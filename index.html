@@ -572,6 +572,21 @@ body:has(.tour) .consent{display:none}
   .hero-ofc{padding-top:22px}
   .cidade{min-height:128px}
 }
+/* Pendências por ação ("Para você" e "Comece por aqui"): cada linha abre o item */
+.bloco-acao h3.acao{margin:0;font-family:var(--sans);font-size:16px;font-weight:700}
+.bloco-acao h3.acao .n{color:var(--ink-4);font-weight:600}
+ul.pend{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:4px}
+ul.pend li{position:relative}
+.pend-linha{display:flex;flex-wrap:wrap;align-items:baseline;gap:0;width:100%;text-align:left;font:inherit;font-size:14px;color:var(--ink-2);background:transparent;border:1px solid var(--line);border-radius:10px;padding:9px 34px 9px 12px;cursor:pointer;position:relative;min-height:40px}
+.pend-linha:hover{background:var(--raised);color:#fff;border-color:var(--violet)}
+.pend-linha:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.pend-linha .pl-quem{font-weight:600;color:inherit}
+.pend-linha .pl-sep{white-space:pre;color:var(--ink-4)}
+.pend-linha .pl-ir{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--violet)}
+.pend-txt{font-size:14px;color:var(--ink-2);padding:6px 12px}
+.pend-mais summary{cursor:pointer;font-size:13px;color:var(--ink-3,var(--ink-2));padding:4px 12px}
+ul.pend li.eh-teste>.pend-linha{border-color:#f5b301;box-shadow:inset 4px 0 0 #f5b301}
+ul.pend li.eh-teste:not(.row)::after{top:-7px;right:30px}
 /* Comece por aqui: três atalhos grandes e a fila do dia */
 .inicio-oi{font-size:15px;color:var(--ink-3);margin:0 0 22px;max-width:62ch}
 .atalhos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:16px}
@@ -709,15 +724,15 @@ details.card.fsec>.fgrid{padding:0 22px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1794994491"></script>
-<script src="diario.js?v=1794994491"></script>
-<script src="regras.js?v=1794994491"></script>
-<script src="tour.js?v=1794994491"></script>
-<script src="campanha.js?v=1794994491"></script>
-<script src="equipe.js?v=1794994491"></script>
-<script src="operacao.js?v=1794994491"></script>
-<script src="contrato.js?v=1794994491"></script>
-<script src="conta.js?v=1794994491"></script>
+<script src="config.js?v=1794998088"></script>
+<script src="diario.js?v=1794998088"></script>
+<script src="regras.js?v=1794998088"></script>
+<script src="tour.js?v=1794998088"></script>
+<script src="campanha.js?v=1794998088"></script>
+<script src="equipe.js?v=1794998088"></script>
+<script src="operacao.js?v=1794998088"></script>
+<script src="contrato.js?v=1794998088"></script>
+<script src="conta.js?v=1794998088"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
