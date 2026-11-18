@@ -129,6 +129,10 @@ try {
 update perfis set senha_definida = true, tutorial_visto_em = now() where id in (${ids});
 ${Object.values(C).map((x) => `update perfis set tipo = 'casa', nome = ${lit(x.dono + ' (teste)')} where id = ${lit(x.id)};`).join('\n')}
 ${Object.values(A).map((x) => `update perfis set tipo = 'artista', nome = ${lit(x.nome)}, vinculo_nome = ${lit(x.nome)} where id = ${lit(x.id)};`).join('\n')}`);
+    // As 20 contas TESTE da variedade (teste.casaN / teste.artistaN) passam a entrar com a mesma senha (pedido da Marina).
+    const vr = await sql(`update auth.users set encrypted_password = ${lit(HASH)}, email_confirmed_at = coalesce(email_confirmed_at, now()) where email like 'teste.%@teste-e2e.invalid' returning id`);
+    if (vr.length) await sql(`update perfis set senha_definida = true where id in (${vr.map((x) => lit(x.id)).join(', ')})`);
+    ok(true, `${vr.length} contas TESTE da variedade com a senha comum`);
     ok(true, `${TODOS.length} contas criadas (4 casas e 5 artistas), já com senha e tutorial visto`);
 
     const central = (await sql(`select p.id from perfis p join auth.users u on u.id = p.id where p.tipo in ('equipe', 'adm') and u.email like 'central.%' limit 1`))[0]?.id
