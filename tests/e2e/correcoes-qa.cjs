@@ -24,6 +24,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.fill('[data-k="nome"]', 'Casa QA Ltda'); await p.click('[data-aba="datas_casa"]'); await p.waitForTimeout(500);
     await p.evaluate(() => { S.sub = S.sub || {}; S.sub.ficha = 'cadastro_casa'; S.aba = 'ficha'; render(); }); await p.waitForSelector('#form');
     ok(await p.inputValue('[data-k="nome"]') === 'Casa QA Ltda', 'trocar de área não perde o que foi digitado na Ficha');
+    await p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
     await p.fill('[data-k="capacidade_sentado"]', '80 a 100'); await p.waitForTimeout(1800);
     await p.reload(); await pular(); await p.evaluate(() => { S.sub = S.sub || {}; S.sub.ficha = 'cadastro_casa'; S.aba = 'ficha'; render(); }); await p.waitForSelector('#form');
     ok(await p.inputValue('[data-k="nome"]') === 'Casa QA Ltda', 'o salvamento automático grava a Ficha (sobrevive a recarregar a página)');
@@ -53,6 +54,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await pular(); await p.evaluate(() => { S.sub = S.sub || {}; S.sub.ficha = 'cadastro_casa'; S.aba = 'ficha'; render(); }); await p.waitForSelector('#form');
     const nomePac = await p.evaluate(() => window.TQConta && document.querySelector('[data-k="nome"]').value);
     ok(!!nomePac && /Já deixamos preenchido o que temos da sua casa/.test(await p.textContent('#app')), `Ficha nova já vem com o que o Notion tem da casa (nome: ${nomePac})`);
+    await p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
     await p.fill('[data-k="whatsapp"]', '11 99999-0000'); await p.waitForTimeout(1800);
     const casasDb = Object.values((await db()).casas || {});
     ok(casasDb.some((c) => c.dados?.nome === nomePac && c.dados?.whatsapp), `a sugestão fica na Ficha quando a casa salva (${casasDb.length} fichas no modo demonstração)`);
