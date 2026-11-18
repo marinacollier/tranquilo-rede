@@ -152,10 +152,10 @@ const PESSOAS_EQ = ['Pedro Alves', 'Júlia Reis', 'Rafa Nunes', 'Léo Som', 'Ana
 async function apagar(ctx) {
   const { sql, ok } = ctx;
   await sql(`drop table if exists eq_ids;
-create temp table eq_ids as select u.id from auth.users u left join perfis p on p.id = u.id
+create unlogged table eq_ids as select u.id from auth.users u left join perfis p on p.id = u.id
   where ${E_TESTE} and lower(u.email) not in (${MANTER.map(lit).join(', ')}) and coalesce(p.tipo::text, '') not in ('equipe', 'adm');
 drop table if exists eq_casas;
-create temp table eq_casas as select distinct lower(x) ref from (
+create unlogged table eq_casas as select distinct lower(x) ref from (
   select dados->>'nome' x from cadastros_casas where user_id in (select id from eq_ids)
   union select vinculo_nome from perfis where id in (select id from eq_ids) and tipo = 'casa') t
   where x is not null and x ilike '%teste%';
@@ -198,6 +198,7 @@ do $$ declare fk record; begin
   end loop;
 end $$;
 delete from auth.users where id in (select id from eq_ids);
+drop table if exists eq_ids; drop table if exists eq_casas;
 select count(*)::int n from auth.users u left join perfis p on p.id = u.id where ${E_TESTE} and lower(u.email) not in (${MANTER.map(lit).join(', ')}) and coalesce(p.tipo::text, '') not in ('equipe', 'adm')`);
   ok(r[0]?.n === 0, 'dados de teste antigos apagados (@tranquilo.teste, teste.* e curadoria.* @teste-e2e.invalid)');
 }
