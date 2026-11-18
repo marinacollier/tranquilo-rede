@@ -108,6 +108,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const txt = await p.$eval('#dpBusca', (el) => { const c = el.cloneNode(true); c.querySelector('#dpSugHist')?.remove(); return c.textContent; });
     ok(/1 casa livre · 1 artista livre/.test(txt) && /Casa Cruza/.test(txt) && /Ana Cruza/.test(txt) && txt.includes(br(dia)), 'Criar datas mostra o dia com a casa e o artista livres');
     ok(!txt.includes(br(dia2)), 'exceção vale no cruzamento: o dia que a casa bloqueou (feriado) não aparece, mesmo com o artista livre');
+    ok(!(await p.isVisible('[data-dpb-casa]')), 'cada dia começa fechadinho (dia · casas livres · artistas livres)');
+    await p.click('[data-dobra^="dpd:"] > summary'); await p.waitForTimeout(200);
     await p.click('[data-dpb-casa]'); await p.waitForTimeout(500);
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife' && await p.$eval('#dpCidade', (e) => e.closest('[data-fcid]').querySelector('[data-fcid-uf]').value) === 'PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);

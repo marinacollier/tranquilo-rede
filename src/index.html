@@ -779,6 +779,13 @@ details.dobra>summary:focus-visible{outline:2px solid var(--violet);outline-offs
 details.dobra.sem-borda{border:0;background:none}
 details.dobra.sem-borda>summary{padding-left:0}
 details.dobra.sem-borda>.dobra-corpo{padding:0}
+/* Fechadinho (Marina, 18/11/2026): linhas compactas dentro de listas (cartões da busca, sugestões, dias) */
+.tbl-mais{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:8px 0 0}
+.list>details.dobra,.list>.dpb-card>details.dobra{margin:0}
+details.dobra.linha>summary,details.dpb-dobra>summary,details.dph-sug>summary,details.dpd-dia>summary{padding:10px 40px 10px 14px;font-size:14px}
+details.dobra>summary .dpb-criar,details.dobra>summary .dobra-acao{margin-left:auto}
+details.dobra>summary>.badge{margin-left:auto}
+.dpb-card>.dpb-conf{margin-top:6px!important}
 details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 /* Filtros, seletores e abas "gritam" que são clicáveis (Marina, 18/11/2026): rótulo antes, cara de seletor
    segmentado, estado ativo forte (preenchido, com ✓) e, quando dá, a contagem de cada opção */
@@ -1086,8 +1093,11 @@ function tabela(id, colunas, linhas, ordem, semLinhas) {
   const col = colunas[st.i];
   const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
   // Sem linhas: só o aviso, sem a tabela vazia (no celular, o cabeçalho largo cortava o aviso para fora da tela).
+  // Fechadinho (Marina, 18/11/2026): tabela longa mostra as 10 primeiras linhas (na ordem escolhida) e "Ver todas".
+  const TBL_MAX = 10, todas = ord.length <= TBL_MAX + 2 || S.tblTodas?.[id], vis = todas ? ord : ord.slice(0, TBL_MAX);
+  const mais = ord.length > TBL_MAX + 2 ? `<div class="tbl-mais"><button type="button" class="btn sm" data-tbl-todas="${id}" aria-expanded="${!!todas}">${todas ? "Mostrar só as 10 primeiras" : `Ver todas as ${ord.length} linhas`}</button>${todas ? "" : `<span class="muted" style="font-size:13px">Mostrando 10 de ${ord.length}. Toque no título de uma coluna para mudar a ordem.</span>`}</div>` : "";
   if (!ord.length) return `<div class="tbl-vazia" data-tbl-vazia="${id}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</div>`;
-  return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
+  return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${vis.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>${mais}`;
 }
 const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;
 // "Casa em Belo Horizonte · a645" = casa sem nome no Notion. Para público, artista e casa vira "local a confirmar";
@@ -1775,6 +1785,7 @@ document.addEventListener("click", (ev) => {
   const cs = t.closest("[data-consent]"); if (cs) { store.set("tq-consentimento", new Date().toISOString()); $("#consent").innerHTML = ""; return; }
   if (S.cidMenu && !t.closest("#cidSel")) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); }
   const aba = t.closest("[data-aba]"); if (aba) { TQConta.salvarPendente(); S.aba = aba.dataset.aba; render(); scrollTo(0, 0); return; }
+  const tm = t.closest("[data-tbl-todas]"); if (tm) { const id = tm.dataset.tblTodas; S.tblTodas = { ...(S.tblTodas || {}), [id]: !S.tblTodas?.[id] }; render(); return; }
   const th = t.closest("th[data-i]"); if (th) { const id = th.closest("table").dataset.tbl, i = +th.dataset.i, st = S.ord[id]; S.ord[id] = { i, dir: st.i === i ? -st.dir : -1 }; render(); return; }
   const cp = t.closest("[data-copy]"); if (cp) { const antes = cp.textContent; navigator.clipboard?.writeText(cp.dataset.copy).then(() => { cp.textContent = "Copiado ✓"; setTimeout(() => (cp.textContent = antes), 1500); }); return; }
   if (t.closest("[data-como-funciona]")) return TQConta.tutorialPublico(true);

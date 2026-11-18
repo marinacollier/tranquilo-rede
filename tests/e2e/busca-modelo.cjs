@@ -36,6 +36,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const cards = await p.$$eval('[data-dpb-card]', (xs) => xs.map((x) => x.textContent));
     ok(cards.length === 12 && cards.every((t) => /Casa Mar/.test(t)) && !cards.some((t) => /Casa Serra/.test(t)) && !!(await p.$('[data-dpb-mais]')), 'cartões casa + dia: só a casa com 3 artistas livres que topam o Descubra (12 por vez, "Ver mais")');
     const k1 = await p.getAttribute('[data-dpb-card]', 'data-dpb-card'), dia1 = k1.split('|')[2], sel = `[data-dpb-card="${k1}"]`;
+    // Fechadinho (Marina, 18/11/2026): cada cartão é uma linha com "Criar este evento"; os seletores só aparecem ao abrir.
+    ok(!(await p.$eval(`${sel} details`, (d) => d.open)) && await p.isVisible(`${sel} [data-dpb-criar]`) && !(await p.isVisible(`${sel} [data-dpb-troca]`)) && /artistas livres · Descubra/.test(await p.textContent(`${sel} summary`)), 'cartão começa fechadinho: uma linha (dia · casa · cidade · nº de artistas · formato) e o botão de criar');
+    await p.click(`${sel} .dobra-tit`); await p.waitForTimeout(200);
     const vals = () => p.$$eval(`${sel} [data-dpb-troca]`, (xs) => xs.map((x) => x.value));
     ok((await vals()).join() === 'Ana Mod,Bia Mod,Caio Mod', 'line-up sugerido na quantidade do formato: quem escolheu Descubra primeiro');
     ok(!(await p.$$eval(`${sel} [data-dpb-troca]`, (xs) => xs.some((x) => [...x.options].some((o) => /Duda Mod|Tuca Mod/.test(o.textContent))))), 'quem escolheu outro formato não entra no Descubra');
@@ -59,6 +62,13 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click(`${s2} [data-dpb-criar]`); await p.waitForTimeout(200); await p.fill('#dpbAbre', '20:00'); await p.click(`[data-dpb-ok="${k2}"]`); await p.waitForTimeout(1000);
     d0 = await db(); x = d0.datasP.find((y) => y.produto === 'Apresenta');
     ok(x && x.abertura === '20:00' && x.artistas.map((a) => a.nome).join() === `${v2[1]},Duda Mod`, 'Apresenta criado: abertura primeiro, atração por último, com o horário escolhido');
+    // Filtros por casa e artista (Marina, 18/11/2026): valem para os cartões e para as datas criadas.
+    await p.fill('[data-dpb="casa"]', 'Serra'); await p.dispatchEvent('[data-dpb="casa"]', 'change'); await p.waitForTimeout(400);
+    { const cs = await p.$$eval('[data-dpb-card]', (xs) => xs.map((x) => x.textContent)); ok(cs.length > 0 && cs.every((t) => /Casa Serra/.test(t)) && /com os filtros/.test(await p.textContent('#dpCriadas > summary')), `filtro por casa: só os cartões da Casa Serra (${cs.length}) e as datas criadas filtradas`); }
+    await p.click('[data-dpb-limpar]'); await p.waitForTimeout(300);
+    await p.fill('[data-dpb="art"]', 'Duda'); await p.dispatchEvent('[data-dpb="art"]', 'change'); await p.waitForTimeout(400);
+    { const vs = await p.$$eval('[data-dpb-card] [data-dpb-troca$="|0"]', (xs) => xs.map((x) => x.value)); ok(vs.length > 0 && vs.every((v) => v === 'Duda Mod'), `filtro por artista: só onde a Duda está livre, já no line-up (${vs.length})`); }
+    await p.click('[data-dpb-limpar]'); await p.waitForTimeout(300);
     // 3. Turnê: escolher o artista e ver a sequência de casas/dias em cidades diferentes; cria várias datas.
     await p.click('[data-dpb-modo="Turnê"]'); await p.waitForTimeout(400);
     ok(/mesmo artista principal em várias cidades/.test(await p.textContent('#dpbRegra')) && /a validar/.test(await p.textContent('#dpbRegra')), 'Turnê: regra e o que falta validar');

@@ -91,6 +91,8 @@ Casa: [PREENCHER RAZÃO SOCIAL], CNPJ [PREENCHER CNPJ]. Data {{data}}, cidade {{
     // 5. Tirar artista do line-up cancela o contrato dela, com confirmação na página.
     await ir('datas_portal');
     ok(!(await p.$eval(`[data-lp-det="${dp.id}"]`, (d) => d.open)) && !(await p.isVisible(`[data-dp-editar="${dp.id}"]`)), 'Datas criadas no portal: a data começa compacta, sem os botões à vista');
+    // Fechadinho (Marina, 18/11/2026): o bloco "Datas criadas no portal" também começa recolhido; abre-se antes.
+    if (!(await p.$eval('#dpCriadas', (d) => d.open))) { await p.click('#dpCriadas > summary .dobra-tit'); await p.waitForTimeout(200); }
     await p.click(`[data-lp-det="${dp.id}"] > summary`); await p.waitForTimeout(200);
     const caixa = await p.$eval(`[data-lp-det="${dp.id}"]`, (d) => { const r = d.getBoundingClientRect(), bs = [...d.querySelectorAll('.dp-acoes .btn')].map((b) => b.getBoundingClientRect()); return { dentro: bs.every((b) => b.right <= r.right + 1 && b.left >= r.left - 1), umaLinha: new Set(bs.map((b) => Math.round(b.top))).size === 1, direita: Math.abs(r.right - bs[bs.length - 1].right) < 40 }; });
     ok(caixa.dentro && caixa.umaLinha && caixa.direita, 'aberta: botões numa linha, alinhados à direita, dentro do cartão ' + JSON.stringify(caixa));

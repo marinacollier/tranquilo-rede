@@ -61,7 +61,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // 7. Filtros e abas gritam que são clicáveis: Criar datas é um passo a passo numerado e cada formato diz quantas combinações tem.
     await p.evaluate(() => { const a = TQConta.areaDe?.('datas_portal') || 'datas_portal'; S.sub = S.sub || {}; if (a !== 'datas_portal') S.sub[a] = 'datas_portal'; S.aba = a; render(); }); await p.waitForSelector('[data-dpb-modo]');
     const passos = await p.$$eval('#dpBusca .passo-rot', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(/^1\s*Escolha o formato/.test(passos[0] || '') && /^2\s*Período e cidade/.test(passos[1] || '') && /^3/.test(passos[2] || ''), `Criar datas: passo a passo numerado (${passos.join(' → ')})`);
+    ok(/^1\s*Escolha o formato/.test(passos[0] || '') && /^2\s*Escolha a combinação/.test(passos[1] || '') && !!(await p.$('#dpFiltros [data-dpb="cid"]')) && !!(await p.$('#dpFiltros [data-dpb="casa"]')) && !!(await p.$('#dpFiltros [data-dpb="art"]')), `Criar datas: passo a passo numerado (${passos.join(' → ')}) e filtros de período, cidade, casa e artista no topo`);
     const modos = await p.$$eval('[data-dpb-modo]', (xs) => xs.map((x) => x.textContent.trim()));
     ok(modos.length === 5 && modos.every((m) => /\d+ (combinaç|artista|dia)/.test(m)), `cada formato mostra a contagem (${modos.join(' | ')})`);
     ok(await p.$eval('[data-dpb-modo][aria-pressed="true"]', (x) => getComputedStyle(x).backgroundColor !== getComputedStyle(x.nextElementSibling || x.previousElementSibling).backgroundColor), 'o formato escolhido fica preenchido, diferente dos outros');
