@@ -894,8 +894,8 @@ const TQConta = (() => {
   const GRUPOS_EQ = {
     g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
-    g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["artistas", "Histórico dos artistas"]]],
-    g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
+    g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["base_artistas", "Base de artistas"], ["artistas", "Histórico dos artistas"]]],
+    g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["base_casas", "Base de casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"], ["demanda", "Demanda"]]],
     g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
@@ -911,7 +911,7 @@ const TQConta = (() => {
   function subsDoGrupo(g) {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     // "Comece por aqui" é da administração e da equipe sem área; "Para você" e "Seu histórico", de quem tem área (Gui, Isa, Bruno).
-    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
+    return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "base_casas", "base_artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
       && (k !== "inicio" || !comAreas()) && (!["hoje", "feito"].includes(k) || comAreas()));
   }
   function telaGrupo(g) {
@@ -3912,6 +3912,35 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         : `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-dpb-tur-criar${!escolhidas.length || repetido ? " disabled" : ""}>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê</button></div>`}`
         : `<p class="muted" id="dpbVazio">${esc(P.art.nome)} não tem dia livre com casa livre (Ficha habilitada) nesse período${b.cid ? " em " + esc(b.cid) : ""}. Aumente o período ou peça para marcar a disponibilidade.</p>`}`;
   }
+  // Sugestão POR HISTÓRICO (pedido da Marina, 18/11/2026): ponte até as casas e os artistas marcarem a disponibilidade no portal.
+  // Vem das bases do Notion no pacote da equipe (funciona igual em teste e produção). Fica num grupo recolhido e separado:
+  // não entra nas listas de "livres" nem nos cartões, que só usam o que foi marcado no portal.
+  function sugestaoHistorico(b) {
+    const N = S.pac?.notion; if (!N?.casas) return "";
+    const sem = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().split("/")[0].trim();
+    const cid = sem(b.cid), SEMS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    const dias = diasDaBusca(b), modo = b.modo && b.modo !== "dia" ? b.modo : null;
+    const casas = N.casas.filter((c) => c.sug?.dias?.length && !/não apto|encerrou/i.test(c.av || "") && (!cid || sem(c.cid) === cid)).map((c) => {
+      const tops = c.sug.dias.map(([d]) => d), prox = dias.filter((d) => tops.includes(SEMS[wdDe(d)])).slice(0, 3);
+      return { c, prox, n: c.ev.length };
+    }).filter((x) => x.prox.length).sort((a, b2) => b2.n - a.n);
+    const bloqueado = (a) => a.bloq && dias.some((d) => d <= String(a.bloq).slice(0, 10));
+    const arts = N.artistas.filter((a) => a.sug?.cidades?.length || a.ja).map((a) => {
+      const cids = (a.sug?.cidades || []).map(([c]) => sem(c)), prefere = (a.praca || []).map(sem), mora = sem(a.mora);
+      const naCidade = !cid || cids.includes(cid) || prefere.includes(cid) || mora === cid;
+      const fez = !modo || (a.sug?.formatos || []).some(([m]) => m === modo);
+      return { a, naCidade, fez, bloq: bloqueado(a), n: a.ev.length };
+    }).filter((x) => x.naCidade && !x.bloq && !/^reprovad/i.test(x.a.st || "")).sort((x, y) => (y.fez - x.fez) || y.n - x.n);
+    const nb = N.artistas.filter((a) => bloqueado(a)).length;
+    const diaC = (d) => `${NOME_SEM[wdDe(d)].slice(0, 3)} ${d.slice(8, 10)}/${d.slice(5, 7)}`;
+    const linhaC = ({ c, prox }) => `<div class="row" style="font-size:14px"><span><b>${esc(c.n)}</b> <span class="muted">· ${esc([c.cid, c.uf].filter(Boolean).join("/") || "cidade?")}${c.cp || c.cs ? ` · ${c.cp || c.cs} pessoas` : ""}${c.av ? ` · ${esc(c.av)}` : ""}</span><br><span class="muted" style="font-size:13px">costuma receber: ${esc(c.sug.dias.map(([d, n]) => `${d} (${n})`).join(", "))} · no período: ${esc(prox.map(diaC).join(", "))}</span></span></div>`;
+    const linhaA = ({ a, fez }) => `<div class="row" style="font-size:14px"><span><b>${esc(a.n)}</b>${modo && fez ? ` <span class="badge b-good">já fez ${esc(modo)}</span>` : ""} <span class="muted">· ${esc(a.mora || "cidade?")}${a.gen?.length ? ` · ${esc(a.gen.join(", "))}` : ""}${a.praca?.length ? ` · prefere ${esc(a.praca.join(", "))}` : ""}</span><br><span class="muted" style="font-size:13px">${a.sug ? `já tocou em ${esc(a.sug.cidades.map(([c, n]) => `${c} (${n})`).join(", "))} · formatos: ${esc(a.sug.formatos.map(([m, n]) => `${m} (${n})`).join(", "))}` : "já tocou no Tranquilo (marcado no Notion)"}</span></span></div>`;
+    const MAX = 15;
+    return `<details class="card" id="dpbSug" style="margin-top:14px;border-style:dashed"${S.dpbSugAberto ? " open" : ""}><summary><b>Sugestão POR HISTÓRICO — confirmar com a casa/artista</b> <span class="muted" style="font-size:13px">(${casas.length} ${casas.length === 1 ? "casa" : "casas"} · ${arts.length} ${arts.length === 1 ? "artista" : "artistas"}${b.cid ? " em " + esc(b.cid) : ""})</span></summary>
+      <div class="alert warn" style="margin:10px 0"><b>⚠ Não é disponibilidade.</b>É o que o histórico do Notion sugere (dias em que a casa mais recebeu eventos; cidades e formatos em que o artista já tocou). Confirme com a casa e com o artista antes de criar a data. Vale até cada um marcar a disponibilidade no portal.${nb ? ` ${nb} ${nb === 1 ? "artista bloqueado" : "artistas bloqueados"} por concorrência no período ficaram de fora.` : ""}</div>
+      <h3 style="margin:8px 0 4px">Casas (dias mais frequentes)</h3><div class="list">${casas.slice(0, MAX).map(linhaC).join("") || '<p class="muted">Nenhuma casa com histórico nesse período e cidade.</p>'}</div>${casas.length > MAX ? `<p class="muted" style="font-size:13px">+${casas.length - MAX} casas: filtre a cidade para ver menos.</p>` : ""}
+      <h3 style="margin:12px 0 4px">Artistas (cidades e formatos em que já tocaram)</h3><div class="list">${arts.slice(0, MAX).map(linhaA).join("") || '<p class="muted">Nenhum artista com histórico nessa cidade.</p>'}</div>${arts.length > MAX ? `<p class="muted" style="font-size:13px">+${arts.length - MAX} artistas: filtre a cidade para ver menos.</p>` : ""}</details>`;
+  }
   function buscaDatas(E, casas) {
     const hoje = hojeIso();
     const b = S.dpb ||= { de: hoje, ate: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cid: "", ambos: true };
@@ -3928,7 +3957,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (b.modo !== "dia") {
       const F = R.formatoDe(b.modo);
       return `${topo}<p class="muted" style="font-size:13px;margin-top:0">${F.mesmoArtista ? "Escolha o artista: aparecem as casas livres (Ficha habilitada) em cidades diferentes nos dias em que ele está livre." : `Casas livres (Ficha habilitada) em cada dia com ${F.artistas} ${F.artistas === 1 ? "artista livre que topa" : "artistas livres que topam"} o ${esc(F.nome)} na cidade delas. O line-up já vem escolhido; troque quem quiser e crie a data de uma vez.`}</p>
-        ${filtros}${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
+        ${filtros}${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}${sugestaoHistorico(b)}</div>`;
     }
     const livres = livresNoDia(E, casas, S.dpEd);
     const dias = diasDaBusca(b);
@@ -3946,7 +3975,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${esc(NOME_SEM[wdDe(l.dia)])}, ${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Casas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.cs.map((c) => chipC(c, l.dia)).join("") || '<span class="muted">nenhuma</span>'}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Artistas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.as.map((a) => chipA(a, l.dia)).join("") || '<span class="muted">nenhum</span>'}</span></div></div>`).join("")}</div>`
-        : `<p class="muted">Nenhum dia ${b.ambos ? "com casa e artista livres" : "com casa ou artista livre"} nesse período${b.cid ? " em " + esc(b.cid) : ""}.</p>`}</div>`;
+        : `<p class="muted">Nenhum dia ${b.ambos ? "com casa e artista livres" : "com casa ou artista livre"} nesse período${b.cid ? " em " + esc(b.cid) : ""}.</p>`}${sugestaoHistorico(b)}</div>`;
   }
   // O que já está digitado na Nova data, para não perder ao preencher pela busca.
   function lerFormDp() {
@@ -4694,6 +4723,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
 
+  // A Sugestão POR HISTÓRICO (Criar datas) continua aberta ao mudar filtro ou formato, se a pessoa abriu.
+  document.addEventListener("toggle", (ev) => { if (ev.target.id === "dpbSug") S.dpbSugAberto = ev.target.open; }, true);
   // Lembra quais funções da equipe estão abertas (Equipe da casa, Ficha e Treinamentos), pelo mesmo motivo.
   const abrirLinhaEq = (id) => { if (!(S.eqlinAbertas || []).includes(id)) S.eqlinAbertas = [...(S.eqlinAbertas || []), id]; };
   document.addEventListener("toggle", (ev) => {
@@ -4770,6 +4801,26 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const x = (S.eq?.datasP || []).find((d) => "p:" + d.id === id); if (x) return eventoDoPortal(x);
     return (S.pac?.eventos || []).find((e) => e.id === id) || null;
   }
+  // Vínculo da base do Notion (Casas / Artistas) com as contas do portal: liga quando o nome bate (sem acento e caixa).
+  function vinculoBase(tipo, r) {
+    if (!S.conta || !["equipe", "adm"].includes(S.conta.perfil.tipo)) return "";
+    const E = S.eq; if (!E) { carregarEquipe(); return `<h3>Vínculo com o portal</h3><p class="muted">Carregando as contas do portal…</p>`; }
+    const k = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim(), alvo = k(r.n);
+    if (!alvo) return "";
+    let linhas = [];
+    if (tipo === "casas") {
+      const cs = (E.casas || []).filter((c) => c.notion_casa_id === r.id || k(c.dados?.nome) === alvo || k(c.perfil?.vinculo_nome) === alvo);
+      linhas = cs.map((c) => `<dt>Ficha no portal</dt><dd>${esc(c.dados?.nome || c.perfil?.vinculo_nome || "Casa")} ${badgeEtapa(etapaCasaEq(E, c))} <button class="btn sm" data-click="casacad:${c.id}">Abrir a Ficha</button></dd>`);
+      const ps = (E.perfis || []).filter((p) => p.tipo === "casa" && k(p.vinculo_nome) === alvo && !cs.some((c) => c.user_id === p.id));
+      linhas.push(...ps.map((p) => `<dt>Conta</dt><dd>${esc(p.nome || p.vinculo_nome)} <span class="muted">(${esc(p.email)})</span></dd>`));
+    } else {
+      const ps = (E.perfis || []).filter((p) => p.tipo === "artista" && (k(p.vinculo_nome) === alvo || k(p.nome) === alvo));
+      const is = (E.insc || []).filter((i) => ps.some((p) => p.id === i.user_id) || k(i.dados?.nome_artistico) === alvo);
+      linhas = is.map((i) => `<dt>Ficha no portal</dt><dd>${esc(i.dados?.nome_artistico || "Artista")} ${badgeEtapa(etapaArtistaEq(E, i))} <button class="btn sm" data-click="insc:${i.id}">Abrir a ficha</button></dd>`);
+      linhas.push(...ps.filter((p) => !is.some((i) => i.user_id === p.id)).map((p) => `<dt>Conta</dt><dd>${esc(p.vinculo_nome || p.nome)} <span class="muted">(${esc(p.email)}) · ainda sem ficha</span></dd>`));
+    }
+    return `<h3>Vínculo com o portal</h3>${linhas.length ? `<dl class="kv" data-bn-vinculo>${linhas.join("")}</dl>` : `<p class="muted" data-bn-vinculo>Ninguém com este nome tem conta no portal ainda. Dá para convidar em Convidar.</p>`}`;
+  }
   function detalheEventoEquipe(e) {
     const E = S.eq; if (!E) return "";
     const k = (x) => String(x || "").trim().toLowerCase();
@@ -4779,5 +4830,5 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <dt>Contratos</dt><dd>${cts.length ? cts.map((x) => `<button class="btn sm" data-abrir="ct:${x.id}" onclick="dlg.close()">${esc(x.titulo)} · ${situacaoCt(x).rotulo}</button>`).join(" ") : '<span class="muted">nenhum contrato no portal</span>'}</dd>
       ${e.portal ? `<dt>Origem</dt><dd>Data criada no portal</dd>` : `<dt>Origem</dt><dd>Notion</dd>`}</dl>`;
   }
-  return { eventoPorId, detalheEventoEquipe, bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { eventoPorId, detalheEventoEquipe, vinculoBase, bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

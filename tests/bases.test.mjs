@@ -1,0 +1,27 @@
+// Bases Casas de Shows e Artistas e bandas: o que é sensível só vai para a administração; o retrato do repositório é limpo.
+import { readFileSync } from 'node:fs';
+import { classificarCampo, casasDoRetrato, artistasDoRetrato, montarBases, cidadeDoEndereco } from '../scripts/bases.mjs';
+import { eventosDoRetrato, lineupDoRetrato, normalizar } from '../scripts/dados.mjs';
+let falhas = 0; const ok = (c, m) => { console.log((c ? 'OK    ' : 'FALHA ') + m); if (!c) falhas++; };
+const SENS_CASA = ['CNPJ', 'Razão social', 'Email do contato', 'Telefone 1 do contato', 'Telefone 2 do contato', 'Nome do(s) contato(s) da casa', 'Dono (franqueado)', 'Aluguel aprox.', 'Incluso no aluguel'];
+const SENS_ART = ['E-mail de contato', 'Telefone de contato', 'Telefone de contato secundário', 'Chave Pix', 'Conta bancária', 'Conta e DV', 'Banco', 'CPF/CNPJ (pagamento)', 'Nome para pagamento', 'Tipo de chave Pix', 'Dados de pagamento (legado)', 'Método de pagamento', 'RG dos integrantes', 'Último cachê negociado (manual)', 'Nome completo (representante para contrato)', 'Idade (manual)', 'Onde nasceu (texto)', 'Identidade de gênero', 'Orientação sexual (opcional)', 'Raça/Etnia', 'Pronomes', 'Restrição alimentar', 'Notas internas de curadoria e outras observações (não divulgar)', 'Grafias alternativas e variações'];
+ok(SENS_CASA.every((c) => classificarCampo('casas', c) === 'adm'), 'casas: CNPJ, razão social, contatos, dono e aluguel só na administração');
+ok(SENS_ART.every((c) => classificarCampo('artistas', c) === 'adm'), 'artistas: contato, Pix, banco, CPF, cachê, dados LGPD e notas internas só na administração');
+ok(['Nome fantasia', 'Capacidade máxima em pé (informada)', 'Instagram', 'Cidade', 'Menores de idade', 'Avaliação (padrão Tranquilo)'].every((c) => classificarCampo('casas', c) === 'equipe'), 'casas: nome, capacidade, Instagram, cidade e avaliação na equipe');
+ok(['Nome artístico', 'Gênero musical', 'Link de Spotify', 'Link do Instagram', 'Status de curadoria', 'Praça preferencial do Tranquilo'].every((c) => classificarCampo('artistas', c) === 'equipe'), 'artistas: nome, gêneros, Spotify, Instagram, status e praça na equipe');
+ok(classificarCampo('artistas', 'Campo novo qualquer') === 'adm' && classificarCampo('casas', 'Telefone 3 do contato') === 'adm', 'campo novo ou desconhecido vai só para a administração');
+ok(cidadeDoEndereco('Rua Vítor Konder, 409, Centro, Florianópolis - SC, 88015-400, Brazil').join('/') === 'Florianópolis/SC' && cidadeDoEndereco('Rua X, 674, Jaraguá, Maceió, AL, 57022-180, Brasil').join('/') === 'Maceió/AL', 'cidade/UF a partir do endereço do Notion');
+const txt = readFileSync(new URL('../data/casas.psv', import.meta.url), 'utf8') + readFileSync(new URL('../data/artistas.psv', import.meta.url), 'utf8');
+ok(!/[\w.+-]+@[\w-]+\.[a-z]{2,}(?![\w/])/i.test(txt.replace(/https?:\/\/\S+/g, '')) && !/\d{3}\.\d{3}\.\d{3}-\d{2}|\d{2}\.\d{3}\.\d{3}\/\d{4}/.test(txt) && !/\+55\s?\d{2}/.test(txt), 'retrato do repositório sem e-mail, CPF, CNPJ ou telefone');
+const casas = await casasDoRetrato(), artistas = await artistasDoRetrato();
+ok(casas.length === 226 && artistas.length === 1158, `retrato completo (${casas.length} casas, ${artistas.length} artistas)`);
+const eventos = normalizar(await eventosDoRetrato(), {}, '2026-11-18', await lineupDoRetrato());
+const B = montarBases(casas, artistas, eventos, JSON.parse(readFileSync(new URL('../data/referencias.json', import.meta.url), 'utf8')).artistas);
+ok(B.equipe.casas.every((c) => !c.priv && !c.evN) && B.equipe.artistas.every((a) => !a.priv && !a.alt), 'pacote da equipe sem priv nem grafias');
+const comEv = B.equipe.casas.filter((c) => c.sug);
+ok(comEv.length > 10 && comEv.every((c) => c.sug?.dias?.length && c.sug.dias.every(([d, n]) => /^(dom|seg|ter|qua|qui|sex|sáb)$/.test(d) && n > 0)), 'casas com eventos: dias da semana mais frequentes');
+const yo = B.equipe.artistas.find((a) => a.n === 'YOÙN');
+ok(yo && yo.ev.length > 0 && yo.sug.cidades.length > 0 && yo.sug.formatos.length > 0, 'artista: cidades e formatos em que já tocou (YOÙN)');
+const fake = montarBases([{ id: 'c1', n: 'Casa', x: {}, priv: { CNPJ: '00' } }], [{ id: 'a1', n: 'A', x: {}, priv: { 'Chave Pix': 'x' }, alt: [] }], eventos);
+ok(fake.adm.casas[0].priv.CNPJ && fake.adm.artistas[0].priv['Chave Pix'] && !fake.equipe.casas[0].priv && !fake.equipe.artistas[0].priv, 'priv só no pacote da administração');
+if (falhas) process.exit(1);
