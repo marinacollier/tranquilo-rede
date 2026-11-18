@@ -2,19 +2,22 @@
 // sem preencher nada. Todos os dados são inventados. Só roda à mão (workflow vitrine).
 //   SUPABASE_ACCESS_TOKEN  token da Management API
 //   SENHA_HASH             hash bcrypt da senha comum das contas (a senha não passa pelo repositório)
-//   MODO                   criar (apaga a vitrine anterior e os testes manuais "TESTE …" de hoje e cria de novo) ou apagar
+//   MODO                   criar (apaga a vitrine anterior e os testes manuais "TESTE …" de hoje e cria de novo), apagar ou
+//                          equilibrio (apaga todos os dados de teste antigos e cria 2 casos em cada status de cada fluxo:
+//                          casas do Gui, artistas e datas da Isa, campanhas do Bruno; ver scripts/equilibrio.mjs)
 import { readFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 
 const tok = process.env.SUPABASE_ACCESS_TOKEN, MODO = process.env.MODO || 'criar', HASH = (process.env.SENHA_HASH || '').trim();
 if (!tok) { console.error('::error::Falta SUPABASE_ACCESS_TOKEN.'); process.exit(1); }
-if (MODO === 'criar' && !/^\$2[aby]\$\d{2}\$.{53}$/.test(HASH)) { console.error('::error::SENHA_HASH precisa ser um hash bcrypt.'); process.exit(1); }
+if ((MODO === 'criar' || MODO === 'equilibrio') && !/^\$2[aby]\$\d{2}\$.{53}$/.test(HASH)) { console.error('::error::SENHA_HASH precisa ser um hash bcrypt.'); process.exit(1); }
 const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1], URL_SB = `https://${ref}.supabase.co`;
 const limpo = (s) => String(s ?? '').replace(/[^\s@"']+@[^\s@"']+/g, '[e-mail]').replace(/eyJ[\w.-]{20,}|sb_(secret|publishable)_[\w-]+|\$2[aby]\$[^\s"']+/g, '[chave]').slice(0, 300);
-async function sql(q) {
+async function sql(q, tentativa = 0) {
   const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/database/query`, { method: 'POST', headers: { Authorization: `Bearer ${tok}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ query: q }) });
   const t = await r.text();
+  if (r.status === 429 && tentativa < 5) { await new Promise((ok) => setTimeout(ok, 5000 * (tentativa + 1))); return sql(q, tentativa + 1); }
   if (!r.ok) throw new Error(`SQL HTTP ${r.status}: ${limpo(t)}`);
   return JSON.parse(t);
 }
@@ -110,6 +113,33 @@ delete from auth.users where id in (select id from vit_ids);`);
 }
 
 try {
+  if (MODO === 'equilibrio') {
+    // Dados de teste equilibrados (Marina, 18/11/2026): 2 casos em cada status, para Isa, Gui e Bruno. Nada vai ao Notion.
+    const { equilibrio } = await import('./equilibrio.mjs');
+    const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
+    const serv = (chaves.find?.((k) => k.name === 'service_role') || chaves.find?.((k) => k.type === 'secret'))?.api_key;
+    if (!serv) throw new Error('chave de serviço não encontrada');
+    console.log(`::add-mask::${serv}`);
+    const H = { apikey: serv, ...(serv.startsWith('eyJ') ? { Authorization: `Bearer ${serv}` } : {}) };
+    await equilibrio({
+      sql, ok, log: console.log, HASH,
+      async criarConta(email, nome, tipo) {
+        const r = await fetch(`${URL_SB}/auth/v1/admin/users`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password_hash: HASH, email_confirm: true, user_metadata: { nome, tipo, senha_portal: true } }) });
+        const j = await r.json(); if (!r.ok) throw new Error(`criar conta ${tipo}: HTTP ${r.status} ${j.msg || j.message || j.error_code || ''}`);
+        return j.id;
+      },
+      async subirArquivo(caminho, bytes) {
+        const r = await fetch(`${URL_SB}/storage/v1/object/materiais/${caminho}`, { method: 'POST', headers: { ...H, 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: bytes });
+        if (!r.ok) throw new Error(`enviar arquivo de contrato: HTTP ${r.status}`);
+      },
+      async apagarArquivos(caminhos) {
+        for (let i = 0; i < caminhos.length; i += 100) {
+          const r = await fetch(`${URL_SB}/storage/v1/object/materiais`, { method: 'DELETE', headers: { ...H, 'Content-Type': 'application/json' }, body: JSON.stringify({ prefixes: caminhos.slice(i, i + 100) }) });
+          if (!r.ok) throw new Error(`apagar arquivos de teste: HTTP ${r.status}`);
+        }
+      },
+    });
+  }
   if (MODO === 'criar' || MODO === 'apagar') await apagar();
   if (MODO === 'criar') {
     const chaves = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
