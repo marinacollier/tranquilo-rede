@@ -355,8 +355,8 @@ insert into campanha_itens (campanha_id, chave, dia, rotulo, acoes) select c.id,
 // ---------- 3. conferir e resumir ----------
 export async function verificar(ctx, { C, A, datas, hoje, R, como }) {
   const { sql, ok } = ctx, log = ctx.log || console.log;
-  const casas = await sql(`select c.id, c.user_id, c.status::text status, c.parecer, c.dados, u.email, p.vinculo_nome from cadastros_casas c join perfis p on p.id = c.user_id join auth.users u on u.id = c.user_id where u.email like '%@${DOM}'`);
-  const insc = await sql(`select i.user_id, i.status::text status, i.parecer, i.dados, u.email, p.vinculo_nome from inscricoes_artistas i join perfis p on p.id = i.user_id join auth.users u on u.id = i.user_id where u.email like '%@${DOM}'`);
+  const casas = await sql(`select c.id, c.user_id, c.status::text status, c.parecer, c.dados, u.email, p.vinculo_nome from cadastros_casas c join perfis p on p.id = c.user_id join auth.users u on u.id = c.user_id where ${E_TESTE}`);
+  const insc = await sql(`select i.user_id, i.status::text status, i.parecer, i.dados, u.email, p.vinculo_nome from inscricoes_artistas i join perfis p on p.id = i.user_id join auth.users u on u.id = i.user_id where ${E_TESTE}`);
   const temSt = (await sql(`select to_regclass('storage.objects') is not null t`))[0]?.t;
   const cts = await sql(`select k.id, k.user_id, k.evento_id, u.email,
       case when k.status = 'assinado' then 'assinado' when k.status = 'cancelado' then 'cancelado' when k.conferido_em is not null then 'conferido'
