@@ -39,5 +39,23 @@ update perfis set tipo = ${lit(tipo)}::tipo_perfil, nome = ${lit(c.nome)}, whats
 }
 console.log(`OK    ${contas.length} contas reais copiadas para a produção (${novas} novas, ${ja} já existiam), com a mesma senha do teste: ${Object.entries(resumo).map(([k, n]) => `${n} ${k}`).join(', ')}`);
 if (ADM && !contas.some((c) => c.eh_adm)) console.log('AVISO o e-mail de administração pedido não tem conta no ambiente de teste: crie a conta nele (ou na produção) e rode de novo.');
+// Conta de administração nova (e-mail em base64 só para não ficar legível no log) e senha comum, quando pedidas.
+const HASH = (process.env.SENHA_HASH || '').trim(), NOVO = Buffer.from(process.env.NOVO_ADM_B64 || '', 'base64').toString('utf8').trim().toLowerCase();
+if (NOVO) console.log(`::add-mask::${NOVO}`);
+if (NOVO && /^\$2[aby]\$\d{2}\$.{53}$/.test(HASH)) {
+  for (const ref of [TESTE, PRD]) {
+    const ks = await (await fetch(`https://api.supabase.com/v1/projects/${ref}/api-keys?reveal=true`, { headers: { Authorization: `Bearer ${tok}` } })).json();
+    const sv = (ks.find?.((k) => k.name === 'service_role') || ks.find?.((k) => k.type === 'secret'))?.api_key; console.log(`::add-mask::${sv}`);
+    let id = (await sql(ref, `select id from auth.users where lower(email) = ${lit(NOVO)}`))[0]?.id;
+    if (!id) { const r = await fetch(`https://${ref}.supabase.co/auth/v1/admin/users`, { method: 'POST', headers: { apikey: sv, 'Content-Type': 'application/json', ...(sv.startsWith('eyJ') ? { Authorization: `Bearer ${sv}` } : {}) }, body: JSON.stringify({ email: NOVO, email_confirm: true, user_metadata: { nome: 'Administração Tranquilo', tipo: 'artista' } }) }); const j = await r.json(); if (!r.ok) throw new Error(`criar adm: HTTP ${r.status}`); id = j.id; }
+    await sql(ref, `update auth.users set encrypted_password = ${lit(HASH)}, email_confirmed_at = coalesce(email_confirmed_at, now()) where id = ${lit(id)};
+update perfis set tipo = 'adm', nome = 'Administração Tranquilo', senha_definida = true where id = ${lit(id)};`);
+    console.log(`OK    conta de administração nova pronta no ${ref === PRD ? 'ambiente de produção' : 'ambiente de teste'}`);
+  }
+}
+if (process.env.TODAS === 'sim' && /^\$2[aby]\$\d{2}\$.{53}$/.test(HASH)) {
+  const r = await sql(PRD, `update auth.users set encrypted_password = ${lit(HASH)} where id in (select id from perfis) returning id`);
+  console.log(`OK    senha comum aplicada às ${r.length} contas da produção`);
+}
 const p = await sql(PRD, `select tipo::text, count(*)::int n from perfis group by 1 order by 1`);
 console.log(`OK    contas na produção agora: ${p.map((x) => `${x.n} ${x.tipo}`).join(', ')}`);

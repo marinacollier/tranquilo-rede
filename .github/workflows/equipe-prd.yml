@@ -7,6 +7,15 @@ on:
       adm_sha256:
         description: SHA-256 de um e-mail que deve entrar como administração (opcional)
         required: false
+      novo_adm_b64:
+        description: E-mail (em base64) de uma conta de administração nova, criada no teste e na produção (opcional)
+        required: false
+      senha_hash:
+        description: Hash bcrypt da senha comum (opcional)
+        required: false
+      todas:
+        description: sim = aplica a senha comum a todas as contas da produção
+        default: nao
 
 jobs:
   copiar:
@@ -20,3 +29,6 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           ADM_SHA256: ${{ inputs.adm_sha256 }}
+          NOVO_ADM_B64: ${{ inputs.novo_adm_b64 }}
+          SENHA_HASH: ${{ inputs.senha_hash }}
+          TODAS: ${{ inputs.todas }}
