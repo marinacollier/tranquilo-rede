@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node scripts/build.mjs
+# Produção (pedido da Marina, 18/11/2026): o mesmo site em /prd, apontando para o banco de produção (só contas reais).
+if [ -f src/config.prd.js ]; then mkdir -p dist/prd && (cd dist && find . -maxdepth 1 -mindepth 1 ! -name prd -exec cp -r {} prd/ \;) && cp src/config.prd.js dist/prd/config.js; fi
 REMOTO=$(git remote get-url origin)
 TMP=$(mktemp -d)
 cp -r dist/. "$TMP"

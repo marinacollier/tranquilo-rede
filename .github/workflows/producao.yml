@@ -1,0 +1,17 @@
+name: Criar ambiente de produção
+
+# Só roda à mão. Cria (uma vez) o projeto Supabase de produção e imprime a configuração pública.
+on:
+  workflow_dispatch:
+
+jobs:
+  caso:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/producao.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

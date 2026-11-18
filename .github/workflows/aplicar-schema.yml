@@ -3,6 +3,10 @@ name: Aplicar schema no banco (Supabase)
 # Só roda à mão (Actions > Aplicar schema > Run workflow). Faz o mesmo que colar o supabase/schema.sql no SQL Editor.
 on:
   workflow_dispatch:
+    inputs:
+      alvo:
+        description: homolog (teste) ou prd (produção)
+        default: homolog
 
 jobs:
   aplicar:
@@ -14,4 +18,5 @@ jobs:
           node-version: 22
       - run: node supabase/aplicar.mjs
         env:
+          ALVO: ${{ inputs.alvo }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

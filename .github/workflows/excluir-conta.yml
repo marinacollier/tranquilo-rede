@@ -5,6 +5,9 @@ name: Excluir ou confirmar conta do portal
 on:
   workflow_dispatch:
     inputs:
+      alvo:
+        description: homolog (teste) ou prd (produção)
+        default: homolog
       email_sha256:
         description: SHA-256 do e-mail em minúsculas
         required: true
@@ -22,6 +25,7 @@ jobs:
           node-version: 22
       - run: node scripts/excluir-conta.mjs
         env:
+          ALVO: ${{ inputs.alvo }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           EMAIL_SHA256: ${{ inputs.email_sha256 }}
           MODO: ${{ inputs.modo }}

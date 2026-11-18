@@ -1,0 +1,34 @@
+name: Copiar equipe para a produção
+
+# Só roda à mão. Copia as contas reais de equipe e administração do ambiente de teste para o de produção (mesma senha).
+on:
+  workflow_dispatch:
+    inputs:
+      adm_sha256:
+        description: SHA-256 de um e-mail que deve entrar como administração (opcional)
+        required: false
+      novo_adm_b64:
+        description: E-mail (em base64) de uma conta de administração nova, criada no teste e na produção (opcional)
+        required: false
+      senha_hash:
+        description: Hash bcrypt da senha comum (opcional)
+        required: false
+      todas:
+        description: sim = aplica a senha comum a todas as contas da produção
+        default: nao
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/equipe-prd.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ADM_SHA256: ${{ inputs.adm_sha256 }}
+          NOVO_ADM_B64: ${{ inputs.novo_adm_b64 }}
+          SENHA_HASH: ${{ inputs.senha_hash }}
+          TODAS: ${{ inputs.todas }}

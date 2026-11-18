@@ -72,6 +72,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // Bruno (Marketing): "Para você" traz a campanha atrasada e o item abre direto o dia a dia dela.
     await p.evaluate(() => { S.conta.perfil.areas = ['marketing']; S.campAbertas = null; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="camp:"]', { timeout: 5000 });
     ok(/Cobrar campanha atrasada \(\d+\)/.test(await p.innerText('#app')) && /dias? atrasados?/.test(await p.innerText('[data-abrir^="camp:"]')), 'Para você (Marketing): "Cobrar campanha atrasada" com a casa e quantos dias');
+    ok(await p.$eval('[data-abrir^="camp:"]', (x) => { const g = x.closest('.pend-grupo'); return !g || /^ev:/.test(g.querySelector('.pend-ev')?.dataset.abrir || ''); }), 'Para você (Marketing): campanha com data fica sob o cabeçalho do evento, que abre o detalhe da data (sem acesso a Contratos)');
     await p.click('[data-abrir^="camp:"]'); await p.waitForTimeout(400);
     ok((await p.$$('details[data-camp][open] .camp-dia')).length === 10, 'o item abre direto o dia a dia da campanha');
     await p.evaluate(() => { delete S.conta.perfil.areas; S.campAbertas = null; render(); });
