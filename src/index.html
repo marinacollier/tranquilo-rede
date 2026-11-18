@@ -826,6 +826,23 @@ details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 .pp-ad li{display:flex;flex-direction:column;padding:6px 0;border-top:1px solid var(--line)}
 .pp-antes{color:var(--ink-3, #777);text-decoration:line-through}
 .pp-depois{font-weight:600}
+/* Pré-fichas pelo Notion: casas e artistas reais, com o que já sabemos ("do Notion") e o que falta */
+.pf-lista{list-style:none;margin:8px 0 0;padding:0}
+.pf-item{border-top:1px solid var(--line);padding:6px 0}
+.pf-linha{all:unset;box-sizing:border-box;display:flex;flex-wrap:wrap;gap:4px 8px;align-items:baseline;width:100%;cursor:pointer;padding:6px 28px 6px 4px;position:relative;border-radius:8px}
+.pf-linha:hover{background:var(--raised)}
+.pf-linha:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.pf-linha::after{content:"▼";position:absolute;right:8px;top:8px;font-size:11px;color:var(--violet)}
+.pf-linha[aria-expanded="true"]::after{content:"▲"}
+.pf-corpo{padding:6px 4px 10px}
+.pf-campos{list-style:none;margin:6px 0 0;padding:0}
+.pf-campos li{display:grid;grid-template-columns:minmax(120px,1fr) 2fr auto;gap:8px;align-items:baseline;padding:5px 0;border-top:1px solid var(--line);font-size:14px}
+.pf-campos li .pf-v{overflow-wrap:anywhere}
+@media (max-width:600px){.pf-campos li{grid-template-columns:1fr auto}.pf-campos li .pf-v{grid-column:1/-1}}
+.pf-sec{margin-top:6px}
+.pf-sec>summary{cursor:pointer;padding:4px 0}
+.pf-ev{list-style:none;margin:4px 0 0;padding:0;font-size:14px}
+.pf-ev li{padding:4px 0;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -863,6 +880,7 @@ details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 <script src="historico.js?v=__V__"></script>
 <script src="contrato.js?v=__V__"></script>
 <script src="propostas.js?v=__V__"></script>
+<script src="prefichas.js?v=__V__"></script>
 <script src="conta.js?v=__V__"></script>
 <script>
 "use strict";

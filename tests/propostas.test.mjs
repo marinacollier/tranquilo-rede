@@ -107,5 +107,5 @@ await como(adm, async () => { ok((await q(`select id from propostas_atualizacao`
 
 // Regras do site (src/propostas.js) batem com o banco: chaves válidas e dias de 0 a 6.
 const P = globalThis.TQPropostas;
-ok(['artista', 'casa'].every((t) => P.CAMPOS[t].every(([k]) => /^[a-z_0-9]+$/.test(k) && k.length <= 60)), 'campos propostos pelo site têm nomes aceitos pelo banco');
+ok(['artista', 'casa'].every((t) => P.todos(t).every(([k]) => /^[a-z_0-9]+$/.test(k) && k.length <= 60)), 'campos propostos pelo site têm nomes aceitos pelo banco');
 ok(P.podePropor({ tipo: 'equipe', areas: ['agenda'] }, 'artista') && !P.podePropor({ tipo: 'equipe', areas: ['agenda'] }, 'casa') && P.podePropor({ tipo: 'adm' }, 'casa') && P.podePropor({ tipo: 'equipe', areas: null }, 'casa'), 'site e banco: quem propõe para quem');

@@ -101,7 +101,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
       await q.click('[data-abrir="ctpre:|semct"]'); await q.waitForSelector('#ctConta');
       ok(await q.inputValue('#ctConta') === 'semct', 'Gui: "aguarda o contrato" abre Preparar contrato com a casa já escolhida');
       await q.evaluate(() => { const a = TQConta.areaDe('hoje'); S.sub[a] = 'hoje'; S.aba = a; render(); }); await q.waitForSelector('[data-abrir="casa:c-ok"]');
-      ok(/sem dia livre com artista/.test(await q.textContent('[data-abrir="casa:c-ok"]')), 'Gui: "Fechar data" diz se há dia livre com artista e abre a Ficha (Criar datas é da Agenda)');
+      ok(/sem dia livre com artista/.test(await q.textContent('.bloco-acao:has(h3:text("Fechar data")) [data-abrir="casa:c-ok"]')), 'Gui: "Fechar data" diz se há dia livre com artista e abre a Ficha (Criar datas é da Agenda)');
       await q.keyboard.press('Escape');
       await q.evaluate(() => { const a = TQConta.areaDe('casas_cad'); S.sub[a] = 'casas_cad'; S.aba = a; render(); }); await q.waitForSelector('table[data-tbl="casc"]');
       const linhaCasa = (n) => q.$eval(`table[data-tbl="casc"] tr:has-text("${n}")`, (x) => x.textContent);

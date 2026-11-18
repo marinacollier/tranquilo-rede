@@ -8,7 +8,9 @@ const k = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowe
 const ref = JSON.parse(await readFile(new URL('../data/referencias.json', import.meta.url), 'utf8'));
 const TIPOS = Object.fromEntries(Object.entries(ref).flatMap(([, v]) => (v && typeof v === 'object' ? Object.entries(v) : [])).filter(([id, n]) => /^[0-9a-f]{32}$/.test(id) && typeof n === 'string'));
 const casasL = await ler('casas.psv'), artL = await ler('artistas.psv'), evL = await ler('eventos.psv'), luL = await ler('lineup.psv');
-const casas = new Map(casasL.map(([id, nome, cidade, uf, cap_pe, cap_sentado, , , , avaliacao, instagram]) => [id, { id, nome, cidade: cidade.split('/')[0], uf, cap: +cap_sentado || +cap_pe || null, avaliacao, instagram, dias: [0, 0, 0, 0, 0, 0, 0], noites: 0, ultima: '' }]));
+// Pré-ficha da casa (18/11/2026): capacidade em pé e sentado, menores, site e rider também vão (campos públicos do espaço).
+const casas = new Map(casasL.map(([id, nome, cidade, uf, cap_pe, cap_sentado, , , menores, avaliacao, instagram, site, rider]) => [id, { id, nome, cidade: cidade.split('/')[0], uf, cap: +cap_sentado || +cap_pe || null,
+  cap_pe: +cap_pe || null, cap_sentado: +cap_sentado || null, menores: /^(Permite|Não permite)/.test(menores || '') ? menores : '', site: site || '', rider: rider || '', avaliacao, instagram, dias: [0, 0, 0, 0, 0, 0, 0], noites: 0, ultima: '' }]));
 const evs = evL.map(([id, nome, status, data, , , , , , , casa, tipo]) => ({ id, status, data, casa, tipo: TIPOS[tipo] || (/descubra/i.test(nome) ? 'Descubra' : /apresenta/i.test(nome) ? 'Apresenta' : '') }));
 const evPorId = new Map(evs.map((e) => [e.id, e]));
 for (const e of evs) {
