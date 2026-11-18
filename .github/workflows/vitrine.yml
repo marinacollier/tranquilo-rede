@@ -7,6 +7,9 @@ name: Vitrine de demonstração
 on:
   workflow_dispatch:
     inputs:
+      email_base_b64:
+        description: E-mail base em base64 (contas viram base+papel-etapa)
+        required: false
       senha_hash:
         description: Hash bcrypt da senha das contas
         required: false
@@ -28,4 +31,5 @@ jobs:
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           SENHA_HASH: ${{ inputs.senha_hash }}
+          EMAIL_BASE_B64: ${{ inputs.email_base_b64 }}
           MODO: ${{ inputs.modo }}

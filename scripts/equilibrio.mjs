@@ -15,7 +15,12 @@ import { readFile } from 'node:fs/promises';
 export const DOM = 'tranquilo.teste';
 export const MANTER = ['central.caso-teste@teste-e2e.invalid', 'casa.teste@tranquilo.com.br', 'artista.teste@tranquilo.com.br'];
 // Contas de teste que esta leva apaga (u = auth.users).
-export const E_TESTE = `(u.email like '%@${DOM}' or u.email like 'teste.%@teste-e2e.invalid' or u.email like 'curadoria.%@teste-e2e.invalid')`;
+// E-mail base da Marina (EMAIL_BASE_B64, opcional): as contas viram <base>+<papel>-<etapa>@<domínio>, que chegam na caixa dela.
+const BASE = (() => { try { const e = Buffer.from(process.env.EMAIL_BASE_B64 || '', 'base64').toString('utf8').trim().toLowerCase(); return /^[^@\s+]+@[^@\s]+$/.test(e) ? e.split('@') : null; } catch { return null; } })();
+if (BASE) console.log(`::add-mask::${BASE[0]}`);
+export const emailDe = (tipo, user) => BASE ? `${BASE[0]}+${tipo}-${user}@${BASE[1]}` : `${tipo}.${user}@${DOM}`;
+const DE_BASE = BASE ? ` or (u.email like '${BASE[0]}+%@${BASE[1]}' and u.email !~ '\\+(maritaka|analu|ratazana)@')` : '';
+export const E_TESTE = `(u.email like '%@${DOM}' or u.email like 'teste.%@teste-e2e.invalid' or u.email like 'curadoria.%@teste-e2e.invalid'${DE_BASE})`;
 
 const lit = (s) => (s == null ? 'null' : `'${String(s).replace(/'/g, "''")}'`);
 const js = (o) => `${lit(JSON.stringify(o))}::jsonb`;
@@ -227,8 +232,8 @@ export async function equilibrio(ctx) {
   const datas = plano(hoje);
 
   // Contas: <papel>.<usuário>@tranquilo.teste, com a senha comum (SENHA_HASH) e o tutorial já visto.
-  const C = Object.fromEntries(CASAS.map((x, i) => [x[0], { linha: x, i, user: x[0], nome: x[1], dono: x[2], cid: x[3], etapa: x[4], email: `casa.${x[0]}@${DOM}` }]));
-  const A = Object.fromEntries(ARTISTAS.map((x, i) => [x[0], { linha: x, i, user: x[0], nome: x[1], etapa: x[2], formato: x[3], cids: x[4], email: `artista.${x[0]}@${DOM}` }]));
+  const C = Object.fromEntries(CASAS.map((x, i) => [x[0], { linha: x, i, user: x[0], nome: x[1], dono: x[2], cid: x[3], etapa: x[4], email: emailDe('casa', x[0]) }]));
+  const A = Object.fromEntries(ARTISTAS.map((x, i) => [x[0], { linha: x, i, user: x[0], nome: x[1], etapa: x[2], formato: x[3], cids: x[4], email: emailDe('artista', x[0]) }]));
   for (const c of Object.values(C)) c.id = await ctx.criarConta(c.email, `${c.dono} (teste)`, 'casa');
   for (const a of Object.values(A)) a.id = await ctx.criarConta(a.email, a.nome, 'artista');
   const todos = [...Object.values(C), ...Object.values(A)], ids = todos.map((x) => lit(x.id)).join(', ');
@@ -360,7 +365,7 @@ export async function verificar(ctx, { C, A, datas, hoje, R, como }) {
         when exists (select 1 from jsonb_array_elements(k.campos) x where coalesce(btrim(k.dados->>(x->>'chave')), '') = '') then 'dados' else 'assinar' end etapa
     from contratos k join auth.users u on u.id = k.user_id
     left join lateral (select ${temSt ? `max(o.created_at) em from storage.objects o where o.bucket_id = 'materiais' and left(o.name, length(k.user_id::text || '/contrato_' || k.id::text || '/')) = k.user_id::text || '/contrato_' || k.id::text || '/'` : 'null::timestamptz em'}) arq on true
-    where u.email like '%@${DOM}'`);
+    where ${E_TESTE}`);
   const eqc = await sql(`select casa_ref, funcoes, reserva from equipe_casa`);
   const sem = await sql(`select casa_ref, user_id, cidade, dias from disponibilidade_semanal`);
   const disp = await sql(`select casa_ref, dia::text dia, situacao from disponibilidade_casa where dia >= ${lit(hoje)}`);
