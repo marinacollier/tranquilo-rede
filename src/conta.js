@@ -329,11 +329,12 @@ const TQConta = (() => {
         if (casa || dias.length) db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id, cidade: cid }), dias: [...new Set(dias)].sort() }); gravar();
       },
       async dispArtistas() { const p = eu(); return (db.dispA || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.user_id === p?.id); },
-      async marcarDispArtista(dia, situacao) {
+      async marcarDispArtista(dia, situacao, nota) {
         const p = eu(); if (p?.tipo !== "artista") throw new Error("Só a própria artista informa a disponibilidade.");
         if (dia < hojeIso()) throw new Error("Esse dia já passou.");
-        db.dispA = (db.dispA || []).filter((x) => !(x.user_id === p.id && x.dia === dia));
-        if (situacao) db.dispA.push({ user_id: p.id, dia, situacao, atualizado_em: agora() }); gravar();
+        const antes = (db.dispA || []).find((x) => x.user_id === p.id && x.dia === dia);
+        db.dispA = (db.dispA || []).filter((x) => x !== antes);
+        if (situacao) db.dispA.push({ user_id: p.id, dia, situacao, nota: nota === undefined ? antes?.nota || null : nota || null, atualizado_em: agora() }); gravar();
       },
       async disponibilidade() { const p = eu(); return (db.disp || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.casa_ref === p?.vinculo_nome); },
       async datasPortal() {
@@ -346,10 +347,11 @@ const TQConta = (() => {
         const n = { status: "confirmada", ...(i >= 0 ? db.datasP[i] : { id: id(), criado_em: agora() }), ...d, atualizado_em: agora() };
         if (i >= 0) db.datasP[i] = n; else db.datasP.push(n); gravar(); return n;
       },
-      async marcarDisponibilidade(casa_ref, dia, situacao) {
+      async marcarDisponibilidade(casa_ref, dia, situacao, nota) {
         const p = eu(); if (p?.tipo !== "casa" || p.funcoes || p.vinculo_nome !== casa_ref) throw new Error("Só o responsável da casa informa a disponibilidade.");
-        db.disp = (db.disp || []).filter((x) => !(x.casa_ref === casa_ref && x.dia === dia));
-        if (situacao) db.disp.push({ casa_ref, dia, situacao, atualizado_em: agora() }); gravar();
+        const antes = (db.disp || []).find((x) => x.casa_ref === casa_ref && x.dia === dia);
+        db.disp = (db.disp || []).filter((x) => x !== antes);
+        if (situacao) db.disp.push({ casa_ref, dia, situacao, nota: nota === undefined ? antes?.nota || null : nota || null, atualizado_em: agora() }); gravar();
       },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
@@ -682,9 +684,10 @@ const TQConta = (() => {
           : await sb.from("disponibilidade_semanal").insert(casa ? { casa_ref: p.vinculo_nome, dias } : { user_id: p.id, dias, ...(cid ? { cidade: cid } : {}) }));
       },
       async dispArtistas() { return ok(await sb.from("disponibilidade_artista").select("user_id,dia,situacao,nota").gte("dia", hojeIso()).order("dia")); },
-      async marcarDispArtista(dia, situacao) {
+      // nota: motivo da exceção (feriado, evento privado…); undefined mantém a que já estava.
+      async marcarDispArtista(dia, situacao, nota) {
         const u = await uid();
-        ok(situacao ? await sb.from("disponibilidade_artista").upsert({ user_id: u, dia, situacao }) : await sb.from("disponibilidade_artista").delete().match({ user_id: u, dia }));
+        ok(situacao ? await sb.from("disponibilidade_artista").upsert({ user_id: u, dia, situacao, ...(nota === undefined ? {} : { nota: nota || null }) }) : await sb.from("disponibilidade_artista").delete().match({ user_id: u, dia }));
       },
       async disponibilidade() { return ok(await sb.from("disponibilidade_casa").select("casa_ref,dia,situacao,nota,atualizado_em").order("dia")); },
       async datasPortal() { return ok(await sb.from("datas_portal").select("*").order("dia")); },
@@ -692,8 +695,8 @@ const TQConta = (() => {
         const { id: did, ...linha } = d;
         return ok(did ? await sb.from("datas_portal").update(linha).eq("id", did).select().single() : await sb.from("datas_portal").insert(linha).select().single());
       },
-      async marcarDisponibilidade(casa_ref, dia, situacao) {
-        ok(situacao ? await sb.from("disponibilidade_casa").upsert({ casa_ref, dia, situacao }) : await sb.from("disponibilidade_casa").delete().match({ casa_ref, dia }));
+      async marcarDisponibilidade(casa_ref, dia, situacao, nota) {
+        ok(situacao ? await sb.from("disponibilidade_casa").upsert({ casa_ref, dia, situacao, ...(nota === undefined ? {} : { nota: nota || null }) }) : await sb.from("disponibilidade_casa").delete().match({ casa_ref, dia }));
       },
     };
   }
@@ -828,7 +831,7 @@ const TQConta = (() => {
         { k: "ficha", titulo: "Preencher e enviar o cadastro da casa", feito: enviada, liberado: true },
         { titulo: "Habilitação pelo Gui (Operações)", feito: hab, liberado: enviada, motivo: "libera quando você envia o cadastro", nota: st === "ajustes" ? "O Gui pediu ajustes no cadastro." : st === "em_analise" ? "O Gui está olhando o cadastro." : "" },
         { k: "equipe_g", titulo: "Montar a equipe da casa", feito: !!eqOk, liberado: enviada, motivo: "libera quando você envia o cadastro" },
-        { k: "disp_g", titulo: "Marcar a disponibilidade da casa", feito: disp, liberado: hab, motivo: "libera quando o Gui habilitar a casa" },
+        { k: "disp_g", titulo: "Marcar a disponibilidade da casa", feito: disp, liberado: hab && !!eqOk, motivo: [!hab && "o Gui habilitar a casa", !eqOk && `a equipe da casa estiver completa (${Array.isArray(L) ? `faltam: ${TQEquipe.listaFalta(TQEquipe.cobertura(L))}` : "monte em Equipe"})`].filter(Boolean).reduce((a, x, i) => a + (i ? " e " : "") + x, "libera quando ") },
         { k: "contr_g", titulo: "Assinar o contrato da parceria", feito: !!ctOk, liberado: cts.length > 0, motivo: "libera quando o Gui enviar o contrato" },
       ];
     }
@@ -1729,7 +1732,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (!p.vinculo_nome) return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>${vazio("A conta ainda não está ligada à casa", "Quando a equipe do Tranquilo ligar esta conta à sua casa (pelo convite ou em Pessoas), você monta a equipe aqui.", "", "equipe_casa")}`;
       if (L === undefined) { carregarEquipeCasa(); return carregando("a equipe da casa"); }
       if (L === null) return faltaSchema("Equipe da casa");
-      const cob = TQEquipe.cobertura(L), ed = dono && L.find((m) => m.id === S.eqcEd);
+      const cob = TQEquipe.cobertura(L), ed = dono && L.find((m) => m.id === S.eqcEd), novo = ed ? null : S.eqcNovo ?? null;
       const ACESSO = { ativo: ["b-good", "com acesso"], convidado: ["b-warn", "convite enviado"], sem_convite: ["", "sem acesso à plataforma"], sem_email: ["", "sem e-mail"] };
       const pessoa = (m) => `<div class="card row"><span><b>${esc(m.nome)}</b>${m.reserva ? ' <span class="badge">reserva</span>' : ""} ${(m.funcoes || []).map((f) => `<span class="pill">${esc(TQEquipe.NOME[f] || f)}</span>`).join("")}
         <div class="muted" style="font-size:12px">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}${dono ? ` · <span class="badge ${ACESSO[m.acesso]?.[0] || ""}">${ACESSO[m.acesso]?.[1] || ""}</span>` : ""}</div>
@@ -1737,19 +1740,23 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${(m.funcoes || []).includes("bar") ? `<span class="muted" style="font-size:12px">Bar sem acesso ao portal ${A_VALIDAR_HTML}</span>` : m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
       return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
       <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} Pelo Guia do Franqueado: as 4 cadeiras (você, o Líder Local, o anfitrião e a social media), o técnico de som e os operadores de porta, cada função com uma pessoa diferente (só você pode ser também o Líder Local), e 1 reserva para a equipe da noite.</p>
-      <div class="alert ${cob.completa ? "good" : "warn"}"><b>${cob.completa ? "Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (Líder Local, anfitrião e social media), técnico de som e porta, com reserva." : esc([...cob.pend, ...cob.erros].join(" · "))}</div>
-      <div class="grid g3" style="margin:12px 0">${TQEquipe.FUNCOES.map(([k, n, o, q]) => { const quem = L.filter((m) => !m.reserva && (m.funcoes || []).includes(k)).map((m) => m.nome);
+      <div class="alert ${cob.completa ? "good" : "warn"}" id="eqcFalta"><b>${cob.completa ? "✓ Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (Líder Local, anfitrião e social media), técnico de som e porta, com reserva." : esc([...(TQEquipe.faltando(cob).length ? [`Faltam: ${TQEquipe.listaFalta(cob)}.`] : []), ...cob.erros].join(" · "))}${!cob.completa && dono ? `<div class="muted" style="font-size:13px;margin-top:4px">A Disponibilidade da casa libera quando a equipe estiver completa.</div>` : ""}</div>
+      ${dono && TQEquipe.faltando(cob).length ? `<h2>O que falta</h2><div class="grid g3" id="eqcFaltam" style="margin:8px 0 12px">${TQEquipe.faltando(cob).map((k) => { const f = TQEquipe.FUNCOES.find((x) => x[0] === k);
+        return `<div class="card"><b>${esc(TQEquipe.CURTO[k])}</b> <span class="badge b-warn">falta</span><div class="muted" style="font-size:12px;margin:4px 0 8px">${esc(f ? f[2] : "Cobre quem faltar na semana do evento. Pode ser de qualquer função.")}</div><button class="btn sm pri" data-eqc-nova="${k}">Adicionar ${esc(TQEquipe.CURTO[k])}</button></div>`; }).join("")}</div>` : ""}
+      <h2>Quem ocupa cada função</h2><div class="grid g3" style="margin:12px 0">${TQEquipe.FUNCOES.map(([k, n, o, q]) => { const quem = L.filter((m) => !m.reserva && (m.funcoes || []).includes(k)).map((m) => m.nome);
         return `<div class="card"><b>${esc(n)}</b>${TQEquipe.TRIPE.includes(k) ? ' <span class="badge">tripé</span>' : ""}<div style="margin:4px 0">${quem.length ? esc(quem.join(", ")) : '<span class="badge b-warn">falta</span>'}</div><div class="muted" style="font-size:12px">${esc(o)} <b>Quando:</b> ${esc(q)}.</div></div>`; }).join("")}</div>
-      <h2>Pessoas (${L.length})</h2>${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.</p>`}
-      ${dono ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : "Adicionar pessoa"}</h3>
+      <div class="row" style="margin-top:8px"><h2 style="margin:0">Pessoas (${L.length})</h2>${dono ? `<button class="btn" data-eqc-nova="">+ Adicionar mais um membro</button>` : ""}</div>
+      ${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.${dono ? " Comece pelo que falta, acima." : ""}</p>`}
+      ${dono && (ed || novo != null) ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : novo ? `Adicionar ${esc(TQEquipe.CURTO[novo] || "pessoa")}` : "Adicionar mais um membro"}</h3>
         <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="eqcNome" maxlength="120" value="${esc(ed?.nome || "")}"></label><label class="fcampo"><b>WhatsApp</b><input id="eqcWa" inputmode="tel" maxlength="30" value="${esc(ed?.whatsapp || "")}"></label>
         <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label>
         <label class="fcampo"><b>Instagram (anfitrião e social media)</b><input id="eqcInsta" maxlength="80" placeholder="@" value="${esc(ed?.instagram || "")}"></label>
         <label class="fcampo"><b>Observação</b><input id="eqcObs" maxlength="300" value="${esc(ed?.observacao || "")}"></label></div>
-        <b style="font-size:14px">Função</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${ed?.funcoes?.includes(k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
-        <label class="fcheck"><input type="checkbox" id="eqcReserva"${ed?.reserva ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
+        <b style="font-size:14px">Função${novo === "reserva" ? " (a reserva também tem uma função)" : ""}</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${(ed ? ed.funcoes?.includes(k) : novo === k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
+        <label class="fcheck"><input type="checkbox" id="eqcReserva"${(ed ? ed.reserva : novo === "reserva") ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
-        <div class="err" role="status" aria-live="polite" id="eqcErr"></div><div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button>${ed ? `<button class="btn" data-eqc-editar="">Cancelar</button>` : ""}</div></div>` : ""}`;
+        <div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button><button class="btn" data-eqc-editar="">Cancelar</button></div></div>` : ""}
+      ${dono ? `<div class="err" role="status" aria-live="polite" id="eqcErr"></div>` : ""}`;
     },
     // ---------- administração: histórico de alterações (v17) ----------
     historico() {
@@ -1917,10 +1924,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="tag">Datas</div><h1>Disponibilidade da casa</h1>
       <p class="sub">A Isa consulta este calendário para montar a agenda, sem precisar perguntar pelo WhatsApp. Disponível não é reserva: a data só vale quando a Isa confirma com a casa.</p>
       ${dono ? blocoSemana(sem, "casa") : sem.length ? `<p class="muted">Toda semana: <b>${esc(sem.map((n) => NOME_SEM[n]).join(", "))}</b>.</p>` : ""}
-      <p class="muted" style="font-size:13px;margin:0 0 8px">No calendário: toque num dia para marcar <b>disponível</b>, de novo para <b>indisponível</b> e de novo para limpar.</p>
+      <p class="muted" style="font-size:13px;margin:0 0 8px">O calendário já vem preenchido pelos dias fixos. Para um feriado, um evento privado ou um dia extra, use <b>Ajustar uma data</b> logo abaixo (ou toque no dia).</p>
       ${calendarioMes(mes, (dia) => { const r = S.disp.find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
-        return { classe: e.length ? "cal-ev" : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: dono && dia >= hojeIso() && !e.length }; }, "data-disp-dia")}
-      <div class="err" role="status" aria-live="polite" id="dispErr"></div>`;
+        return celulaDisp(sit, r, sem, e.length ? e.map((x) => (x.a || []).join(", ") || x.m || "evento").join(" · ") : "", dono && dia >= hojeIso() && !e.length); }, "data-disp-dia")}
+      <div class="err" role="status" aria-live="polite" id="dispErr"></div>
+      ${blocoExcecoes("casa")}`;
     },
     // ---------- equipe: painel da operação e agenda das casas ----------
     // ---------- equipe: criar datas no portal (pedido da Marina para a Isa, 17/11/2026) ----------
@@ -2833,7 +2841,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const dia = dad.dataset.dispaDia, atual = (S.dispA || []).find((x) => x.user_id === S.conta.perfil.id && x.dia === dia);
       const naSemana = semanaDe(S.sem, { userId: S.conta.perfil.id }).includes(wdDe(dia));
       const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
-      await acao(dad, async () => { await api.marcarDispArtista(dia, prox); S.dispA = (S.dispA || []).filter((x) => x !== atual); if (prox) S.dispA.push({ user_id: S.conta.perfil.id, dia, situacao: prox }); TQDiario.registrar("disponibilidade_artista", { situacao: prox || "limpa" }); render(); },
+      await acao(dad, async () => { await api.marcarDispArtista(dia, prox); S.dispA = (S.dispA || []).filter((x) => x !== atual); if (prox) S.dispA.push({ user_id: S.conta.perfil.id, dia, situacao: prox, nota: atual?.nota || null }); TQDiario.registrar("disponibilidade_artista", { situacao: prox || "limpa" }); render(); },
         { st: "#dispaErr", ok: `${dt(dia)}: ${prox === "disponivel" ? "disponível" : prox === "indisponivel" ? "indisponível" : "sem marcação"}.` });
       return true;
     }
@@ -2974,14 +2982,59 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const linha = (cid) => { const dias = semanaDe(S.sem, cid ? { userId: eu, cidade: cid } : { userId: eu, soGeral: true }).filter((n) => cid ? (S.sem || []).some((x) => x.user_id === eu && x.cidade && x.cidade.toLowerCase() === cid.toLowerCase() && (x.dias || []).map(Number).includes(n)) : true);
       return `<div class="sem-cid"><b>${cid ? esc(cid) : "Qualquer cidade"}</b><div class="fcidades">${SEM.map(([n, t]) => `<label><input type="checkbox" data-sem="artista" data-cid="${esc(cid)}" value="${n}"${dias.includes(n) ? " checked" : ""}> ${t}</label>`).join("")}</div></div>`; };
     return `<div class="card" style="margin:0 0 12px"><b>Dias da semana em cada cidade</b>
-      <p class="muted" style="font-size:13px;margin:4px 0 8px">Para cada cidade, marque os dias em que você pode tocar lá (ex.: São Paulo seg, ter e qua; Campinas ter e qua; BH qui ou sex). "Qualquer cidade" vale para todas. A Isa cruza isso com as casas de cada cidade. Exceções você marca no calendário abaixo.</p>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Para cada cidade, marque os dias em que você pode tocar lá (ex.: São Paulo seg, ter e qua; Campinas ter e qua; BH qui ou sex). "Qualquer cidade" vale para todas. A Isa cruza isso com as casas de cada cidade. Exceções (um dia bloqueado ou liberado) você ajusta em "Ajustar uma data", abaixo do calendário.</p>
       ${cids.map(linha).join("")}${linha("")}
       ${cids.length ? "" : `<p class="muted" style="font-size:13px">Marque as cidades onde quer tocar na sua ficha para aparecerem aqui.</p>`}
       <div class="err" role="status" aria-live="polite" id="semErr"></div></div>`;
   }
+  // ---------- exceções ao padrão semanal (pedido da Marina, 18/11/2026) ----------
+  // O padrão (dias fixos da semana) já preenche o calendário. A exceção é um dia marcado por data em
+  // disponibilidade_casa / disponibilidade_artista: "indisponível" bloqueia um dia que estaria livre (feriado,
+  // evento privado) e "disponível" libera um dia fora do padrão. O dia marcado vale sobre a semana, inclusive
+  // no cruzamento de Criar datas (livresNoDia lê as mesmas tabelas).
+  function contextoDisp(alvo) {
+    if (alvo === "casa") {
+      const ref = S.conta.perfil.vinculo_nome, k = (x) => String(x || "").toLowerCase();
+      return { linhas: (S.disp || []).filter((x) => k(x.casa_ref) === k(ref)), sem: semanaDe(S.sem, { casaRef: ref, fichaDias: S.conta.casa?.dados?.dias_semana }), pode: !funcoesDe(),
+        marcar: (dia, sit, nota) => api.marcarDisponibilidade(ref, dia, sit, nota), lista: () => (S.disp ||= []), nova: (dia, sit, nota) => ({ casa_ref: ref, dia, situacao: sit, nota }) };
+    }
+    const eu = S.conta.perfil.id;
+    return { linhas: (S.dispA || []).filter((x) => x.user_id === eu), sem: semanaDe(S.sem, { userId: eu }), pode: true,
+      marcar: (dia, sit, nota) => api.marcarDispArtista(dia, sit, nota), lista: () => (S.dispA ||= []), nova: (dia, sit, nota) => ({ user_id: eu, dia, situacao: sit, nota }) };
+  }
+  /** A linha por data é exceção ao padrão? (bloqueio, ou dia liberado fora dos dias fixos) */
+  const ehExcecao = (r, sem) => !!r && (r.situacao === "indisponivel" || (r.situacao === "disponivel" && !sem.includes(wdDe(r.dia))));
+  const rotuloExc = (r) => (r.situacao === "indisponivel" ? "bloqueado" : "liberado") + (r.nota ? ` · ${r.nota}` : "");
+  function dicaExc(alvo, dia) {
+    if (!dia) return "Escolha o dia para ver como ele está hoje.";
+    const c = contextoDisp(alvo), r = c.linhas.find((x) => x.dia === dia), padrao = c.sem.includes(wdDe(dia));
+    return `${NOME_SEM[wdDe(dia)].replace(/^./, (x) => x.toUpperCase())}, ${dt(dia)}: ${r ? `já tem exceção (${rotuloExc(r)}). Salvar troca por esta.` : padrao ? "pelo padrão semanal, está livre. Para fechar, escolha Bloquear." : "fora do padrão semanal. Para abrir, escolha Liberar."}`;
+  }
+  function blocoExcecoes(alvo) {
+    const c = contextoDisp(alvo), hoje = hojeIso();
+    const exc = c.linhas.filter((r) => r.dia >= hoje && ehExcecao(r, c.sem)).sort((a, b) => a.dia.localeCompare(b.dia));
+    const aberto = c.pode && S.excAberto === alvo, pre = S.excPre || {};
+    const MAX = 30, item = (r) => `<div class="card row exc-item" data-exc-item="${r.dia}"><span><b>${esc(NOME_SEM[wdDe(r.dia)].replace(/^./, (x) => x.toUpperCase()))}, ${dt(r.dia)}</b>
+      <span class="badge ${r.situacao === "indisponivel" ? "b-warn" : "b-good"}">${r.situacao === "indisponivel" ? "Bloqueado" : "Liberado"}</span>${r.nota ? `<div class="muted" style="font-size:13px">${esc(r.nota)}</div>` : ""}</span>
+      ${c.pode ? `<button class="btn sm" data-exc-rm="${alvo}|${r.dia}" aria-label="Remover a exceção de ${dt(r.dia)}">Remover</button>` : ""}</div>`;
+    return `<section class="card" id="excCaixa" style="margin-top:12px"><div class="row"><div><h3 style="margin:0">Exceções ao padrão</h3>
+      <p class="muted" style="font-size:13px;margin:4px 0 0">Feriado, evento privado ou um dia extra: ajuste só aquela data, sem mexer nos dias fixos.${alvo === "artista" ? " A exceção vale para todas as cidades." : ""}</p></div>
+      ${c.pode && !aberto ? `<button class="btn pri" data-exc-abrir="${alvo}">Ajustar uma data</button>` : ""}</div>
+      ${aberto ? `<div class="card" id="excForm" style="margin:12px 0 0"><b>Ajustar uma data</b>
+        <div class="fgrid" style="margin-top:8px"><label class="fcampo"><b>Dia</b><input type="date" id="excDia" min="${hoje}" value="${esc(pre.dia || "")}"></label>
+        <label class="fcampo"><b>Motivo (opcional)</b><input id="excMotivo" maxlength="200" placeholder="Ex.: feriado, evento fechado, show extra" value="${esc(pre.nota || "")}"></label></div>
+        <div class="filters" style="margin:6px 0" role="radiogroup" aria-label="O que fazer com o dia">
+          <label class="fcheck"><input type="radio" name="excTipo" value="bloquear"${pre.tipo === "bloquear" ? " checked" : ""}> <span><b>Bloquear</b>: neste dia não dá</span></label>
+          <label class="fcheck"><input type="radio" name="excTipo" value="liberar"${pre.tipo === "liberar" ? " checked" : ""}> <span><b>Liberar</b>: neste dia dá, mesmo fora do padrão</span></label></div>
+        <p class="muted" id="excDica" style="font-size:13px;margin:4px 0">${esc(dicaExc(alvo, pre.dia))}</p>
+        <div class="barra-acoes"><button class="btn pri" data-exc-ok="${alvo}">Salvar exceção</button><button class="btn" data-exc-fechar="">Cancelar</button></div></div>` : ""}
+      <div class="err" role="status" aria-live="polite" id="excErr"></div>
+      ${exc.length ? `<div class="list" style="margin-top:10px">${exc.slice(0, MAX).map(item).join("")}</div>${exc.length > MAX ? `<p class="muted" style="font-size:13px">E mais ${exc.length - MAX} ${exc.length - MAX === 1 ? "exceção" : "exceções"} depois destas.</p>` : ""}`
+        : `<p class="muted" style="font-size:13px;margin:10px 0 0">Nenhuma exceção marcada. O calendário segue o padrão semanal.</p>`}</section>`;
+  }
   function blocoSemana(dias, alvo) {
     return `<div class="card" style="margin:0 0 12px"><b>Dias fixos da semana</b>
-      <p class="muted" style="font-size:13px;margin:4px 0 8px">Marque os dias em que ${alvo === "casa" ? "a casa sempre pode receber" : "você sempre pode tocar"}: eles ficam verdes no calendário e já aparecem para a Isa. Para uma exceção (feriado, viagem), toque no dia no calendário.</p>
+      <p class="muted" style="font-size:13px;margin:4px 0 8px">Marque os dias em que ${alvo === "casa" ? "a casa sempre pode receber" : "você sempre pode tocar"}: eles ficam verdes no calendário e já aparecem para a Isa. Para uma exceção (feriado, evento privado, dia extra), use "Ajustar uma data", abaixo do calendário.</p>
       <div class="fcidades">${SEM.map(([n, t]) => `<label><input type="checkbox" data-sem="${alvo}" value="${n}"${dias.includes(n) ? " checked" : ""}> ${t}</label>`).join("")}</div>
       <div class="err" role="status" aria-live="polite" id="semErr"></div></div>`;
   }
@@ -3001,12 +3054,20 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const sem = semanaDe(S.sem, { userId: eu });
     const nLivres = S.dispA.filter((x) => x.user_id === eu && x.situacao === "disponivel" && x.dia >= hojeIso()).length;
     return `${blocoSemanaCidades()}
-      <p class="muted" style="font-size:13px;margin:0 0 8px">No calendário: toque num dia para marcar <b>disponível</b> (verde), de novo para <b>indisponível</b> e de novo para limpar. A Isa cruza estes dias com as casas livres. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
+      <p class="muted" style="font-size:13px;margin:0 0 8px">O calendário já vem preenchido pelos dias fixos. Para bloquear um dia (viagem, compromisso) ou liberar um dia fora do padrão, use <b>Ajustar uma data</b> logo abaixo, ou toque no dia: disponível, indisponível, limpar. A Isa cruza estes dias com as casas livres. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
       ${calendarioMes(mes, (dia) => { const r = S.dispA.find((x) => x.user_id === eu && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
-        return { classe: e.length ? "cal-ev" : livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", rotulo: e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel: dia >= hojeIso() && !e.length }; }, "data-dispa-dia")}
+        return celulaDisp(sit, r, sem, e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : "", dia >= hojeIso() && !e.length); }, "data-dispa-dia")}
       <div class="barra-acoes"><button class="btn sm" data-dispa-mes="todos">Marcar todos os dias deste mês</button><button class="btn sm" data-dispa-mes="limpar">Limpar as marcações deste mês</button></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">${sem.length ? `Toda semana: <b>${esc(sem.map((n) => NOME_SEM[n]).join(", "))}</b>. ` : ""}${nLivres ? `Mais <b>${nLivres} ${nLivres === 1 ? "dia avulso" : "dias avulsos"}</b> marcados daqui para frente.` : sem.length ? "" : "Você ainda não marcou nenhum dia livre."}</p>
-      <div class="err" role="status" aria-live="polite" id="dispaErr"></div>`;
+      <div class="err" role="status" aria-live="polite" id="dispaErr"></div>
+      ${blocoExcecoes("artista")}`;
+  }
+  // Célula do calendário de disponibilidade: evento, padrão ("toda semana") ou exceção (contorno destacado).
+  function celulaDisp(sit, r, sem, evento, clicavel) {
+    if (evento) return { classe: "cal-ev", rotulo: evento, clicavel };
+    const exc = ehExcecao(r, sem);
+    return { classe: [livreNo(sit) ? "livre" : sit === "indisponivel" ? "ocupado" : "", exc ? "exc" : ""].filter(Boolean).join(" "),
+      rotulo: exc ? (r.situacao === "indisponivel" ? "bloqueado" : "liberado") + (r.nota ? ` · ${r.nota}` : "") : sit === "semana" ? "toda semana" : sit === "disponivel" ? "disponível" : sit === "indisponivel" ? "indisponível" : "", clicavel };
   }
   // Quem está livre num dia: casa que marcou "disponível" em Datas e artista que marcou em Disponibilidade, sem show
   // nesse dia (Notion ou datas do portal). ignorarId = a data do portal que está sendo editada (não conta contra ela mesma).
@@ -3072,7 +3133,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       html += attr && c.clicavel ? `<button class="cal-dia ${c.classe}" ${attr}="${dia}" aria-label="${dt(dia)}: ${esc(c.rotulo || "sem informação")}"><b>${d}</b><span>${esc(c.rotulo)}</span></button>`
         : `<div class="cal-dia ${c.classe}${attr ? " passado" : ""}"><b>${d}</b><span>${esc(c.rotulo)}</span></div>`;
     }
-    return html + `</div><div class="cal-legenda"><span class="cal-dia livre">disponível</span><span class="cal-dia ocupado">indisponível</span><span class="cal-dia cal-ev">evento confirmado</span>${attr ? "" : '<span class="cal-dia conflito">conflito</span>'}<span class="cal-dia">sem informação</span></div>${attr ? '<p class="muted" style="font-size:12px">Toque num dia para mudar: sem informação → disponível → indisponível.</p>' : ""}</div>`;
+    return html + `</div><div class="cal-legenda"><span class="cal-dia livre">disponível</span><span class="cal-dia ocupado">indisponível</span><span class="cal-dia cal-ev">evento confirmado</span>${attr ? '<span class="cal-dia exc">exceção (data ajustada)</span>' : '<span class="cal-dia conflito">conflito</span>'}<span class="cal-dia">sem informação</span></div>${attr ? '<p class="muted" style="font-size:12px">Toque num dia para mudar: sem informação → disponível → indisponível.</p>' : ""}</div>`;
   }
   async function carregarDisp() {
     if (S.dispCarregando) return; S.dispCarregando = true;
@@ -3096,7 +3157,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     render();
   }
   async function cliquesEquipe(t) {
-    const ed = t.closest("[data-eqc-editar]"); if (ed) { S.eqcEd = ed.dataset.eqcEditar || null; render(); $("#eqcForm")?.scrollIntoView({ block: "center" }); return true; }
+    const ed = t.closest("[data-eqc-editar]"); if (ed) { S.eqcEd = ed.dataset.eqcEditar || null; S.eqcNovo = null; render(); $("#eqcForm")?.scrollIntoView({ block: "center" }); return true; }
+    // "Adicionar <função>" (cartão do que falta) e "+ Adicionar mais um membro": abre o formulário com a função já escolhida.
+    const nv = t.closest("[data-eqc-nova]"); if (nv) { S.eqcEd = null; S.eqcNovo = nv.dataset.eqcNova; render(); $("#eqcForm")?.scrollIntoView({ block: "center" }); $("#eqcNome")?.focus({ preventScroll: true }); return true; }
     if (t.id === "eqcOk") {
       const err = $("#eqcErr"), funcoes = [...document.querySelectorAll("[data-eqc-funcao]")].filter((x) => x.checked).map((x) => x.dataset.eqcFuncao);
       const m = { id: S.eqcEd || null, casa_ref: S.conta.perfil.vinculo_nome, nome: $("#eqcNome").value.trim(), whatsapp: $("#eqcWa").value.trim(), email: $("#eqcEmail").value.trim().toLowerCase(), instagram: $("#eqcInsta").value.trim(), observacao: $("#eqcObs").value.trim(), funcoes, reserva: $("#eqcReserva").checked };
@@ -3104,8 +3167,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (barrar(err, [[$("#eqcNome"), m.nome.length < 2 && "coloque o nome da pessoa"], [document.querySelector("[data-eqc-funcao]"), fe && fe.replace(/\.$/, "")],
         [$("#eqcWa"), m.whatsapp && !VAL.tel(m.whatsapp) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"], [$("#eqcEmail"), m.email && !VAL.email(m.email) && "esse e-mail não parece válido. Confira se está escrito certo (ex.: nome@gmail.com)"]])) return true;
       if (m.whatsapp) m.whatsapp = VAL.fTel(m.whatsapp);
-      await acao(t, async () => { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.conta.equipe = undefined; await carregarEquipeCasa(); },
-        { st: "#eqcErr", ok: m.id ? `${m.nome}: alterações salvas.` : `${m.nome} entrou na equipe.`, erro: (x) => /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "") });
+      await acao(t, async () => { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.eqcNovo = null; S.conta.equipe = undefined; await carregarEquipeCasa(); },
+        { st: "#eqcErr", ok: () => { const c = Array.isArray(S.conta.equipe) ? TQEquipe.cobertura(S.conta.equipe) : null;
+          return `${m.id ? `${m.nome}: alterações salvas.` : `${m.nome} entrou na equipe.`}${c ? c.completa ? " Equipe completa: a Disponibilidade da casa está liberada." : TQEquipe.faltando(c).length ? ` Faltam: ${TQEquipe.listaFalta(c)}.` : "" : ""}`; }, erro: (x) => /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "") });
       return true;
     }
     const rm = t.closest("[data-eqc-remover]"); if (rm) {
@@ -3160,11 +3224,32 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // Ficha da Casa: pedido de atualização, cancelamento e "Copiar respostas" (como no modelo do Gui).
   async function cliquesDatas(t) {
     const cm = t.closest("[data-cal-mes]"); if (cm) { S.dispMes = cm.dataset.calMes; render(); return true; }
+    // Exceções ao padrão semanal: abrir o formulário, salvar e remover.
+    const xa = t.closest("[data-exc-abrir]"); if (xa) { S.excAberto = xa.dataset.excAbrir; S.excPre = {}; render(); $("#excDia")?.focus(); $("#excForm")?.scrollIntoView({ block: "center" }); return true; }
+    if (t.closest("[data-exc-fechar]")) { S.excAberto = null; S.excPre = null; render(); return true; }
+    const xo = t.closest("[data-exc-ok]"); if (xo) {
+      const alvo = xo.dataset.excOk, c = contextoDisp(alvo), dia = $("#excDia").value, tipo = document.querySelector('input[name="excTipo"]:checked')?.value, nota = $("#excMotivo").value.trim();
+      S.excPre = { dia, tipo, nota };
+      if (barrar($("#excErr"), [[$("#excDia"), !dia ? "escolha o dia" : dia < hojeIso() && "esse dia já passou"], [document.querySelector('input[name="excTipo"]'), !tipo && "escolha Bloquear ou Liberar"]])) return true;
+      const sit = tipo === "bloquear" ? "indisponivel" : "disponivel", atual = c.linhas.find((x) => x.dia === dia);
+      if (sit === "disponivel" && !atual && c.sem.includes(wdDe(dia))) { diz($("#excErr"), `⚠ ${dt(dia)} já está livre pelo padrão semanal. Não precisa de exceção.`); return true; }
+      await acao(xo, async () => { await c.marcar(dia, sit, nota || null); const L = c.lista(); if (atual) L.splice(L.indexOf(atual), 1); L.push(c.nova(dia, sit, nota || null));
+        TQDiario.registrar(alvo === "casa" ? "disponibilidade" : "disponibilidade_artista", { excecao: tipo }); S.excAberto = null; S.excPre = null; render(); },
+        { st: "#excErr", ok: `${dt(dia)} ${sit === "indisponivel" ? "bloqueado" : "liberado"}${nota ? ` (${nota})` : ""}. Já vale para a Isa.` });
+      return true;
+    }
+    const xr = t.closest("[data-exc-rm]"); if (xr) {
+      const [alvo, dia] = xr.dataset.excRm.split("|"), c = contextoDisp(alvo), atual = c.linhas.find((x) => x.dia === dia);
+      await acao(xr, async () => { await c.marcar(dia, null); const L = c.lista(); if (atual) L.splice(L.indexOf(atual), 1);
+        TQDiario.registrar(alvo === "casa" ? "disponibilidade" : "disponibilidade_artista", { excecao: "removida" }); render(); },
+        { st: "#excErr", espera: "Removendo…", ok: `Exceção de ${dt(dia)} removida: o dia volta a seguir o padrão semanal.` });
+      return true;
+    }
     const dd = t.closest("[data-disp-dia]"); if (dd) {
       const ref = S.conta.perfil.vinculo_nome, dia = dd.dataset.dispDia, atual = (S.disp || []).find((x) => x.casa_ref.toLowerCase() === ref.toLowerCase() && x.dia === dia);
       const naSemana = semanaDe(S.sem, { casaRef: ref, fichaDias: S.conta.casa?.dados?.dias_semana }).includes(wdDe(dia));
       const prox = naSemana ? (atual ? null : "indisponivel") : !atual ? "disponivel" : atual.situacao === "disponivel" ? "indisponivel" : null;
-      await acao(dd, async () => { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); },
+      await acao(dd, async () => { await api.marcarDisponibilidade(ref, dia, prox); S.disp = (S.disp || []).filter((x) => !(x === atual)); if (prox) S.disp.push({ casa_ref: ref, dia, situacao: prox, nota: atual?.nota || null }); TQDiario.registrar("disponibilidade", { situacao: prox || "limpa" }); render(); },
         { st: "#dispErr", ok: `${dt(dia)}: ${prox === "disponivel" ? "disponível" : prox === "indisponivel" ? "indisponível" : "sem marcação"}.` });
       return true;
     }
@@ -3539,6 +3624,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   document.addEventListener("change", async (ev) => {
     if (ev.target.matches?.("[data-dp-todas]")) { S.dpVerTodas = ev.target.checked; render(); return; }
     if (ev.target.matches?.("[data-gf]")) { (S.gf ||= {})[ev.target.dataset.gf] = ev.target.value; render(); return; }
+    if (ev.target.id === "excDia") {
+      const alvo = S.excAberto, dia = ev.target.value, c = alvo && contextoDisp(alvo); if (!c) return;
+      const livre = dia && livreNo(situacaoDia(c.linhas.find((x) => x.dia === dia), c.sem, dia));
+      const r = dia && document.querySelector(`input[name="excTipo"][value="${livre ? "bloquear" : "liberar"}"]`); if (r) r.checked = true;
+      const dica = $("#excDica"); if (dica) dica.textContent = dicaExc(alvo, dia); return;
+    }
     if (ev.target.matches?.("[data-sem]")) {
       const alvo = ev.target.dataset.sem, cid = ev.target.dataset.cid ?? null, err = $("#semErr");
       const dias = [...document.querySelectorAll(`[data-sem="${alvo}"]:checked`)].filter((x) => cid === null || (x.dataset.cid ?? "") === cid).map((x) => Number(x.value));

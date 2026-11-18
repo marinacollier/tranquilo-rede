@@ -17,6 +17,18 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.fill('#enome', nome); await p.fill('#email', email); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await p.waitForTimeout(800); await pular();
   };
   const dia = new Date(Date.now() + 3 * 864e5 - 3 * 3600e3).toISOString().slice(0, 10);
+  const dia2 = new Date(Date.now() + 4 * 864e5 - 3 * 3600e3).toISOString().slice(0, 10), dia3 = new Date(Date.now() + 5 * 864e5 - 3 * 3600e3).toISOString().slice(0, 10);
+  const br = (d) => d.split('-').reverse().join('/');
+  const db = () => p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')));
+  // "Ajustar uma data": escolhe o dia (o formulário sugere Bloquear ou Liberar pelo padrão), motivo e salva.
+  const ajustar = async (alvo, d, tipo, motivo) => {
+    if (!(await p.$('#excForm'))) { await p.click(`[data-exc-abrir="${alvo}"]`); await p.waitForSelector('#excForm'); }
+    await p.fill('#excDia', d); await p.dispatchEvent('#excDia', 'change'); await p.waitForTimeout(100);
+    const sugerido = await p.$eval('input[name="excTipo"]:checked', (x) => x.value).catch(() => null);
+    if (tipo) await p.check(`input[name="excTipo"][value="${tipo}"]`);
+    if (motivo) await p.fill('#excMotivo', motivo);
+    await p.click(`[data-exc-ok="${alvo}"]`); await p.waitForTimeout(400); return sugerido;
+  };
   try {
     await p.goto(B); await p.waitForSelector('.cidade'); await p.keyboard.press('Escape');
     // Casa com Ficha e um dia livre.
@@ -27,6 +39,21 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await p.waitForTimeout(700); await pular();
     await ir('agenda_casa');
     ok((await p.$$('[data-sem="casa"]:checked')).length === 7 && (await p.$$eval('.cal-dia', (xs) => xs.filter((x) => /toda semana/.test(x.textContent)).length)) > 0, 'casa: dias fixos da semana no checklist e verdes no calendário');
+    // Exceções ao padrão (18/11): bloquear um dia que estaria livre, com motivo; a lista mostra e o calendário destaca.
+    ok(/Nenhuma exceção marcada/.test(await p.textContent('#excCaixa')) && !(await p.$('#excForm')), 'casa: sem exceções, só o botão "Ajustar uma data"');
+    const sug = await ajustar('casa', dia2, null, 'Feriado');
+    ok(sug === 'bloquear', 'dia do padrão: o formulário já sugere Bloquear');
+    let d0 = await db();
+    ok(d0.disp.some((x) => x.dia === dia2 && x.situacao === 'indisponivel' && x.nota === 'Feriado') && /bloqueado \(Feriado\)/.test(await p.textContent('#excErr')), 'exceção grava na tabela por data (indisponível, com motivo) e confirma');
+    ok(/Bloqueado/.test(await p.textContent(`[data-exc-item="${dia2}"]`)) && /Feriado/.test(await p.textContent(`[data-exc-item="${dia2}"]`)), 'a exceção aparece na lista, com o motivo');
+    await p.evaluate((m) => { S.dispMes = m; render(); }, dia2.slice(0, 7)); await p.waitForTimeout(200);
+    ok(await p.$eval(`[data-disp-dia="${dia2}"]`, (x) => x.classList.contains('exc') && x.classList.contains('ocupado') && /bloqueado · Feriado/.test(x.textContent))
+      && await p.$eval(`[data-disp-dia="${dia3}"]`, (x) => !x.classList.contains('exc') && /toda semana/.test(x.textContent)), 'calendário diferencia exceção (destacada) e padrão ("toda semana")');
+    await ajustar('casa', dia3, 'liberar');
+    ok(/já está livre pelo padrão/.test(await p.textContent('#excErr')) && !(await db()).disp.some((x) => x.dia === dia3), 'liberar um dia que já é do padrão: avisa e não grava');
+    await ajustar('casa', dia3, 'bloquear');
+    await p.click(`[data-exc-rm="casa|${dia3}"]`); await p.waitForTimeout(400);
+    ok(!(await db()).disp.some((x) => x.dia === dia3) && !(await p.$(`[data-exc-item="${dia3}"]`)) && /volta a seguir o padrão/.test(await p.textContent('#excErr')), 'remover a exceção: o dia volta ao padrão');
     await sair();
     // Artista marca a disponibilidade na própria área.
     await criar('artista', 'Ana Cruza', 'ana@cruza.com');
@@ -58,14 +85,20 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const cel = await p.$$eval('#dispFicha .cal-dia', (xs) => xs.filter((x) => /toda semana/.test(x.textContent)).length);
     ok(cel >= 1, `os sábados e domingos ficam verdes no calendário (${cel} dias)`);
     await p.uncheck('[data-sem="artista"][data-cid=""][value="6"]'); await p.waitForTimeout(500); await p.uncheck('[data-sem="artista"][data-cid=""][value="0"]'); await p.waitForTimeout(500);
-    await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.dispA = [{ user_id: d.sessao, dia, situacao: 'disponivel' }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
-    await p.reload(); await p.waitForTimeout(700); await pular();
+    // Sem dias fixos, o artista libera dias avulsos por "Ajustar uma data" (vale para todas as cidades).
+    await ir('disp_artista');
+    const sugA = await ajustar('artista', dia, null);
+    await ajustar('artista', dia2, 'liberar', 'Show extra');
+    const dA2 = (await db()).dispA || [];
+    ok(sugA === 'liberar' && dA2.length === 2 && dA2.every((x) => x.situacao === 'disponivel') && dA2.find((x) => x.dia === dia2)?.nota === 'Show extra', 'artista: fora do padrão o formulário sugere Liberar, e grava os dias com motivo');
+    ok((await p.$$('#excCaixa [data-exc-item]')).length === 2 && /todas as cidades/.test(await p.textContent('#excCaixa')), 'artista: as duas exceções na lista');
     await sair();
     // Equipe cruza.
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(500);
     await ir('datas_portal'); await p.waitForSelector('#dpBusca');
     const txt = await p.textContent('#dpBusca');
-    ok(/1 casa livre · 1 artista livre/.test(txt) && /Casa Cruza/.test(txt) && /Ana Cruza/.test(txt), 'Criar datas mostra o dia com a casa e o artista livres');
+    ok(/1 casa livre · 1 artista livre/.test(txt) && /Casa Cruza/.test(txt) && /Ana Cruza/.test(txt) && txt.includes(br(dia)), 'Criar datas mostra o dia com a casa e o artista livres');
+    ok(!txt.includes(br(dia2)), 'exceção vale no cruzamento: o dia que a casa bloqueou (feriado) não aparece, mesmo com o artista livre');
     await p.click('[data-dpb-casa]'); await p.waitForTimeout(500);
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife/PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);

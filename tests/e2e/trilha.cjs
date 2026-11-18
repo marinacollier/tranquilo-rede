@@ -20,7 +20,14 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('[data-aba="disp_g"]'); await p.waitForTimeout(300);
     ok(/Essa parte vem depois/.test(await p.innerText('#app')) && /libera quando o Gui habilitar a casa/.test(await p.innerText('#app')), 'parte travada explica o que falta');
     await p.evaluate(() => { S.conta.casa = { ...(S.conta.casa || {}), status: 'habilitada' }; render(); }); await p.waitForTimeout(200);
-    ok(!(await travados()).includes('disp_g') && !(await travados()).includes('equipe_g'), 'casa habilitada: Equipe e Disponibilidade liberadas');
+    ok(!(await travados()).includes('equipe_g') && (await travados()).includes('disp_g'), 'casa habilitada: Equipe liberada; Disponibilidade espera a equipe completa');
+    await p.click('[data-aba="disp_g"]'); await p.waitForTimeout(300);
+    ok(/libera quando a equipe da casa estiver completa \(faltam: Líder Local, Anfitrião, Social Media, Técnico de som, Porta e Reserva\)/.test(await p.innerText('#app')), 'Disponibilidade travada diz o motivo: o que falta na equipe');
+    await p.evaluate(() => { S.conta.equipe = [['lider', 'Lia'], ['anfitriao', 'Ari'], ['social_media', 'Sol'], ['som', 'Sam']].map(([f, n], i) => ({ id: 'm' + i, nome: n, funcoes: [f], reserva: false })); render(); }); await p.waitForTimeout(200);
+    await p.click('[data-aba="disp_g"]'); await p.waitForTimeout(300);
+    ok((await travados()).includes('disp_g') && /faltam: Porta e Reserva/.test(await p.innerText('#app')), 'equipe quase completa: ainda travada, com "faltam: Porta e Reserva"');
+    await p.evaluate(() => { S.conta.equipe = [...S.conta.equipe, { id: 'm8', nome: 'Pó', funcoes: ['porta'], reserva: false }, { id: 'm9', nome: 'Res', funcoes: ['porta'], reserva: true }]; render(); }); await p.waitForTimeout(200);
+    ok(!(await travados()).includes('disp_g') && !(await travados()).includes('equipe_g'), 'equipe completa libera a Disponibilidade');
     await p.evaluate(() => document.querySelector('#sair')?.click()); await p.waitForTimeout(400);
     // Artista nova: Disponibilidade e Contrato travados até a curadoria.
     await criar('artista', 'Artista Trilha', 'trilha@art.com');

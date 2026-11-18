@@ -41,6 +41,13 @@
     return { completa: !pend.length && !erros.length, faltam, pend, erros, tripe: TRIPE.every((f) => !faltam.includes(f)), titulares: titulares.length, reservas: reservas.length };
   }
 
+  // Nomes curtos para "Faltam: …" (tela da equipe e trilha da casa).
+  const CURTO = { lider: "Líder Local", anfitriao: "Anfitrião", social_media: "Social Media", som: "Técnico de som", porta: "Porta", bar: "Bar", reserva: "Reserva" };
+  /** O que falta, em chaves (as funções obrigatórias sem titular e "reserva"), na ordem do Guia. */
+  const faltando = (cob) => [...cob.faltam, ...(cob.reservas ? [] : ["reserva"])];
+  /** "Líder Local, Anfitrião e Reserva" */
+  function listaFalta(cob) { const n = faltando(cob).map((k) => CURTO[k]); return n.length > 1 ? n.slice(0, -1).join(", ") + " e " + n[n.length - 1] : n.join(""); }
+
   // ---------- o que cada função vê ----------
   // Passos da data por função. O dono da casa e o Líder Local (o produtor) veem todos.
   const PASSO_FUNCOES = {
@@ -133,6 +140,6 @@
       com: proxima ? proxima.quem : null, proxima: proxima || null, fechada: !proxima, fim };
   }
 
-  g.TQEquipe = { FUNCOES, NOME, CHAVES, OBRIGATORIAS, TRIPE, funcoesErro, funcoesAvisos, cobertura, PASSO_FUNCOES, vePasso, veTudo, abasDaFuncao, partesNoite, PERFIL,
+  g.TQEquipe = { CURTO, faltando, listaFalta, FUNCOES, NOME, CHAVES, OBRIGATORIAS, TRIPE, funcoesErro, funcoesAvisos, cobertura, PASSO_FUNCOES, vePasso, veTudo, abasDaFuncao, partesNoite, PERFIL,
     TRILHA, DEPOIS_TRILHA, ETAPAS_CASA, A_VALIDAR, AREA, diaUtil, andamento };
 })(typeof window !== "undefined" ? window : globalThis);

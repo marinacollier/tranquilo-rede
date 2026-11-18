@@ -28,7 +28,18 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.evaluate((cod) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); Object.assign(d.usuarios[d.sessao].perfil, { vinculo_nome: 'Casa Teste', codigo_acesso: cod }); localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, COD.casa);
     await p.reload(); await pular(); await p.waitForTimeout(500);
     ok((await abas()).includes('equipe_casa') && !(await abas()).includes('trilha'), 'dono vê a aba Equipe da casa (e ainda não a Trilha)');
-    await abrirAba('equipe_casa'); await p.waitForSelector('#eqcNome');
+    await abrirAba('equipe_casa'); await p.waitForSelector('#eqcFaltam');
+    // Experiência guiada (18/11): um cartão por função que falta, "+ Adicionar mais um membro" sempre à vista e "Faltam: …".
+    const cartoes = await p.$$eval('#eqcFaltam [data-eqc-nova]', (xs) => xs.map((x) => x.textContent.trim()));
+    ok(JSON.stringify(cartoes) === JSON.stringify(['Adicionar Líder Local', 'Adicionar Anfitrião', 'Adicionar Social Media', 'Adicionar Técnico de som', 'Adicionar Porta', 'Adicionar Reserva']) && !(await p.$('#eqcNome')),
+      `equipe vazia: um cartão por função que falta, formulário fechado (${cartoes.join(' · ')})`);
+    ok(/Faltam: Líder Local, Anfitrião, Social Media, Técnico de som, Porta e Reserva/.test(await p.textContent('#eqcFalta')) && !!(await p.$('[data-eqc-nova=""]')), '"Faltam: …" claro e botão "+ Adicionar mais um membro" à vista');
+    await p.click('[data-eqc-nova="som"]'); await p.waitForSelector('#eqcNome');
+    ok(await p.isChecked('[data-eqc-funcao="som"]') && /Adicionar Técnico de som/.test(await p.textContent('#eqcForm h3')), '"Adicionar Técnico de som" abre o formulário com a função já escolhida');
+    await p.click('[data-eqc-nova="reserva"]'); await p.waitForTimeout(150);
+    ok(await p.isChecked('#eqcReserva'), '"Adicionar Reserva" já marca a reserva');
+    await p.click('[data-eqc-nova=""]'); await p.waitForTimeout(150);
+    ok(!(await p.$$eval('[data-eqc-funcao]', (xs) => xs.some((x) => x.checked))) && !(await p.isChecked('#eqcReserva')), '"+ Adicionar mais um membro" abre o formulário sem função escolhida');
     await p.fill('#eqcNome', 'Ana'); await p.fill('#eqcEmail', 'ana@casa.com');
     await p.click('#eqcOk');
     ok(/Escolha a função/.test(await p.textContent('#eqcErr')), 'sem função escolhida, o site explica e não salva');
@@ -38,9 +49,9 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     ok(/WhatsApp: número com DDD/.test(await p.textContent('#eqcErr')) && await p.$eval('#eqcWa', (e) => e.classList.contains('campo-falta')), 'WhatsApp incompleto é barrado e o campo fica em vermelho');
     await p.fill('#eqcWa', '');
     await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]');
-    ok(/✓ Feito: Ana entrou na equipe/.test(await p.textContent('#eqcErr')), 'salvar a pessoa termina com "✓ Feito"');
+    ok(/✓ Feito: Ana entrou na equipe\. Faltam: Líder Local/.test(await p.textContent('#eqcErr')) && !(await p.$('#eqcForm')), 'salvar a pessoa termina com "✓ Feito", diz o que ainda falta e fecha o formulário');
     const txt = await p.textContent('#app');
-    ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Falta Líder Local/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
+    ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Faltam: Líder Local, Anfitrião, Social Media, Técnico de som e Reserva/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
     await p.click('[data-eqc-convidar]'); await p.waitForTimeout(400);
     const cv = (await db()).conv['ana@casa.com'];
     ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta', '"Dar acesso" cria o convite ligado à casa, com a função');
