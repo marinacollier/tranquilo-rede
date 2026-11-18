@@ -187,7 +187,7 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
   }
   // Divulgação do Bruno é do artista (Marina, 17/11/2026): os documentos de marketing passam a abrir também para artistas.
   if (MODO === 'publico-artista') {
-    const r = await sql(`update materiais set publico = array(select distinct unnest(publico || array['artista'])) where area = 'marketing' and not ('artista' = any (publico)) returning slug`);
+    const r = await sql(`update materiais set publico = publico || 'artista'::tipo_perfil where area = 'marketing' and not ('artista'::tipo_perfil = any (publico)) returning slug`);
     ok(true, `${r.length} documentos de marketing agora abrem também para artistas`);
   }
   // Campanhas fake (Marina, 17/11/2026): 4 campanhas de TESTE em situações diferentes para o Bruno testar.

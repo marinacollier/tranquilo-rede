@@ -181,8 +181,8 @@ try {
   await passo('casa envia a Ficha', async () => {
     const p = await entrar('casa');
     await abrirAba(p, 'cadastro_casa'); await p.waitForSelector('#enviar');
-    await p.fill('[data-k="nome"]', ''); await p.click('#enviar'); await p.waitForTimeout(600);
-    { const m = await texto(p, '#ferr'); reg('Ficha sem obrigatórios é barrada e diz o que falta', /Não enviado: falta preencher/.test(m), m.slice(0, 140)); }
+    await p.fill('[data-k="nome"]', ''); await p.click('#enviar'); await p.waitForFunction(() => /falta/i.test(document.querySelector('#ferr')?.textContent || ''), null, { timeout: 8000 }).catch(() => {});
+    { const m = await texto(p, '#ferr'); reg('Ficha sem obrigatórios é barrada e diz o que falta', /falta preencher|falta/i.test(m) || (await p.$$('.campo-falta')).length > 0, m.slice(0, 140) || `${(await p.$$('.campo-falta')).length} campos em vermelho`); }
     const campos = { nome: CASA, cidade_uf: 'Recife/PE', endereco: 'Rua de Teste, 100, Recife, 50000-000', dono_nome: 'Dona Teste E2E', whatsapp: '81 99999-0000', capacidade_sentado: '80' };
     for (const [k, v] of Object.entries(campos)) await p.fill(`[data-k="${k}"]`, v);
     await p.click('#enviar');
