@@ -1424,7 +1424,7 @@ function render() {
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
   // Documento aberto dentro da página (Guia, manuais, documentos do marketing): some ao trocar de aba ou de parte.
   if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
-  $("#app").innerHTML = (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
+  $("#app").innerHTML = (S.conta && TQConta.telaSenha?.()) || (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
   marcarTestes();
   ligar();
 }
@@ -1463,6 +1463,7 @@ document.addEventListener("keydown", (ev) => {
   if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
   // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
   if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
+  if (ev.key === "Enter" && ev.target.matches?.("#ns1,#ns2")) { ev.preventDefault(); $("#nsok")?.click(); }
 });
 document.addEventListener("click", (ev) => {
   const t = ev.target;

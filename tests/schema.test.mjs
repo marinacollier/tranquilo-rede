@@ -259,5 +259,9 @@ const ult = (await q(`select tabela, operacao, quem, antes, depois from auditori
 ok((await nAud()) > aud0 && ult.tabela === 'inscricoes_artistas' && ult.operacao === 'UPDATE' && ult.quem === adm && !!ult.depois?.dados, 'alteração da adm fica no histórico: quem, tabela, antes e depois');
 await como(eq, async () => { ok((await q(`select * from auditoria`).catch(() => ({ rows: [] }))).rows.length === 0, 'só a administração lê o histórico'); });
 await como(adm, async () => { ok((await q(`select count(*)::int n from auditoria`)).rows[0].n > 0, 'administração lê o histórico'); });
+// ---------- v30: conta criada pelo link do e-mail (senha aleatória do Supabase) nasce sem senha definida ----------
+const pl = (await q(`insert into auth.users (email, raw_user_meta_data) values ('link@x.com', '{"tipo":"casa","pelo_link":"1"}') returning id`)).rows[0].id;
+ok((await q(`select senha_definida s from perfis where id = $1`, [pl])).rows[0].s === false, 'conta criada pelo link do convite nasce com senha_definida = false');
+ok((await q(`select senha_definida s from perfis where id = $1`, [art])).rows[0].s === true, 'cadastro com senha continua com senha_definida = true');
 await db.exec(readFileSync(new URL('../supabase/schema.sql', import.meta.url), 'utf8'));
 ok((await q(`select count(*)::int n from notas_internas`)).rows[0].n === 1, 'schema.sql roda de novo sem erro e sem perder dados');

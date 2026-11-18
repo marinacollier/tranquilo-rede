@@ -55,7 +55,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.click('[data-eqc-convidar]'); await p.waitForTimeout(400);
     const cv = (await db()).conv['ana@casa.com'];
     ok(cv && cv.vinculo_nome === 'Casa Teste' && cv.funcoes.join() === 'porta', '"Dar acesso" cria o convite ligado à casa, com a função');
-    ok(await p.isVisible('#dlg[open]') && /Acesso de Ana/.test(await p.textContent('#dlg')) && /Oi, Ana!/.test(await p.inputValue('#envTxt')), '"Dar acesso" abre a mensagem pronta para WhatsApp ou e-mail (sem alert)');
+    ok(await p.isVisible('#dlg[open]') && /✓ Convite (criado|enviado) para ana@casa\.com/.test(await p.textContent('#dlg')) && /Oi, Ana!/.test(await p.inputValue('#envTxt')), '"Dar acesso" abre a mensagem pronta para WhatsApp ou e-mail (sem alert)');
     await p.click('#dlg button:has-text("Fechar")');
     ok(/✓ Feito: Acesso de Ana criado/.test(await p.textContent('#app')), '"Dar acesso" termina com status ✓ Feito na tela');
     // 2. A pessoa da equipe entra só com a função dela.
