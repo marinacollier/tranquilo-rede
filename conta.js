@@ -2226,19 +2226,21 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     convites() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("convites"); }
       if (E.conv === null) return faltaSchema("Convites");
-      const adm = S.conta.perfil.tipo === "adm", tipoSel = S.convTipo || "artista", pre = S.convPre || {};
+      const adm = S.conta.perfil.tipo === "adm", ars = S.conta.perfil.areas || [];
+      // Perfil já vem no que é da pessoa: Gui (Operações) convida casa; Isa (Agenda) convida artista.
+      const tipoSel = S.convTipo || (ars.includes("operacoes") && !ars.includes("agenda") ? "casa" : "artista"), pre = S.convPre || {};
       const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === tipoSel);
       const contas = new Set((E.perfis || []).map((p) => p.email));
       return `<div class="tag">Convites</div><h1>Chamar quem já está na rede</h1>
       <p class="sub">Para artistas e casas que já trabalham com o Tranquilo. A pessoa recebe um link por e-mail, entra, cria a senha e já cai na própria área, vinculada ao histórico dela. O tutorial abre sozinho no primeiro acesso.</p>
       <div class="card"><div class="fgrid">
-        <label class="fcampo"><b>Perfil</b><select id="cvTipo">${[["artista", "Artista"], ["casa", "Casa"], ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Quem você está convidando?</b><select id="cvTipo" style="font-weight:600">${[["artista", "Artista"], ["casa", "Casa"], ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
         ${["artista", "casa"].includes(tipoSel) && acessos.length ? `<label class="fcampo"><b>Já tem histórico no Tranquilo? (opcional)</b>${acessos.length ? `<select id="cvVinc"><option value="">Sem vínculo por enquanto</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${pre.nome === a.nome ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>` : `<span class="muted" style="font-size:13px">A lista de nomes vem com o código de administração. Sem ele, o convite sai sem vínculo e a administração liga depois em Pessoas.</span>`}</label>` : ""}
         ${tipoSel === "equipe" ? `<div class="fcampo"><b>Área (o que a pessoa vai fazer)</b>${caixasAreas(pre.areas, 'data-cv-area')}<span class="muted" style="font-size:12px">Sem área marcada, a pessoa vê tudo da equipe.</span></div>` : ""}
-        <label class="fcampo"><b>Nome</b><input id="cvNome" value="${esc(pre.nome || "")}" autocomplete="off"></label>
-        <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" autocomplete="off"></label>
-        <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" autocomplete="off"></label>
-      </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk">Enviar convite</button></div>
+        <label class="fcampo"><b>Nome ${tipoSel === "casa" ? "da casa" : tipoSel === "artista" ? "da artista" : "da pessoa"}</b><input id="cvNome" value="${esc(pre.nome || S.convRasc?.nome || "")}" autocomplete="off"></label>
+        <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" value="${esc(S.convRasc?.email || "")}" autocomplete="off"></label>
+        <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" value="${esc(S.convRasc?.wa || "")}" autocomplete="off"></label>
+      </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk" data-tipo="${tipoSel}">Enviar convite de ${esc(ROTULO[tipoSel].toLowerCase())}</button></div>
       <p class="muted" style="font-size:13px;margin-bottom:0">O convite sai por e-mail e também fica com a mensagem pronta para mandar pelo WhatsApp.</p></div>
       <h2>Convites enviados</h2>
       ${tabela("conv", [
@@ -3487,8 +3489,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         [$("#cvWa"), wa && !VAL.tel(wa) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"]], "Não enviou")) return;
       const [codigo_acesso, vinculo_nome] = ($("#cvVinc")?.value || "").split("|");
       const areas = (S.convTipo === "equipe") ? [...document.querySelectorAll("[data-cv-area]:checked")].map((x) => x.value) : [];
-      const c = { email, tipo: S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
-      const res = await acao(t, async () => { const r = await api.convidar(c); S.convPre = null; S.eq = null; render(); return r; },
+      const c = { email, tipo: t.dataset.tipo || S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
+      const res = await acao(t, async () => { const r = await api.convidar(c); S.convPre = null; S.convRasc = null; S.eq = null; render(); return r; },
         { st: "#cverr", espera: "Enviando…", ok: `Convite para ${c.nome || c.email} criado.` });
       if (res.ok) dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Convite") });
       return;
@@ -3628,7 +3630,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (t.id === "histFiltro") { S.histFiltro = t.value; render(); return; }
     if (t.id === "eqStatus" || t.id === "eqFaixa") { S.eqf[t.id === "eqStatus" ? "status" : "faixa"] = t.value; render(); }
-    if (t.id === "cvTipo") { S.convTipo = t.value; S.convPre = null; render(); return; }
+    if (t.id === "cvTipo") { S.convRasc = { nome: $("#cvNome")?.value || "", email: $("#cvEmail")?.value || "", wa: $("#cvWa")?.value || "" }; S.convTipo = t.value; S.convPre = null; render(); return; }
     if (t.id === "cvVinc") { const nome = t.value.split("|")[1] || "", n = $("#cvNome"); if (n && !n.value) n.value = nome; return; }
     if (t.id === "avCidade") { const o = $("#avOutra"); if (o) o.hidden = t.value !== "__outra"; return; }
   });
