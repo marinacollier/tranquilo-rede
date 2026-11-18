@@ -2502,7 +2502,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
       const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every(ctAssinado) ? "✓ assinado" : "aguardando"; };
       return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Um panorama das próximas datas da rede, pra você se situar.</p>
-      <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+      <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades (${evs.length})</option>${cidades.map((c) => `<option value="${esc(c)}"${c === f.cidade ? " selected" : ""}>${esc(c)} (${evs.filter((e) => e.c === c).length})</option>`).join("")}</select></div>
       ${tabela("geral", [
         { t: "Data", v: (e) => e.d, h: (e) => `<b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))}, ${dt(e.d)}</b>` },
         { t: "Cidade", v: (e) => e.c || "", h: (e) => esc(e.c || "–") },
@@ -2527,7 +2527,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         return { e, c, ct, pend, atencao: e.d <= em14 && pend.length > 0, _click: "ev:" + e.id }; })
         .filter((l) => (!f.cidade || l.e.c === f.cidade) && (!f.casa || l.e.h === f.casa) && (!f.status || l.e.s === f.status) && (!f.foco || (f.foco === "atencao" ? l.atencao : f.foco === "contrato" ? l.ct[0] !== "b-good" : l.pend.length)));
       const todas = P.eventos.filter((e) => !e.z && e.d >= hoje), uniq = (xs) => [...new Set(xs.filter(Boolean))].sort();
-      const sel = (id, rot, val, ops) => `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot}</option>${ops.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+      // Cada opção diz quantos eventos tem (a pessoa vê que é um filtro e o que vai sobrar).
+      const sel = (id, rot, val, ops) => { const campo = { cidade: "c", casa: "h", status: "s" }[id];
+        return `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot} (${todas.length})</option>${ops.map((o) => `<option value="${esc(o)}"${o === val ? " selected" : ""}>${esc(o)} (${todas.filter((e) => e[campo] === o).length})</option>`).join("")}</select>`; };
       const n = (fn) => linhas.filter(fn).length;
       return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1>
       <div class="alert" style="margin-bottom:10px"><b>Ainda falta neste painel ${A_VALIDAR_HTML}</b>Ranking de alinhamento dos donos, bonificações pendentes (Estrella Galicia) e contratos assinados: esperando o Gui definir os critérios de cada um.</div>
@@ -2608,8 +2610,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
-      <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
-      <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
+      <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status (${L.length})</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t} (${n(k)})</option>`).join("")}</select>
+      <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option value="${x}"${f.faixa === x ? " selected" : ""}>${x} (${L.filter((i) => i.faixa === x).length})</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
       ${tabela("curad", [
         { t: "Artista", v: (i) => i.dados.nome_artistico, h: (i) => `<b>${esc(i.dados.nome_artistico || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(i.dados.cidade_base || "")} ${esc(i.dados.estado || "")} · ${esc(i.dados.generos || "")}</div>` },
         { t: "Pontuação", n: 1, v: (i) => i.score, h: (i) => `<b>${i.score ?? "–"}</b>` },
@@ -3952,36 +3954,47 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         : `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-dpb-tur-criar${!escolhidas.length || repetido ? " disabled" : ""}>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê</button></div>`}`
         : `<p class="muted" id="dpbVazio">${esc(P.art.nome)} não tem dia livre com casa livre (Ficha habilitada) nesse período${b.cid ? " em " + esc(b.cid) : ""}. Aumente o período ou peça para marcar a disponibilidade.</p>`}`;
   }
+  // Dias com casa e artista livres no período (modo "Todos os dias" da busca).
+  function linhasDoDia(E, casas, b) {
+    const livres = livresNoDia(E, casas, S.dpEd);
+    return diasDaBusca(b).map((dia) => { const r = livres(dia, b.cid);
+      // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
+      const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
+      const as = [...new Map(cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
+      return { dia, cs: b.ambos ? cs : r.cs, as: b.ambos ? as : r.as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
+  }
   function buscaDatas(E, casas) {
     const hoje = hojeIso();
     const b = S.dpb ||= { de: hoje, ate: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cid: "", ambos: true };
     b.modo ||= "Descubra";
     const cidades = [...new Set(casas.map((c) => c.cidade).filter(Boolean))].sort((a, c) => a.localeCompare(c, "pt-BR"));
     const modos = [...R.NOMES_FORMATO, "dia"], rotModo = (m) => m === "dia" ? "Todos os dias" : m;
-    const filtros = `<div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
+    const filtros = `<div class="passo-rot"><i>2</i>Período e cidade</div><div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
         <label class="fcampo"><b>Cidade</b><select data-dpb="cid"><option value="">Todas</option>${cidades.map((c) => `<option${c === b.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
         ${b.modo === "dia" ? `<label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dpb="ambos"${b.ambos ? " checked" : ""}> <span>só dias com casa e artista livres</span></label>` : ""}</div>`;
+    // Fluxo numerado (Marina, 18/11/2026: os formatos não pareciam filtros): 1. formato → 2. período e cidade → 3. combinação → 4. criar.
+    // Cada formato mostra quantas combinações tem no período, para ficar claro que é uma escolha e o que ela traz.
+    const passo = (n, t) => `<div class="passo-rot"><i>${n}</i>${t}</div>`;
+    const contaModo = (m) => { try {
+      if (m === "dia") { const n = linhasDoDia(E, casas, b).length; return `${n} ${n === 1 ? "dia" : "dias"}`; }
+      const F = R.formatoDe(m); if (F?.mesmoArtista) { const n = planoTurne(E, { ...b, modo: m }).arts.length; return `${n} ${n === 1 ? "artista topa" : "artistas topam"}`; }
+      const n = cartoesModelo(E, { ...b, modo: m }).length; return `${n} ${n === 1 ? "combinação" : "combinações"}`; } catch { return ""; } };
     const topo = `<div class="card" id="dpBusca"><h2 style="margin-top:0">Encontrar data</h2>
-      <div class="filters dpb-modos" role="group" aria-label="Formato da busca" style="margin:0 0 8px">${modos.map((m) => `<button type="button" class="btn sm${b.modo === m ? " pri" : ""}" data-dpb-modo="${esc(m)}" aria-pressed="${b.modo === m}">${esc(rotModo(m))}</button>`).join("")}</div>
+      ${passo(1, "Escolha o formato")}
+      <div class="dpb-modos seg-opcoes" role="group" aria-label="1. Escolha o formato" style="margin:0 0 8px">${modos.map((m) => { const n = contaModo(m); return `<button type="button" data-dpb-modo="${esc(m)}" aria-pressed="${b.modo === m}"><b>${esc(rotModo(m))}</b>${n ? `<span class="seg-n">${esc(n)}</span>` : ""}</button>`; }).join("")}</div>
       ${b.modo === "dia" ? "" : regraFormato(b.modo, "dpbRegra")}`;
     const msg = `<div class="err" role="status" aria-live="polite" id="dpbMsg"></div>`;
     if (b.modo !== "dia") {
       const F = R.formatoDe(b.modo);
       return `${topo}<p class="muted" style="font-size:13px;margin-top:0">${F.mesmoArtista ? "Escolha o artista: aparecem as casas livres (Ficha habilitada) em cidades diferentes nos dias em que ele está livre." : `Casas livres (Ficha habilitada) em cada dia com ${F.artistas} ${F.artistas === 1 ? "artista livre que topa" : "artistas livres que topam"} o ${esc(F.nome)} na cidade delas. O line-up já vem escolhido; troque quem quiser e crie a data de uma vez.`}</p>
-        ${filtros}${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
+        ${filtros}${passo(3, F.mesmoArtista ? "Escolha o artista e as cidades" : "Escolha a combinação (troque artistas se quiser)")}<p class="muted" style="font-size:13px;margin:-4px 0 8px"><b>4.</b> Depois, toque em ${F.mesmoArtista ? "criar a turnê" : "\"Criar este evento\""}: o site pergunta antes de criar.</p>${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
     }
-    const livres = livresNoDia(E, casas, S.dpEd);
-    const dias = diasDaBusca(b);
-    const linhas = dias.map((dia) => { const r = livres(dia, b.cid);
-      // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
-      const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
-      const as = [...new Map(cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
-      return { dia, cs: b.ambos ? cs : r.cs, as: b.ambos ? as : r.as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
+    const linhas = linhasDoDia(E, casas, b);
     const semDisp = !(E.dispA || []).length;
     const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia" style="text-align:left;line-height:1.3"><b>${esc(c.nome)}</b>${c.status && c.status !== "habilitada" ? ` <span class="muted">(Ficha: ${esc(String(STATUS_CASA[c.status]?.[1] || c.status).toLowerCase())})</span>` : ""}<br><span class="muted" style="font-size:12px">📍 ${esc(c.cidade || "cidade não informada")}</span></button>`;
     const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data" style="text-align:left;line-height:1.3"><b>${esc(a.nome)}${a.quer ? " ★" : ""}</b>${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}<br><span class="muted" style="font-size:12px">🏠 mora em ${esc(a.mora || "cidade não informada")}${a.querTocar.length ? ` · quer tocar em ${esc(a.querTocar.join(", "))}` : ""}</span></button>`;
     return `${topo}<p class="muted" style="font-size:13px;margin-top:0">Casa e artista livres no mesmo dia: cruza o que as casas marcaram em Datas com o que os artistas marcaram em Disponibilidade, sem quem já tem show no dia. Toque numa casa ou num artista para já preencher a Nova data abaixo. ★ = o artista quer tocar nessa cidade.</p>
-      ${filtros}
+      ${filtros}${passo(3, "Toque numa casa ou num artista: a Nova data, abaixo, já vem preenchida")}
       ${semDisp ? `<div class="alert warn" style="margin-bottom:10px"><b>⚠ Nenhum artista marcou a disponibilidade ainda</b>Os artistas marcam os dias na área deles, em Disponibilidade. Enquanto isso, desmarque "só dias com casa e artista livres" para ver as casas livres.</div>` : ""}
       ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${esc(NOME_SEM[wdDe(l.dia)])}, ${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Casas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.cs.map((c) => chipC(c, l.dia)).join("") || '<span class="muted">nenhuma</span>'}</span></div>

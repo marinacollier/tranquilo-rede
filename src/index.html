@@ -772,6 +772,33 @@ details.dobra.sem-borda{border:0;background:none}
 details.dobra.sem-borda>summary{padding-left:0}
 details.dobra.sem-borda>.dobra-corpo{padding:0}
 details.card.fsec>.fsec-corpo{padding:0 22px 22px}
+/* Filtros, seletores e abas "gritam" que são clicáveis (Marina, 18/11/2026): rótulo antes, cara de seletor
+   segmentado, estado ativo forte (preenchido, com ✓) e, quando dá, a contagem de cada opção */
+.subnav{align-items:center;gap:0;padding:0;border:0;margin:0 0 18px}
+.subnav::before{content:"Ver:";font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:10px}
+.subnav{display:flex;flex-wrap:wrap;row-gap:6px}
+.subnav button{border-radius:0;margin-left:-1px;border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink-2);font-weight:600;padding:8px 14px}
+.subnav button:first-of-type{border-radius:12px 0 0 12px;margin-left:0}
+.subnav button:last-of-type{border-radius:0 12px 12px 0}
+.subnav button:only-of-type{border-radius:12px}
+.subnav button:hover{border-color:var(--violet);color:var(--ink);background:var(--raised);position:relative;z-index:1}
+.subnav button.on{background:var(--violet);border-color:var(--violet);color:#0b0b0b;font-weight:700;position:relative;z-index:2}
+.subnav button.on::before{content:"✓ "}
+.subnav button:focus-visible{outline:2px solid var(--violet);outline-offset:2px;z-index:3;position:relative}
+.filters:has(>select)::before,.filters:has(>label.escolha)::before{content:"Filtrar:";font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.filters>select:has(option[value=""]):not(:has(option[value=""]:checked)),.filters>label>select:has(option[value=""]):not(:has(option[value=""]:checked)){border-color:var(--violet);background-color:var(--violet-soft);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--violet)}
+.filters>select:has(option[value=""]:checked){color:var(--ink-2)}
+/* Grupo de botões que escolhe uma opção (aria-pressed): segmentado, a escolhida preenchida com ✓ */
+.seg-opcoes{display:flex;flex-wrap:wrap;gap:6px}
+.seg-opcoes>button[aria-pressed]{border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:12px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.seg-opcoes>button[aria-pressed]:hover{border-color:var(--violet);color:var(--ink);background:var(--raised)}
+.seg-opcoes>button[aria-pressed="true"]{background:var(--violet);border-color:var(--violet);color:#0b0b0b}
+.seg-opcoes>button[aria-pressed="true"] .seg-n{color:#0b0b0b;opacity:.8}
+.seg-opcoes>button[aria-pressed="true"]>b::before{content:"✓ "}
+.seg-opcoes .seg-n{font-size:12px;font-weight:500;color:var(--ink-3)}
+.seg-opcoes>button:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.passo-rot{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--ink-2);margin:14px 0 8px}
+.passo-rot>i{font-style:normal;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--violet);color:#0b0b0b;font-size:12px;flex:none}
 .fsec-n.frac{font-size:11px;letter-spacing:-.02em}
 @media (max-width:600px){details.card.fsec>.fsec-corpo{padding:0 16px 16px}}
 </style>
@@ -1286,11 +1313,13 @@ const TELAS = {
     const P = S.pac, f = S.datas, opts = (k) => [...new Set(P.eventos.map((e) => e[k]))].sort();
     let evs = P.eventos;
     if (f.quando === "futuras") evs = evs.filter((e) => e.f); else if (f.quando === "passadas") evs = evs.filter((e) => e.d < P.hoje);
+    const evs0 = evs;   // contagem das opções dos filtros: dentro do período escolhido
     if (f.cidade) evs = evs.filter((e) => e.c === f.cidade);
     if (f.modelo) evs = evs.filter((e) => e.m === f.modelo);
     if (f.status) evs = evs.filter((e) => e.s === f.status);
     if (f.q) { const q = f.q.toLowerCase(); evs = evs.filter((e) => (e.n + " " + (e.h || "")).toLowerCase().includes(q)); }
-    const sel = (id, k, rot) => `<select id="${id}"><option value="">${rot}</option>${opts(k).map((o) => `<option${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    // Cada opção diz quantas datas tem (a pessoa vê que é um filtro e o que vai sobrar).
+    const sel = (id, k, rot) => `<select id="${id}" aria-label="${rot}"><option value="">${rot}</option>${opts(k).map((o) => `<option value="${esc(o)}"${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)} (${evs0.filter((e) => e[k] === o).length})</option>`).join("")}</select>`;
     return `<div class="tag">Datas</div><h1>${evs.length} datas</h1>
     <div class="filters"><select id="dQuando" aria-label="Quando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
     ${tabela("datas", [
