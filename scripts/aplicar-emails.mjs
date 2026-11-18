@@ -22,8 +22,11 @@ corpo.rate_limit_email_sent = Number(process.env.LIMITE_EMAILS_HORA || 500);
 corpo.uri_allow_list = ['https://marinacollier.github.io/tranquilo-rede/**', 'https://tranquilomusica.com.br/rede', 'https://tranquilomusica.com.br/rede/**',
   'https://www.tranquilomusica.com.br/rede', 'https://www.tranquilomusica.com.br/rede/**'].join(',');
 if (process.env.ALVO === 'prd') corpo.site_url = 'https://marinacollier.github.io/tranquilo-rede/prd/';
-const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
+const enviar = () => fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
   method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
 });
+let r = await enviar();
+// Projeto ainda sem SMTP próprio (produção recém-criada): o Supabase não deixa mudar o limite; aplica o resto.
+if (r.status === 401 || r.status === 400) { const t = await r.text(); if (/SMTP/i.test(t)) { delete corpo.rate_limit_email_sent; console.log('AVISO sem SMTP próprio neste projeto: limite de e-mails não alterado. Configure o SMTP no Supabase e rode de novo.'); r = await enviar(); } else { console.error(`::error::O Supabase recusou (HTTP ${r.status}): ${t.slice(0, 300)}`); process.exit(1); } }
 if (!r.ok) { console.error(`::error::O Supabase recusou (HTTP ${r.status}): ${(await r.text()).slice(0, 300)}`); process.exit(1); }
 console.log(`OK: limite de ${corpo.rate_limit_email_sent} e-mails por hora; ${corpo.uri_allow_list.split(',').length} endereços de retorno permitidos; ${Object.keys(MODELOS).length} e-mails em português aplicados (${Object.values(assuntos).join(' · ')}).`);
