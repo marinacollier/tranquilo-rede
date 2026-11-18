@@ -13,14 +13,14 @@ const TABELAS = [['chaves_internas', 'true'], ['config_interna', 'true'], ['mate
   ['campanhas', TESTE_CASA], ['campanha_itens', `campanha_id in (select id from campanhas where ${TESTE_CASA})`]];
 for (const [t, onde] of TABELAS) {
   try {
-    const cols = (await sql(PRD, `select column_name c, is_nullable n from information_schema.columns where table_schema = 'public' and table_name = ${lit(t)}`));
+    const cols = (await sql(PRD, `select column_name c, is_nullable n, is_generated g from information_schema.columns where table_schema = 'public' and table_name = ${lit(t)}`));
     if (!cols.length) { console.log(`--    ${t}: não existe na produção`); continue; }
     // Quem criou/atualizou é de outro banco: o vínculo com a pessoa fica vazio (a linha continua igual).
     const pessoa = cols.filter((x) => /(_por|^user_id)$/.test(x.c)).map((x) => x.c);
     const linhas = (await sql(TESTE, `select coalesce(json_agg(t), '[]'::json) j from (select * from ${t} where ${onde}) t`))[0].j;
     for (const l of linhas) for (const c of pessoa) l[c] = null;
     if (!linhas.length) { console.log(`OK    ${t}: nada a copiar`); continue; }
-    await sql(PRD, `alter table ${t} disable trigger user; insert into ${t} select * from json_populate_recordset(null::${t}, ${lit(JSON.stringify(linhas))}::json) on conflict do nothing; alter table ${t} enable trigger user;`);
+    await sql(PRD, `alter table ${t} disable trigger user; insert into ${t} (${cols.filter((x) => x.g !== 'ALWAYS').map((x) => `"${x.c}"`).join(', ')}) select ${cols.filter((x) => x.g !== 'ALWAYS').map((x) => `"${x.c}"`).join(', ')} from json_populate_recordset(null::${t}, ${lit(JSON.stringify(linhas))}::json) on conflict do nothing; alter table ${t} enable trigger user;`);
     const n = (await sql(PRD, `select count(*)::int n from ${t}`))[0].n;
     console.log(`OK    ${t}: ${linhas.length} no teste → ${n} na produção`);
   } catch (e) { console.log(`FALHA ${t}: ${e.message}`); process.exitCode = 1; }
