@@ -42,6 +42,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/Rooftap/.test(linha) && /1\/10/.test(linha), `matriz vê o andamento (${linha.replace(/\s+/g, ' ')})`);
     await p.click('table[data-tbl="andcamp"] tbody tr'); await p.waitForTimeout(400);
     ok((await p.$$('.camp-dia')).length === 10 && !(await p.$('[data-camp-feito]')), 'matriz abre o dia a dia, sem poder marcar');
+    // Bruno (Marketing): "Para você" traz a campanha atrasada e o item abre direto o dia a dia dela.
+    await p.evaluate(() => { S.conta.perfil.areas = ['marketing']; S.campAberta = null; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="camp:"]', { timeout: 5000 });
+    ok(/campanha com dias atrasados/.test(await p.innerText('#app')), 'Para você (Marketing): campanha com dias atrasados');
+    await p.click('[data-abrir^="camp:"]'); await p.waitForTimeout(400);
+    ok((await p.$$('.camp-dia')).length === 10, 'o item abre direto o dia a dia da campanha');
+    await p.evaluate(() => { delete S.conta.perfil.areas; S.campAberta = null; render(); });
     await abrirAba('materiais'); await p.waitForTimeout(800);
     ok(/Ciência da versão 2026-10-20: \d+ pessoa/.test(await p.innerText('#app')), 'matriz vê quantos confirmaram a leitura');
     // equipe carrega campanha nova (arquivo de dados) e atualiza a do Rooftap (página HTML)

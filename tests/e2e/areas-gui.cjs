@@ -70,6 +70,48 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     await p.evaluate(async (cod) => { S.pac = await abrirPacote(cod); S.conta.perfil.tipo = 'adm'; S.aba = 'estrategia'; render(); }, codAdm); await p.waitForTimeout(600);
     const est = await app();
     ok(/Réguas do painel\s*a validar/i.test(est) && /Público pagante/.test(est) && /Qualidade dos dados/.test(est) && /noites completas/.test(est), 'painel estratégico: réguas "a validar" e qualidade dos dados');
+    // 5. Gui (Operações): "Para você" traz o que espera por ele (pedido da Marina, 18/11/2026) e as Fichas mostram a etapa real.
+    {
+      const agora = new Date().toISOString(), antes = new Date(Date.now() - 864e5).toISOString();
+      const U = (id, tipo, nome, extra = {}) => [id, { senha: 'segredo123', perfil: { id, email: id + '@teste.invalid', nome, tipo, codigo_acesso: null, vinculo_nome: extra.vinculo || null, criado_em: antes, tutorial_visto_em: antes, senha_definida: true, ...(extra.areas ? { areas: extra.areas } : {}) } }];
+      const casa = (uid, nome, status) => [uid, { id: 'c-' + uid, user_id: uid, dados: { nome, cidade_uf: 'Recife/PE' }, status, pendencias: { habilitacao: [], match: [], enriquecimento: [] }, criado_em: antes, enviado_em: antes }];
+      const ct = (id, uid, titulo, extra = {}) => ({ id, user_id: uid, titulo, texto: 'Contrato de teste '.repeat(10), campos: [], dados: {}, status: 'enviado', criado_por: 'gui', criado_em: antes, ...extra });
+      const db = { sessao: null, insc: {}, chk: [], reg: [], conv: {}, avisos: [], modContr: [],
+        usuarios: Object.fromEntries([U('gui', 'equipe', 'Gui Teste', { areas: ['operacoes'] }), U('semct', 'casa', 'Casa Sem Contrato', { vinculo: 'Casa Sem Contrato' }), U('conf', 'casa', 'Casa Conferir', { vinculo: 'Casa Conferir' }), U('nova', 'casa', 'Casa Nova Ficha', { vinculo: 'Casa Nova Ficha' }), U('devol', 'casa', 'Casa Devolvida', { vinculo: 'Casa Devolvida' }), U('ok', 'casa', 'Casa Assinada', { vinculo: 'Casa Assinada' })]),
+        casas: Object.fromEntries([casa('semct', 'Casa Sem Contrato', 'habilitada'), casa('conf', 'Casa Conferir', 'habilitada'), casa('nova', 'Casa Nova Ficha', 'em_analise'), casa('devol', 'Casa Devolvida', 'habilitada'), casa('ok', 'Casa Assinada', 'habilitada')]),
+        contr: [ct('ct-conf', 'conf', 'Parceria Casa Conferir'), ct('ct-devol', 'devol', 'Parceria Casa Devolvida', { devolvido_em: agora, devolvido_por: 'gui', devolvido_motivo: 'Faltou rubricar a página 3.' }), ct('ct-ok', 'ok', 'Parceria Casa Assinada', { conferido_em: antes, conferido_por: 'gui' })],
+        arqs: [{ user_id: 'conf', evento_id: 'contrato_ct-conf', nome: '1-assinado.pdf', caminho: 'conf/contrato_ct-conf/1-assinado.pdf', em: agora }, { user_id: 'devol', evento_id: 'contrato_ct-devol', nome: '1-assinado.pdf', caminho: 'x', em: antes }, { user_id: 'ok', evento_id: 'contrato_ct-ok', nome: '1-assinado.pdf', caminho: 'y', em: antes }],
+        eqc: [] };
+      const c2 = await b.newContext({ viewport: { width: 1280, height: 900 } });
+      await c2.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
+      await c2.addInitScript((d) => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-publico', '1'); if (!localStorage.getItem('tq-demo-v1')) localStorage.setItem('tq-demo-v1', d); } catch {} }, JSON.stringify(db));
+      const q = await c2.newPage(); q.on('pageerror', (e) => erros.push(e.message)); q.on('dialog', (d) => d.accept());
+      const entrar = async (uid) => { await q.goto(B); await q.waitForSelector('.cidade'); await q.click('#entrar'); await q.waitForSelector('#esenha'); await q.waitForTimeout(300); await q.fill('#email', uid + '@teste.invalid'); await q.fill('#esenha', 'segredo123'); await q.click('#eok'); await q.waitForTimeout(800); try { await q.click('[data-tour="pular"]', { timeout: 1500 }); } catch {} };
+      await entrar('gui'); await q.waitForSelector('[data-abrir]', { timeout: 6000 });
+      const pv = await q.textContent('#app'), cards = await q.$$eval('h2 + .list > .card b', (xs) => xs.map((x) => x.textContent));
+      ok(/1 contrato assinado espera "Conferir e confirmar"/.test(cards[0] || ''), `Gui: o contrato assinado esperando conferência é o primeiro card (${cards.slice(0, 4).join(' | ')})`);
+      ok(/1 Ficha espera a sua análise/.test(pv) && /1 casa habilitada aguarda o contrato da parceria/.test(pv) && /1 contrato devolvido aguarda o reenvio/.test(pv) && /Faltou rubricar a página 3/.test(pv), 'Gui: Ficha para habilitar, contrato a preparar e contrato devolvido aparecem no Para você');
+      await q.click('[data-abrir="ct:ct-conf"]'); await q.waitForSelector('tr.foco [data-ct-conferir="ct-conf"]', { timeout: 4000 });
+      ok(true, 'Gui: o item do contrato abre Contratos com a linha em destaque e "Conferir e confirmar"');
+      await q.evaluate(() => { const a = TQConta.areaDe('hoje'); S.sub[a] = 'hoje'; S.aba = a; render(); }); await q.waitForSelector('[data-abrir="casa:c-nova"]');
+      await q.click('[data-abrir="casa:c-nova"]'); await q.waitForSelector('#dlg[open] [data-decisao="habilitada"]', { timeout: 4000 });
+      ok(/Casa Nova Ficha/.test(await q.textContent('#dlgIn')) && !(await q.isVisible('#dlgIn details summary + h3')), 'Gui: a Ficha para habilitar abre direto, com "Habilitar" e as respostas recolhidas');
+      await q.keyboard.press('Escape'); await q.evaluate(() => { const a = TQConta.areaDe('hoje'); S.sub[a] = 'hoje'; S.aba = a; render(); }); await q.waitForSelector('[data-abrir="ctpre:|semct"]');
+      await q.click('[data-abrir="ctpre:|semct"]'); await q.waitForSelector('#ctConta');
+      ok(await q.inputValue('#ctConta') === 'semct', 'Gui: "aguarda o contrato" abre Preparar contrato com a casa já escolhida');
+      await q.evaluate(() => { const a = TQConta.areaDe('casas_cad'); S.sub[a] = 'casas_cad'; S.aba = a; render(); }); await q.waitForSelector('table[data-tbl="casc"]');
+      const linhaCasa = (n) => q.$eval(`table[data-tbl="casc"] tr:has-text("${n}")`, (x) => x.textContent);
+      ok(/Habilitada · aguardando contrato/.test(await linhaCasa('Casa Sem Contrato')) && /Contrato assinado · em conferência/.test(await linhaCasa('Casa Conferir')) && /Contrato devolvido/.test(await linhaCasa('Casa Devolvida')) && /Equipe incompleta/.test(await linhaCasa('Casa Assinada')) && /Em análise/.test(await linhaCasa('Casa Nova Ficha')), 'Fichas das casas: etapa real (aguardando contrato, em conferência, devolvido, equipe incompleta)');
+      // A própria casa vê a mesma etapa.
+      await q.click('#sair'); await q.waitForTimeout(300); await entrar('conf');
+      await q.evaluate(() => { const a = TQConta.areaDe('cadastro_casa'); S.sub[a] = 'cadastro_casa'; S.aba = a; render(); }); await q.waitForTimeout(300);
+      ok(/Contrato assinado · em conferência/.test(await q.textContent('#app')), 'a casa vê na Ficha "Contrato assinado · em conferência"');
+      await q.click('#sair'); await q.waitForTimeout(300); await entrar('devol');
+      await q.evaluate(() => { const a = TQConta.areaDe('passos'); S.sub[a] = 'passos'; S.aba = a; render(); }); await q.waitForTimeout(300);
+      const pc = await q.textContent('#app');
+      ok(pc.indexOf('envie o arquivo assinado de novo') > -1 && pc.indexOf('envie o arquivo assinado de novo') < pc.indexOf('Datas confirmadas') && /Situação da casa\s*Contrato devolvido/.test(pc), 'Próximos passos da casa: contrato devolvido primeiro e a situação real da casa');
+      await c2.close();
+    }
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();

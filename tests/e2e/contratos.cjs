@@ -49,11 +49,13 @@ E por estarem de acordo, assinam.`;
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     ok(/Contrato para assinar/.test(await p.textContent('#app')), 'artista vê o aviso do contrato no passo a passo');
-    await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
+    await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto', { state: 'attached' });
+    ok(!(await p.isVisible('#ctTexto')) && /Ver o texto do contrato/.test(await p.textContent('#ctTextoBox summary')), 'texto do contrato vem recolhido em "Ver o texto do contrato"');
+    await p.click('#ctTextoBox summary'); ok(await p.isVisible('#ctTexto'), 'abrir "Ver o texto do contrato" mostra o texto');
     ok(/R\$ 3\.000,00/.test(await p.textContent('#ctTexto')) && /________________/.test(await p.textContent('#ctTexto')), 'texto mostra o cachê da equipe e marca o que falta');
     ok(await p.isDisabled('[data-ct-ver]') && await p.isDisabled('[data-enviar-arquivo^="contrato_"]'), 'baixar e enviar ficam travados até salvar os dados');
     await p.fill('[data-ct-dado="cpf"]', '123.456.789-09'); await p.fill('[data-ct-dado="endereco_completo"]', 'Rua A, 10, Recife'); await p.fill('[data-ct-dado="chave_pix"]', 'ana@pix.com');
-    await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
+    await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto', { state: 'attached' });
     if (process.env.SHOT2) { await p.setViewportSize({ width: 390, height: 844 }); await p.waitForTimeout(200); await p.screenshot({ path: process.env.SHOT2, fullPage: true }); await p.setViewportSize({ width: 1280, height: 900 }); }
     ok(/123\.456\.789-09/.test(await p.textContent('#ctTexto')) && /✓ Feito/.test(await p.textContent('#ctDadosMsg')), 'dados salvos entram no texto, com ✓ Feito');
     ok(!(await p.isDisabled('[data-ct-ver]')) && !(await p.isDisabled('[data-enviar-arquivo^="contrato_"]')), 'com os dados salvos, libera baixar o PDF e enviar o assinado');
@@ -73,9 +75,9 @@ E por estarem de acordo, assinam.`;
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
-    await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto');
+    await p.click('[data-ct-abrir]'); await p.waitForSelector('#ctTexto', { state: 'attached' });
     ok(await p.inputValue('[data-ct-dado="cpf"]') === '123.456.789-09' && await p.inputValue('[data-ct-dado="chave_pix"]') === 'ana@pix.com' && /Trouxemos o que você já informou/.test(await p.textContent('#app')), 'segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir');
-    await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto');
+    await p.click('#ctSalvarDados'); await p.waitForSelector('#ctTexto', { state: 'attached' });
     ok(/123\.456\.789-09/.test(await p.textContent('#ctTexto')), 'ao salvar, os dados trazidos entram no texto');
     // Conferência (banco v28): a artista envia o assinado; a equipe pede de novo com o motivo; a artista reenvia; a equipe confirma.
     const pdf = { name: 'contrato-assinado.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 teste') };
@@ -84,6 +86,12 @@ E por estarem de acordo, assinam.`;
     ok(/vai conferir/.test(await p.textContent('#app')), 'artista envia o assinado e vê que a equipe vai conferir');
     await sair();
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
+    // "Para você" (Isa, Agenda): o contrato assinado aparece primeiro e o item abre direto a linha com "Conferir e confirmar".
+    await p.evaluate(() => { S.conta.perfil.areas = ['agenda']; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="ct:"]');
+    const vale = await p.textContent('#app');
+    ok(/Vale olhar primeiro/.test(vale) && /1 contrato assinado espera "Conferir e confirmar"/.test(vale) && (await p.$eval('h2 + .list .card', (x) => /Conferir e confirmar/.test(x.textContent))), 'Para você (Agenda): contrato assinado esperando "Conferir e confirmar" é o primeiro card');
+    await p.click(`[data-abrir="ct:${ctId}"]`); await p.waitForSelector(`tr.foco [data-ct-conferir="${ctId}"]`);
+    ok(true, 'o item abre Contratos com a linha do contrato em destaque e o botão "Conferir e confirmar"');
     const linhaCt = () => p.textContent(`tr:has([data-ct-ver="${ctId}"])`);
     ok(/Assinado · arquivo recebido/.test(await linhaCt()) && await p.$(`[data-ct-devolver="${ctId}"]`), 'equipe vê "arquivo recebido" com "Conferir e confirmar" e "Pedir de novo"');
     await p.click(`[data-ct-devolver="${ctId}"]`); await p.waitForSelector('#ctMotivo');
@@ -91,10 +99,13 @@ E por estarem de acordo, assinam.`;
     ok(/✕ Erro: Escreva o motivo/.test(await p.textContent('#ctConfMsg')), 'pedir de novo sem motivo explica o que falta');
     await p.fill('#ctMotivo', 'Faltou a assinatura na página 2.'); await p.click(`[data-ct-devolver-ok="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
     ok(/✓ Feito: Pedido enviado: Ana Contrato/.test(await p.textContent('#ctConfMsg')) && /Arquivo pedido de novo/.test(await linhaCt()) && /Faltou a assinatura na página 2/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'pedido de novo fica na tabela com o motivo e sem o botão de conferir');
+    await p.evaluate(() => { const a = TQConta.areaDe('hoje'); S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForTimeout(200);
+    ok(/1 contrato devolvido aguarda o reenvio/.test(await p.textContent('#app')) && /Faltou a assinatura na página 2/.test(await p.textContent('#app')), 'Para você: contrato devolvido aguardando o reenvio, com o motivo');
     await sair();
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
     if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
+    ok((await p.textContent('#app')).indexOf('envie o arquivo assinado de novo') < (await p.textContent('#app')).indexOf('Olá'), 'Próximos passos: o contrato devolvido vem antes de tudo');
     ok(/envie o arquivo assinado de novo/.test(await p.textContent('#app')) && /Faltou a assinatura na página 2/.test(await p.textContent('#app')), 'artista vê no passo a passo que precisa enviar de novo, com o motivo');
     await p.click(`[data-ct-abrir="${ctId}"]`); await p.waitForSelector('#ctDeNovo');
     ok(/Faltou a assinatura na página 2/.test(await p.textContent('#ctDeNovo')) && !(await p.isDisabled('[data-enviar-arquivo^="contrato_"]')), 'tela do contrato mostra o motivo e libera o envio do arquivo novo');
@@ -112,7 +123,7 @@ E por estarem de acordo, assinam.`;
     if (await p.$('[data-ct-voltar]')) { await p.click('[data-ct-voltar]'); await p.waitForTimeout(300); }
     await p.click('[data-aba="contratos_meus"]'); await p.waitForSelector(`[data-ct-abrir="${ctId}"]`);
     ok(/✓ Assinado e conferido/.test(await p.textContent('#app')), 'na lista de contratos da artista aparece "✓ Assinado e conferido"');
-    await p.click(`[data-ct-abrir="${ctId}"]`); await p.waitForSelector('#ctTexto');
+    await p.click(`[data-ct-abrir="${ctId}"]`); await p.waitForSelector('#ctTexto', { state: 'attached' });
     ok(/Contrato assinado e conferido/.test(await p.textContent('#app')) && !(await p.$('[data-enviar-arquivo^="contrato_"]')) && !(await p.$('#ctSalvarDados')), 'artista vê "assinado e conferido", sem envio nem edição dos dados');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); await p.screenshot({ path: process.env.SHOT || '/tmp/contr-falha.png' }).catch(() => {}); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
