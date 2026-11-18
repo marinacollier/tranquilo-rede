@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 if (!token) { console.error('::error::SUPABASE_ACCESS_TOKEN não configurado.'); process.exit(1); }
-const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
+const cfg = await readFile(new URL(process.env.ALVO === 'prd' ? '../src/config.prd.js' : '../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/supabaseUrl:\s*"https:\/\/([^.]+)\./)?.[1];
 const dir = new URL('../supabase/emails/', import.meta.url);
 const assuntos = JSON.parse(await readFile(new URL('assuntos.json', dir), 'utf8'));
@@ -21,6 +21,7 @@ corpo.rate_limit_email_sent = Number(process.env.LIMITE_EMAILS_HORA || 500);
 // ignora o endereço pedido pelo site e manda sempre para o site_url (o portal dentro de tranquilomusica.com.br/rede ficava de fora).
 corpo.uri_allow_list = ['https://marinacollier.github.io/tranquilo-rede/**', 'https://tranquilomusica.com.br/rede', 'https://tranquilomusica.com.br/rede/**',
   'https://www.tranquilomusica.com.br/rede', 'https://www.tranquilomusica.com.br/rede/**'].join(',');
+if (process.env.ALVO === 'prd') corpo.site_url = 'https://marinacollier.github.io/tranquilo-rede/prd/';
 const r = await fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
   method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),
 });

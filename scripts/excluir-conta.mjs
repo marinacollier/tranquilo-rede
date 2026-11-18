@@ -9,7 +9,7 @@ import { readFile } from 'node:fs/promises';
 
 const tok = process.env.SUPABASE_ACCESS_TOKEN, hash = (process.env.EMAIL_SHA256 || '').trim().toLowerCase(), modo = process.env.MODO || 'ensaio';
 if (!tok || !/^[0-9a-f]{64}$/.test(hash) || !['ensaio', 'excluir', 'confirmar', 'promover-adm', 'consultar'].includes(modo)) { console.error('::error::Falta o token, a impressão do e-mail (64 caracteres) ou o modo.'); process.exit(1); }
-const cfg = await readFile(new URL('../src/config.js', import.meta.url), 'utf8');
+const cfg = await readFile(new URL(process.env.ALVO === 'prd' ? '../src/config.prd.js' : '../src/config.js', import.meta.url), 'utf8');
 const ref = cfg.match(/https:\/\/([a-z0-9]+)\.supabase\.co/)?.[1];
 const fim = modo === 'excluir' ? 'commit' : 'rollback';
 const H = `encode(extensions.digest(lower(email), 'sha256'), 'hex') = '${hash}'`;
