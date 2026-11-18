@@ -2905,7 +2905,6 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function posso_casa(text) from public, anon;
 grant execute on function posso_casa(text) to authenticated;
-=======
 -- v33: todos os formatos do Notion em Criar datas (pedido da Marina, 18/11/2026). Idempotente.
 -- Além de Descubra e Apresenta, a data pode ser Turnê (o mesmo artista em várias cidades; cada data segue o Apresenta)
 -- e Noite Tranquilo (segue o Descubra; regra a validar). As regras de cada formato ficam em src/regras.js (FORMATOS).
