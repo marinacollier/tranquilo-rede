@@ -19,15 +19,18 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.fill('#enome', 'Rooftap Teste'); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter');
     // "Pular tutorial" (Esc só pausa: o tutorial voltaria depois do recarregar e cobriria a tela).
     await p.waitForSelector('[data-aba="datas_casa"]', { timeout: 8000 }); await p.click('[data-tour="pular"]').catch(() => {}); await p.waitForTimeout(200);
-    await abrirAba('campanha'); await p.waitForSelector('.camp-dia', { timeout: 5000 });
-    ok((await p.$$('.camp-dia')).length === 10, 'casa vê os 10 dias da campanha do Rooftap');
+    await abrirAba('campanha'); await p.waitForSelector('details.camp-casa', { timeout: 5000 });
+    ok(!(await p.$('details.camp-casa[open]')) && /0 de 10 dias feitos, \d+ atrasados?/.test(await p.innerText('details.camp-casa summary')), 'campanha começa fechada, só com o resumo (0 de 10 feitos, atrasados)');
+    await p.click('details.camp-casa summary'); await p.waitForSelector('.camp-dia', { timeout: 3000 });
+    ok((await p.$$('.camp-dia')).length === 10, 'casa abre e vê os 10 dias da campanha do Rooftap');
     ok(/0 de 10 dias feitos/.test(await p.innerText('#app')), 'progresso começa em 0 de 10');
     ok(/atrasado/i.test(await p.innerText('#app')), 'dias que já passaram aparecem como atrasados');
     ok(await p.$('.camp-dia a[href^="https://trnql.app"]') !== null, 'links das ações viram botões');
     await p.check('[data-camp-feito="i0"]'); await p.waitForTimeout(500);
-    ok(/1 de 10 dias feitos/.test(await p.innerText('#app')) && /Marcado por você/.test(await p.innerText('#app')), 'marcar Feito atualiza o progresso e mostra quem marcou');
-    await p.reload(); await p.waitForSelector('.camp-dia', { timeout: 8000 });
+    ok(/1 de 10 dias feitos/.test(await p.innerText('#app')) && /Marcado por você/.test(await p.innerText('#app')) && !!(await p.$('details.camp-casa[open]')), 'marcar Feito atualiza o progresso, mostra quem marcou e a campanha continua aberta');
+    await p.reload(); await p.waitForSelector('details.camp-casa', { timeout: 8000 });
     ok(/1 de 10 dias feitos/.test(await p.innerText('#app')), 'Feito continua depois de recarregar');
+    await p.click('details.camp-casa summary');
     const [dl] = await Promise.all([p.waitForEvent('download'), p.click('[data-camp-ics="c1"]')]);
     const ics = require('fs').readFileSync(await dl.path(), 'utf8');
     ok(dl.suggestedFilename() === 'campanha-rooftap-nov26.ics' && (ics.match(/BEGIN:VEVENT/g) || []).length === 10 && /DTSTART;VALUE=DATE:20261020/.test(ics) && ics.split('\r\n').every((l) => Buffer.byteLength(l) <= 75), 'campanha baixa em .ics com os 10 dias (linhas dentro do limite)');
@@ -37,35 +40,59 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#sair'); await p.waitForTimeout(500);
     // equipe (demo): andamento e ciência
     await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
-    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'campanhas'); await p.waitForSelector('table[data-tbl="andcamp"] tbody tr', { timeout: 5000 });
-    const linha = await p.innerText('table[data-tbl="andcamp"] tbody tr');
-    ok(/Rooftap/.test(linha) && /1\/10/.test(linha), `matriz vê o andamento (${linha.replace(/\s+/g, ' ')})`);
-    await p.click('table[data-tbl="andcamp"] tbody tr'); await p.waitForTimeout(400);
-    ok((await p.$$('.camp-dia')).length === 10 && !(await p.$('[data-camp-feito]')), 'matriz abre o dia a dia, sem poder marcar');
+    await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'campanhas'); await p.waitForSelector('details.camp-casa', { timeout: 5000 });
+    ok(/O que é seu aqui: acompanhar .*cobrar .*ajustar o dia/.test(await p.innerText('#app')), 'topo de Campanhas explica numa frase o papel: acompanhar, cobrar e ajustar');
+    const linha = await p.innerText('details.camp-casa[data-camp="c1"] summary');
+    ok(!(await p.$('details.camp-casa[open]')) && /Rooftap/.test(linha) && /1 de 10 dias feitos, \d+ atrasados?/.test(linha), `equipe vê o mesmo resumo da casa, fechado (${linha.replace(/\s+/g, ' ')})`);
+    await p.click('details.camp-casa[data-camp="c1"] summary'); await p.waitForTimeout(300);
+    ok((await p.$$('details[data-camp="c1"] .camp-dia')).length === 10 && !(await p.$('[data-camp-feito]')), 'equipe abre o dia a dia, com os mesmos 10 dias, sem a caixa "Feito" da casa');
+    const atrasados = (await p.$$('details[data-camp="c1"] .camp-dia.atrasado')).length;
+    ok(atrasados > 0 && (await p.$$('details[data-camp="c1"] .camp-dia.atrasado [data-camp-pela-casa]')).length === atrasados && (await p.$$('details[data-camp="c1"] .camp-dia.atrasado a[data-camp-cobrar]')).length === atrasados && !(await p.$('.camp-dia.feito [data-camp-pela-casa]')), 'cada dia atrasado tem "Cobrar a casa no WhatsApp" e "Marcar como feito pela casa"');
+    const wa = decodeURIComponent(await p.getAttribute('.camp-dia.atrasado a[data-camp-cobrar]', 'href'));
+    ok(/^https:\/\/wa\.me\//.test(wa) && /Rooftap/.test(wa) && /sem "Feito"/.test(wa) && /#\/campanha/.test(wa) && /WhatsApp do grupo|Feed|Stories|Instagram/.test(wa), 'mensagem de cobrança pronta: o que fazer no dia e o link da campanha');
+    // Marcar como feito pela casa (com quem e quando)
+    const dia1 = await p.getAttribute('.camp-dia.atrasado [data-camp-pela-casa]', 'data-camp-pela-casa');
+    await p.click(`[data-camp-pela-casa="${dia1}"]`); await p.waitForSelector('#cpQuem'); await p.fill('#cpQuem', 'Joana do Instagram');
+    await p.click(`[data-camp-pela-ok="${dia1}"]`); await p.waitForTimeout(600);
+    ok(/2 de 10 dias feitos/.test(await p.innerText('details[data-camp="c1"] summary')) && /Feito pela casa \(Joana do Instagram\) em \d\d\/\d\d/.test(await p.innerText(`[data-camp-dia="${dia1}"]`)) && !!(await p.$('details[data-camp="c1"][open]')), 'feito pela casa: conta no resumo, mostra quem e quando, e a campanha continua aberta');
+    // Ajustar o dia (texto)
+    const dia2 = await p.getAttribute('.camp-dia.atrasado [data-camp-ajustar]', 'data-camp-ajustar');
+    await p.click(`[data-camp-ajustar="${dia2}"]`); await p.waitForSelector('#cpDia'); await p.fill('[data-cp-texto="0"]', 'Texto ajustado pelo marketing');
+    await p.click(`[data-camp-ajustar-ok="${dia2}"]`); await p.waitForTimeout(600);
+    ok(/Texto ajustado pelo marketing/.test(await p.innerText(`[data-camp-dia="${dia2}"]`)), 'ajustar o dia troca o texto');
+    // A casa vê o mesmo: feito pela casa (anotado pela equipe) e o texto ajustado.
+    await p.click('#sair'); await p.waitForTimeout(400);
+    await p.click('#entrar'); await p.waitForTimeout(200); await p.fill('#email', 'rooftap@teste.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await p.waitForTimeout(800); await p.keyboard.press('Escape');
+    await abrirAba('campanha'); await p.waitForSelector('details.camp-casa', { timeout: 5000 });
+    ok(/2 de 10 dias feitos/.test(await p.innerText('details.camp-casa summary')), 'casa vê o "feito pela casa" que a equipe marcou (2 de 10)');
+    await p.click('details.camp-casa summary'); await p.waitForTimeout(200);
+    ok(/Marcado pela equipe do Tranquilo em [^·]+· Feito pela casa \(Joana do Instagram\)/.test(await p.innerText(`[data-camp-dia="${dia1}"]`)) && /Texto ajustado pelo marketing/.test(await p.innerText(`[data-camp-dia="${dia2}"]`)) && await p.isChecked(`[data-camp-feito="${dia1}"]`), 'casa vê quem marcou, a anotação e o dia ajustado');
+    await p.click('#sair'); await p.waitForTimeout(400);
+    await p.click('#entrar'); await p.waitForSelector('[data-demo="equipe"]'); await p.click('[data-demo="equipe"]'); await p.waitForTimeout(900); await p.keyboard.press('Escape');
     // Bruno (Marketing): "Para você" traz a campanha atrasada e o item abre direto o dia a dia dela.
-    await p.evaluate(() => { S.conta.perfil.areas = ['marketing']; S.campAberta = null; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="camp:"]', { timeout: 5000 });
+    await p.evaluate(() => { S.conta.perfil.areas = ['marketing']; S.campAbertas = null; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="camp:"]', { timeout: 5000 });
     ok(/Cobrar campanha atrasada \(\d+\)/.test(await p.innerText('#app')) && /dias? atrasados?/.test(await p.innerText('[data-abrir^="camp:"]')), 'Para você (Marketing): "Cobrar campanha atrasada" com a casa e quantos dias');
     await p.click('[data-abrir^="camp:"]'); await p.waitForTimeout(400);
-    ok((await p.$$('.camp-dia')).length === 10, 'o item abre direto o dia a dia da campanha');
-    await p.evaluate(() => { delete S.conta.perfil.areas; S.campAberta = null; render(); });
+    ok((await p.$$('details[data-camp][open] .camp-dia')).length === 10, 'o item abre direto o dia a dia da campanha');
+    await p.evaluate(() => { delete S.conta.perfil.areas; S.campAbertas = null; render(); });
     await abrirAba('materiais'); await p.waitForTimeout(800);
     ok(/Ciência da versão 2026-10-20: \d+ pessoa/.test(await p.innerText('#app')), 'matriz vê quantos confirmaram a leitura');
     // equipe carrega campanha nova (arquivo de dados) e atualiza a do Rooftap (página HTML)
     await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'campanhas'); await p.waitForSelector('#cfArq', { state: 'attached', timeout: 5000 });
     const cob = await p.innerText('table[data-tbl="cobcasas"]');
-    ok(/Rooftap/.test(cob) && /1\/10/.test(cob) && /leve|completa|sem agenda/.test(cob) && /\b1\b/.test(cob), `casas no hub: Rooftap com pessoa, formato e campanha (${cob.replace(/\s+/g, ' ').slice(0, 120)})`);
+    ok(/Rooftap/.test(cob) && /2\/10/.test(cob) && /leve|completa|sem agenda/.test(cob) && /\b1\b/.test(cob), `casas no hub: Rooftap com pessoa, formato e campanha (${cob.replace(/\s+/g, ' ').slice(0, 120)})`);
     await p.click('details:has(#cfArq) summary'); await p.setInputFiles('#cfArq', __dirname + '/dados/casa-nova.json'); await p.waitForTimeout(400);
     ok(/2 dias e 3 ações lidos de casa-nova.json/.test(await p.innerText('#app')) && (await p.inputValue('#cfCasa')) === 'Casa Nova' && /casa-nova-2026-11/.test(await p.inputValue('#cfSlug')), 'arquivo de dados: prévia com dias, ações, casa e identificador');
     await p.click('[data-camp-importar]'); await p.waitForTimeout(600);
-    ok(/Casa Nova/.test(await p.innerText('table[data-tbl="andcamp"]')) && /0\/2/.test(await p.innerText('table[data-tbl="andcamp"]')), 'campanha nova aparece no andamento (0/2)');
+    ok(/Casa Nova[\s\S]*0 de 2 dias feitos/.test(await p.innerText('.camp-lista')), 'campanha nova aparece nas campanhas (0 de 2)');
     if (!(await p.isVisible('#cfArq'))) await p.click('details:has(#cfArq) summary');
     await p.setInputFiles('#cfArq', __dirname + '/dados/rooftap-v2.html'); await p.waitForTimeout(400);
     await p.fill('#cfCasa', 'Rooftap'); await p.fill('#cfSlug', 'rooftap-nov26'); await p.dispatchEvent('#cfSlug', 'input'); await p.waitForTimeout(100);
     ok(/9 dias e 24 ações/.test(await p.innerText('#app')), 'página HTML: prévia da versão nova (9 dias, 24 ações)');
     await p.check('#cfCie'); await p.click('[data-camp-importar]'); await p.waitForTimeout(600);
     ok(/✓ Feito: Campanha de Rooftap carregada: 9 dias/.test(await p.textContent('#camperr')), 'carregar a campanha termina com "✓ Feito" na tela (sem alert)');
-    const and = await p.innerText('table[data-tbl="andcamp"]');
-    ok(/Rooftap[\s\S]*1\/9/.test(and), `reimportar: dia retirado sai e o feito continua (${and.replace(/\s+/g, ' ').slice(0, 140)})`);
+    const and = await p.innerText('details[data-camp="c1"] summary');
+    ok(/Rooftap[\s\S]*2 de 9 dias feitos/.test(and), `reimportar: dia retirado sai e o feito continua (${and.replace(/\s+/g, ' ').slice(0, 140)})`);
     await abrirAba('materiais'); await p.waitForTimeout(500);
     ok(/A campanha do Rooftap/.test(await p.innerText('#app')) && /Ciência da versão [0-9-]+ [0-9:]+: 0 pessoas/.test(await p.innerText('#app')), 'campanha atualizada pede "Li e estou ciente" em Materiais');
     // equipe publica nova versão pedindo ciência de novo, e cadastra material novo

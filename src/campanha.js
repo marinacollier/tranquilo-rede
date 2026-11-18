@@ -83,5 +83,12 @@
     return { ...r, avisos: semAcao.length ? [`Dias sem ações lidas: ${semAcao.join(", ")}`] : [] };
   }
 
-  raiz.TQCampanha = { ler, dataISO };
+  // Nome da casa normalizado, o mesmo de chave_casa() no banco (schema v32): sem acento, minúsculas, espaços simples,
+  // sem o prefixo "TESTE · " e sem o sufixo "(teste)". É assim que a campanha (casa_ref) se liga à conta da casa.
+  function chaveCasa(nome) {
+    return String(nome ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+      .replace(/^\s*teste\s*[·:\-–—]\s*/, "").replace(/\s*\(\s*teste\s*\)\s*$/, "").replace(/\s+/g, " ").trim();
+  }
+
+  raiz.TQCampanha = { ler, dataISO, chaveCasa, rotuloDe };
 })(typeof window !== "undefined" ? window : globalThis);

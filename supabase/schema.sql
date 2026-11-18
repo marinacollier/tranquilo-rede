@@ -2870,3 +2870,38 @@ revoke all on function datas_portal_lineup(), datas_portal_tirou_artista() from 
 drop trigger if exists trg_datas_portal_tirou on datas_portal;
 create trigger trg_datas_portal_tirou after update of artistas on datas_portal for each row
   when (old.artistas is distinct from new.artistas) execute function datas_portal_tirou_artista();
+
+-- =====================================================================
+-- v32: a casa vê a mesma campanha que a equipe vê para ela (pedido da Marina, 18/11/2026). Idempotente.
+-- Antes, a campanha só aparecia para a conta da casa ligada por convite aceito com o MESMO nome escrito em
+-- campanhas.casa_ref. Conta ligada pela Ficha habilitada (v20) ou pelo banco, ou nome escrito diferente
+-- ("TESTE · Bar do Farol" x "Bar do Farol", maiúsculas, espaços), via "Nenhuma campanha para a sua casa ainda",
+-- enquanto a equipe via os dias atrasados.
+-- · chave_casa(): o mesmo nome normalizado do site (TQCampanha.chaveCasa em src/campanha.js): sem acento,
+--   minúsculas, espaços simples, sem o prefixo "TESTE · " e sem o sufixo "(teste)".
+-- · posso_casa(): equipe, ou a conta de casa ligada à casa (perfis.vinculo_nome, que só muda pela adm, pelo
+--   convite ou pela Ficha habilitada: ver P02/P03 em tests/seguranca.test.mjs), ou o convite aceito como antes.
+-- =====================================================================
+create or replace function chave_casa(nome text) returns text
+language sql immutable set search_path = public as $$
+  select nullif(btrim(regexp_replace(regexp_replace(regexp_replace(
+    translate(lower(coalesce(nome, '')), 'áàâãäéèêëíìîïóòôõöúùûüçñ', 'aaaaaeeeeiiiiooooouuuucn'),
+    '^\s*teste\s*[·:\-–—]\s*', ''), '\s*\(\s*teste\s*\)\s*$', ''), '\s+', ' ', 'g')), '')
+$$;
+grant execute on function chave_casa(text) to authenticated;
+
+create or replace function posso_casa(ref text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select eh_equipe() or (chave_casa(ref) is not null and (
+    exists (select 1 from perfis p where p.id = auth.uid() and p.tipo = 'casa' and p.vinculo_nome is not null
+              and chave_casa(p.vinculo_nome) = chave_casa(ref))
+    or exists (
+      select 1 from perfis p
+        join auth.users u on u.id = p.id
+        join convites c on c.email = lower(u.email)
+      where p.id = auth.uid() and p.tipo = 'casa' and c.tipo = 'casa'
+        and c.aceito_em is not null and u.email_confirmed_at is not null
+        and c.vinculo_nome is not null and chave_casa(c.vinculo_nome) = chave_casa(ref))));
+$$;
+revoke all on function posso_casa(text) from public, anon;
+grant execute on function posso_casa(text) to authenticated;

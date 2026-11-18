@@ -397,6 +397,13 @@ td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/ta
 .camp-dia.feito b{text-decoration:none}
 .camp-dia.atrasado{border-color:rgba(238,127,108,.45)}
 .camp-dia.hoje{border-color:var(--violet)}
+.camp-casa{margin-bottom:10px}
+.camp-casa>summary{cursor:pointer;list-style:none}
+.camp-casa>summary::-webkit-details-marker{display:none}
+.camp-casa>summary .row{align-items:flex-start;gap:8px}
+.camp-casa>summary::after{content:"Ver os dias ▾";display:block;font-size:13px;color:var(--violet);margin-top:8px}
+.camp-casa[open]>summary::after{content:"Fechar ▴"}
+.camp-casa .camp-dia{margin-bottom:8px}
 .faq{max-width:860px}
 .link-doc{background:none;border:0;padding:0;font:inherit;color:var(--ink);text-align:left;cursor:pointer;text-decoration:underline;text-decoration-color:var(--violet);text-underline-offset:3px}.link-doc:hover{color:var(--violet)}
 .leitor-barra{display:flex;align-items:center;gap:14px;margin:0 0 14px;flex-wrap:wrap}
