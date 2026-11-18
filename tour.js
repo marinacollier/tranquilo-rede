@@ -113,7 +113,7 @@ const TQTour = (() => {
       passos: [
         { titulo: "Bem-vindo à operação da rede", texto: "Esta área junta o que a Central precisa acompanhar sem microgerenciar: datas, alertas, curadoria, casas, campanhas e materiais.", itens: ["Os dados de eventos vêm do Notion e são atualizados toda noite."] },
         ...EQUIPE,
-        { titulo: "Histórico de artistas e casas", cobre: ["artistas", "casas"], ...N7, texto: "O histórico do Notion de cada artista e de cada casa: noites, público e cancelamentos. Toque numa linha para ver a ficha.", itens: [] },
+        { titulo: "Histórico de artistas e casas", cobre: ["artistas", "casas", "base_artistas", "base_casas"], ...N7, texto: "O histórico do Notion de cada artista e de cada casa: noites, público e cancelamentos. Em Base de artistas e Base de casas, as bases do Notion. Toque numa linha para ver a ficha.", itens: [] },
         CONTA(" Cole aqui o código interno da equipe para liberar Operação, Datas, Base de conhecimento e Método."),
       ],
     },
@@ -123,7 +123,7 @@ const TQTour = (() => {
         { titulo: "Bem-vinda à administração", texto: "Você tem tudo o que a equipe tem, mais as métricas de decisão, quem acessa o quê e os códigos de acesso. O menu é separado por assunto: Início, Datas, Artistas, Casas, Contratos, Marketing, Pessoas e acessos e Referência.", itens: ["Os dados de eventos vêm do Notion e são atualizados toda noite."] },
         { titulo: "O que está dando certo", requer: "estrategia", cobre: ["estrategia"], texto: "O painel compara cidades, artistas, modelos e casas pelo público por noite, pela tendência e pelos cancelamentos, e sinaliza o que escalar, manter ou corrigir.", itens: ["É a base para decidir em que cidade abrir mais datas."], ir: ["estrategia", "Abrir o painel"] },
         ...EQUIPE,
-        { titulo: "Artistas e casas da rede", cobre: ["artistas", "casas"], texto: "Listas completas de artistas e casas com o histórico de cada um: noites, público e cancelamentos. Clique em qualquer linha para a ficha.", itens: [] },
+        { titulo: "Artistas e casas da rede", cobre: ["artistas", "casas", "base_artistas", "base_casas"], texto: "Listas completas de artistas e casas com o histórico de cada um: noites, público e cancelamentos, e as bases do Notion (Base de artistas e Base de casas). Clique em qualquer linha para a ficha.", itens: [] },
         { titulo: "Pessoas", cobre: ["pessoas"], texto: "Aqui você muda o perfil de cada conta (artista, casa, equipe, administração) e liga a conta ao histórico da artista ou da casa no Notion.", itens: ["Só a administração promove alguém a equipe.", "Também dá para reenviar o link de senha e o tutorial."], ir: ["pessoas", "Abrir pessoas"] },
         { titulo: "Códigos de acesso", cobre: ["acessos"], texto: "Cada artista e cada casa tem um código que abre só o painel dela, sem senha. Aqui você copia o código ou o link direto para mandar.", itens: ["O código interno da equipe e o da administração também estão aqui: não compartilhe fora."] },
         CONTA(" O site lê o Notion toda noite; se os dados ficarem com mais de 36 horas, aparece uma faixa vermelha no topo."),
