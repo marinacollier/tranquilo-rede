@@ -8,6 +8,15 @@ const TQConta = (() => {
   let REAL = false;   // vira true quando o banco responde com as tabelas criadas
   let FORA = false;   // banco configurado, mas fora do ar: nunca cair no modo demonstração nesse caso
   const R = window.TQRegras;
+  // Link do e-mail (convite, link de entrada, confirmação, "esqueci a senha"): o Supabase lê o login do endereço e limpa
+  // o #access_token logo que a conta abre. Guardamos antes, nesta aba, que a pessoa veio pelo link: é isso que decide
+  // a tela "Crie a sua senha" (a conta criada pelo link não tem senha que a pessoa conheça).
+  const LINK_TIPOS = ["magiclink", "invite", "signup", "recovery"];
+  try {
+    const h = location.hash + location.search, tipo = (h.match(/type=(magiclink|invite|signup|recovery)\b/) || [])[1];
+    if (tipo || /access_token=/.test(h)) { sessionStorage.setItem("tq-veio-link", tipo || "magiclink"); sessionStorage.removeItem("tq-senha-depois"); }
+  } catch { /* sem armazenamento: vale só senha_definida */ }
+  const veioLink = () => { try { const v = sessionStorage.getItem("tq-veio-link"); return LINK_TIPOS.includes(v) ? v : null; } catch { return null; } };
   const hojeIso = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10);
   // Mensagem de resultado num formulário, sempre com o desfecho na frente:
   // "✓ Feito: …" (verde), "✕ Erro: …" (vermelho, com o motivo e o que fazer), "⚠ Atenção: …" (amarelo) e "…" (cinza, esperando).
@@ -110,7 +119,7 @@ const TQConta = (() => {
       async cadastrar({ email, senha, nome, tipo }) {
         email = email.toLowerCase().trim();
         if (Object.values(db.usuarios).some((x) => x.perfil.email === email)) throw new Error("Já existe uma conta com este e-mail.");
-        const perfil = { id: id(), email, nome, tipo: ["artista", "casa", "equipe", "adm"].includes(tipo) ? tipo : "artista", codigo_acesso: null, vinculo_nome: null, criado_em: agora() };
+        const perfil = { id: id(), email, nome, tipo: ["artista", "casa", "equipe", "adm"].includes(tipo) ? tipo : "artista", codigo_acesso: null, vinculo_nome: null, criado_em: agora(), senha_portal: true };
         db.usuarios[perfil.id] = { senha, perfil }; db.sessao = perfil.id; gravar();
         return { perfil };
       },
@@ -181,7 +190,7 @@ const TQConta = (() => {
       async marcarTutorialEnviado(email) { if (db.conv[email]) { db.conv[email].tutorial_enviado_em = agora(); gravar(); } },
       async enviarLinkSenha() { return { enviado: false, demo: true }; },
       precisaSenha() { return false; },
-      async definirSenha(senha) { db.usuarios[db.sessao].senha = senha; eu().senha_definida = true; gravar(); },
+      async definirSenha(senha) { db.usuarios[db.sessao].senha = senha; eu().senha_definida = true; eu().senha_portal = true; gravar(); },
       async marcarTutorial() { eu().tutorial_visto_em = agora(); gravar(); },
       async reivindicar() {
         const p = eu(), c = p && db.conv[p.email]; if (!c || c.aceito_em) return false;
@@ -423,12 +432,14 @@ const TQConta = (() => {
     const lerCols = async (montar) => { const r = await montar(sb.from("perfis").select(COLS)); return r.error && /funcoes|areas/.test(r.error.message || "") ? montar(sb.from("perfis").select(COLS0)) : r; };
     const semV8 = (e) => /PGRST202|42703|Could not find the function|does not exist/i.test(`${e?.code} ${e?.message}`);
     const perfil = async () => {
-      const u = await uid(); if (!u) return null;
+      const user = (await sb.auth.getUser()).data.user, u = user?.id; if (!u) return null;
+      // Senha salva pelo próprio portal (cadastro com senha, "Crie a sua senha", "Mudar a senha"): fica nos metadados da conta.
+      const senha_portal = !!user.user_metadata?.senha_portal;
       const r = await lerCols((x) => x.eq("id", u).maybeSingle());
-      if (r.error && semV8(r.error)) return ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle());
+      if (r.error && semV8(r.error)) { const p0 = ok(await sb.from("perfis").select("*").eq("id", u).maybeSingle()); return p0 && { ...p0, senha_portal }; }
       const p = ok(r); if (!p) return null;
       const a = await sb.rpc("meu_acesso");
-      return { ...p, codigo_acesso: a.data?.[0]?.codigo_acesso ?? null, vinculo_pedido: a.data?.[0]?.vinculo_pedido ?? null };
+      return { ...p, senha_portal, codigo_acesso: a.data?.[0]?.codigo_acesso ?? null, vinculo_pedido: a.data?.[0]?.vinculo_pedido ?? null };
     };
     const lerPerfis = async (montar) => {
       const r = await lerCols(montar);
@@ -473,7 +484,7 @@ const TQConta = (() => {
       async sessao() { return perfil(); },
       async entrar(email, senha) { ok(await sb.auth.signInWithPassword({ email, password: senha })); return perfil(); },
       async cadastrar({ email, senha, nome, tipo }) {
-        const r = ok(await sb.auth.signUp({ email, password: senha, options: { data: { nome, tipo }, emailRedirectTo: location.origin + location.pathname } }));
+        const r = ok(await sb.auth.signUp({ email, password: senha, options: { data: { nome, tipo, senha_portal: true }, emailRedirectTo: location.origin + location.pathname } }));
         return r.session ? { perfil: await perfil() } : { confirmar: true };
       },
       async recuperar(email) { ok(await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname })); return true; },
@@ -523,7 +534,7 @@ const TQConta = (() => {
         const linha = { email: c.email.toLowerCase().trim(), tipo: c.tipo, nome: c.nome || "", whatsapp: c.whatsapp || null, codigo_acesso: c.codigo_acesso || null, vinculo_nome: c.vinculo_nome || null, criado_por: await uid(), ...(c.areas?.length ? { areas: c.areas } : {}) };
         ok(await sb.from("convites").upsert(linha, { onConflict: "email" }));
         // Link de acesso por e-mail. A conta nasce ao clicar; o convite aplica perfil e vínculo nessa hora.
-        const { error } = await sb.auth.signInWithOtp({ email: linha.email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome: linha.nome, tipo: linha.tipo === "casa" ? "casa" : "artista" } } });
+        const { error } = await sb.auth.signInWithOtp({ email: linha.email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome: linha.nome, tipo: linha.tipo === "casa" ? "casa" : "artista", pelo_link: "1" } } });
         return { enviado: !error, erro: error ? traduz(error.message) : null };
       },
       async convites() { return ok(await sb.from("convites").select("*").order("criado_em", { ascending: false })); },
@@ -538,9 +549,10 @@ const TQConta = (() => {
       },
       precisaSenha() { return recuperacao; },
       async definirSenha(senha) {
-        const r = await sb.auth.updateUser({ password: senha });
+        const r = await sb.auth.updateUser({ password: senha, data: { senha_portal: true } });
         // Senha igual à que já estava na conta: o Supabase recusa (422), mas a pessoa já tem essa senha; segue.
         if (r.error && !/different from the old password|same_password/i.test(r.error.message + " " + (r.error.code || ""))) ok(r);
+        if (r.error) await sb.auth.updateUser({ data: { senha_portal: true } });   // senha igual: marca mesmo assim
         recuperacao = false;
         ok(await sb.from("perfis").update({ senha_definida: true }).eq("id", await uid()));
       },
@@ -652,7 +664,7 @@ const TQConta = (() => {
       async removerMembro(mid) { ok(await sb.from("equipe_casa").delete().eq("id", mid)); },
       async convidarMembro(mid, email, nome) {
         if (ok(await sb.rpc("convidar_equipe_casa", { membro: mid })) === "ja_tem_acesso") return { ja: true };
-        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome, tipo: "casa" } } });
+        const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: base(), data: { nome, tipo: "casa", pelo_link: "1" } } });
         return { enviado: !error, erro: error ? traduz(error.message) : null };
       },
       async equipesTodas() { return ok(await sb.from("equipe_casa").select("*").order("criado_em")); },
@@ -2717,11 +2729,32 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const p = S.conta?.perfil; if (!p) return;
     // Criar senha no primeiro acesso: toda conta que entrou pelo link do e-mail (convite de casa, artista ou equipe) e ainda
     // não tem senha, e quem veio pelo link "esqueci a senha". Sem isso a casa convidada não conseguia entrar de novo.
-    if (!S.senhaDepois && (api.precisaSenha?.() || p.senha_definida === false)) return pedirSenha();
+    // A tela vem antes do tutorial e da trilha (antes era um diálogo que podia ficar atrás do tutorial ou nem abrir:
+    // a conta do link nascia com senha_definida = true, ver schema v30).
+    if (precisaCriarSenha()) { if ($("#dlg").open && $("#dlg").dataset.alvo === "senha") $("#dlg").close(); render(); scrollTo(0, 0); setTimeout(() => $("#ns1")?.focus(), 30); return; }
     if (TQTour.aberto()) return;
     if (!p.tutorial_visto_em) abrirTutorial(roteiroConta(), true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.
     else if (TQTour.temNovidades(p.tutorial_visto_em)) abrirTutorial(roteiroConta(), true, p.tutorial_visto_em);
+  }
+  // Quem precisa criar a senha agora: veio do "esqueci a senha"; a conta foi criada pelo link e nunca teve senha;
+  // ou entrou nesta aba por um link do e-mail (convite, link de entrada, confirmação) sem nunca ter salvo senha no portal.
+  function precisaCriarSenha() {
+    const p = S.conta?.perfil; if (!p || S.senhaDepois) return false;
+    try { if (sessionStorage.getItem("tq-senha-depois") === "1") return false; } catch { /* segue */ }
+    if (api.precisaSenha?.() || p.senha_definida === false) return true;
+    const v = veioLink(); return v === "recovery" || (!!v && !p.senha_portal);
+  }
+  function telaSenha() {
+    if (!precisaCriarSenha()) return null;
+    const p = S.conta.perfil, nova = api.precisaSenha?.() || veioLink() === "recovery";
+    return `<div class="card tela-senha" style="max-width:520px;margin:24px auto"><div class="tag">${nova ? "Senha nova" : "Primeiro acesso"}</div>
+    <h1 style="margin-top:4px">${nova ? "Escolha a sua senha nova" : "Crie a sua senha para entrar das próximas vezes"}</h1>
+    <p class="sub">${nova ? "Você abriu o link de senha do e-mail. Escolha a senha nova e pronto." : `Você entrou pelo link do e-mail${p.email ? ` (<b>${esc(p.email)}</b>)` : ""}. Esse link abre uma vez só: com a senha, você entra de qualquer celular ou computador com o seu e-mail.`}</p>
+    <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8" placeholder="pelo menos 8 caracteres"></label>
+    <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
+    <div class="err" role="status" aria-live="polite" id="nserr"></div><button class="btn pri lg" id="nsok" style="width:100%">Salvar senha e continuar</button>
+    <p style="text-align:center;margin:14px 0 0"><button type="button" id="nsdepois" class="muted" style="background:none;border:0;padding:4px;font:inherit;font-size:13px;text-decoration:underline;cursor:pointer;color:var(--muted)">fazer depois</button></p></div>`;
   }
   function abrirTutorial(tipo, primeira, desde) {
     TQTour.abrir(tipo, { desde, primeira, chave: "conta-" + tipo, dicaRever: S.conta ? "aba Conta → \"Ver o tutorial de novo\", ou \"Como funciona\" no menu" : null,
@@ -2741,7 +2774,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <label class="fcampo"><b>Nova senha</b><input id="ns1" type="password" autocomplete="new-password" minlength="8"></label>
     <label class="fcampo"><b>Repita a senha</b><input id="ns2" type="password" autocomplete="new-password" minlength="8"></label>
     <div class="err" role="status" aria-live="polite" id="nserr"></div><div class="barra-acoes"><button class="btn pri" id="nsok">Salvar senha</button><button class="btn" id="nsdepois">${trocar ? "Cancelar" : "Agora não"}</button></div>${trocar ? "" : '<p class="dica">Dá pra criar depois na aba Conta, em "Mudar a senha".</p>'}`;
-    $("#dlg").dataset.alvo = "senha"; $("#dlg").showModal(); setTimeout(() => $("#ns1")?.focus(), 30);
+    $("#dlg").dataset.alvo = "senha"; $("#dlg").dataset.trocar = trocar ? "1" : ""; $("#dlg").showModal(); setTimeout(() => $("#ns1")?.focus(), 30);
   }
 
   // ---------- envio de acesso e tutorial ----------
@@ -2753,7 +2786,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   function mensagemConvite(c) {
     const criar = `${site()}#criar&email=${encodeURIComponent(c.email)}&tipo=${c.tipo === "casa" ? "casa" : "artista"}`;
-    return `Oi${c.nome ? ", " + c.nome : ""}! Você foi convidada para a área ${c.tipo === "casa" ? "da casa" : c.tipo === "artista" ? "da artista" : "interna"} da Rede Tranquilo${c.vinculo_nome ? ` (${c.vinculo_nome})` : ""}.\n\nEnviei um link de acesso para ${c.email}. Se ele não chegar, crie a senha por aqui, usando este mesmo e-mail: ${criar}\n\nNo primeiro acesso, um tutorial mostra tudo o que dá para fazer.`;
+    return `Oi${c.nome ? ", " + c.nome : ""}! Você foi convidada para a área ${c.tipo === "casa" ? "da casa" : c.tipo === "artista" ? "da artista" : "interna"} da Rede Tranquilo${c.vinculo_nome ? ` (${c.vinculo_nome})` : ""}.\n\nEnviei um link de acesso para ${c.email} (olhe também no spam). Ao tocar nele, a primeira tela pede para você criar a sua senha. Se o e-mail não chegar, crie a conta por aqui, usando este mesmo e-mail: ${criar}\n\nDepois, um tutorial mostra tudo o que dá para fazer.`;
   }
   function dialogoEnvio({ titulo, texto, email, whatsapp, assunto, aoEnviar, aviso }) {
     const wa = `https://wa.me/${soDigitos(whatsapp)}?text=${encodeURIComponent(texto)}`;
@@ -2769,7 +2802,31 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     dialogoEnvio({ titulo: `Tutorial de ${ROTULO[tipo].toLowerCase()}`, texto: mensagemTutorial(tipo, nome), email, whatsapp, assunto: "Seu passo a passo na Rede Tranquilo",
       aoEnviar: () => api.marcarTutorialEnviado(email).catch(() => {}) });
   }
-  const resultadoEnvio = (r, oque) => r.demo ? `No modo demonstração nenhum e-mail sai. Use o WhatsApp ou o e-mail abaixo.` : r.enviado ? `${oque} enviado por e-mail.` : `O e-mail não saiu: ${r.erro} Use o WhatsApp ou o e-mail abaixo.`;
+  // Depois de "Enviar convite", "Reenviar convite", "Dar acesso" e "Enviar link de senha" (pedido da Marina, 18/11/2026):
+  // no topo, grande, o que aconteceu ("✓ Convite enviado para …") e o que a pessoa vai receber; embaixo, as ações
+  // secundárias (reenviar o e-mail, WhatsApp, copiar, fechar). A mensagem pronta fica recolhida em "Ver a mensagem".
+  const RECEBE = {
+    convite: "Um e-mail da Rede Tranquilo com o link para entrar. Ao tocar no link, a conta abre e a primeira tela pede para criar a senha. O link abre uma vez só; se vencer, é só reenviar.",
+    senha: "Um e-mail com o link para criar uma senha nova. Ao tocar no link, a pessoa escolhe a senha e já entra na conta.",
+  };
+  function dialogoResultado(o) {
+    S.envioRes = o;
+    const r = o.resultado || {}, quem = esc(o.email || ""), oque = esc(o.oque);
+    const topo = r.enviado ? `<div class="envio-ok" style="color:var(--good, #1f7a3a);font-size:24px;font-weight:700;line-height:1.25;margin:4px 0 8px">✓ ${oque} enviado para <span style="display:inline-block;max-width:100%;overflow-wrap:anywhere">${quem}</span></div>`
+      : r.demo ? `<div class="envio-ok" style="color:var(--good, #1f7a3a);font-size:24px;font-weight:700;line-height:1.25;margin:4px 0 8px">✓ ${oque} criado para <span style="display:inline-block;max-width:100%;overflow-wrap:anywhere">${quem}</span></div><div class="alert warn" style="margin-bottom:10px">No modo demonstração nenhum e-mail sai. Mande pelo WhatsApp ou copie a mensagem.</div>`
+      : `<div class="envio-erro" style="color:var(--bad, #b42318);font-size:22px;font-weight:700;line-height:1.25;margin:4px 0 8px">✕ O e-mail não saiu para <span style="display:inline-block;max-width:100%;overflow-wrap:anywhere">${quem}</span></div><div class="alert warn" style="margin-bottom:10px">${esc(r.erro || "Tente de novo em instantes.")} Tente "Reenviar o e-mail" daqui a pouco ou mande pelo WhatsApp.</div>`;
+    const wa = `https://wa.me/${soDigitos(o.whatsapp)}?text=${encodeURIComponent(o.texto)}`;
+    const mail = `mailto:${encodeURIComponent(o.email || "")}?subject=${encodeURIComponent(o.assunto)}&body=${encodeURIComponent(o.texto)}`;
+    $("#dlgIn").innerHTML = `<div class="tag">${esc(o.nome || o.oque)}</div>${topo}
+    <p style="margin:0 0 4px"><b>O que a pessoa vai receber</b></p><p class="sub" style="margin-top:0">${esc(o.recebe)}</p>
+    ${o.nota ? `<p class="muted" style="font-size:13px">${esc(o.nota)}</p>` : ""}
+    <div class="err" role="status" aria-live="polite" id="envSt"></div>
+    <div class="barra-acoes" style="margin-top:6px">${o.reenviar ? `<button class="btn sm" id="envReenviar">Reenviar o e-mail</button>` : ""}<a class="btn sm" data-envio href="${esc(wa)}" target="_blank" rel="noopener" style="white-space:normal">Mandar também pelo WhatsApp</a><button class="btn sm" data-copiar-envio>Copiar mensagem</button><button class="btn sm pri" onclick="dlg.close()">Fechar</button></div>
+    <details style="margin-top:12px"><summary>Ver a mensagem</summary>
+    <textarea id="envTxt" aria-label="Mensagem a enviar" rows="7" style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(o.texto)}</textarea>
+    <p class="muted" style="font-size:13px">O WhatsApp abre com a mensagem pronta; nada sai sem você confirmar lá. Prefere o seu e-mail? <a data-envio href="${esc(mail)}">Abrir no programa de e-mail</a>.</p></details>`;
+    $("#dlg").dataset.alvo = "envio"; S.aoEnviar = o.aoEnviar; if (!$("#dlg").open) $("#dlg").showModal();
+  }
 
   // ---------- eventos ----------
   async function cliquesContrato(t) {
@@ -3120,7 +3177,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const zap = `Oi, ${m.nome}! Você entrou na equipe de ${S.conta.perfil.vinculo_nome} na Rede Tranquilo (${nomesFuncoes(m.funcoes)}). Mandei um link de acesso para ${m.email}. Se não chegar, crie a sua senha com esse mesmo e-mail aqui: ${criar}\n\nNo primeiro acesso, um tutorial mostra o que é seu.`;
       const res = await acao(cv, async () => { const r = await api.convidarMembro(m.id, m.email, m.nome); TQDiario.registrar("equipe_convite", { funcoes: m.funcoes }); S.conta.equipe = undefined; await carregarEquipeCasa(); return r; },
         { espera: "Enviando…", ok: (r) => r.ja ? `${m.nome} já tem acesso.` : `Acesso de ${m.nome} criado.` });
-      if (res.ok && !res.r?.ja) dialogoEnvio({ titulo: `Acesso de ${m.nome}`, texto: zap, email: m.email, whatsapp: m.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Link de acesso") });
+      if (res.ok && !res.r?.ja) dialogoResultado({ oque: "Convite", nome: m.nome, email: m.email, whatsapp: m.whatsapp, texto: zap, assunto: "Seu acesso à Rede Tranquilo", resultado: res.r, recebe: RECEBE.convite, reenviar: () => api.convidarMembro(m.id, m.email, m.nome) });
       return true;
     }
     if (t.dataset?.trilhaCasa) {
@@ -3474,12 +3531,18 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // ---------- primeiro acesso, convites e avisos ----------
     if (t.closest("[data-mudar-senha]")) { pedirSenha(true); return; }
     if (t.closest("[data-rever-tutorial]")) { abrirTutorial(roteiroConta(), false); return; }
-    if (t.id === "nsdepois" || t.closest?.("[data-ns-fechar]")) { S.senhaDepois = true; $("#dlg").close(); primeiroAcesso(); return; }
+    if (t.id === "nsdepois" || t.closest?.("[data-ns-fechar]")) {
+      const naTela = !!t.closest?.(".tela-senha");
+      if (naTela) { S.senhaDepois = true; try { sessionStorage.setItem("tq-senha-depois", "1"); } catch { /* só nesta página */ } render(); scrollTo(0, 0); primeiroAcesso(); }
+      else { $("#dlg").close(); if (!$("#dlg").dataset.trocar) { S.senhaDepois = true; primeiroAcesso(); } }
+      return;
+    }
     if (t.id === "nsok") {
       const a = $("#ns1").value, b = $("#ns2").value, err = $("#nserr");
       if (barrar(err, [[$("#ns1"), a.length < 8 && `use pelo menos 8 caracteres${a.length ? ` (agora tem ${a.length})` : ""}`], [$("#ns2"), a.length >= 8 && a !== b && "as duas senhas não são iguais. Escreva a mesma senha nos dois campos"]])) return;
-      const r = await acao(t, async () => { await api.definirSenha(a); S.conta.perfil.senha_definida = true; }, { st: "#nserr", ok: "senha salva." });
-      if (r.ok) setTimeout(() => { $("#dlg").close(); primeiroAcesso(); }, 1200);
+      const naTela = !!t.closest(".tela-senha");
+      const r = await acao(t, async () => { await api.definirSenha(a); Object.assign(S.conta.perfil, { senha_definida: true, senha_portal: true }); try { sessionStorage.removeItem("tq-veio-link"); } catch { /* segue */ } }, { st: "#nserr", ok: "senha salva. Das próximas vezes, entre com o seu e-mail e essa senha." });
+      if (r.ok) setTimeout(() => { if (naTela) { render(); scrollTo(0, 0); } else $("#dlg").close(); primeiroAcesso(); }, 1200);
       return;
     }
     if (t.id === "cvOk") {
@@ -3492,13 +3555,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const c = { email, tipo: t.dataset.tipo || S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
       const res = await acao(t, async () => { const r = await api.convidar(c); S.convPre = null; S.convRasc = null; S.eq = null; render(); return r; },
         { st: "#cverr", espera: "Enviando…", ok: `Convite para ${c.nome || c.email} criado.` });
-      if (res.ok) dialogoEnvio({ titulo: `Convite para ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Convite") });
+      if (res.ok) dialogoResultado({ oque: "Convite", nome: c.nome, email: c.email, whatsapp: c.whatsapp, texto: mensagemConvite(c), assunto: "Seu acesso à Rede Tranquilo", resultado: res.r, recebe: RECEBE.convite, reenviar: () => api.convidar(c) });
       return;
     }
     const rc = t.closest("[data-reconvidar]"); if (rc) {
       const c = (S.eq?.conv || []).find((x) => x.email === rc.dataset.reconvidar); if (!c) return;
       const res = await acao(rc, async () => { const r = await api.convidar(c); S.eq = null; render(); return r; }, { espera: "Enviando…", ok: `Acesso de ${c.nome || c.email} enviado.` });
-      if (res.ok) dialogoEnvio({ titulo: `Acesso de ${c.nome || c.email}`, texto: mensagemConvite(c), email: c.email, whatsapp: c.whatsapp, assunto: "Seu acesso à Rede Tranquilo", aviso: resultadoEnvio(res.r, "Link de acesso") });
+      if (res.ok) dialogoResultado({ oque: c.aceito_em ? "Link de entrada" : "Convite", nome: c.nome, email: c.email, whatsapp: c.whatsapp, texto: mensagemConvite(c), assunto: "Seu acesso à Rede Tranquilo", resultado: res.r,
+        recebe: c.aceito_em ? "Um e-mail com o link para entrar direto na conta. O link abre uma vez só; se a pessoa ainda não criou a senha, a primeira tela pede para criar." : RECEBE.convite, reenviar: () => api.convidar(c) });
       return;
     }
     const cc = t.closest("[data-cancelar-convite]"); if (cc) {
@@ -3508,8 +3572,16 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     const et = t.closest("[data-enviar-tutorial]"); if (et) { const [tipo, email, nome, wa] = et.dataset.enviarTutorial.split("|"); enviarTutorial(tipo, nome, email, wa); return; }
     const ls = t.closest("[data-link-senha]"); if (ls) {
-      await acao(ls, async () => { const r = await api.enviarLinkSenha(ls.dataset.linkSenha); if (!r.enviado) throw new Error(resultadoEnvio(r, "Link").replace(" Use o WhatsApp ou o e-mail abaixo.", "")); },
-        { espera: "Enviando…", ok: "Link para criar a senha enviado por e-mail.", erro: (e) => "o link não foi enviado. " + traduz(e.message || "") });
+      const email = ls.dataset.linkSenha, p = (S.eq?.perfis || []).find((x) => x.email === email) || {};
+      const res = await acao(ls, () => api.enviarLinkSenha(email), { espera: "Enviando…", ok: (r) => r.enviado ? "Link de senha enviado por e-mail." : r.demo ? "Link de senha pronto (modo demonstração)." : "pedido registrado, mas o e-mail não saiu: veja as opções na janela." });
+      if (res.ok) dialogoResultado({ oque: "Link de senha", nome: p.nome, email, whatsapp: p.whatsapp, assunto: "Crie a sua senha na Rede Tranquilo", resultado: res.r, recebe: RECEBE.senha, reenviar: () => api.enviarLinkSenha(email),
+        texto: `Oi${p.nome ? ", " + p.nome : ""}! Mandei para ${email} um link para você criar a sua senha da Rede Tranquilo. Toque no link, escolha a senha e pronto: das próximas vezes, entre com o seu e-mail e essa senha em ${site()}\n\nSe o e-mail não aparecer, olhe também no spam ou na aba Promoções.` });
+      return;
+    }
+    if (t.id === "envReenviar" && S.envioRes?.reenviar) {
+      const o = S.envioRes;
+      const res = await acao(t, () => o.reenviar(), { st: "#envSt", espera: "Reenviando…", ok: (r) => r.enviado ? "e-mail reenviado." : r.demo ? "modo demonstração: nenhum e-mail sai." : "tentativa feita, mas o e-mail não saiu." });
+      if (res.ok && $("#dlg").open && S.envioRes === o) dialogoResultado({ ...o, resultado: res.r, nota: res.r.enviado ? `Reenviado às ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Vale o e-mail mais recente.` : o.nota });
       return;
     }
     if (t.closest("[data-envio]")) { try { S.aoEnviar?.(); } catch { /* registro opcional */ } return; }
@@ -3691,8 +3763,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       aoFechar: (visto) => { if (visto) store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
   }
 
-  async function sairDeTudo() { S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
+  async function sairDeTudo() { try { sessionStorage.removeItem("tq-veio-link"); sessionStorage.removeItem("tq-senha-depois"); } catch { /* segue */ } S.senhaDepois = false; S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   const noMenu = (k) => !menuAgrupado() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
-  return { bloqueio, telaTravada, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  return { bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();

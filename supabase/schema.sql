@@ -2788,3 +2788,32 @@ begin
   new.dias := array(select distinct x from unnest(new.dias) x order by x);
   return new;
 end $$;
+
+-- =====================================================================
+-- v30: senha no primeiro acesso (pedido da Marina, 18/11/2026). Idempotente.
+-- A conta criada pelo link do e-mail (convite por signInWithOtp) nascia com senha_definida = true: o Supabase (GoTrue)
+-- cria o usuário do link mágico com uma senha aleatória interna, então encrypted_password não fica vazio, e o portal
+-- achava que a pessoa já tinha senha. O site agora marca a conta convidada com "pelo_link" nos metadados e,
+-- nesse caso, senha_definida nasce false (a pessoa cria a senha no primeiro acesso). Resto da função igual à V13.
+-- =====================================================================
+create or replace function novo_usuario() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare
+  pedido text := coalesce(new.raw_user_meta_data ->> 'tipo', 'artista');
+  caixa_provada boolean := new.email_confirmed_at is not null and coalesce(new.encrypted_password, '') = '';
+  pelo_link boolean := coalesce(new.raw_user_meta_data ->> 'pelo_link', '') = '1';
+begin
+  insert into perfis (id, email, nome, tipo, senha_definida)
+  values (
+    new.id, lower(new.email), coalesce(new.raw_user_meta_data ->> 'nome', ''),
+    case
+      when caixa_provada and exists (select 1 from admins_iniciais where email = lower(new.email)) then 'adm'::tipo_perfil
+      when pedido = 'casa' then 'casa'::tipo_perfil
+      else 'artista'::tipo_perfil
+    end,
+    coalesce(new.encrypted_password, '') <> '' and not pelo_link
+  ) on conflict (id) do nothing;
+  if new.email_confirmed_at is not null then perform aplicar_convite_interno(new.id, new.email, caixa_provada); end if;
+  return new;
+end $$;
+revoke all on function novo_usuario() from public, anon, authenticated;
