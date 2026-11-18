@@ -25,13 +25,16 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(!!(await p.$('nav.tabs .nav-rodape [data-aba="conta"]')), 'Minha conta no rodapé, fora das quatro áreas');
     // 2. Ficha da Casa = modelo v1: seções, ordem, campos e opções.
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#form');
-    const tela = await p.evaluate(() => [...document.querySelectorAll('#form section.fsec')].map((s) => ({ titulo: s.querySelector('h3').textContent.trim(), desc: s.querySelector('h3 + p')?.textContent.trim() || '',
+    // As seções agora são partes recolhíveis (details.fsec, pedido da Marina, 18/11/2026); "Sua equipe" continua um cartão.
+    const tela = await p.evaluate(() => [...document.querySelectorAll('#form section.fsec, #form details.fsec')].map((s) => ({ titulo: s.querySelector('h3').textContent.trim(), desc: (s.querySelector('.fsec-desc') || s.querySelector('h3 + p'))?.textContent.trim() || '',
       campos: [...s.querySelectorAll('.fcampo, .card > b')].map((c) => ({ rot: (c.querySelector('b') || c).textContent.replace(/\s*\*$/, '').trim(), ops: [...c.querySelectorAll('option')].filter((o) => o.value).map((o) => o.textContent.trim()).concat([...c.querySelectorAll('label')].map((l) => l.textContent.trim())) })) })));
     ok(JSON.stringify(tela.map((s) => s.titulo)) === JSON.stringify(INV.secoes.map((s) => s.titulo)), `seções na ordem do modelo: ${tela.map((s) => s.titulo).join(' · ')}`);
     const dif = [];
     for (const sec of INV.secoes) {
       const t = tela.find((x) => x.titulo === sec.titulo); if (!t) { dif.push('falta seção ' + sec.titulo); continue; }
       if (sec.descricao && t.desc !== sec.descricao) dif.push(`texto da seção ${sec.titulo}`);
+      // "Dias da semana" saiu da Ficha: a disponibilidade é marcada no calendário (pedido da Marina, 18/11/2026).
+      sec.campos = (sec.campos || []).filter(([rot]) => !/^Dias da semana/.test(rot));
       for (const [rot, ops] of sec.campos || []) { const c = t.campos.find((x) => x.rot === rot); if (!c) dif.push(`falta ${sec.titulo} > ${rot}`); else if (ops && JSON.stringify(c.ops) !== JSON.stringify(ops)) dif.push(`opções de ${rot}: ${c.ops.join('/')}`); }
       const ordem = (sec.campos || []).map(([r]) => r), naTela = t.campos.map((c) => c.rot).filter((r) => ordem.includes(r));
       if (JSON.stringify(ordem) !== JSON.stringify(naTela)) dif.push(`ordem dos campos em ${sec.titulo}`);
@@ -42,12 +45,15 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(INV.parte1.every((h) => txt.includes(h)) && /Ainda não registrado pela Operações/.test(txt) && txt.includes(INV.rodape), 'Parte 1 com combinados vazios (sem valor de exemplo) e o rodapé do modelo');
     ok((await p.$$('#form [data-k]')).length >= 45 && (await p.$$eval('#form [data-k]', (xs) => xs.every((x) => x.value === ''))), 'ficha nova: todos os campos aparecem, vazios');
     // 3. Enviar: a ficha trava e muda só por pedido de atualização.
-    for (const [k, v] of [['nome', 'Casa Portal'], ['cidade_uf', 'Recife/PE'], ['endereco', 'Rua A, 1'], ['dono_nome', 'Dona Teste'], ['whatsapp', '81 99999-0000'], ['capacidade_sentado', '80']]) await p.fill(`#form [data-k="${k}"]`, v);
+    ok(!(await p.$('#form [data-multi="dias_semana"]')), 'sem a pergunta "Dias da semana" (vai no calendário de disponibilidade)');
+    await p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
+    for (const [k, v] of [['nome', 'Casa Portal'], ['cidade_uf', 'Recife/PE'], ['razao_social', 'Casa Portal Ltda'], ['cnpj', '11.222.333/0001-81'], ['endereco', 'Rua A, 1'], ['dono_nome', 'Dona Teste'], ['dono_cpf', '529.982.247-25'], ['whatsapp', '81 99999-0000'], ['rep_titular', 'Casa Portal Ltda'], ['rep_documento', '11.222.333/0001-81'], ['rep_pix', '11.222.333/0001-81'], ['capacidade_sentado', '80']]) await p.fill(`#form [data-k="${k}"]`, v);
     await p.click('#enviar'); await p.waitForTimeout(600);
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#solPedir');
     ok(await p.$eval('#form [data-k="nome"]', (x) => x.disabled) && !(await p.$eval('#form [data-k="luz"]', (x) => x.disabled)), 'ficha enviada: o que foi respondido trava, o que ficou vazio continua aberto (v25)');
     await p.click('#solPedir'); await p.click('#solEnviar'); await p.waitForTimeout(150);
     ok(/não mudou nenhum campo/.test(await p.textContent('#ferr')) && !((await db()).sol || []).length, 'pedido de atualização sem nenhuma mudança não é enviado');
+    await p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
     await p.fill('#form [data-k="luz"]', 'Frontal e contra'); await p.click('#solEnviar'); await p.waitForTimeout(150);
     ok(/pelo menos 10 caracteres/.test(await p.textContent('#ferr')) && await p.$eval('#solMsg', (e) => e.classList.contains('campo-falta')) && !((await db()).sol || []).length, 'pedido sem dizer o que mudou é barrado e o campo fica em vermelho');
     await p.fill('#solMsg', 'Instalamos luz nova'); await p.click('#solEnviar'); await p.waitForTimeout(500);

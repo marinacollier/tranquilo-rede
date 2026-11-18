@@ -16,6 +16,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click(`label:has(input[name="tipoNovo"][value="${tipo}"])`); await p.waitForTimeout(200);
     await p.fill('#enome', nome); await p.fill('#email', email); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await p.waitForTimeout(800); await pular();
   };
+  const abrirTudo = () => p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
   const demo = (fn, arg) => p.evaluate(([fn, arg]) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); new Function('d', 'arg', fn)(d, arg); localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, [fn, arg]);
   try {
     await p.goto(B); await p.waitForSelector('.cidade'); await p.keyboard.press('Escape');
@@ -24,7 +25,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await demo(`d.insc[d.sessao] = { id: 'i1', user_id: d.sessao, status: 'em_curadoria', dados: { nome_artistico: 'Bia Vazios', cidade_base: 'Recife', youtube: '' }, criado_em: new Date().toISOString() };`);
     await p.reload(); await p.waitForTimeout(800); await pular(); await ir('inscricao');
     ok(await p.isDisabled('[data-k="nome_artistico"]') && !(await p.isDisabled('[data-k="youtube"]')), 'artista: campo respondido travado, campo vazio aberto');
-    await p.fill('[data-k="youtube"]', 'https://youtube.com/@bia'); await p.click('#salvarVazios'); await p.waitForTimeout(600);
+    await abrirTudo(); await p.fill('[data-k="youtube"]', 'https://youtube.com/@bia'); await p.click('#salvarVazios'); await p.waitForTimeout(600);
     const ins = await p.evaluate(() => Object.values(JSON.parse(localStorage.getItem('tq-demo-v1')).insc)[0]);
     ok(ins.dados.youtube === 'https://youtube.com/@bia' && ins.status === 'em_curadoria' && ins.dados.nome_artistico === 'Bia Vazios', 'artista salva o campo vazio e a inscrição continua na curadoria');
     ok(/✓ Feito: Salvo/.test(await p.textContent('#ferr')), 'mostra "✓ Feito"');
@@ -35,7 +36,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.reload(); await p.waitForTimeout(800); await pular(); await ir('ficha');
     await p.waitForSelector('#form');
     ok(await p.isDisabled('[data-k="nome"]') && !(await p.isDisabled('[data-k="instagram"]')) && !!(await p.$('#solPedir')), 'casa habilitada: respondido travado, vazio aberto, Solicitar atualização continua');
-    await p.fill('[data-k="instagram"]', '@casavazios'); await p.click('#salvarVazios'); await p.waitForTimeout(600);
+    await abrirTudo(); await p.fill('[data-k="instagram"]', '@casavazios'); await p.click('#salvarVazios'); await p.waitForTimeout(600);
     const casa = await p.evaluate(() => Object.values(JSON.parse(localStorage.getItem('tq-demo-v1')).casas)[0]);
     ok(casa.dados.instagram === '@casavazios' && casa.status === 'habilitada' && casa.dados.nome === 'Casa Vazios', 'casa salva o campo vazio e continua habilitada');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
