@@ -44,7 +44,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok((await p.$$('.camp-dia')).length === 10 && !(await p.$('[data-camp-feito]')), 'matriz abre o dia a dia, sem poder marcar');
     // Bruno (Marketing): "Para você" traz a campanha atrasada e o item abre direto o dia a dia dela.
     await p.evaluate(() => { S.conta.perfil.areas = ['marketing']; S.campAberta = null; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="camp:"]', { timeout: 5000 });
-    ok(/campanha com dias atrasados/.test(await p.innerText('#app')), 'Para você (Marketing): campanha com dias atrasados');
+    ok(/Cobrar campanha atrasada \(\d+\)/.test(await p.innerText('#app')) && /dias? atrasados?/.test(await p.innerText('[data-abrir^="camp:"]')), 'Para você (Marketing): "Cobrar campanha atrasada" com a casa e quantos dias');
     await p.click('[data-abrir^="camp:"]'); await p.waitForTimeout(400);
     ok((await p.$$('.camp-dia')).length === 10, 'o item abre direto o dia a dia da campanha');
     await p.evaluate(() => { delete S.conta.perfil.areas; S.campAberta = null; render(); });
