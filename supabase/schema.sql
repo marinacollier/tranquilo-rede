@@ -2881,7 +2881,7 @@ create trigger trg_datas_portal_tirou after update of artistas on datas_portal f
 --   minúsculas, espaços simples, sem o prefixo "TESTE · " e sem o sufixo "(teste)".
 -- · posso_casa(): equipe, ou a conta de casa ligada à casa (perfis.vinculo_nome, que só muda pela adm, pelo
 --   convite ou pela Ficha habilitada: ver P02/P03 em tests/seguranca.test.mjs), ou o convite aceito como antes.
--- =====================================================================
+-- ==============================================================
 create or replace function chave_casa(nome text) returns text
 language sql immutable set search_path = public as $$
   select nullif(btrim(regexp_replace(regexp_replace(regexp_replace(
@@ -2905,3 +2905,10 @@ language sql stable security definer set search_path = public as $$
 $$;
 revoke all on function posso_casa(text) from public, anon;
 grant execute on function posso_casa(text) to authenticated;
+=======
+-- v33: todos os formatos do Notion em Criar datas (pedido da Marina, 18/11/2026). Idempotente.
+-- Além de Descubra e Apresenta, a data pode ser Turnê (o mesmo artista em várias cidades; cada data segue o Apresenta)
+-- e Noite Tranquilo (segue o Descubra; regra a validar). As regras de cada formato ficam em src/regras.js (FORMATOS).
+-- =====================================================================
+alter table datas_portal drop constraint if exists datas_portal_produto_check;
+alter table datas_portal add constraint datas_portal_produto_check check (produto in ('Apresenta', 'Descubra', 'Turnê', 'Noite Tranquilo'));

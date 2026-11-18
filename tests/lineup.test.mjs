@@ -51,3 +51,11 @@ ok(pa.feitos === 1 && pa.passos.find((p) => p.chave === 'formacao').feito && !pa
 ok(pb.feitos === 2 && pb.passos.find((p) => p.chave === 'contrato').feito && !pb.passos.find((p) => p.chave === 'som').feito, 'Bia: contrato recebido conta como feito; passo de outra data não entra');
 ok(pc.feitos === 0 && pc.total === pa.total && pc.total === R.passosDaData('artista', '2026-12-20', {}, '2026-11-18', 'Descubra').length, 'Caio: todos os passos da data, nenhum feito');
 ok(P.find((p) => p.nome === 'Duda').total === 0, 'artista sem conta não tem passos no portal');
+
+// Formatos (pedido da Marina, 18/11/2026): todos os tipos do Notion, cada um com a sua regra.
+ok(R.NOMES_FORMATO.join() === 'Descubra,Apresenta,Turnê,Noite Tranquilo', 'os 4 formatos do Notion (Descubra, Apresenta, Turnê, Noite Tranquilo)');
+ok(R.vagasFormato('Descubra').minimo === 3 && R.vagasFormato('Apresenta').minimo === 1 && R.vagasFormato('Apresenta').sugerido === 2 && R.FORMATOS['Turnê'].mesmoArtista, 'Descubra 3 artistas; Apresenta 1 principal e abertura opcional; Turnê é o mesmo artista em várias cidades');
+ok(R.produtoBase('Turnê') === 'Apresenta' && R.produtoBase('Noite Tranquilo') === 'Descubra' && R.produtoBase('Tranquilo Apresenta — Recife') === 'Apresenta' && R.produtoBase('Clássico') === null, 'cada formato usa o produto de base (cronograma, campanha e contrato)');
+ok(R.passosDaData('artista', '2026-12-20', {}, '2026-11-18', 'Turnê').some((p) => p.chave === 'camp_reel') && !R.passosDaData('artista', '2026-12-20', {}, '2026-11-18', 'Noite Tranquilo').some((p) => p.chave === 'camp_reel'), 'Turnê segue a campanha do Apresenta; Noite Tranquilo, a do Descubra');
+ok(R.topaFormato('descubra', 'Descubra') === 2 && R.topaFormato('nao_sei', 'Descubra') === 1 && R.topaFormato('', 'Descubra') === 1 && R.topaFormato('apresenta', 'Descubra') === 0 && R.topaFormato('turne', 'Apresenta') === 1 && R.topaFormato('turne', 'Turnê') === 2, 'quem topa cada formato (formato_interesse; "ainda não sei" e sem resposta também)');
+ok(!!R.FORMATOS['Noite Tranquilo'].validar && !R.FORMATOS.Descubra.validar, 'o que o Método não descreve fica "a validar"');

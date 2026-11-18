@@ -102,6 +102,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // Equipe cruza.
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(500);
     await ir('datas_portal'); await p.waitForSelector('#dpBusca');
+    // A busca abre no Descubra (3 artistas): com 1 artista livre não há cartão; "Todos os dias" mostra o cruzamento.
+    ok(/Nenhuma casa livre com 3 artistas livres que topam o Descubra/.test(await p.textContent('#dpBusca')) && /Descubra:.*3 artistas/.test(await p.textContent('#dpbRegra')), 'busca por modelo abre no Descubra, com a regra; sem 3 livres, nenhum cartão');
+    await p.click('[data-dpb-modo="dia"]'); await p.waitForTimeout(400);
     const txt = await p.textContent('#dpBusca');
     ok(/1 casa livre · 1 artista livre/.test(txt) && /Casa Cruza/.test(txt) && /Ana Cruza/.test(txt) && txt.includes(br(dia)), 'Criar datas mostra o dia com a casa e o artista livres');
     ok(!txt.includes(br(dia2)), 'exceção vale no cruzamento: o dia que a casa bloqueou (feriado) não aparece, mesmo com o artista livre');
