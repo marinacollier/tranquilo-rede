@@ -2392,6 +2392,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="tag">Agenda</div><h1>Criar datas</h1>
       <p class="sub">A data criada aqui aparece na hora para a casa e para as artistas (Datas, passo a passo, cronograma), entra em "Preparar contrato" e gera a mensagem de cronograma. O Notion não muda: lance lá também enquanto o Notion for a agenda oficial.</p>
       ${buscaDatas(E, casas)}
+      ${sugestaoHistorico()}
       <div class="card" id="dpForm"><h2 style="margin-top:0">${ed ? "Editar data" : "Nova data"}</h2>
         <div class="fgrid">
           <label class="fcampo"><b>Dia *</b><input type="date" id="dpDia" value="${esc(String(f.dia || "").slice(0, 10))}"></label>
@@ -3931,6 +3932,41 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         : `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-dpb-tur-criar${!escolhidas.length || repetido ? " disabled" : ""}>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê</button></div>`}`
         : `<p class="muted" id="dpbVazio">${esc(P.art.nome)} não tem dia livre com casa livre (Ficha habilitada) nesse período${b.cid ? " em " + esc(b.cid) : ""}. Aumente o período ou peça para marcar a disponibilidade.</p>`}`;
   }
+  // Sugestão POR HISTÓRICO (pedido da Marina, 18/11/2026): ponte até as casas e artistas reais marcarem a disponibilidade
+  // no portal. Vem das bases do Notion (bases.json, só dados públicos): os dias da semana em que cada casa mais recebeu o
+  // Tranquilo e os artistas ligados àquela cidade (praça preferida, onde mora, onde já tocou), sem bloqueio de concorrência.
+  // Nunca se mistura com a disponibilidade marcada no portal: é sempre "confirmar com a casa e o artista".
+  function sugestaoHistorico() {
+    if (S.basesPub === undefined) { S.basesPub = null; fetch("bases.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { S.basesPub = j || false; render(); }, () => { S.basesPub = false; }); }
+    const B = S.basesPub; if (!B) return "";
+    const k = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+    const b = S.dpb || {}, de = b.de || hojeIso(), ate = b.ate || new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cidF = k(b.cid);
+    const ocupado = new Set((S.pac?.eventos || []).filter((e) => !e.z).map((e) => `${k(e.h)}|${e.d}`));
+    const dias = []; for (let d = new Date(de + "T12:00:00Z"); d.toISOString().slice(0, 10) <= ate; d.setUTCDate(d.getUTCDate() + 1)) dias.push(d.toISOString().slice(0, 10));
+    const NS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    const cards = [];
+    for (const c of B.casas.filter((c) => c.noites >= 2 && (!cidF || k(c.cidade) === cidF))) {
+      const tops = c.dias.map((n, i) => [i, n]).filter(([, n]) => n >= 2 && n >= Math.max(...c.dias) / 2).map(([i]) => i);
+      if (!tops.length) continue;
+      const arts = B.artistas.filter((a) => [a.praca, a.mora, ...(a.cidades || [])].some((x) => k(x) === k(c.cidade)))
+        .map((a) => ({ a, pts: (k(a.praca) === k(c.cidade) ? 3 : 0) + (k(a.mora) === k(c.cidade) ? 2 : 0) + ((a.cidades || []).some((x) => k(x) === k(c.cidade)) ? 2 : 0) + (a.ja_tocou ? 1 : 0) + Math.min(a.vezes || 0, 3) }))
+        .sort((x, y) => y.pts - x.pts);
+      for (const dia of dias.filter((d) => tops.includes(new Date(d + "T12:00:00Z").getUTCDay())).slice(0, 2)) {
+        if (ocupado.has(`${k(c.nome)}|${dia}`)) continue;
+        const livres = arts.filter(({ a }) => !a.bloqueio_ate || a.bloqueio_ate < dia).slice(0, 4);
+        if (livres.length) cards.push({ c, dia, livres });
+      }
+    }
+    cards.sort((x, y) => x.dia.localeCompare(y.dia));
+    const motivo = (a, c) => [k(a.praca) === k(c.cidade) && "prefere " + c.cidade, k(a.mora) === k(c.cidade) && "mora em " + c.cidade, (a.cidades || []).some((x) => k(x) === k(c.cidade)) && "já tocou em " + c.cidade, a.vezes ? `${a.vezes}x no Tranquilo` : ""].filter(Boolean).join(" · ");
+    const card = ({ c, dia, livres }) => `<div class="card" style="padding:12px 14px"><div class="row"><div><b>${esc(NS[new Date(dia + "T12:00:00Z").getUTCDay()])} ${dt(dia)} · ${esc(c.nome)}</b> <span class="muted">(${esc(c.cidade)}${c.uf ? "/" + esc(c.uf) : ""}${c.cap ? ` · ${c.cap} lugares` : ""})</span>
+      <div class="muted" style="font-size:13px">Costuma receber às ${c.dias.map((n, i) => [i, n]).filter(([, n]) => n >= 2).sort((x, y) => y[1] - x[1]).map(([i, n]) => `${NS[i]} (${n}x)`).join(", ")} · ${c.noites} noites no histórico</div></div><span class="badge b-warn">confirmar</span></div>
+      <ul style="margin:8px 0 0;padding-left:18px">${livres.map(({ a }) => `<li><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc(motivo(a, c))}${a.formatos?.length ? " · " + esc(a.formatos.join(", ")) : ""}${a.instagram ? ` · <a href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}</span></li>`).join("")}</ul></div>`;
+    return `<details class="card" id="dpSugHist" style="margin-top:12px;border:2px dashed var(--warn, #c98a00)"${S.dpSugAberta ? " open" : ""}><summary style="cursor:pointer"><b style="font-size:17px">💡 Sugestão POR HISTÓRICO (${cards.length})</b>
+      <div class="muted" style="font-size:13px;margin-top:4px">Não é disponibilidade marcada: são as casas nos dias em que mais receberam o Tranquilo e os artistas ligados àquela cidade, pelo Notion. <b>Confirme com a casa e com o artista antes de criar a data.</b></div></summary>
+      ${cards.length ? `<div class="list" style="margin-top:10px">${cards.slice(0, 30).map(card).join("")}</div>${cards.length > 30 ? `<p class="muted">Mostrando 30 de ${cards.length}. Diminua o período ou escolha a cidade.</p>` : ""}` : `<p class="muted">Nenhuma sugestão no período${b.cid ? " em " + esc(b.cid) : ""}.</p>`}
+      <p class="muted" style="font-size:12px;margin-bottom:0">Base do Notion de ${esc(B.gerado || "")} (${B.casas.length} casas · ${B.artistas.length} artistas). Artistas com bloqueio de concorrência no dia não aparecem.</p></details>`;
+  }
   function buscaDatas(E, casas) {
     const hoje = hojeIso();
     const b = S.dpb ||= { de: hoje, ate: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cid: "", ambos: true };
@@ -4721,6 +4757,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }, true);
   // Campanhas: lembra quais estão abertas (casa e equipe), para marcar "Feito" não fechar a campanha.
   document.addEventListener("toggle", (ev) => {
+    if (ev.target?.id === "dpSugHist") S.dpSugAberta = ev.target.open;
     const det = ev.target; if (!det.matches?.("details[data-camp]")) return;
     const ab = new Set(S.campAbertas || []); if (det.open) ab.add(det.dataset.camp); else ab.delete(det.dataset.camp); S.campAbertas = ab;
   }, true);
