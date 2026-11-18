@@ -87,6 +87,7 @@ button.cal-dia{cursor:pointer}button.cal-dia:hover{border-color:var(--violet)}
 .cal-dia.cal-ev{border-color:var(--violet);background:var(--violet-soft)}
 .cal-dia.conflito{border-color:var(--crit);background:color-mix(in srgb,var(--crit) 16%,var(--surface))}
 .cal-dia.passado{opacity:.55}
+.cal-dia.exc{box-shadow:inset 0 0 0 2px var(--warn)}.cal-dia.exc span{color:var(--ink-2);font-weight:600}
 .cal-legenda{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px}.cal-legenda .cal-dia{min-height:0;padding:3px 8px;font-size:12px;display:inline-block}
 @media (max-width:560px){.cal-dia{min-height:44px;padding:3px}.cal-dia span{display:none}}
 nav.tabs button .n{margin-left:auto;font-size:11.5px;font-weight:700;background:var(--sun);color:#0b0b0b;border-radius:99px;padding:0 7px;line-height:18px}
@@ -686,15 +687,15 @@ th,td{padding:12px 14px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1794976658"></script>
-<script src="diario.js?v=1794976658"></script>
-<script src="regras.js?v=1794976658"></script>
-<script src="tour.js?v=1794976658"></script>
-<script src="campanha.js?v=1794976658"></script>
-<script src="equipe.js?v=1794976658"></script>
-<script src="operacao.js?v=1794976658"></script>
-<script src="contrato.js?v=1794976658"></script>
-<script src="conta.js?v=1794977305"></script>
+<script src="config.js?v=1794993771"></script>
+<script src="diario.js?v=1794993771"></script>
+<script src="regras.js?v=1794993771"></script>
+<script src="tour.js?v=1794993771"></script>
+<script src="campanha.js?v=1794993771"></script>
+<script src="equipe.js?v=1794993771"></script>
+<script src="operacao.js?v=1794993771"></script>
+<script src="contrato.js?v=1794993771"></script>
+<script src="conta.js?v=1794993771"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
@@ -1423,7 +1424,7 @@ function render() {
   $("#topTit").textContent = (abas.find(([k]) => k === S.aba) || [])[1] || "";
   // Documento aberto dentro da página (Guia, manuais, documentos do marketing): some ao trocar de aba ou de parte.
   if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
-  $("#app").innerHTML = (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
+  $("#app").innerHTML = (S.conta && TQConta.telaSenha?.()) || (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
   marcarTestes();
   ligar();
 }
@@ -1462,6 +1463,7 @@ document.addEventListener("keydown", (ev) => {
   if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
   // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
   if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
+  if (ev.key === "Enter" && ev.target.matches?.("#ns1,#ns2")) { ev.preventDefault(); $("#nsok")?.click(); }
 });
 document.addEventListener("click", (ev) => {
   const t = ev.target;
