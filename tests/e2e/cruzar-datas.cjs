@@ -6,7 +6,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
   const b = await chromium.launch(); const erros = [];
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
-  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-dp-aberto', '1'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
   const pular = async () => { try { await p.waitForSelector('.tour-caixa', { timeout: 2500 }); await p.click((await p.$('[data-tour="pular"]')) ? '[data-tour="pular"]' : '[data-tour="avancar"]'); } catch {} };
   const ir = async (k) => { await p.evaluate((k) => { S.aba = k; render(); }, k); await p.waitForTimeout(700); };
@@ -105,7 +105,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     // A busca abre no Descubra (3 artistas): com 1 artista livre não há cartão; "Todos os dias" mostra o cruzamento.
     ok(/Nenhuma casa livre com 3 artistas livres que topam o Descubra/.test(await p.textContent('#dpBusca')) && /Descubra:.*3 artistas/.test(await p.textContent('#dpbRegra')), 'busca por modelo abre no Descubra, com a regra; sem 3 livres, nenhum cartão');
     await p.click('[data-dpb-modo="dia"]'); await p.waitForTimeout(400);
-    const txt = await p.textContent('#dpBusca');
+    const txt = await p.$eval('#dpBusca', (el) => { const c = el.cloneNode(true); c.querySelector('#dpSugHist')?.remove(); return c.textContent; });
     ok(/1 casa livre · 1 artista livre/.test(txt) && /Casa Cruza/.test(txt) && /Ana Cruza/.test(txt) && txt.includes(br(dia)), 'Criar datas mostra o dia com a casa e o artista livres');
     ok(!txt.includes(br(dia2)), 'exceção vale no cruzamento: o dia que a casa bloqueou (feriado) não aparece, mesmo com o artista livre');
     await p.click('[data-dpb-casa]'); await p.waitForTimeout(500);
@@ -126,7 +126,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.selectOption('[data-dp-art="1"]', ''); await p.waitForTimeout(400);
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/✓ Feito: Data criada/.test(await p.textContent('#dpErr')), 'a data criada pela busca salva');
-    ok(!(await p.textContent('#dpBusca')).includes(br(dia)) && (await p.textContent('#dpBusca')).includes(br(dia3)), 'depois de criada, casa e artista saem dos livres desse dia (e seguem livres em outro)');
+    { const tb = await p.$eval('#dpBusca', (el) => { const c = el.cloneNode(true); c.querySelector('#dpSugHist')?.remove(); return c.textContent; }); ok(!tb.includes(br(dia)) && tb.includes(br(dia3)), 'depois de criada, casa e artista saem dos livres desse dia (e seguem livres em outro)'); }
     // Ninguém livre (o dia que a casa bloqueou): diz isso e sugere outro dia com gente livre.
     await p.fill('#dpDia', dia2); await p.dispatchEvent('#dpDia', 'change'); await p.waitForTimeout(500);
     const semC = await p.textContent('#dpSemCasa').catch(() => '');

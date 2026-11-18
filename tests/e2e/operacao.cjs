@@ -7,7 +7,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
   for (const [nome, vp] of [['computador', { width: 1280, height: 860 }], ['celular', { width: 390, height: 844 }]]) {
     const ctx = await b.newContext({ viewport: vp });
     await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
-    await ctx.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-codigo-casa', '2099-01-01'); } catch {} });
+    await ctx.addInitScript(() => { try { localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-dp-aberto', '1'); localStorage.setItem('tq-tutorial-codigo-casa', '2099-01-01'); } catch {} });
     const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message));
     await p.goto(B + '#c=' + COD.casa); await p.waitForSelector('[data-aba="roteiro"]', { state: 'attached', timeout: 10000 });
     await p.evaluate(() => document.querySelector('[data-aba="roteiro"]').click()); await p.waitForTimeout(600);

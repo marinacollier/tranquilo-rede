@@ -2478,7 +2478,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <p class="sub">A data criada aqui aparece na hora para a casa e para as artistas (Datas, passo a passo, cronograma), entra em "Preparar contrato" e gera a mensagem de cronograma. O Notion não muda: lance lá também enquanto o Notion for a agenda oficial.</p>
       ${buscaDatas(E, casas)}
       ${sugestaoHistorico()}
-      <div class="card" id="dpForm"><h2 style="margin-top:0">${ed ? "Editar data" : "Nova data"}</h2>
+      ${(() => { const ab = !!(ed || S.dpPre || S.dpFormAberto || (() => { try { return localStorage.getItem("tq-dp-aberto") === "1"; } catch { return false; } })()); return `<div class="card${ab ? "" : " dp-fechado"}" id="dpForm"><h2 style="margin-top:0;cursor:pointer" data-dp-abrir-form role="button" tabindex="0" aria-expanded="${ab}">${ab ? "▾" : "▸"} ${ed ? "Editar data" : "Nova data"}${ab ? "" : ` <span class="muted" style="font-size:14px;font-weight:400">· criar uma data à mão (ou toque numa combinação acima, que ela já vem preenchida)</span>`}</h2>`; })()}
         <div class="fgrid">
           <label class="fcampo"><b>Dia *</b><input type="date" id="dpDia" value="${esc(String(f.dia || "").slice(0, 10))}"></label>
           <label class="fcampo"><b>Abertura da casa *</b><input type="time" id="dpAbre" value="${esc(String(f.abertura || "19:00").slice(0, 5))}"></label>
@@ -2645,6 +2645,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (f.q) { const q = f.q.toLowerCase(); ls = ls.filter((i) => JSON.stringify(i.dados).toLowerCase().includes(q)); }
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
+      ${filaNotionCuradoria()}
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
       <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status (${L.length})</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t} (${n(k)})</option>`).join("")}</select>
       <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option value="${x}"${f.faixa === x ? " selected" : ""}>${x} (${L.filter((i) => i.faixa === x).length})</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
@@ -3425,6 +3426,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const lpa = t.closest("[data-lp-abrir]"); if (lpa) { S.lpPrep = lpa.dataset.lpAbrir; S.lpAberto = S.lpPrep; S.lpVal = {}; render(); return true; }
     if (t.closest("[data-lp-fechar]")) { S.lpPrep = null; render(); return true; }
     const lpg = t.closest("[data-lp-gerar]"); if (lpg) { await gerarContratosLineup(lpg); return true; }
+    if (t.closest("[data-dp-abrir-form]")) { const ab = !!(S.dpFormAberto || S.dpPre || S.dpEd); S.dpFormAberto = !ab; if (ab) { S.dpPre = null; S.dpEd = null; } render(); return true; }
     const sug = t.closest("[data-dp-dia-sug]"); if (sug) { S.dpPre = { ...lerFormDp(), dia: sug.dataset.dpDiaSug }; render(); $("#dpForm")?.scrollIntoView({ block: "start" }); return true; }
     // Busca rápida por modelo: formato, troca, "Criar este evento" (com confirmação na página) e Turnê.
     const guarda = () => { if (!S.dpEd) S.dpPre = lerFormDp(); };
@@ -4080,6 +4082,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // no portal. Vem das bases do Notion (bases.json, só dados públicos): os dias da semana em que cada casa mais recebeu o
   // Tranquilo e os artistas ligados àquela cidade (praça preferida, onde mora, onde já tocou), sem bloqueio de concorrência.
   // Nunca se mistura com a disponibilidade marcada no portal: é sempre "confirmar com a casa e o artista".
+  // Fila de curadoria que está no Notion (pedido da Marina, 18/11/2026): enquanto as artistas não se inscrevem pelo portal,
+  // a Isa vê aqui o que espera decisão na base Artistas e bandas, por status, começando pequeno. Abrir leva ao Notion.
+  function filaNotionCuradoria() {
+    if (S.basesPub === undefined) { S.basesPub = null; fetch("bases.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { S.basesPub = j || false; render(); }, () => { S.basesPub = false; }); }
+    const B = S.basesPub; if (!B?.fila?.length) return "";
+    const grupos = (B.ordemFila || []).map((st) => [st, B.fila.filter((a) => a.status === st)]).filter(([, l]) => l.length);
+    const linha = (a) => `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><span><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc([a.mora, a.generos].filter(Boolean).join(" · "))}</span></span>
+      <span style="display:flex;gap:6px;flex-wrap:wrap">${a.instagram ? `<a class="btn sm" href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}${a.spotify ? `<a class="btn sm" href="${esc(a.spotify)}" target="_blank" rel="noopener">Spotify</a>` : ""}<a class="btn sm" href="https://www.notion.so/${esc(String(a.id).replace(/-/g, ""))}" target="_blank" rel="noopener">Abrir no Notion</a></span></div>`;
+    const MAX = 40;
+    return `<div class="card" style="margin:0 0 16px;border-left:4px solid var(--accent, #7c8cff)"><b style="font-size:17px">No Notion: ${B.fila.length - (grupos.find(([s]) => /^Novo/.test(s))?.[1].length || 0)} esperando decisão da curadoria</b>
+      <div class="muted" style="font-size:13px;margin:4px 0 8px">Da base Artistas e bandas (${esc(B.gerado || "")}). A decisão ainda é feita no Notion; quando a artista se inscrever pelo portal, ela entra na fila abaixo.</div>
+      ${grupos.map(([st, l]) => `<details style="margin-top:6px"${/^Avaliando|^Para avaliar/.test(st) ? " open" : ""}><summary style="cursor:pointer"><b>${esc(st)}</b> <span class="badge">${l.length}</span></summary>${l.slice(0, MAX).map(linha).join("")}${l.length > MAX ? `<p class="muted" style="font-size:13px">e mais ${l.length - MAX}: veja no Notion.</p>` : ""}</details>`).join("")}</div>`;
+  }
   function sugestaoHistorico() {
     if (S.basesPub === undefined) { S.basesPub = null; fetch("bases.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { S.basesPub = j || false; render(); }, () => { S.basesPub = false; }); }
     const B = S.basesPub; if (!B) return "";

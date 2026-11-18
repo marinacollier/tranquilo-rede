@@ -26,5 +26,10 @@ const artistas = artL.map(([id, nome, mora, generos, status, instagram, spotify,
     cidades: [...(t?.cidades || [])], formatos: [...(t?.formatos || [])], ultima: t?.ultima || '', praca: praca || '', bloqueio_ate: bloqueio || '' };
 }).filter((a) => a.nome && !/reprovad|nao seguiu|não seguiu/i.test(a.status) && (a.ja_tocou || a.praca || a.mora));
 const lista = [...casas.values()].filter((c) => c.nome);
-await writeFile(new URL('../src/bases.json', import.meta.url), JSON.stringify({ gerado: new Date().toISOString().slice(0, 10), casas: lista, artistas }));
+// Fila de curadoria do Notion (status da base Artistas e bandas): o que ainda espera decisão, para a Isa ver no portal.
+const FILA = ['Avaliando (curadoria)', 'Para avaliar (curadoria)', 'Para avaliar (pré-curadoria)', 'Pré-aprovado', 'Falta link / dados (completar)', 'Duplicata / ambíguo (revisar desambiguação)', 'Novo (sem triagem)'];
+const fila = artL.filter((c) => FILA.includes(c[4])).map(([id, nome, mora, generos, status, instagram, spotify]) => ({ id, nome, mora: (mora || '').split('/')[0], generos, status, instagram, spotify }))
+  .sort((a, b) => FILA.indexOf(a.status) - FILA.indexOf(b.status) || a.nome.localeCompare(b.nome, 'pt-BR'));
+await writeFile(new URL('../src/bases.json', import.meta.url), JSON.stringify({ gerado: new Date().toISOString().slice(0, 10), casas: lista, artistas, fila, ordemFila: FILA }));
+console.log(`fila de curadoria do Notion: ${fila.length}`);
 console.log(`bases.json: ${lista.length} casas (${lista.filter((c) => c.noites).length} com noites) · ${artistas.length} artistas (${artistas.filter((a) => a.ja_tocou).length} já tocaram, ${artistas.filter((a) => a.praca).length} com praça preferida)`);

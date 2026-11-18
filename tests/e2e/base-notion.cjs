@@ -9,7 +9,7 @@ const COD = {}; for (const [t, c] of fs.readFileSync(process.env.ACESSOS || '/tm
   const b = await chromium.launch(); const erros = [];
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
-  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-tutorial-codigo-equipe', '1'); localStorage.setItem('tq-tutorial-codigo-adm', '1'); } catch {} });
+  await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-dp-aberto', '1'); localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-tutorial-codigo-equipe', '1'); localStorage.setItem('tq-tutorial-codigo-adm', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); p.on('dialog', (d) => d.accept());
   const app = () => p.textContent('#app');
   try {
