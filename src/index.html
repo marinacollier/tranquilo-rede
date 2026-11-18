@@ -582,6 +582,14 @@ body:has(.tour) .consent{display:none}
 /* Tudo clicável: linhas e cartões que abrem um detalhe só de leitura */
 [data-det]{cursor:pointer}[data-det]:hover{background:var(--raised)}[data-det]:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
 .det-corpo{color:var(--ink-2)}
+/* Pendências agrupadas por evento: cabeçalho da data e linhas recuadas */
+ul.pend li.pend-grupo{border:1px solid var(--line);border-radius:12px;padding:6px;margin-top:4px;background:var(--surface)}
+ul.pend li.pend-grupo+li.pend-grupo{margin-top:10px}
+.pend-ev{display:flex;width:100%;align-items:center;text-align:left;font:inherit;font-size:13px;font-weight:700;letter-spacing:.01em;color:var(--ink);background:var(--raised);border:0;border-radius:8px;padding:8px 34px 8px 10px;cursor:pointer;position:relative}
+.pend-ev:hover{outline:1px solid var(--violet)}.pend-ev:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.pend-ev .pl-ir{position:absolute;right:12px;color:var(--violet)}
+ul.pend-sub{margin:6px 0 0 18px;border-left:2px solid var(--line-2);padding-left:10px}
+.pend-exp summary{cursor:pointer;font-size:13px;color:var(--ink-3);padding:6px 10px}
 /* Pendências por ação ("Para você" e "Comece por aqui"): cada linha abre o item */
 .bloco-acao h3.acao{margin:0;font-family:var(--sans);font-size:16px;font-weight:700}
 .bloco-acao h3.acao .n{color:var(--ink-4);font-weight:600}

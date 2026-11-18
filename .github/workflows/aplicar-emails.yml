@@ -4,6 +4,10 @@ name: Aplicar e-mails em português
 # pelos modelos de supabase/emails, em português e no tom do Tranquilo.
 on:
   workflow_dispatch:
+    inputs:
+      alvo:
+        description: homolog (teste) ou prd (produção)
+        default: homolog
 
 jobs:
   aplicar:
@@ -15,4 +19,5 @@ jobs:
           node-version: 22
       - run: node scripts/aplicar-emails.mjs
         env:
+          ALVO: ${{ inputs.alvo }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

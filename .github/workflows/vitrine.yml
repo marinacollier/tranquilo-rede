@@ -1,6 +1,8 @@
 name: Vitrine de demonstração
 
 # Só roda à mão. Cria (ou recria) uma conta fictícia em cada etapa do fluxo (casas e artistas), para demonstração.
+# Modo equilibrio: apaga todos os dados de teste antigos e cria 2 casos em cada status (casas, artistas, datas, contratos
+# e campanhas), com e-mails <papel>.<status>N@tranquilo.teste. Ver scripts/equilibrio.mjs.
 # O hash bcrypt da senha entra como parâmetro: a senha não passa pelo repositório.
 on:
   workflow_dispatch:
@@ -9,7 +11,9 @@ on:
         description: Hash bcrypt da senha das contas
         required: false
       modo:
-        description: criar ou apagar
+        description: criar, apagar ou equilibrio
+        type: choice
+        options: [criar, apagar, equilibrio]
         default: criar
 
 jobs:
