@@ -90,6 +90,40 @@
       ["camp_contagem", -3, "Campanha: contagem nos stories", "Do D-3 ao D-1, contagem regressiva nos stories. Quem abre a noite posta no próprio perfil, sem collab."],
     ],
   };
+  // Formatos de data (pedido da Marina, 18/11/2026). Os "Tipos de evento" do Notion (data/referencias.json) são
+  // Descubra, Apresenta, Turnê e Noite Tranquilo. Regras do Método e do Manual de operação do Descubra e do Apresenta:
+  // Descubra = 3 artistas em ascensão (shows às 20h, 20h45 e 21h30); Apresenta = show de 1 artista principal, com
+  // abertura opcional (1º a abertura, por último a atração). Turnê = no Notion, o mesmo artista principal em várias
+  // cidades (ex.: Tuyo e Gustavo Vaz em SP, BH, Floripa, Rio, Salvador, Recife e Curitiba) com abertura local; cada data
+  // segue o Apresenta. Noite Tranquilo tem 3 datas no Notion (3 ou 4 artistas) e não está descrita no Método: a validar.
+  // base = o produto cujo cronograma, campanha (CAMPANHA_ARTISTA) e modelo de contrato a data usa.
+  // interesse = respostas de "Formato que mais te interessa" (formato_interesse) de quem topa o formato;
+  // "nao_sei" e sem resposta também contam (ficam depois de quem escolheu o formato).
+  const FORMATOS = {
+    Descubra: { nome: "Descubra", base: "Descubra", artistas: 3, abertura: false, mesmoArtista: false, interesse: ["descubra"],
+      regra: "3 artistas em ascensão na mesma noite, shows às 20h, 20h45 e 21h30. Campanha, cronograma e contrato do Descubra." },
+    Apresenta: { nome: "Apresenta", base: "Apresenta", artistas: 1, abertura: true, mesmoArtista: false, interesse: ["apresenta", "turne"],
+      regra: "Show de 1 artista principal, com abertura opcional: no line-up, a abertura vem primeiro e a atração por último. Campanha, cronograma e contrato do Apresenta." },
+    "Turnê": { nome: "Turnê", base: "Apresenta", artistas: 1, abertura: true, mesmoArtista: true, interesse: ["turne", "apresenta"],
+      regra: "O mesmo artista principal em várias cidades, uma data por cidade, com abertura local opcional em cada uma. Cada data segue o Apresenta (campanha, cronograma e contrato).",
+      validar: "contrato único de circulação com várias datas" },
+    "Noite Tranquilo": { nome: "Noite Tranquilo", base: "Descubra", artistas: 3, abertura: false, mesmoArtista: false, interesse: ["descubra"],
+      regra: "Noite com 3 artistas, como no Notion (3 datas em 2026). Segue o Descubra (cronograma, campanha e contrato).",
+      validar: "regra do formato não descrita no Método" },
+  };
+  const NOMES_FORMATO = Object.keys(FORMATOS);
+  const formatoDe = (produto) => FORMATOS[produto] || NOMES_FORMATO.map((n) => FORMATOS[n]).find((f) => new RegExp(f.nome.replace("ê", "[eê]"), "i").test(produto || "")) || null;
+  /** Produto de base (Descubra ou Apresenta) para cronograma, campanha e contrato; null se não reconhece. */
+  const produtoBase = (produto) => formatoDe(produto)?.base || null;
+  /** 2 = escolheu este formato; 1 = topa (ainda não sabe, não respondeu ou formato vizinho); 0 = escolheu outro. */
+  function topaFormato(interesse, produto) {
+    const f = formatoDe(produto), i = String(interesse || "").trim().toLowerCase(); if (!f) return 0;
+    if (i === f.interesse[0]) return 2;
+    return !i || i === "nao_sei" || f.interesse.includes(i) ? 1 : 0;
+  }
+  /** Quantos artistas o formato pede: total sugerido (com abertura) e mínimo para fechar. */
+  const vagasFormato = (produto) => { const f = formatoDe(produto) || FORMATOS.Descubra; return { minimo: f.artistas, sugerido: f.artistas + (f.abertura ? 1 : 0) }; };
+
   const PASSOS_CASA = [
     ["handoff", -30, "Datas e atrações do mês aprovadas por escrito", "No mês anterior. Campanha planejada com o Marketing."],
     ["ficha", -28, "Revisar a ficha da casa para este formato", "Capacidade real, restrições de horário e som, acessos, carga e descarga."],
@@ -114,7 +148,7 @@
   // até o Gui confirmar (os outros seguem o Guia, "A semana de cada evento" e "Depois de cada evento").
   const A_VALIDAR = new Set(["ficha", "rider", "tecnico", "roteiro", "escrito", "travas", "porta_reserva", "briefing_anfitriao", "material_social"]);
   function passosDaData(modelo, dataIso, feitos, hoje, produto) {
-    const camp = modelo === "casa" ? [] : (CAMPANHA_ARTISTA[produto] || CAMPANHA_ARTISTA[/apresenta/i.test(produto || "") ? "Apresenta" : "Descubra"]);
+    const camp = modelo === "casa" ? [] : (CAMPANHA_ARTISTA[produto] || CAMPANHA_ARTISTA[produtoBase(produto) || "Descubra"]);
     const lista = modelo === "casa" ? PASSOS_CASA : [...PASSOS_ARTISTA, ...camp].sort((a, b) => a[1] - b[1]);
     const base = new Date(dataIso + "T12:00:00");
     return lista.map(([chave, dias, titulo, texto]) => {
@@ -160,5 +194,5 @@
     });
   }
 
-  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, lineupRemovidos, passosDoLineup };
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, FORMATOS, NOMES_FORMATO, formatoDe, produtoBase, topaFormato, vagasFormato, lineupRemovidos, passosDoLineup };
 })(typeof window !== "undefined" ? window : globalThis);
