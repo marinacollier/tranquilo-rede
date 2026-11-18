@@ -2617,6 +2617,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ], E.perfis, { i: 3, dir: -1 })}`;
     },
     convites() {
+      const quemConvidou = (c) => { if (!c.criado_por) return "–"; const p = (S.eq?.perfis || []).find((x) => x.id === c.criado_por); return p ? (p.id === S.conta.perfil.id ? "Você" : (p.nome || p.email || "–")) : "–"; };
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("convites"); }
       if (E.conv === null) return faltaSchema("Convites");
       const adm = S.conta.perfil.tipo === "adm", ars = S.conta.perfil.areas || [];
@@ -2640,6 +2641,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Pessoa", v: (c) => c.nome || c.email, h: (c) => `<b>${esc(c.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(c.email)}</div>` },
         { t: "Perfil", v: (c) => c.tipo, h: (c) => ROTULO[c.tipo] + (c.areas?.length ? `<div class="muted" style="font-size:12px">${esc(nomesAreas(c.areas))}</div>` : "") },
         { t: "Vínculo", v: (c) => c.vinculo_nome || "", h: (c) => esc(c.vinculo_nome || "–") },
+        // Quem enviou o convite (pedido da Marina, 18/11/2026) e quando.
+        { t: "Enviado por", v: (c) => quemConvidou(c), h: (c) => `${esc(quemConvidou(c))}${c.criado_em ? `<div class="muted" style="font-size:12px">${dt(String(c.criado_em).slice(0, 10))}</div>` : ""}` },
         { t: "Situação", v: (c) => c.aceito_em ? 2 : contas.has(c.email) ? 1 : 0, h: (c) => c.aceito_em ? `<span class="badge b-good">entrou em ${dt(c.aceito_em.slice(0, 10))}</span>` : contas.has(c.email) ? `<span class="badge b-warn">conta criada, falta confirmar o e-mail</span>` : `<span class="badge">aguardando</span>` },
         { t: "Tutorial", v: (c) => c.tutorial_enviado_em || "", h: (c) => c.tutorial_enviado_em ? `enviado em ${dt(c.tutorial_enviado_em.slice(0, 10))}` : `<span class="muted">não enviado</span>` },
         { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm" data-reconvidar="${esc(c.email)}">${c.aceito_em ? "Mandar link de entrada" : "Reenviar convite"}</button><button class="btn sm" data-enviar-tutorial="${esc(c.tipo)}|${esc(c.email)}|${esc(c.nome || "")}|${esc(c.whatsapp || "")}">Enviar tutorial</button>${c.aceito_em ? "" : `<button class="btn sm" data-cancelar-convite="${esc(c.email)}">Cancelar</button>`}</div>` },
