@@ -75,7 +75,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const esperado = fim - Number(hojeSP.slice(8)) + 1;
     dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
     ok(dA.filter((x) => x.situacao === 'disponivel').length === esperado && /✓ Feito: Todos os dias/.test(await p.textContent('#dispaErr')), `Ficha do artista: calendário marca todos os dias que faltam no mês (${esperado})`);
-    await p.click('#dispFicha [data-dispa-mes="limpar"]'); await p.waitForTimeout(800);
+    await p.click('#dispFicha [data-dispa-mes="limpar"]'); await p.click('#dispFicha [data-conf-sim]'); await p.waitForTimeout(800);
     dA = await p.evaluate(() => JSON.parse(localStorage.getItem('tq-demo-v1')).dispA || []);
     ok(!dA.length, 'limpar o mês tira tudo');
     // Dias fixos da semana (v27): marcar sábado e domingo deixa todos os sábados e domingos verdes.

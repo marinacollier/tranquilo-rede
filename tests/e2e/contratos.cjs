@@ -33,7 +33,7 @@ E por estarem de acordo, assinam.`;
         ok(await p.inputValue('#ctEv') === ev && /sem contrato/.test(await p.textContent('#app')), 'lista de datas sem contrato e "Preparar contrato" já escolhe a data'); }
       else ok(false, 'lista de datas sem contrato não apareceu');
     }
-    await p.click('#contrAuto summary'); await p.fill('#mcNome', 'Apresenta artista'); await p.fill('#mcTexto', MODELO); await p.click('#mcOk');
+    await p.click('#contrAuto details:has(#mcNome) summary'); await p.fill('#mcNome', 'Apresenta artista'); await p.fill('#mcTexto', MODELO); await p.click('#mcOk');
     await p.waitForSelector('[data-ct-mod-editar]');
     ok(/Apresenta artista.*7 campos/s.test(await p.textContent('#contrAuto')), 'modelo salvo: [PREENCHER …] e {{…}} viram 7 campos');
     const conta = await p.$eval('#ctConta', (s) => [...s.options].find((o) => /Ana Contrato/.test(o.textContent))?.value);
@@ -69,8 +69,9 @@ E por estarem de acordo, assinam.`;
     // Segundo contrato para a mesma pessoa: a equipe é avisada da duplicata; a artista não digita os dados de novo.
     await p.selectOption('#ctConta', conta); await p.selectOption('#ctMod', { label: 'Apresenta artista' }); if (evPrimeiro) await p.selectOption('#ctEv', evPrimeiro); await p.click('#ctPrep');
     await p.waitForSelector('[data-ct-campo="cache"]'); await p.fill('[data-ct-campo="cache"]', '2.000,00'); await p.fill('[data-ct-campo="data"]', '12/12/2026'); await p.fill('[data-ct-campo="cidade"]', 'Recife');
-    await p.click('#ctEnviar'); await p.waitForTimeout(600);
-    ok(dialogos.some((m) => /Já existe um contrato deste modelo para esta pessoa/.test(m)), 'criar contrato repetido pede confirmação (evita duplicata por clique duplo ou reenvio)');
+    await p.click('#ctEnviar'); await p.waitForSelector('.conf-aqui');
+    ok(/Já existe um contrato deste modelo para esta pessoa/.test(await p.textContent('.conf-aqui')), 'criar contrato repetido pede confirmação na própria página (evita duplicata por clique duplo ou reenvio)');
+    await p.click('[data-conf-sim]'); await p.waitForTimeout(600);
     await sair();
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();
@@ -118,9 +119,10 @@ E por estarem de acordo, assinam.`;
     ok(!(await p.$('#ctDeNovo')), 'arquivo novo enviado: o pedido some da tela da artista');
     await sair();
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'documentos'); await p.waitForSelector(`[data-ct-conferir="${ctId}"]`);
-    await p.click(`[data-ct-conferir="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
+    await p.click(`[data-ct-conferir="${ctId}"]`); await p.waitForSelector('.conf-aqui');
+    const pergunta = await p.textContent('.conf-aqui'); await p.click('[data-conf-sim]'); await p.waitForSelector('#ctConfMsg.feito');
     ok(/✓ Feito: Contrato conferido e confirmado/.test(await p.textContent('#ctConfMsg')) && /✓ Assinado e conferido/.test(await linhaCt()) && /conferido por/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'equipe confere e confirma: "✓ Assinado e conferido", com quem e quando');
-    ok(dialogos.some((m) => /Depois de conferido, o contrato não muda mais/.test(m)), 'conferir pede confirmação antes');
+    ok(/Depois de conferido, o contrato não muda mais/.test(pergunta), 'conferir pede confirmação antes, na própria página');
     await sair();
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();

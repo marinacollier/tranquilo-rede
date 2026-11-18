@@ -41,6 +41,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
       for (const [bloco, cs] of sec.blocos || []) if (!t.campos.some((c) => c.rot === bloco)) dif.push(`falta bloco ${bloco}`); else void cs;
     }
     ok(!dif.length, `todos os campos, textos e opções do modelo v1 na tela${dif.length ? ' (' + dif.join('; ') + ')' : ''}`);
+    await p.$$eval('details[data-dobra]', (xs) => xs.forEach((x) => { x.open = true; }));   // Parte 1 e Sua equipe começam recolhidas
     const txt = await p.innerText('#app');
     ok(INV.parte1.every((h) => txt.includes(h)) && /Ainda não registrado pela Operações/.test(txt) && txt.includes(INV.rodape), 'Parte 1 com combinados vazios (sem valor de exemplo) e o rodapé do modelo');
     ok((await p.$$('#form [data-k]')).length >= 45 && (await p.$$eval('#form [data-k]', (xs) => xs.every((x) => x.value === ''))), 'ficha nova: todos os campos aparecem, vazios');
@@ -48,7 +49,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(!(await p.$('#form [data-multi="dias_semana"]')), 'sem a pergunta "Dias da semana" (vai no calendário de disponibilidade)');
     await p.$$eval('#form details[data-parte]', (xs) => xs.forEach((x) => { x.open = true; }));
     for (const [k, v] of [['nome', 'Casa Portal'], ['cidade_uf', 'Recife/PE'], ['razao_social', 'Casa Portal Ltda'], ['cnpj', '11.222.333/0001-81'], ['endereco', 'Rua A, 1'], ['dono_nome', 'Dona Teste'], ['dono_cpf', '529.982.247-25'], ['whatsapp', '81 99999-0000'], ['rep_titular', 'Casa Portal Ltda'], ['rep_documento', '11.222.333/0001-81'], ['rep_pix', '11.222.333/0001-81'], ['capacidade_sentado', '80']]) await p.fill(`#form [data-k="${k}"]`, v);
-    await p.click('#enviar'); await p.waitForTimeout(600);
+    await p.click('#enviar'); await p.click('[data-conf-sim]'); await p.waitForTimeout(600);
     await p.click('[data-aba="ficha"]'); await p.waitForSelector('#solPedir');
     ok(await p.$eval('#form [data-k="nome"]', (x) => x.disabled) && !(await p.$eval('#form [data-k="luz"]', (x) => x.disabled)), 'ficha enviada: o que foi respondido trava, o que ficou vazio continua aberto (v25)');
     await p.click('#solPedir'); await p.click('#solEnviar'); await p.waitForTimeout(150);

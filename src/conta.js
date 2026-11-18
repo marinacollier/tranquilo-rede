@@ -85,6 +85,36 @@ const TQConta = (() => {
     campos.flat().filter(Boolean).forEach((c) => { c.classList.add("campo-falta"); const sai = () => c.classList.remove("campo-falta"); c.addEventListener("input", sai, { once: true }); c.addEventListener("change", sai, { once: true }); });
     const p = campos.flat().find(Boolean); if (p) { p.scrollIntoView?.({ block: "center" }); p.focus?.({ preventScroll: true }); }
   }
+  // ---------- "não tem como errar" e "começa pequeno" (pedido da Marina, 18/11/2026) ----------
+  // Botão que diz o efeito e para quem vai: o rótulo é a ação e a linha embaixo diz o que acontece depois do clique.
+  const comExplica = (botao, explica) => `<span class="acao-exp">${botao}<small>${explica}</small></span>`;
+  // Bloco que começa recolhido: uma linha com o que é e o status; abre ao tocar. A tela lembra o que a pessoa abriu
+  // ou fechou (um redesenho não muda nada). `aberta` é o padrão de quando a pessoa ainda não mexeu (a pendência vem aberta).
+  function dobra(id, titulo, status, conteudo, { aberta = false, classe = "" } = {}) {
+    const lembrado = S.dobras?.[id], abre = lembrado ?? aberta;
+    return `<details class="dobra ${classe}" data-dobra="${esc(id)}"${abre ? " open" : ""}><summary><span class="dobra-tit">${titulo}</span>${status ? `<span class="dobra-st">${status}</span>` : ""}</summary><div class="dobra-corpo">${conteudo}</div></details>`;
+  }
+  // Confirmação na própria página (no lugar da janelinha do navegador) para o que apaga, cancela ou envia:
+  // o primeiro clique abre uma caixa logo abaixo do botão, com o que vai acontecer e "Sim, …" / "Não, voltar".
+  // Uso no clique: if (!confirmaAqui(botao, "Pergunta?", "o que acontece", "Sim, cancelar")) return true;
+  function confirmaAqui(el, pergunta, efeito = "", sim = "Sim, continuar") {
+    if (el?.dataset?.confirmado === "1") { delete el.dataset.confirmado; return true; }
+    document.querySelectorAll(".conf-aqui").forEach((x) => x.remove());
+    const box = document.createElement("div"); box.className = "alert warn conf-aqui"; box.setAttribute("role", "alertdialog"); box.setAttribute("aria-label", pergunta);
+    box.innerHTML = `<b>${esc(pergunta)}</b>${efeito ? `<span>${esc(efeito)}</span>` : ""}<div class="barra-acoes"><button type="button" class="btn pri sm" data-conf-sim>${esc(sim)}</button><button type="button" class="btn sm" data-conf-nao>Não, voltar</button></div>`;
+    box._sel = seletorDe(el); box._el = el;
+    const td = el.closest("td, dialog"), barra = el.closest(".barra-acoes, .fsec-acoes, .acao-exp");
+    if (td && !barra) td.append(box); else ((barra?.closest(".barra-acoes") || barra || el)).after(box);
+    box.scrollIntoView?.({ block: "nearest" }); box.querySelector("[data-conf-sim]").focus({ preventScroll: true });
+    return false;
+  }
+  function respostaConfirma(bt) {
+    const box = bt.closest(".conf-aqui"); if (!box) return;
+    const el = box._el?.isConnected ? box._el : box._sel && document.querySelector(box._sel); box.remove();
+    if (!el) return;
+    // O "sim" vale só para este clique: se a ação parar antes (campo faltando), o próximo clique pergunta de novo.
+    if (bt.matches("[data-conf-sim]")) { el.dataset.confirmado = "1"; setTimeout(() => { el.click(); setTimeout(() => delete el.dataset.confirmado, 800); }, 0); } else el.focus?.();
+  }
   // Confere uma lista [[elemento, problema?], …]: marca os que têm problema e escreve todos de uma vez.
   function barrar(st, regras, prefixo = "Não salvou") {
     document.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
@@ -927,8 +957,11 @@ const TQConta = (() => {
     const feitos = t.filter((x) => x.feito).length, atual = t.find((x) => !x.feito);
     if (feitos === t.length) return `<div class="alert good" style="margin-bottom:14px"><b>✓ Trilha completa</b>Tudo liberado. Agora é acompanhar cada data aqui embaixo.</div>`;
     return `<div class="card trilha" style="margin-bottom:14px"><div class="row"><b>Sua trilha</b><span class="muted" style="font-size:13px">${feitos} de ${t.length}</span></div>
-      <ol class="trilha-lista">${t.map((x) => { const cls = x.feito ? "feito" : x === atual ? "atual" : !x.liberado ? "trava" : "";
-        return `<li class="${cls}"><span class="trilha-marca">${x.feito ? "✓" : !x.liberado ? "🔒" : x === atual ? "●" : "○"}</span><span><b>${esc(x.titulo)}</b>${x === atual && x.nota ? `<div class="muted" style="font-size:13px">${esc(x.nota)}</div>` : ""}${!x.liberado && !x.feito ? `<div class="muted" style="font-size:12px">${esc(x.motivo)}</div>` : ""}</span>${x === atual && x.k && x.liberado ? `<button class="btn sm pri" data-ir="${x.k}">Fazer agora</button>` : ""}</li>`; }).join("")}</ol></div>`;
+      ${(() => { const li = (x) => { const cls = x.feito ? "feito" : x === atual ? "atual" : !x.liberado ? "trava" : "";
+        return `<li class="${cls}"><span class="trilha-marca">${x.feito ? "✓" : !x.liberado ? "🔒" : x === atual ? "●" : "○"}</span><span><b>${esc(x.titulo)}</b>${x === atual && x.nota ? `<div class="muted" style="font-size:13px">${esc(x.nota)}</div>` : ""}${!x.liberado && !x.feito ? `<div class="muted" style="font-size:12px">${esc(x.motivo)}</div>` : ""}</span>${x === atual && x.k && x.liberado ? `<button class="btn sm pri" data-ir="${x.k}">Fazer agora</button>` : ""}</li>`; };
+        // Começa pequeno: o que já foi feito e o passo de agora; os que vêm depois ficam numa linha que abre.
+        const i = t.indexOf(atual), agora = t.slice(0, i + 1), depois = t.slice(i + 1);
+        return `<ol class="trilha-lista">${agora.map(li).join("")}</ol>${depois.length ? dobra("trilha-depois", `Depois ${depois.length === 1 ? "vem mais 1 etapa" : `vêm mais ${depois.length} etapas`}`, "libera uma por vez", `<ol class="trilha-lista" start="${i + 2}">${depois.map(li).join("")}</ol>`, { classe: "sem-borda" }) : ""}`; })()}</div>`;
   }
   /** Área do portal da casa que contém a tela k (ou null). */
   function areaDe(k) {
@@ -1375,7 +1408,9 @@ const TQConta = (() => {
   const formCasa = (d, travado, proprio = true) => formPartes(F_CASA, d, travado, { proprio, valor: valorCasa, antes: (t) => t === "Dúvidas sobre o Guia" && S.conta?.perfil.tipo === "casa" ? equipeNaFicha() : "" });
   // Bloco acima do botão Enviar: o que falta, cada item com link para o campo.
   const faltaEnviarHtml = (lista) => lista.length ? `<b>Para enviar, falta${lista.length > 1 ? "m" : ""} ${lista.length} ${lista.length > 1 ? "itens" : "item"}:</b> ${lista.map((x) => `<a href="#" data-ir-campo="${esc(x.k)}">${esc(x.txt)}</a>`).join(" · ")}` : "✓ Tudo preenchido. Já dá para enviar.";
-  const botaoEnviar = (lista, rotulo) => `<div class="falta-enviar${lista.length ? "" : " ok"}" id="faltaEnviar" role="status" aria-live="polite">${faltaEnviarHtml(lista)}</div><button class="btn pri" id="enviar" aria-describedby="faltaEnviar"${lista.length ? " disabled" : ""}>${rotulo}</button>`;
+  const botaoEnviar = (lista, rotulo, explica) => `<div class="falta-enviar${lista.length ? "" : " ok"}" id="faltaEnviar" role="status" aria-live="polite">${faltaEnviarHtml(lista)}</div>${comExplica(`<button class="btn pri" id="enviar" aria-describedby="faltaEnviar"${lista.length ? " disabled" : ""}>${rotulo}</button>`, explica)}`;
+  // Cópia das respostas da Ficha (modelo do Gui): só abre o texto pronto; não envia a Ficha nem muda nada nela.
+  const botaoCopiaFicha = comExplica(`<button class="btn ghost" id="copiarFicha">Mandar uma cópia das respostas ao Gui</button>`, "Abre o texto pronto para WhatsApp ou e-mail (ou para copiar). Não envia a Ficha nem muda nada nela.");
   // Atualiza ✓, resumo das partes, progresso e o botão Enviar enquanto a pessoa digita (sem redesenhar a tela).
   function atualizarPartes() {
     const raiz = $("#form"); if (!raiz || !S.conta || !raiz.querySelector("[data-parte]")) return;
@@ -1609,17 +1644,18 @@ const TQConta = (() => {
     const semContrato = datas.filter((e) => e.d >= hoje && e.d <= ate && !comContrato.has(e.id));
     const contaDe = (e) => (e.au?.length && contas.find((p) => p.id === e.au[0])) || contas.find((p) => p.vinculo_nome && (e.a || []).some((a) => a.toLowerCase() === p.vinculo_nome.toLowerCase()));
     return `<div class="card" id="contrAuto"><h3 style="margin-top:0">Preparar contrato</h3>
-      <p class="muted" style="margin:0 0 10px;font-size:14px">Escolha a conta, a data e o modelo. O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa completa (CPF, endereço, Pix…). O contrato vai já assinado pelo Tranquilo: a pessoa baixa o PDF, assina e envia de volta, e você confere aqui.</p>
+      <p class="muted" style="margin:0 0 4px;font-size:14px">Escolha a conta, a data e o modelo. Nada é enviado antes de você conferir.</p>
+      <details style="margin:0 0 10px"><summary>Como funciona o contrato automático</summary><p class="muted" style="margin:6px 0 0;font-size:14px">O site preenche o que já sabe (nome, data, cidade, casa); você completa o cachê e o que mais souber. O que ficar em branco a pessoa completa (CPF, endereço, Pix…). O contrato vai já assinado pelo Tranquilo: a pessoa baixa o PDF, assina e envia de volta, e você confere aqui.</p></details>
       <div class="grid g3">
         <label class="fcampo"><b>Conta</b><select id="ctConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}"${pre.conta === p.id ? " selected" : ""}>${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="ctEv"><option value="">Sem data específica</option>${datas.map((e) => `<option value="${esc(e.id)}"${pre.ev === e.id ? " selected" : ""}>${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Modelo</b><select id="ctMod"><option value="">${mods.length ? "Escolha o modelo" : "Cadastre um modelo abaixo"}</option>${mods.map((m) => `<option value="${m.id}"${prep?.modelo === m.id ? " selected" : ""}>${esc(m.nome)}</option>`).join("")}</select></label>
-      </div><div class="barra-acoes"><button class="btn" id="ctPrep">Preparar contrato</button></div>
+      </div><div class="barra-acoes">${comExplica(`<button class="btn" id="ctPrep">Preparar contrato</button>`, "Mostra os campos para você conferir aqui. Ainda não envia nada.")}</div>
       ${prep ? `<div style="margin-top:12px;border-top:1px solid var(--line);padding-top:12px">
         <label class="fcampo"><b>Nome do contrato</b><input id="ctTit" maxlength="160" value="${esc(prep.titulo)}"></label>
         <p style="margin:10px 0 6px"><b>Campos do modelo</b> <span class="muted" style="font-size:13px">· em branco = a pessoa preenche</span></p>${prep.daFicha ? `<div class="alert good" style="margin:0 0 10px"><b>${prep.daFicha} ${prep.daFicha === 1 ? "campo veio" : "campos vieram"} da Ficha</b>Confira antes de enviar. O que ficou em branco não está na Ficha: a pessoa completa na hora de assinar.</div>` : ""}
         <div class="grid g2">${prep.campos.map((c) => `<label class="fcampo"><b>${esc(c.rotulo)}</b><input data-ct-campo="${esc(c.chave)}" maxlength="300" value="${esc(prep.valores[c.chave] || "")}" placeholder="a pessoa preenche"></label>`).join("") || `<p class="muted">Este modelo não tem campos: o texto vai como está.</p>`}</div>
-        <div class="barra-acoes"><button class="btn pri" id="ctEnviar">Enviar para assinatura</button><button class="btn" id="ctDescartar">Descartar</button></div></div>` : ""}
+        <div class="barra-acoes">${comExplica(`<button class="btn pri" id="ctEnviar">Enviar para assinatura</button>`, "Vai já assinado pelo Tranquilo. A pessoa vê no passo a passo dela, assina e devolve; você confere aqui.")}${comExplica(`<button class="btn ghost" id="ctDescartar">Descartar este rascunho</button>`, "Nada é enviado.")}</div></div>` : ""}
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>
       <details style="margin-top:12px"${S.cModAberto ? " open" : ""}><summary>Modelos de contrato (${mods.length})</summary>
         <p class="muted" style="font-size:13px">Cole o texto do modelo do Notion. Trechos como <code>[PREENCHER NOME COMPLETO]</code> viram campos. Para o site preencher sozinho, use <code>{{artista}}</code>, <code>{{data}}</code>, <code>{{cidade}}</code>, <code>{{casa}}</code>, <code>{{evento}}</code>, <code>{{cache}}</code> e <code>{{horario}}</code>.</p>
@@ -1637,15 +1673,15 @@ const TQConta = (() => {
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
         { t: "Data", v: (c) => c.evento_id || "", h: (c) => c.evento_id ? esc(dataTxt(c.evento_id)) : "–" },
         { t: "Situação", v: (c) => c.status + (c.conferido_em || c.assinado_em || ""), h: (c) => { const si = situacaoCt(c); return `<span class="badge ${si.classe}">${si.rotulo}</span>${c.conferido_em ? `<div class="muted" style="font-size:12px">conferido por ${esc(nomeConta[c.conferido_por] || "equipe")} · ${new Date(c.conferido_em).toLocaleString("pt-BR")}</div>` : c.devolvido_em ? `<div class="muted" style="font-size:12px">${ctPedidoDeNovo(c) ? "aguardando o arquivo novo" : "arquivo novo depois do pedido"} · pedido por ${esc(nomeConta[c.devolvido_por] || "equipe")}: ${esc(c.devolvido_motivo || "")}</div>` : c.assinado_em ? `<div class="muted" style="font-size:12px">${esc(c.assinado_nome)} · ${new Date(c.assinado_em).toLocaleString("pt-BR")}</div>` : si.falta ? `<div class="muted" style="font-size:12px">falta: ${esc(si.falta.map((x) => x.rotulo).join(", "))}</div>` : ""}`; } },
-        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar</button>` : ""}${botoesConferir(c)}</div>` },
+        { t: "", v: () => 0, h: (c) => `<div style="display:flex;gap:6px;flex-wrap:wrap">${arqsContrato(c)[0] ? `<a class="btn sm pri" href="#" data-arquivo="${esc(arqsContrato(c)[0].caminho)}">Ver o assinado</a>` : ""}<button class="btn sm" data-ct-ver="${c.id}">Baixar PDF</button>${c.status === "enviado" && !arqsContrato(c).length ? `<button class="btn sm" data-ct-cancelar="${c.id}">Cancelar contrato</button>` : ""}${botoesConferir(c)}</div>` },
       ], lista, { i: 3, dir: 1 }, vazio("Nenhum contrato gerado ainda", "Prepare o primeiro contrato acima: ele aparece na área da artista ou da casa para assinar.", "", "documentos"))}`;
   }
   // Conferir o arquivo assinado recebido (banco v28): "Conferir e confirmar" ou "Pedir de novo" com o motivo (a pessoa lê).
   function botoesConferir(c) {
     if (c.status !== "enviado" || c.conferido_em || !arqsNovos(c).length) return "";
     if (S.ctDevolver === c.id) return `<div class="ct-devolver-box" style="flex-basis:100%;margin-top:6px"><label class="fcampo" style="margin:0"><b>O que a pessoa precisa corrigir?</b><textarea id="ctMotivo" rows="2" maxlength="500" placeholder="ex.: faltou a assinatura na página 2"></textarea></label>
-      <div class="barra-acoes" style="margin-top:6px"><button class="btn sm pri" data-ct-devolver-ok="${c.id}">Enviar o pedido</button><button class="btn sm" data-ct-devolver="">Desistir</button></div></div>`;
-    return `<button class="btn sm pri" data-ct-conferir="${c.id}">Conferir e confirmar</button><button class="btn sm" data-ct-devolver="${c.id}">Pedir de novo</button>`;
+      <div class="barra-acoes" style="margin-top:6px">${comExplica(`<button class="btn sm pri" data-ct-devolver-ok="${c.id}">Enviar o pedido à pessoa</button>`, "Ela lê o motivo e envia o arquivo de novo.")}<button class="btn sm ghost" data-ct-devolver="">Desistir</button></div></div>`;
+    return `<button class="btn sm pri" data-ct-conferir="${c.id}" title="Confirma que o arquivo assinado está certo. Pede confirmação antes.">Conferir e confirmar</button><button class="btn sm" data-ct-devolver="${c.id}" title="Você escreve o que corrigir e a pessoa envia de novo.">Pedir o arquivo de novo</button>`;
   }
   // ---------- line-up e contratos de uma data do portal (pedido da Marina, 18/11/2026) ----------
   // Um contrato para cada artista do line-up e o da casa. A Isa (Agenda) vê os artistas; a Operações vê a casa; a
@@ -1720,7 +1756,7 @@ const TQConta = (() => {
       <p class="muted" style="font-size:13px;margin:0 0 8px">Um contrato para cada um que ainda não tem, preenchido com a Ficha daquele artista (nome, cidade, WhatsApp) e com a data. O que a Ficha não tem (nome completo, CPF ou CNPJ, Pix) cada um preenche no próprio contrato. Quem já tem contrato desta data não ganha outro.</p>
       <div class="grid g2">${temArt ? sel("art", modsArt, mA) : ""}${temCasa ? sel("casa", modsCasa, mC) : ""}</div>
       <div class="list">${aPrep.map(linha).join("")}</div>
-      <div class="barra-acoes"><button class="btn pri" data-lp-gerar="${x.id}">Gerar ${aPrep.length} ${aPrep.length === 1 ? "contrato" : "contratos"}</button><button class="btn" data-lp-fechar>Agora não</button></div></div>`;
+      <div class="barra-acoes">${comExplica(`<button class="btn pri" data-lp-gerar="${x.id}">Gerar ${aPrep.length} ${aPrep.length === 1 ? "contrato" : "contratos"}</button>`, "Cada pessoa vê o pedido de assinatura no passo a passo dela.")}<button class="btn ghost" data-lp-fechar>Agora não</button></div></div>`;
   }
   // Monta o contrato de uma conta para uma data: campos do modelo, o que a equipe sabe (data, casa, nome) e a Ficha.
   function montarContrato(m, conta, e, linhaLineup) {
@@ -1866,7 +1902,7 @@ const TQConta = (() => {
   /** Central: publicar documentos para abrir dentro do portal, vários de uma vez (o nome do arquivo diz qual é). */
   function formDocsPagina() {
     return `<div class="card" style="margin:12px 0"><h2 style="margin-top:0">Publicar documentos para abrir na página</h2>
-      <p class="muted" style="font-size:14px;margin:0 0 10px">Arraste aqui os arquivos .html do Gui e do Bruno (pode ser vários de uma vez) ou clique para escolher. Não troque o nome dos arquivos: é por ele que o portal sabe qual documento é. A versão é lida do próprio documento.</p>
+      <p class="muted" style="font-size:14px;margin:0 0 10px">Arraste os arquivos .html do Gui e do Bruno (vários de uma vez). Cada um vira uma versão nova, que abre na página para quem tem acesso. <b>Não troque o nome dos arquivos</b>: é por ele que o portal sabe qual documento é.</p>
       <label class="dp-zona" id="dpZona" for="dpArq"><span style="font-size:28px">⬆</span><b>Arraste os arquivos aqui</b><span class="muted" style="font-size:13px">ou clique para escolher no computador</span>
         <input type="file" id="dpArq" multiple accept=".html,.htm,text/html" style="position:absolute;width:1px;height:1px;opacity:0"></label>
       <div class="err" role="status" aria-live="polite" id="dperr"></div>
@@ -2093,7 +2129,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div id="medidor">${medidor(R.preCuradoria(d))}</div>
       <div id="form" data-editavel="${trav ? "" : "1"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav ? (i.status === "encerrada" ? true : "vazios") : false)}</div>
       <section class="card fsec" style="margin-top:12px" id="dispFicha"><h3>Disponibilidade: dias em que você pode tocar</h3>${calendarioArtista()}</section>
-      ${trav ? (i.status === "encerrada" ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. O que já foi respondido só muda se a curadoria pedir ajustes.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button></div>`) : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button>${botaoEnviar(pendenciasForm(F_ARTISTA, d), "Enviar para a curadoria")}</div>`}`;
+      ${trav ? (i.status === "encerrada" ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes">${comExplica(`<button class="btn pri" id="salvarVazios">Salvar os campos que estavam em branco</button>`, "Vale só para o que você ainda não tinha respondido e já chega à curadoria. O que já foi respondido só muda se a curadoria pedir ajustes.")}</div>`) : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes">${botaoEnviar(pendenciasForm(F_ARTISTA, d), "Enviar para a curadoria", "A pré-curadoria sai na hora. Depois a equipe do Tranquilo avalia e responde aqui, em Próximos passos.")}${comExplica(`<button class="btn" id="salvar">Salvar rascunho</button>`, "Guarda para você continuar depois. Ainda não vai para a curadoria.")}</div>`}`;
     },
     cadastro_casa() {
       const c = S.conta.casa, parceira = S.casaParceira ?? !!c?.ja_parceira;
@@ -2112,27 +2148,28 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const usadosNaFicha = new Set(Object.entries(F_CASA_ANTIGO).filter(([novo]) => !d[novo]).map(([, ant]) => ant).concat(d.cidade_uf ? [] : ["cidade", "estado"]));
       const extras = Object.entries(d).filter(([k, v]) => !CHAVES_FICHA.has(k) && !usadosNaFicha.has(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length));
       return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da unidade")}</h1>
-      <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo: para mudar algo, toque em Solicitar atualização." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
+      <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo. Campo em branco você preenche direto; para mudar uma resposta já enviada, use \"Pedir para mudar uma resposta já enviada\", no fim da página." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
       <div class="row" style="margin-bottom:10px"><span>${c ? badgeEtapa(etapaCasa(c, meusContratos(), S.conta.equipe ?? null)) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ler="guia-do-franqueado">Ler o Guia do Franqueado</button></div>
       ${c?.status === "encerrada" ? `<div class="alert crit"><b>Parceria encerrada ${A_VALIDAR_HTML}</b>${esc(c.parecer || "")} A Ficha e o histórico ficam guardados. Dúvidas: fale com a Operações.</div>`
         : c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
-      ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade por Solicitar atualização.</div>` : ""}
+      ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade em "Pedir para mudar uma resposta já enviada", no fim da página.</div>` : ""}
       ${aberto ? `<div class="alert warn"><b>Pedido de atualização com a Central desde ${dt(aberto.criado_em.slice(0, 10))}</b>Campos: ${esc(Object.keys(aberto.proposto).map(rotulo).join(", "))}. A ficha muda quando a Central aprovar.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-sol-cancelar="${aberto.id}">Cancelar o pedido</button></div></div>` : ""}
       ${ultimaRecusa?.status === "recusada" ? `<div class="alert crit"><b>Pedido de atualização recusado em ${dt(String(ultimaRecusa.revisado_em || ultimaRecusa.criado_em).slice(0, 10))}</b>${ultimaRecusa.resposta ? "Resposta da Central: " + esc(ultimaRecusa.resposta) : "A Central não deixou resposta."} A ficha continua como estava.</div>` : ""}
-      ${pedindo ? `<div class="alert warn"><b>Você está pedindo uma atualização</b>Altere os campos abaixo e toque em "Enviar pedido de atualização", no fim da página. A ficha só muda quando a Central aprovar.${aberto ? " Este pedido substitui o que já está com a Central: as mudanças dele já estão nos campos." : ""}</div>` : ""}
+      ${pedindo ? `<div class="alert warn"><b>Você está pedindo uma atualização</b>Altere os campos abaixo, diga o motivo e toque em "Enviar o pedido ao Gui", no fim da página. A ficha só muda quando o Gui (Operações) aprovar.${aberto ? " Este pedido substitui o que já está com a Central: as mudanças dele já estão nos campos." : ""}</div>` : ""}
       ${parteUmCasa(c)}
       <h2>Parte 2 · Para preencher</h2>
       ${rec || (!enviada && S.recuperado === S.conta.perfil.id) ? avisoRecuperado : ""}
       ${Object.keys(sug).length ? `<div class="alert"><b>Já deixamos preenchido o que temos da sua casa</b>Confira e corrija se precisar: ${esc(Object.keys(sug).map((k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || k).join(", "))}. Só fica salvo na sua Ficha quando você salvar ou enviar.</div>` : ""}
-      <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b>${k === "habilitacao" ? " " + A_VALIDAR_HTML : ""} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
+      ${dobra("ficha-falta", "O que falta na Ficha", pend.habilitacao.length + pend.match.length + pend.enriquecimento.length ? `${pend.habilitacao.length} para habilitar · ${pend.match.length} para montar a noite · ${pend.enriquecimento.length} para deixar completa` : "✓ Nada pendente",
+        `<div class="grid g3" style="margin:0">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b>${k === "habilitacao" ? " " + A_VALIDAR_HTML : ""} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>`)}
       ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
       ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
       <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" data-editavel="${enviada ? "" : "1"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, ["suspensa", "encerrada"].includes(c?.status) ? true : travado ? "vazios" : false)}</div>
       ${extras.length ? `<details class="card fsec" style="margin-top:12px"><summary><b>Outras informações já enviadas (${extras.length})</b></summary><p class="muted" style="margin:6px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></details>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
-      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button>${botaoEnviar(pendenciasForm(F_CASA, dadosVistos(F_CASA, { ...d, ...sug })), "Enviar a Ficha ao Tranquilo")}<button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
-        : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou e por quê <span class="muted">*</span></b><textarea id="solMsg" rows="2" maxlength="1000"></textarea><div class="muted" style="font-size:12px;margin-top:3px">Pelo menos 10 caracteres. É o que a Central lê para aprovar.</div></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
-        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. Para mudar o que já foi respondido, use Solicitar atualização.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button><button class="btn" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
+      ${!enviada ? `<div class="barra-acoes">${botaoEnviar(pendenciasForm(F_CASA, dadosVistos(F_CASA, { ...d, ...sug })), "Enviar a Ficha ao Tranquilo", "Vai para o Gui (Operações) conferir e habilitar a casa. Depois de enviada, o que você respondeu só muda por pedido.")}${comExplica(`<button class="btn" id="salvar">Salvar rascunho</button>`, "Guarda para você continuar depois. Ainda não vai para a análise do Tranquilo.")}${botaoCopiaFicha}</div>`
+        : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou e por quê <span class="muted">*</span></b><textarea id="solMsg" rows="2" maxlength="1000"></textarea><div class="muted" style="font-size:12px;margin-top:3px">Pelo menos 10 caracteres. É o que a Central lê para aprovar.</div></label><div class="barra-acoes">${comExplica(`<button class="btn pri" id="solEnviar">Enviar o pedido ao Gui</button>`, "A Ficha só muda quando o Gui (Operações) aprovar. A resposta aparece aqui.")}${comExplica(`<button class="btn ghost" id="solVoltar">Desistir do pedido</button>`, "Nada é enviado. A Ficha continua como está.")}</div>`
+        : ["suspensa", "encerrada"].includes(c.status) ? "" : `<div class="barra-acoes">${comExplica(`<button class="btn pri" id="salvarVazios">Salvar os campos que estavam em branco</button>`, "Vale só para o que você ainda não tinha respondido. Já chega ao Tranquilo, sem precisar de aprovação.")}${comExplica(`<button class="btn" id="solPedir">Pedir para mudar uma resposta já enviada</button>`, "Você corrige os campos e diz o motivo. Vai para o Gui (Operações) aprovar antes de valer.")}${botaoCopiaFicha}</div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
       <p class="muted" style="font-size:13px;margin-top:14px">Esta Ficha resume as condições da sua unidade. Em qualquer diferença, vale o contrato assinado.</p>`;
     },
@@ -2142,8 +2179,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="tag">Conta</div><h1>${esc(p.nome || p.email)}</h1>
       <div class="card"><dl class="kv"><dt>E-mail</dt><dd>${esc(p.email)}</dd><dt>Perfil</dt><dd>${ROTULO[p.tipo]}${funcoesDe() ? ` · ${esc(nomesFuncoes(funcoesDe()))}` : ""}</dd><dt>Vínculo na rede</dt><dd>${p.vinculo_nome ? `${esc(p.vinculo_nome)} <span class="badge b-good">métricas liberadas</span>` : p.vinculo_pedido_nome ? `${esc(p.vinculo_pedido_nome)} <span class="badge b-warn">aguardando a equipe confirmar</span> <span class="muted" style="font-size:13px">as métricas já aparecem enquanto isso</span>` : `<span class="muted">ainda sem vínculo</span>`}</dd>
       ${!REAL ? `<dt>Modo</dt><dd><span class="badge b-warn">demonstração</span> os dados ficam só neste navegador</dd>` : ""}</dl></div>
-      ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div><button class="btn pri" id="vok">Vincular</button></div>` : ""}
-      <div style="margin-top:20px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn" data-mudar-senha>Mudar a senha</button><button class="btn" data-rever-tutorial>Ver o tutorial de novo</button><button class="btn" id="sairConta">Sair da conta</button></div>`;
+      ${podeVincular ? `<h2>Tenho um código de acesso</h2><p class="sub">Se a equipe já te mandou um código (aquele XXXX-XXXX-XXXX), cole aqui para ligar esta conta ao seu histórico e às métricas da rede. Basta fazer isso uma vez.${["equipe", "adm"].includes(p.tipo) ? " Para a equipe e a administração, use o código interno de vocês." : ""}</p><div class="card login"><input id="vcod" placeholder="XXXX-XXXX-XXXX" autocomplete="off"><div class="err" role="status" aria-live="polite" id="verr"></div>${comExplica(`<button class="btn pri" id="vok">Ligar a conta ao meu histórico</button>`, "Basta uma vez. Depois disso o seu histórico e as métricas aparecem aqui.")}</div>` : ""}
+      <div class="barra-acoes" style="margin-top:20px">${comExplica(`<button class="btn" data-mudar-senha>Mudar a senha</button>`, "Você escolhe a nova aqui mesmo. Vale no próximo acesso.")}${comExplica(`<button class="btn" data-rever-tutorial>Ver o tutorial de novo</button>`, "Mostra de novo o passo a passo desta área. Não muda nada.")}${comExplica(`<button class="btn ghost" id="sairConta">Sair da conta</button>`, "Para entrar de novo, use o seu e-mail e senha.")}</div>`;
     },
     // ---------- equipe da casa por função e trilha da nova casa ----------
     equipe_casa() {
@@ -2501,7 +2538,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const fichaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h) || c.id === e.kc);
       const contrDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); return !cs.length ? "–" : cs.every(ctAssinado) ? "✓ assinado" : "aguardando"; };
       return `<div class="tag">Visão geral</div><h1>Próximas datas da rede</h1><p class="sub">Um panorama das próximas datas da rede, pra você se situar.</p>
-      <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades</option>${cidades.map((c) => `<option${c === f.cidade ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>
+      <div class="filters"><select data-gf="cidade" aria-label="Cidade"><option value="">Todas as cidades (${evs.length})</option>${cidades.map((c) => `<option value="${esc(c)}"${c === f.cidade ? " selected" : ""}>${esc(c)} (${evs.filter((e) => e.c === c).length})</option>`).join("")}</select></div>
       ${tabela("geral", [
         { t: "Data", v: (e) => e.d, h: (e) => `<b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))}, ${dt(e.d)}</b>` },
         { t: "Cidade", v: (e) => e.c || "", h: (e) => esc(e.c || "–") },
@@ -2526,7 +2563,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         return { e, c, ct, pend, atencao: e.d <= em14 && pend.length > 0, _click: "ev:" + e.id }; })
         .filter((l) => (!f.cidade || l.e.c === f.cidade) && (!f.casa || l.e.h === f.casa) && (!f.status || l.e.s === f.status) && (!f.foco || (f.foco === "atencao" ? l.atencao : f.foco === "contrato" ? l.ct[0] !== "b-good" : l.pend.length)));
       const todas = P.eventos.filter((e) => !e.z && e.d >= hoje), uniq = (xs) => [...new Set(xs.filter(Boolean))].sort();
-      const sel = (id, rot, val, ops) => `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot}</option>${ops.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+      // Cada opção diz quantos eventos tem (a pessoa vê que é um filtro e o que vai sobrar).
+      const sel = (id, rot, val, ops) => { const campo = { cidade: "c", casa: "h", status: "s" }[id];
+        return `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot} (${todas.length})</option>${ops.map((o) => `<option value="${esc(o)}"${o === val ? " selected" : ""}>${esc(o)} (${todas.filter((e) => e[campo] === o).length})</option>`).join("")}</select>`; };
       const n = (fn) => linhas.filter(fn).length;
       return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1>
       <div class="alert" style="margin-bottom:10px"><b>Ainda falta neste painel ${A_VALIDAR_HTML}</b>Ranking de alinhamento dos donos, bonificações pendentes (Estrella Galicia) e contratos assinados: esperando o Gui definir os critérios de cada um.</div>
@@ -2595,8 +2634,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         ${atalho("operacao", "#f9b436", alertas, alertas == null ? "" : alertas === 1 ? "ponto" : "pontos", "O que precisa de atenção", "Datas sem link de ingressos, noites sem público lançado e status desatualizados no Notion.", "Ver os alertas")}
         ${atalho("convites", "#fcdbe5", conv, conv === 1 ? "convite esperando" : "convites esperando", "Chamar alguém para a rede", "Convide uma artista ou casa que já trabalha com o Tranquilo. Ela recebe o link e o tutorial.", "Fazer um convite")}
       </div>
-      ${zerados.length ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">${blocos.length ? "Em dia" : "Fila de hoje"}</h2>
-      <div class="fila">${zerados.map(([t, aba]) => `<button data-ir="${aba}"><span class="q zero">0</span><span>${t}</span></button>`).join("")}</div>` : ""}
+      ${zerados.length ? `<div style="margin-top:34px">${dobra("inicio-em-dia", blocos.length ? "Em dia" : "✓ Fila de hoje vazia", `${zerados.length} ${zerados.length === 1 ? "fila sem nada esperando" : "filas sem nada esperando"} · toque para ver quais`,
+        `<div class="fila">${zerados.map(([t, aba]) => `<button data-ir="${aba}"><span class="q zero">0</span><span>${t}</span></button>`).join("")}</div>`)}</div>` : ""}
 `;
     },
     curadoria() {
@@ -2607,8 +2646,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
-      <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
-      <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
+      <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status (${L.length})</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t} (${n(k)})</option>`).join("")}</select>
+      <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option value="${x}"${f.faixa === x ? " selected" : ""}>${x} (${L.filter((i) => i.faixa === x).length})</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
       ${tabela("curad", [
         { t: "Artista", v: (i) => i.dados.nome_artistico, h: (i) => `<b>${esc(i.dados.nome_artistico || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(i.dados.cidade_base || "")} ${esc(i.dados.estado || "")} · ${esc(i.dados.generos || "")}</div>` },
         { t: "Pontuação", n: 1, v: (i) => i.score, h: (i) => `<b>${i.score ?? "–"}</b>` },
@@ -2690,8 +2729,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <label class="fcampo"><b>Nome ${tipoSel === "casa" ? "da casa" : tipoSel === "artista" ? "da artista" : "da pessoa"}</b><input id="cvNome" value="${esc(pre.nome || S.convRasc?.nome || "")}" autocomplete="off"></label>
         <label class="fcampo"><b>E-mail</b><input id="cvEmail" type="email" value="${esc(S.convRasc?.email || "")}" autocomplete="off"></label>
         <label class="fcampo"><b>WhatsApp (opcional)</b><input id="cvWa" inputmode="tel" placeholder="DDD + número" value="${esc(S.convRasc?.wa || "")}" autocomplete="off"></label>
-      </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes"><button class="btn pri" id="cvOk" data-tipo="${tipoSel}">Enviar convite de ${esc(ROTULO[tipoSel].toLowerCase())}</button></div>
-      <p class="muted" style="font-size:13px;margin-bottom:0">O convite sai por e-mail e também fica com a mensagem pronta para mandar pelo WhatsApp.</p></div>
+      </div><div class="err" role="status" aria-live="polite" id="cverr"></div><div class="barra-acoes">${comExplica(`<button class="btn pri" id="cvOk" data-tipo="${tipoSel}">Enviar convite de ${esc(ROTULO[tipoSel].toLowerCase())}</button>`, "A pessoa recebe um e-mail com o link para entrar. Depois você também pode mandar a mensagem pelo WhatsApp.")}</div></div>
       <h2>Convites enviados</h2>
       ${tabela("conv", [
         { t: "Pessoa", v: (c) => c.nome || c.email, h: (c) => `<b>${esc(c.nome || "–")}</b><div class="muted" style="font-size:12px">${esc(c.email)}</div>` },
@@ -2770,7 +2808,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="docEv"><option value="">Escolha a data</option>${datas.map((e) => `<option value="${esc(e.id)}">${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo" style="grid-column:1/-1"><b>Link (Drive, Dropbox, DocuSign…)</b><input id="docUrl" maxlength="500" placeholder="https://"></label>
-      </div><div class="barra-acoes"><button class="btn pri" id="docOk">Anexar</button></div><div class="err" role="status" aria-live="polite" id="docErr"></div>
+      </div><div class="barra-acoes">${comExplica(`<button class="btn pri" id="docOk">Anexar o documento</button>`, "A pessoa passa a ver o link no passo a passo dela.")}</div><div class="err" role="status" aria-live="polite" id="docErr"></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">Confira se o link está compartilhado com a pessoa (ou "qualquer pessoa com o link").</p></details>
       <details style="margin-top:18px"><summary>Documentos anexados (${(E.docs || []).length})</summary>${tabela("docs", [
         { t: "Documento", v: (d) => d.titulo, h: (d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.titulo)}</a>` },
@@ -2849,7 +2887,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     // Artista que já é da rede (vinculada, com datas) não precisa de inscrição: o aviso de inscrição sai.
     if (p.codigo_acesso && evs.length && (!i || ["rascunho", "aprovada"].includes(i.status))) { etapa = Math.max(etapa, 6); if (!i || i.status === "rascunho") agora = ""; }
-    const comoFunciona = etapa < 2 ? `<h2>Como funciona</h2><div class="grid g3">${[["1", "Inscrição", "Release, links, rider e as cidades onde quer tocar. A pré-curadoria mostra na hora a força da inscrição."], ["2", "Curadoria", "A equipe do Tranquilo avalia e responde por aqui: aprovada, ajustes ou não seguiu desta vez."], ["3", "Datas", "Com a data confirmada, cada show ganha um passo a passo com prazos, do material de divulgação ao pós-show."]].map(([n, t, x]) => `<div class="card"><div class="kpi"><div class="v" style="color:var(--violet)">${n}</div></div><h3 style="margin-top:12px">${t}</h3><p class="muted" style="margin:0">${x}</p></div>`).join("")}</div>` : "";
+    const comoFunciona = etapa < 2 ? dobra("art-como", "Como funciona", "3 etapas: inscrição, curadoria e datas", `<div class="grid g3">${[["1", "Inscrição", "Release, links, rider e as cidades onde quer tocar. A pré-curadoria mostra na hora a força da inscrição."], ["2", "Curadoria", "A equipe do Tranquilo avalia e responde por aqui: aprovada, ajustes ou não seguiu desta vez."], ["3", "Datas", "Com a data confirmada, cada show ganha um passo a passo com prazos, do material de divulgação ao pós-show."]].map(([n, t, x]) => `<div class="card"><div class="kpi"><div class="v" style="color:var(--violet)">${n}</div></div><h3 style="margin-top:12px">${t}</h3><p class="muted" style="margin:0">${x}</p></div>`).join("")}</div>`, { classe: "como-func" }) : "";
     const et = i?.status === "aprovada" ? etapaArtista(i, meusContratos()) : null;
     return `<div class="tag">Artista</div><h1>Olá, ${esc(p.nome || i?.dados?.nome_artistico || "")}</h1>
     <p class="sub">Aqui fica o que você precisa fazer em cada etapa, do cadastro ao pós-show.</p>
@@ -2864,7 +2902,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const cb = c?.combinados || {}, nada = '<span class="muted">Ainda não registrado pela Operações</span>';
     const pct = (o, ks) => o && ks.every(([k]) => o[k] != null && o[k] !== "") ? ks.map(([k, t]) => `${esc(o[k])}% ${t}`).join(" · ") : nada;
     const eq = S.conta.equipe ? TQEquipe.cobertura(S.conta.equipe) : null;
-    return `<section class="card fsec"><h3>Parte 1 · Sua unidade</h3><h4 style="margin:0 0 6px">Como vai funcionar</h4>
+    // Começa recolhida (é consulta, não pendência): uma linha diz o que tem dentro.
+    return `<details class="card fsec" data-dobra="ficha-parte1"${S.dobras?.["ficha-parte1"] ? " open" : ""}><summary><span class="fsec-n" aria-hidden="true">i</span><span class="fsec-tit"><h3>Parte 1 · Sua unidade</h3><span class="fsec-res">Para ler: como vai funcionar, divisão das receitas, seus contatos no Tranquilo e próximos passos</span></span></summary><div class="fsec-corpo"><h4 style="margin:0 0 6px">Como vai funcionar</h4>
       <dl class="kv"><dt>Produtos</dt><dd>Tranquilo Descubra e Tranquilo Apresenta</dd><dt>Ingressos</dt><dd>Vendidos pela Ingresse, parceira do Tranquilo. As vendas são acompanhadas em conjunto pelo Tranquilo e pela casa.</dd><dt>Datas e artistas</dt><dd>Definidos com a Isa (Comercial e Artístico)</dd></dl>
       <h4 style="margin:12px 0 6px">Divisão das receitas</h4>
       <dl class="kv"><dt>Bilheteria</dt><dd>${pct(cb.bilheteria, [["artista", "Artista"], ["casa", "Casa"], ["tranquilo", "Tranquilo"]])}</dd><dt>Alimentos e bebidas</dt><dd>${pct(cb.aeb, [["casa", "Casa"], ["tranquilo", "Tranquilo"]])}</dd></dl>
@@ -2876,7 +2915,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <li class="${c?.enviado_em ? "feito" : ""}"><b>Ler o Guia e devolver esta Ficha preenchida</b> <span class="muted">· até 3 dias após receber${c?.enviado_em ? " · feito" : ""}</span></li>
       <li><b>Conversa de alinhamento com a Operações, a partir das suas dúvidas</b> <span class="muted">· logo depois</span></li>
       <li class="${eq?.tripe ? "feito" : ""}"><b>Líder Local, anfitrião e social media definidos</b> <span class="muted">· até 10 dias após receber${eq?.tripe ? " · feito" : ""}</span></li>
-      <li><b>Primeiras datas com a Isa</b> <span class="muted">· com a equipe definida</span></li></ul></section>`;
+      <li><b>Primeiras datas com a Isa</b> <span class="muted">· com a equipe definida</span></li></ul></div></details>`;
   }
   // Equipe da casa em UMA lista (pedido da Marina, 18/11/2026): uma linha pequena por função, com quem ocupa (✓) ou
   // "Falta"; a linha abre para mostrar o que a função faz, o "Quando" e as pessoas. A mesma lista serve à Equipe da casa
@@ -2924,7 +2963,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return `<section class="card fsec"><h3>Sua equipe</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Precisa estar completa antes do primeiro evento. Cada função é de uma pessoa diferente; a única exceção é o Dono A, que pode ser também o Líder Local. O bar é responsabilidade do Dono A: o Tranquilo não fala com a equipe de bar.</p>
       ${cob ? `<p class="eqlin-frase"><b>${cob.completa ? "✓ Equipe completa" : esc(fraseEquipe(cob))}</b>${cob.completa ? "" : ` <span class="muted">· ${esc(TQEquipe.listaFalta(cob))}</span>`}</p>` : ""}
       ${listaEquipe(L || [], linhas, { chave: "ficha", pessoa })}
-      <div class="barra-acoes"><button class="btn sm" data-ir="equipe_casa">Editar a equipe</button></div></section>`;
+      <div class="barra-acoes">${comExplica(`<button class="btn sm" data-ir="equipe_casa">Editar a equipe</button>`, "Abre a área Equipe. O que você muda lá aparece aqui na Ficha.")}</div></section>`;
   }
   function passosCasa() {
     const p = S.conta.perfil, c = S.conta.casa, evs = eventosDaConta();
@@ -2972,21 +3011,21 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ops = H.materiais.map((m) => `<option value="${m.id}">${esc(m.titulo)}${m.casa_ref ? " · " + esc(m.casa_ref) : ""}</option>`).join("");
     const casas = [...new Set([...(H.campanhas || []).map((c) => c.casa_ref), ...H.materiais.map((m) => m.casa_ref)].filter(Boolean))];
     const tipos = ["guia", "playbook", "template", "briefing", "checklist", "politica", "termo", "outro"];
-    return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><b>Outras opções: material por link</b> <span class="muted" style="font-size:13px">(Google Docs, Notion, Canva: abre em outra aba)</span></summary>
+    return `<details class="card" style="margin-bottom:12px"${S.matAberto ? " open" : ""}><summary><span><b>Outras opções: material por link</b> <span class="muted" style="font-size:13px">(Google Docs, Notion, Canva: abre em outra aba)</span></span></summary>
       <p class="muted" style="font-size:13px">Peça nova confirmação de leitura só quando a mudança altera o que a casa faz (campanha, playbook do Apresenta, funções de anfitrião e social media). Ajuste de texto ou visual: publique sem pedir.</p>
       <h3>Nova versão</h3>
       ${ops ? `<div class="grid g2"><label class="fcampo"><b>Material</b><select id="mvMat">${ops}</select></label><label class="fcampo"><b>Versão</b><input id="mvVer" maxlength="20" placeholder="ex.: 2 ou 2026-11"></label></div>
       <label class="fcampo"><b>O que mudou</b><input id="mvRes" maxlength="200" placeholder="ex.: novo roteiro do anfitrião"></label>
       <label class="fcampo"><b>Link desta versão (opcional)</b><input id="mvUrl" type="url" placeholder="https://… (vazio = mesmo link de sempre)"></label>
       <label class="fcheck"><input type="checkbox" id="mvCie"> <span>Muda o que a casa faz: pedir "Li e estou ciente" de novo</span></label>
-      <div class="barra-acoes"><button class="btn pri" data-mat-versao>Publicar versão</button></div>` : `<p class="muted">Cadastre um material primeiro.</p>`}
+      <div class="barra-acoes">${comExplica(`<button class="btn pri" data-mat-versao>Publicar versão</button>`, "Todas as artistas e casas passam a ver a versão nova. Pede confirmação antes.")}</div>` : `<p class="muted">Cadastre um material primeiro.</p>`}
       <h3>Material novo</h3>
       <div class="grid g2"><label class="fcampo"><b>Título</b><input id="mnTit" maxlength="160" placeholder="ex.: Função do anfitrião"></label><label class="fcampo"><b>Tipo</b><select id="mnTipo">${tipos.map((t) => `<option>${t}</option>`).join("")}</select></label></div>
       <label class="fcampo"><b>Link (Google Docs, Notion, Canva…)</b><input id="mnUrl" type="url" placeholder="https://"></label>
       <div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="checkbox" id="mnCasa" checked> Casas</label><label class="fcheck"><input type="checkbox" id="mnArt"> Artistas</label></div>
       <label class="fcampo"><b>Só para uma casa (opcional)</b><input id="mnRef" list="mnRefs" placeholder="vazio = todas as casas"><datalist id="mnRefs">${casas.map((c) => `<option value="${esc(c)}">`).join("")}</datalist></label>
       <label class="fcheck"><input type="checkbox" id="mnCie"> <span>Pedir "Li e estou ciente"</span></label>
-      <div class="barra-acoes"><button class="btn pri" data-mat-novo>Cadastrar material</button></div>
+      <div class="barra-acoes">${comExplica(`<button class="btn pri" data-mat-novo>Cadastrar material</button>`, "O material entra na lista de Guias e materiais de quem você escolheu.")}</div>
       <div class="err" id="materr" role="alert"></div></details>`;
   }
   const slugDe = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
@@ -3144,7 +3183,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const acessos = (S.pac?.acessos || []).filter((a) => a.tipo === p.tipo);
     if (p.vinculo_pedido && !p.codigo_acesso) {
       const certo = acessos.find((a) => a.codigo === p.vinculo_pedido);
-      return `<div><span class="badge b-warn">pediu: ${esc(p.vinculo_pedido_nome || "?")}</span> ${certo ? `<button class="btn sm" data-vinculo-confirmar="${p.id}">Confirmar</button>` : `<span class="muted" style="font-size:12px">código não confere com ${acessos.length ? "nenhuma conta da rede" : "o pacote (entre com o código de adm)"}</span>`} <button class="btn sm" data-vinculo-recusar="${p.id}">Recusar</button></div>`;
+      return `<div><span class="badge b-warn">pediu: ${esc(p.vinculo_pedido_nome || "?")}</span> ${certo ? `<button class="btn sm" data-vinculo-confirmar="${p.id}" title="Liga a conta ao histórico pedido e libera as métricas dela.">Confirmar o vínculo</button>` : `<span class="muted" style="font-size:12px">código não confere com ${acessos.length ? "nenhuma conta da rede" : "o pacote (entre com o código de adm)"}</span>`} <button class="btn sm" data-vinculo-recusar="${p.id}" title="A conta continua sem vínculo; a pessoa pode pedir de novo.">Recusar o vínculo</button></div>`;
     }
     if (!acessos.length) return p.vinculo_nome ? esc(p.vinculo_nome) : `<span class="muted">entre com o código de adm para vincular</span>`;
     return `<select data-vinculo="${p.id}"><option value="">Sem vínculo</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${p.codigo_acesso === a.codigo ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>`;
@@ -3164,7 +3203,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
-    <div class="barra-acoes">${!temArea("agenda") ? soArea("agenda") : (i.status === "aprovada" ? '<span class="badge b-good" style="align-self:center">✓ já aprovada</span>' : '<button class="btn pri" data-decisao="aprovada">Aprovar</button>') + (["aprovada", "encerrada"].includes(i.status) ? "" : '<button class="btn" data-decisao="ajustes">Pedir ajustes</button><button class="btn" data-decisao="reprovada">Não seguir</button>') + (ENCERRAR_ATIVO && i.status === "aprovada" ? `<button class="btn" data-decisao="encerrada">Encerrar participação</button>` : "")}<button class="btn" data-copiar-ficha>Copiar ficha</button><button class="btn" onclick="dlg.close()">Fechar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes">${!temArea("agenda") ? soArea("agenda") : (i.status === "aprovada" ? '<span class="badge b-good" style="align-self:center">✓ já aprovada</span>' : comExplica('<button class="btn pri" data-decisao="aprovada">Aprovar a artista</button>', "Ela lê a sua mensagem e passa a marcar onde e quando pode tocar.")) + (["aprovada", "encerrada"].includes(i.status) ? "" : comExplica('<button class="btn" data-decisao="ajustes">Pedir ajustes à artista</button>', "A inscrição volta para ela corrigir, com a sua mensagem.") + comExplica('<button class="btn" data-decisao="reprovada">Não seguir agora</button>', "Encerra a inscrição; ela lê a sua mensagem. Pede confirmação antes.")) + (ENCERRAR_ATIVO && i.status === "aprovada" ? comExplica(`<button class="btn" data-decisao="encerrada">Encerrar participação</button>`, "Ela perde o acesso às datas. Pede confirmação antes.") : "")}</div>
+    <div class="barra-acoes" style="margin-top:10px"><button class="btn sm ghost" data-copiar-ficha title="Copia as respostas da inscrição. Não muda nada.">Copiar as respostas</button><button class="btn sm ghost" onclick="dlg.close()">Fechar sem decidir</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "insc:" + id; $("#dlg").showModal();
   }
   function fichaCasa(id) {
@@ -3185,7 +3225,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const pedidos = sols.map((x) => `<div class="card" style="margin-bottom:8px"><b>Pedido de atualização de ${dt(x.criado_em.slice(0, 10))}</b>${x.mensagem ? `<div class="muted" style="font-size:13px">${esc(x.mensagem)}</div>` : ""}
       <div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Campo</th><th>Antes</th><th>Proposto</th></tr></thead><tbody>${Object.keys(x.proposto).map((k) => `<tr><td>${esc(rotulo(k))}</td><td>${esc(JSON.stringify(x.antes?.[k] ?? "").replace(/^"|"$/g, ""))}</td><td><b>${esc(JSON.stringify(x.proposto[k] ?? "").replace(/^"|"$/g, ""))}</b></td></tr>`).join("")}</tbody></table></div>
       <label class="fcampo"><b>Resposta para a casa (opcional)</b><input data-sol-resp="${x.id}" maxlength="1000"></label>
-      <div class="barra-acoes"><button class="btn pri sm" data-sol-responder="${x.id}|1">Aprovar e atualizar a ficha</button><button class="btn sm" data-sol-responder="${x.id}|0">Recusar</button></div></div>`).join("");
+      <div class="barra-acoes">${comExplica(`<button class="btn pri sm" data-sol-responder="${x.id}|1">Aprovar e atualizar a ficha</button>`, "As mudanças entram na Ficha na hora e a casa vê.")}${comExplica(`<button class="btn sm" data-sol-responder="${x.id}|0">Recusar o pedido</button>`, "A Ficha continua como está; a casa vê a recusa.")}</div></div>`).join("");
     const combinados = `<details style="margin:10px 0"><summary>Combinados da parceria (Parte 1 da Ficha)</summary><p class="muted" style="font-size:13px">A casa vê estes valores na Ficha. Em branco, aparece "Ainda não registrado pela Operações".</p>
       <div class="grid g3"><label class="fcampo"><b>Bilheteria: artista %</b><input data-cb="bilheteria.artista" inputmode="numeric" value="${esc(cb.bilheteria?.artista ?? "")}"></label><label class="fcampo"><b>Bilheteria: casa %</b><input data-cb="bilheteria.casa" inputmode="numeric" value="${esc(cb.bilheteria?.casa ?? "")}"></label><label class="fcampo"><b>Bilheteria: Tranquilo %</b><input data-cb="bilheteria.tranquilo" inputmode="numeric" value="${esc(cb.bilheteria?.tranquilo ?? "")}"></label>
       <label class="fcampo"><b>Alimentos e bebidas: casa %</b><input data-cb="aeb.casa" inputmode="numeric" value="${esc(cb.aeb?.casa ?? "")}"></label><label class="fcampo"><b>Alimentos e bebidas: Tranquilo %</b><input data-cb="aeb.tranquilo" inputmode="numeric" value="${esc(cb.aeb?.tranquilo ?? "")}"></label></div>
@@ -3207,7 +3247,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <label class="fcampo"><b>Mensagem para a casa</b><textarea id="parecer" rows="3">${esc(c.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna</b><textarea id="nota" rows="2">${esc(c.nota_interna || "")}</textarea></label>
     ${adm && c.perfil ? `<label class="fcampo"><b>Vincular à casa da rede (libera métricas)</b>${seletorVinculo(c.perfil)}</label>` : ""}
-    <div class="barra-acoes">${!temArea("operacoes") ? soArea("operacoes") + '<button class="btn" onclick="dlg.close()">Fechar</button>' : (c.status === "habilitada" ? '<span class="badge b-good" style="align-self:center">✓ já habilitada</span>' : '<button class="btn pri" data-decisao="habilitada">Habilitar</button><button class="btn" data-decisao="ajustes">Pedir ajustes</button>') + (c.status === "suspensa" ? "" : '<button class="btn" data-decisao="suspensa">Suspender</button>') + '<button class="btn" data-decisao="">Só salvar</button><button class="btn" onclick="dlg.close()">Fechar</button>' + (ENCERRAR_ATIVO && c.status !== "encerrada" ? `<button class="btn" data-decisao="encerrada">Encerrar parceria</button>` : "")}</div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
+    <div class="barra-acoes">${!temArea("operacoes") ? soArea("operacoes") + '<button class="btn" onclick="dlg.close()">Fechar</button>' : (c.status === "habilitada" ? '<span class="badge b-good" style="align-self:center">✓ já habilitada</span>' : comExplica('<button class="btn pri" data-decisao="habilitada">Habilitar a casa</button>', "A casa lê a sua mensagem e libera equipe, disponibilidade e contrato.") + comExplica('<button class="btn" data-decisao="ajustes">Pedir ajustes à casa</button>', "A Ficha volta para a casa corrigir, com a sua mensagem.")) + (c.status === "suspensa" ? "" : comExplica('<button class="btn" data-decisao="suspensa">Suspender</button>', "A casa para de receber datas até você habilitar de novo.")) + comExplica('<button class="btn" data-decisao="">Só salvar a mensagem e a nota</button>', "Não muda a situação da casa.") + (ENCERRAR_ATIVO && c.status !== "encerrada" ? comExplica(`<button class="btn" data-decisao="encerrada">Encerrar parceria</button>`, "A equipe da casa perde o acesso. Pede confirmação antes.") : "")}</div>
+    ${temArea("operacoes") ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn sm ghost" onclick="dlg.close()">Fechar sem decidir</button></div>` : ""}<div class="err" role="status" aria-live="polite" id="derr"></div>`;
     $("#dlg").dataset.alvo = "casa:" + id; $("#dlg").showModal();
   }
   function fichaRegistro(eventoId) {
@@ -3416,6 +3457,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return true;
     }
     const dm = t.closest("[data-dispa-mes]"); if (dm) {
+      if (dm.dataset.dispaMes === "limpar" && !confirmaAqui(dm, "Limpar todas as marcações deste mês?", "Os dias voltam a ficar sem informação. A Isa deixa de ver você livre neles.", "Sim, limpar o mês")) return true;
       if (dm.dataset.dispaMes === "semana" && !lerDiasSemana().length) { diz($("#dispaErr"), "⚠ Marque antes, na Ficha, os dias da semana em que você pode tocar."); return true; }
       const modo = dm.dataset.dispaMes, mes = S.dispMes || hojeIso().slice(0, 7), [a, m] = mes.split("-").map(Number), total = new Date(Date.UTC(a, m, 0)).getUTCDate(), eu = S.conta.perfil.id;
       const evs = new Set((S.pac?.eventos || []).filter((e) => !e.z).map((e) => e.d));
@@ -3509,13 +3551,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const texto = TQContrato.preencher(P.texto, daEquipe, P.valores);
       if (texto.length < 50) return erro("O texto do modelo está curto demais."), true;
       const igual = (S.eq?.contr || []).find((x) => x.user_id === P.conta && (x.evento_id || null) === (P.ev || null) && x.modelo_id === P.modelo && x.status !== "cancelado");
-      if (igual && !confirm(`Já existe um contrato deste modelo para esta pessoa${P.ev ? " nesta data" : ""} (${igual.status === "assinado" ? "assinado" : "aguardando assinatura"}). Criar outro mesmo assim?`)) return true;
+      if (igual && !confirmaAqui(t, `Já existe um contrato deste modelo para esta pessoa${P.ev ? " nesta data" : ""} (${igual.status === "assinado" ? "assinado" : "aguardando assinatura"}). Criar outro mesmo assim?`, "A pessoa passa a ver os dois pedidos de assinatura. Se foi engano, toque em \"Não, voltar\".", "Sim, criar outro")) return true;
       if (P.enviando) return true; P.enviando = true;
       await acao(t, async () => {
         await api.criarContrato({ user_id: P.conta, evento_id: P.ev || null, titulo: P.titulo, modelo_id: P.modelo, texto, campos: daPessoa });
         TQDiario.registrar("contrato_enviado", { campos_pessoa: daPessoa.length });
         S.cPrep = null; S.cPre = null; S.eq = null; render();
-      }, { st: "#ctErr", espera: "Enviando…", ok: "Contrato enviado para assinatura. A pessoa já vê o pedido na área dela." });
+      }, { st: "#ctErr", espera: "Enviando…", ok: "Contrato enviado para assinatura. A pessoa já vê o pedido na área dela. Próximo passo: quando ela devolver assinado, confira em \"Contratos para assinar\"." });
       P.enviando = false; return true;
     }
     const dv = t.closest("[data-ct-devolver]"); if (dv) { S.ctDevolver = dv.dataset.ctDevolver || null; render(); $("#ctMotivo")?.focus(); return true; }
@@ -3526,7 +3568,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const c = (S.eq?.contr || []).find((x) => x.id === cid), msg = msgEl();
       if (!c) return true;
       if (!aceitar && motivo.length < 5) { diz(msg, "Escreva o motivo: a pessoa vai ler o que precisa corrigir."); $("#ctMotivo")?.focus(); return true; }
-      if (aceitar && !confirm(`Confirmar que o arquivo assinado de "${c.titulo}" está certo? Depois de conferido, o contrato não muda mais.`)) return true;
+      if (aceitar && !confirmaAqui(cf, `Confirmar que o arquivo assinado de "${c.titulo}" está certo?`, "Depois de conferido, o contrato não muda mais e a pessoa vê \"Assinado e conferido\".", "Sim, está certo")) return true;
       diz(msg, "Salvando…"); cf.disabled = true;
       try {
         const r = await api.conferirContrato(cid, aceitar, motivo), quem = (S.eq?.perfis || []).find((x) => x.id === c.user_id); Object.assign(c, r || {}); S.ctDevolver = null;
@@ -3536,7 +3578,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return true;
     }
     const can = t.closest("[data-ct-cancelar]"); if (can) {
-      if (!confirm("Cancelar este contrato? A pessoa deixa de ver o pedido de assinatura.")) return true;
+      if (!confirmaAqui(can, "Cancelar este contrato?", "A pessoa deixa de ver o pedido de assinatura. O contrato fica na lista como cancelado.", "Sim, cancelar o contrato")) return true;
       await acao(can, async () => { await api.cancelarContrato(can.dataset.ctCancelar); S.eq = null; render(); }, { ok: "Contrato cancelado. A pessoa não vê mais o pedido de assinatura." }); return true;
     }
     if (t.id === "ctSalvarDados") {
@@ -3554,7 +3596,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
       if (barrar($("#ctErr"), [[$("#ctConcordo"), !$("#ctConcordo")?.checked && "marque que leu e concorda com os termos"], [$("#ctNome"), !VAL.nome($("#ctNome")?.value) && "escreva o seu nome completo (nome e sobrenome)"]], "Não assinou")) return true;
       const h = await TQContrato.hash(TQContrato.preencher(c.texto, c.campos, c.dados));
-      const r = await acao(t, () => api.assinarContrato(c.id, $("#ctNome").value, h), { st: "#ctErr", espera: "Assinando…", ok: "Contrato assinado." });
+      const r = await acao(t, () => api.assinarContrato(c.id, $("#ctNome").value, h), { st: "#ctErr", espera: "Assinando…", ok: "Contrato assinado. Próximo passo: o Tranquilo confere e você vê \"Assinado e conferido\" aqui." });
       if (!r.ok) return true;
       TQDiario.registrar("contrato_assinado", { contrato: c.id });
       S.conta.contr = await api.contratos(); render(); scrollTo(0, 0); return true;
@@ -3695,7 +3737,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <p class="muted" style="font-size:13px;margin:0 0 8px">O calendário já vem preenchido pelos dias fixos. Para bloquear um dia (viagem, compromisso) ou liberar um dia fora do padrão, use <b>Ajustar uma data</b> logo abaixo, ou toque no dia: disponível, indisponível, limpar. A Isa cruza estes dias com as casas livres. Disponível não é data fechada: a data só vale quando o Tranquilo confirma com você.</p>
       ${calendarioMes(mes, (dia) => { const r = S.dispA.find((x) => x.user_id === eu && x.dia === dia), e = evs.filter((x) => x.d === dia), sit = situacaoDia(r, sem, dia);
         return celulaDisp(sit, r, sem, e.length ? e.map((x) => x.h || x.c || "show").join(" · ") : "", dia >= hojeIso() && !e.length); }, "data-dispa-dia")}
-      <div class="barra-acoes"><button class="btn sm" data-dispa-mes="todos">Marcar todos os dias deste mês</button><button class="btn sm" data-dispa-mes="limpar">Limpar as marcações deste mês</button></div>
+      <div class="barra-acoes"><button class="btn sm" data-dispa-mes="todos">Marcar todos os dias deste mês</button><button class="btn sm ghost" data-dispa-mes="limpar" title="Pede confirmação antes.">Limpar as marcações deste mês</button></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">${sem.length ? `Toda semana: <b>${esc(sem.map((n) => NOME_SEM[n]).join(", "))}</b>. ` : ""}${nLivres ? `Mais <b>${nLivres} ${nLivres === 1 ? "dia avulso" : "dias avulsos"}</b> marcados daqui para frente.` : sem.length ? "" : "Você ainda não marcou nenhum dia livre."}</p>
       <div class="err" role="status" aria-live="polite" id="dispaErr"></div>
       ${blocoExcecoes("artista")}`;
@@ -4025,6 +4067,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         : `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-dpb-tur-criar${!escolhidas.length || repetido ? " disabled" : ""}>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê</button></div>`}`
         : `<p class="muted" id="dpbVazio">${esc(P.art.nome)} não tem dia livre com casa livre (Ficha habilitada) nesse período${b.cid ? " em " + esc(b.cid) : ""}. Aumente o período ou peça para marcar a disponibilidade.</p>`}`;
   }
+  // Dias com casa e artista livres no período (modo "Todos os dias" da busca).
+  function linhasDoDia(E, casas, b) {
+    const livres = livresNoDia(E, casas, S.dpEd);
+    return diasDaBusca(b).map((dia) => { const r = livres(dia, b.cid);
+      // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
+      const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
+      const as = [...new Map(cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
+      return { dia, cs: b.ambos ? cs : r.cs, as: b.ambos ? as : r.as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
+  }
   // Sugestão POR HISTÓRICO (pedido da Marina, 18/11/2026): ponte até as casas e artistas reais marcarem a disponibilidade
   // no portal. Vem das bases do Notion (bases.json, só dados públicos): os dias da semana em que cada casa mais recebeu o
   // Tranquilo e os artistas ligados àquela cidade (praça preferida, onde mora, onde já tocou), sem bloqueio de concorrência.
@@ -4066,30 +4117,32 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     b.modo ||= "Descubra";
     const cidades = [...new Set(casas.map((c) => c.cidade).filter(Boolean))].sort((a, c) => a.localeCompare(c, "pt-BR"));
     const modos = [...R.NOMES_FORMATO, "dia"], rotModo = (m) => m === "dia" ? "Todos os dias" : m;
-    const filtros = `<div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
+    const filtros = `<div class="passo-rot"><i>2</i>Período e cidade</div><div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
         <label class="fcampo"><b>Cidade</b><select data-dpb="cid"><option value="">Todas</option>${cidades.map((c) => `<option${c === b.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
         ${b.modo === "dia" ? `<label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dpb="ambos"${b.ambos ? " checked" : ""}> <span>só dias com casa e artista livres</span></label>` : ""}</div>`;
+    // Fluxo numerado (Marina, 18/11/2026: os formatos não pareciam filtros): 1. formato → 2. período e cidade → 3. combinação → 4. criar.
+    // Cada formato mostra quantas combinações tem no período, para ficar claro que é uma escolha e o que ela traz.
+    const passo = (n, t) => `<div class="passo-rot"><i>${n}</i>${t}</div>`;
+    const contaModo = (m) => { try {
+      if (m === "dia") { const n = linhasDoDia(E, casas, b).length; return `${n} ${n === 1 ? "dia" : "dias"}`; }
+      const F = R.formatoDe(m); if (F?.mesmoArtista) { const n = planoTurne(E, { ...b, modo: m }).arts.length; return `${n} ${n === 1 ? "artista topa" : "artistas topam"}`; }
+      const n = cartoesModelo(E, { ...b, modo: m }).length; return `${n} ${n === 1 ? "combinação" : "combinações"}`; } catch { return ""; } };
     const topo = `<div class="card" id="dpBusca"><h2 style="margin-top:0">Encontrar data</h2>
-      <div class="filters dpb-modos" role="group" aria-label="Formato da busca" style="margin:0 0 8px">${modos.map((m) => `<button type="button" class="btn sm${b.modo === m ? " pri" : ""}" data-dpb-modo="${esc(m)}" aria-pressed="${b.modo === m}">${esc(rotModo(m))}</button>`).join("")}</div>
+      ${passo(1, "Escolha o formato")}
+      <div class="dpb-modos seg-opcoes" role="group" aria-label="1. Escolha o formato" style="margin:0 0 8px">${modos.map((m) => { const n = contaModo(m); return `<button type="button" data-dpb-modo="${esc(m)}" aria-pressed="${b.modo === m}"><b>${esc(rotModo(m))}</b>${n ? `<span class="seg-n">${esc(n)}</span>` : ""}</button>`; }).join("")}</div>
       ${b.modo === "dia" ? "" : regraFormato(b.modo, "dpbRegra")}`;
     const msg = `<div class="err" role="status" aria-live="polite" id="dpbMsg"></div>`;
     if (b.modo !== "dia") {
       const F = R.formatoDe(b.modo);
       return `${topo}<p class="muted" style="font-size:13px;margin-top:0">${F.mesmoArtista ? "Escolha o artista: aparecem as casas livres (Ficha habilitada) em cidades diferentes nos dias em que ele está livre." : `Casas livres (Ficha habilitada) em cada dia com ${F.artistas} ${F.artistas === 1 ? "artista livre que topa" : "artistas livres que topam"} o ${esc(F.nome)} na cidade delas. O line-up já vem escolhido; troque quem quiser e crie a data de uma vez.`}</p>
-        ${filtros}${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
+        ${filtros}${passo(3, F.mesmoArtista ? "Escolha o artista e as cidades" : "Escolha a combinação (troque artistas se quiser)")}<p class="muted" style="font-size:13px;margin:-4px 0 8px"><b>4.</b> Depois, toque em ${F.mesmoArtista ? "criar a turnê" : "\"Criar este evento\""}: o site pergunta antes de criar.</p>${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
     }
-    const livres = livresNoDia(E, casas, S.dpEd);
-    const dias = diasDaBusca(b);
-    const linhas = dias.map((dia) => { const r = livres(dia, b.cid);
-      // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
-      const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
-      const as = [...new Map(cs.flatMap((c) => livres(dia, c.cidade || "", true).as).map((a) => [a.id || a.nome, a])).values()];
-      return { dia, cs: b.ambos ? cs : r.cs, as: b.ambos ? as : r.as }; }).filter((l) => b.ambos ? l.cs.length && l.as.length : l.cs.length || l.as.length);
+    const linhas = linhasDoDia(E, casas, b);
     const semDisp = !(E.dispA || []).length;
     const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia" style="text-align:left;line-height:1.3"><b>${esc(c.nome)}</b>${c.status && c.status !== "habilitada" ? ` <span class="muted">(Ficha: ${esc(String(STATUS_CASA[c.status]?.[1] || c.status).toLowerCase())})</span>` : ""}<br><span class="muted" style="font-size:12px">📍 ${esc(c.cidade || "cidade não informada")}</span></button>`;
     const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data" style="text-align:left;line-height:1.3"><b>${esc(a.nome)}${a.quer ? " ★" : ""}</b>${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}<br><span class="muted" style="font-size:12px">🏠 mora em ${esc(a.mora || "cidade não informada")}${a.querTocar.length ? ` · quer tocar em ${esc(a.querTocar.join(", "))}` : ""}</span></button>`;
     return `${topo}<p class="muted" style="font-size:13px;margin-top:0">Casa e artista livres no mesmo dia: cruza o que as casas marcaram em Datas com o que os artistas marcaram em Disponibilidade, sem quem já tem show no dia. Toque numa casa ou num artista para já preencher a Nova data abaixo. ★ = o artista quer tocar nessa cidade.</p>
-      ${filtros}
+      ${filtros}${passo(3, "Toque numa casa ou num artista: a Nova data, abaixo, já vem preenchida")}
       ${semDisp ? `<div class="alert warn" style="margin-bottom:10px"><b>⚠ Nenhum artista marcou a disponibilidade ainda</b>Os artistas marcam os dias na área deles, em Disponibilidade. Enquanto isso, desmarque "só dias com casa e artista livres" para ver as casas livres.</div>` : ""}
       ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${esc(NOME_SEM[wdDe(l.dia)])}, ${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Casas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.cs.map((c) => chipC(c, l.dia)).join("") || '<span class="muted">nenhuma</span>'}</span></div>
@@ -4202,7 +4255,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return true;
     }
     const ta = t.closest("[data-tri-apagar]"); if (ta) {
-      if (!confirm(`Apagar a trilha de ${ta.dataset.triApagar}? As etapas marcadas também saem.`)) return true;
+      if (!confirmaAqui(ta, `Apagar a trilha de ${ta.dataset.triApagar}?`, "As etapas marcadas também saem. Não dá para desfazer.", "Sim, apagar a trilha")) return true;
       await acao(ta, async () => { await api.apagarTrilha(ta.dataset.triApagar); S.tri = null; await carregarTrilhas(); }, { espera: "Apagando…", ok: `Trilha de ${ta.dataset.triApagar} apagada.` });
       return true;
     }
@@ -4291,7 +4344,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         if (vs.some((v) => typeof v !== "number" || v < 0 || v > 100)) { marcar(els.filter((el) => { const n = Number(el.value.trim().replace(",", ".")); return !/^\d+([.,]\d+)?$/.test(el.value.trim()) || n > 100; })); diz($("#derr"), `Não salvou. ${nome}: use só números de 0 a 100.`); return true; }
         const soma = vs.reduce((a, b) => a + b, 0); if (Math.abs(soma - 100) > 0.01) { marcar(els); diz($("#derr"), `Não salvou. ${nome}: os percentuais somam ${soma}%, precisam somar 100%.`); return true; }
       }
-      await acao(cs, async () => { await api.definirCombinados(cs.dataset.cbSalvar, cb); const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; }, { st: "#derr", ok: "Combinados salvos." });
+      await acao(cs, async () => { await api.definirCombinados(cs.dataset.cbSalvar, cb); const c = S.eq.casas.find((x) => x.id === cs.dataset.cbSalvar); if (c) c.combinados = cb; }, { st: "#derr", ok: "Combinados salvos. A casa já vê na Parte 1 da Ficha." });
       return true;
     }
     if (t.id === "solPedir") { S.fichaPedido = true; render(); $("#form [data-k]")?.focus(); return true; }
@@ -4305,11 +4358,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const msgSol = ($("#solMsg")?.value || "").trim();
       if (msgSol.length < 10) { marcar($("#solMsg")); diz(err, `Não enviado: conte em "O que mudou" o que mudou e por quê (pelo menos 10 caracteres${msgSol.length ? `; agora tem ${msgSol.length}` : ""}). É o que a Central lê para aprovar.`); return true; }
       await acao(t, async () => { await api.solicitarAtualizacao(novo, msgSol); TQDiario.registrar("ficha_pedido", {});
-        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); }, { st: "#ferr", espera: "Enviando…", ok: "Pedido enviado. A Central confere e a Ficha muda quando for aprovado." });
+        S.fichaPedido = false; S.conta.sol = await api.minhasSolicitacoes(); render(); }, { st: "#ferr", espera: "Enviando…", ok: "Pedido enviado ao Gui. Próximo passo: quando ele aprovar, a Ficha muda sozinha; a resposta aparece aqui." });
       return true;
     }
     const sc = t.closest("[data-sol-cancelar]"); if (sc) {
-      if (!confirm("Cancelar o pedido de atualização?")) return true;
+      if (!confirmaAqui(sc, "Cancelar o pedido de atualização?", "O Gui deixa de ver o pedido e a Ficha continua como estava.", "Sim, cancelar o pedido")) return true;
       await acao(sc, async () => { await api.cancelarSolicitacao(sc.dataset.solCancelar); S.conta.sol = await api.minhasSolicitacoes(); render(); }, { st: "#ferr", ok: "Pedido de atualização cancelado. A Ficha continua como estava." });
       return true;
     }
@@ -4420,13 +4473,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "salvarVazios") {
       const casa = S.conta.perfil.tipo === "casa", atual = casa ? S.conta.casa : S.conta.insc, err = $("#ferr");
       const d = { ...(atual?.dados || {}), ...Object.fromEntries(Object.entries(lerForm($("#form"))).filter(([k, v]) => vazioV(atual?.dados?.[k]) && !vazioV(v))) };
-      if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Você ainda não escreveu nada nos campos em branco. Preencha um deles e toque em \"Salvar o que preenchi\" de novo."), undefined;
+      if (JSON.stringify(d) === JSON.stringify(atual?.dados || {})) return diz(err, "⚠ Você ainda não escreveu nada nos campos em branco. Preencha um deles e toque em \"Salvar os campos que estavam em branco\" de novo."), undefined;
       const erros = conferirFormato(d); if (erros.length) { marcarFormato($("#form"), erros); return diz(err, `✕ Não salvou. Corrija: ${erros.join("; ")}.`), undefined; }
       await acao(t, async () => {
         if (casa) S.conta.casa = await api.salvarCasa(d, { enviar: false, ja_parceira: atual.ja_parceira, notion_casa_id: atual.notion_casa_id });
         else S.conta.insc = await api.salvarInscricao(d, false);
         TQDiario.registrar("ficha_vazios", { casa }); render();
-      }, { st: "#ferr", ok: "Salvo. O que você preencheu já chegou ao Tranquilo." });
+      }, { st: "#ferr", ok: "Salvo. O que você preencheu já chegou ao Tranquilo; não precisa fazer mais nada." });
       return;
     }
     if (t.id === "salvar" || t.id === "enviar") {
@@ -4440,13 +4493,17 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         diz(err, `Não enviado: falta ${pend.map((x) => x.txt).join(", ").replace(/\.+$/, "")}. Os campos estão marcados em vermelho. O que você já digitou fica salvo como rascunho.`); return;
       }
       if (casa && document.querySelector('input[name="parceira"]:checked')?.value === "sim" && !$("#casaNotion")?.value && enviar) { marcar($("#casaNotion")); diz(err, "Não enviado: escolha a sua casa na lista (ou \"Minha casa não aparece na lista\")."); return; }
+      // Enviar trava as respostas: pergunta na própria página antes, dizendo o que acontece.
+      if (enviar && !confirmaAqui(t, casa ? "Enviar a Ficha ao Tranquilo agora?" : "Enviar a inscrição para a curadoria agora?",
+        casa ? "O Gui (Operações) confere e habilita a casa. Depois de enviada, campo em branco você ainda preenche; o que já respondeu só muda por pedido."
+          : "A pré-curadoria sai na hora e a equipe avalia. Depois de enviada, o que você respondeu só muda se a curadoria pedir ajustes.", "Sim, enviar")) return;
       clearTimeout(S.tauto); S.tauto = null;
       const r = await acao(t, async () => {
         if (casa) {
           const parceira = document.querySelector('input[name="parceira"]:checked')?.value === "sim";
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
-      }, { st: "#ferr", espera: enviar ? "Enviando…" : "Salvando…", ok: enviar ? "Enviado." : "Rascunho salvo. Você pode continuar depois." });
+      }, { st: "#ferr", espera: enviar ? "Enviando…" : "Salvando…", ok: enviar ? "Enviado." : "Rascunho salvo. Ainda não foi para o Tranquilo: volte quando quiser para continuar e enviar." });
       if (r.ok) limparLocal(enviar ? null : d);
       if (r.ok && !enviar) {
         // Rascunho guardado, mas sem enganar: se ainda falta algo para enviar, o aviso fica amarelo e diz o quê.
@@ -4455,7 +4512,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       }
       if (!r.ok || !enviar) return;
       if (casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
-      else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. A equipe confere e responde aqui." : "✓ Inscrição enviada para a curadoria. A resposta aparece aqui."); }
+      else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. Próximo passo: o Gui (Operações) confere e responde aqui na Ficha; enquanto isso, monte a sua equipe." : "✓ Inscrição enviada. Próximo passo: veja a pré-curadoria em Próximos passos; a resposta da equipe também aparece lá."); }
       return;
     }
     if (t.id === "vok") {
@@ -4523,7 +4580,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         const versao = $("#mvVer").value.trim(), u = $("#mvUrl").value.trim();
         if (barrar(err, [[$("#mvVer"), !versao && "dê um nome à versão (ex.: 2)"], [$("#mvUrl"), u && !LINK.test(u) && "o link precisa ser um endereço completo, começando com https://"]], "Não publicou")) return;
         const pede = $("#mvCie").checked;
-        if (!confirm(pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?")) return;
+        if (!confirmaAqui(botao, pede ? "Publicar e pedir que todos confirmem a leitura de novo?" : "Publicar esta versão sem pedir nova confirmação?", pede ? "Todas as artistas e casas veem o aviso \"Leia e confirme\" até confirmarem." : "A versão nova aparece para todos, sem aviso de leitura.", "Sim, publicar")) return;
         const dados = { material_id: $("#mvMat").value, versao, resumo: $("#mvRes").value.trim() || null, url: u || null, exige_ciencia: pede };
         salvar = () => api.publicarVersao(dados); ok = `Versão ${versao} publicada.${pede ? " Todos vão confirmar a leitura de novo." : ""}`;
       } else {
@@ -4540,7 +4597,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return;
     }
     const cie = t.closest("[data-ciencia]"); if (cie) {
-      if (!confirm("Confirmar que você leu esta versão do material? A confirmação fica registrada com data e hora.")) return;
+      if (!confirmaAqui(cie, "Confirmar que você leu esta versão do material?", "A confirmação fica registrada com data e hora e a equipe do Tranquilo vê.", "Sim, li")) return;
       await acao(cie, async () => { await api.darCiencia(cie.dataset.ciencia); TQDiario.registrar("ciencia", { versao: cie.dataset.ciencia }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); },
         { espera: "Registrando…", ok: "Leitura confirmada, com data e hora." });
       return;
@@ -4560,7 +4617,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return;
     }
     const docDel = t.closest("[data-apagar-doc]"); if (docDel) {
-      if (!confirm("Remover este documento? A pessoa deixa de ver o link.")) return;
+      if (!confirmaAqui(docDel, "Remover este documento?", "A pessoa deixa de ver o link.", "Sim, remover")) return;
       await acao(docDel, async () => { await api.apagarDocumento(docDel.dataset.apagarDoc); S.eq = null; render(); }, { espera: "Removendo…", ok: "Documento removido. A pessoa não vê mais o link." });
       return;
     }
@@ -4584,11 +4641,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         if (f.length) { diz($("#derr"), `Não dá para habilitar: falta preencher na Ficha ${f.join(", ")}. Peça ajustes à casa com a lista do que falta.`); return; } }
       // Encerrar uma inscrição é a resposta mais delicada para a artista: exige mensagem e confirmação.
       if (status === "reprovada" && (campos.parecer || "").length < 10) { marcar($("#parecer")); diz($("#derr"), "Não enviou: escreva uma mensagem para a artista explicando que, por agora, não vai seguir (pelo menos 10 caracteres)."); return; }
-      if (status === "reprovada" && !confirm("Encerrar esta inscrição? A artista recebe a sua mensagem e a inscrição sai da fila.")) return;
+      if (status === "reprovada" && !confirmaAqui(dec, "Encerrar esta inscrição?", "A artista recebe a sua mensagem e a inscrição sai da fila.", "Sim, encerrar")) return;
       if (status === "encerrada" && (campos.parecer || "").length < 10) { marcar($("#parecer")); diz($("#derr"), "Não encerrou: escreva na mensagem o motivo do encerramento (pelo menos 10 caracteres). É o que a pessoa vai ler."); return; }
-      if (status === "encerrada" && !confirm(tipo === "casa"
-        ? "Encerrar a parceria com esta casa? A equipe da casa perde o acesso, o dono vê só a sua mensagem e a Ficha. Nada é apagado. As datas futuras precisam ser canceladas no Notion."
-        : "Encerrar a participação desta artista? Ela perde o acesso às datas e vê a sua mensagem. Nada é apagado. As datas futuras precisam ser canceladas no Notion (Line-up).")) return;
+      if (status === "encerrada" && !confirmaAqui(dec, tipo === "casa" ? "Encerrar a parceria com esta casa?" : "Encerrar a participação desta artista?", tipo === "casa"
+        ? "A equipe da casa perde o acesso, o dono vê só a sua mensagem e a Ficha. Nada é apagado. As datas futuras precisam ser canceladas no Notion."
+        : "Ela perde o acesso às datas e vê a sua mensagem. Nada é apagado. As datas futuras precisam ser canceladas no Notion (Line-up).", "Sim, encerrar")) return;
       const OK = { aprovada: "Inscrição aprovada.", habilitada: "Casa habilitada.", ajustes: "Pedido de ajustes enviado. A pessoa vê a sua mensagem.", reprovada: "Inscrição encerrada. A artista vê a sua mensagem.", encerrada: "Encerrado. A pessoa vê a sua mensagem." };
       await acao(dec, async () => {
         if (tipo === "insc") await api.avaliarInscricao(id, campos); else await api.avaliarCasa(id, campos);
@@ -4629,7 +4686,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const areas = (S.convTipo === "equipe") ? [...document.querySelectorAll("[data-cv-area]:checked")].map((x) => x.value) : [];
       const c = { email, tipo: t.dataset.tipo || S.convTipo || "artista", nome: nome || vinculo_nome || "", whatsapp: $("#cvWa").value.trim() || null, codigo_acesso: codigo_acesso || null, vinculo_nome: vinculo_nome || null, areas: areas.length ? areas : null };
       const res = await acao(t, async () => { const r = await api.convidar(c); S.convPre = null; S.convRasc = null; S.eq = null; render(); return r; },
-        { st: "#cverr", espera: "Enviando…", ok: `Convite para ${c.nome || c.email} criado.` });
+        { st: "#cverr", espera: "Enviando…", ok: `Convite para ${c.nome || c.email} criado. Próximo passo: mande também a mensagem pelo WhatsApp, na janela que abriu.` });
       if (res.ok) dialogoResultado({ oque: "Convite", nome: c.nome, email: c.email, whatsapp: c.whatsapp, texto: mensagemConvite(c), assunto: "Seu acesso à Rede Tranquilo", resultado: res.r, recebe: RECEBE.convite, reenviar: () => api.convidar(c) });
       return;
     }
@@ -4641,7 +4698,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return;
     }
     const cc = t.closest("[data-cancelar-convite]"); if (cc) {
-      if (!confirm(`Cancelar o convite de ${cc.dataset.cancelarConvite}?`)) return;
+      if (!confirmaAqui(cc, `Cancelar o convite de ${cc.dataset.cancelarConvite}?`, "O link do e-mail deixa de funcionar. Dá para convidar de novo depois.", "Sim, cancelar o convite")) return;
       await acao(cc, async () => { await api.cancelarConvite(cc.dataset.cancelarConvite); S.eq = null; render(); }, { espera: "Cancelando…", ok: "Convite cancelado." });
       return;
     }
@@ -4693,6 +4750,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // Um clique por vez: enquanto a ação de um botão não termina, novos cliques nele são ignorados
   // (evita conta, inscrição, convite ou registro em dobro). Antes de o banco responder, nada é enviado.
   document.addEventListener("click", async (ev) => {
+    const conf = ev.target.closest?.("[data-conf-sim], [data-conf-nao]");
+    if (conf) { ev.preventDefault(); ev.stopImmediatePropagation(); respostaConfirma(conf); return; }
+    // Bloco recolhível: guarda na hora o que a pessoa abriu ou fechou (o evento "toggle" chega depois de um redesenho rápido).
+    const sumDobra = ev.target.closest?.("summary"), detDobra = sumDobra?.parentElement;
+    if (detDobra?.matches?.("details[data-dobra]") && detDobra.firstElementChild === sumDobra) S.dobras = { ...(S.dobras || {}), [detDobra.dataset.dobra]: !detDobra.open };
     const b = ev.target.closest("button, a[data-demo]");
     if (b?.dataset.ocupado) { ev.preventDefault(); ev.stopImmediatePropagation(); return; }
     if (!api && ev.target.closest("#eok, #esqueci, [data-demo], #avOk, #salvar, #enviar")) {
@@ -4859,7 +4921,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }, true);
   // Lembra quais partes do formulário estão abertas, para um redesenho da tela não fechar o que a pessoa abriu.
   document.addEventListener("toggle", (ev) => {
-    const det = ev.target; if (!det.matches?.("details[data-parte]") || !det.closest("#form")) return;
+    const det = ev.target;
+    if (det.matches?.("details[data-dobra]")) { S.dobras = { ...(S.dobras || {}), [det.dataset.dobra]: det.open }; return; } if (!det.matches?.("details[data-parte]") || !det.closest("#form")) return;
     S.partesAbertas = { ...(S.partesAbertas || {}), [S.aba]: [...document.querySelectorAll("#form details[data-parte][open]")].map((x) => +x.dataset.parte) };
   }, true);
 
