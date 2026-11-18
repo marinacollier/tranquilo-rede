@@ -339,6 +339,43 @@ const TQConta = (() => {
         if (aprovar) { const c = Object.values(db.casas).find((y) => y.id === x.casa_id); c.dados = { ...c.dados, ...x.proposto }; c.pendencias = R.pendenciasCasa(c.dados); }
         Object.assign(x, { status: aprovar ? "aprovada" : "recusada", resposta: resposta || null, revisado_em: agora() }); gravar();
       },
+      // Propostas de atualização (mesmas regras do banco, schema v34): a equipe propõe, a pessoa aceita, ajusta ou recusa.
+      async propostas() {
+        const p = eu(); if (!p) return [];
+        for (const x of db.prop || []) if (!x.alvo_user && x.convite_email === p.email && x.alvo_tipo === p.tipo) { x.alvo_user = p.id; gravar(); }
+        return (db.prop || []).filter((x) => TQPropostas.podePropor(p, x.alvo_tipo) || x.alvo_user === p.id).sort((a, b) => b.criado_em.localeCompare(a.criado_em));
+      },
+      async criarProposta(n) {
+        const p = eu(); if (!TQPropostas.podePropor(p, n.alvo_tipo)) throw new Error("Sem permissão: artistas são da área de Agenda e casas, da área de Operações.");
+        const conv = n.convite_email ? String(n.convite_email).toLowerCase().trim() : null;
+        const alvo = n.alvo_user || (conv && Object.values(db.usuarios).find((u) => u.perfil.email === conv)?.perfil.id) || null;
+        const d = alvo ? (n.alvo_tipo === "casa" ? db.casas[alvo] : db.insc[alvo])?.dados || {} : {};
+        const x = { id: id(), alvo_tipo: n.alvo_tipo, alvo_user: alvo, alvo_ref: n.alvo_ref || null, convite_email: conv, campos: n.campos || {}, disponibilidade: n.disponibilidade?.length ? n.disponibilidade : null,
+          antes: Object.fromEntries(Object.keys(n.campos || {}).map((k) => [k, d[k] ?? null])), motivo: n.motivo || null, status: "pendente", criado_por: db.sessao, criado_em: agora(), respondido_em: null };
+        if (!Object.keys(x.campos).length && !x.disponibilidade) throw new Error("Escolha pelo menos uma informação para propor.");
+        (db.prop ||= []).push(x); gravar(); return x;
+      },
+      async responderProposta(pid, aceitar, ajustes) {
+        const p = eu(), x = (db.prop || []).find((y) => y.id === pid && (y.alvo_user === p?.id || p?.tipo === "adm"));
+        if (!x) throw new Error("Proposta não encontrada."); if (x.status !== "pendente") throw new Error("Esta proposta já foi respondida.");
+        if (!aceitar) { Object.assign(x, { status: "recusada", respondido_em: agora() }); gravar(); return x; }
+        let campos = { ...x.campos }, disp = x.disponibilidade;
+        for (const [k, v] of Object.entries(ajustes?.campos || {})) { if (!(k in x.campos)) throw new Error("Este campo não estava na proposta: " + k); if (TQPropostas.vazio(v)) delete campos[k]; else campos[k] = v; }
+        if (ajustes && "disponibilidade" in ajustes) disp = ajustes.disponibilidade?.length ? ajustes.disponibilidade : null;
+        const ajustou = JSON.stringify(campos) !== JSON.stringify(x.campos) || JSON.stringify(disp) !== JSON.stringify(x.disponibilidade);
+        const u = x.alvo_user, casa = x.alvo_tipo === "casa";
+        if (Object.keys(campos).length) {
+          if (casa) { const c = db.casas[u] ||= { id: id(), user_id: u, dados: {}, status: "rascunho", criado_em: agora() }; c.dados = { ...c.dados, ...campos }; c.pendencias = R.pendenciasCasa(c.dados); c.atualizado_em = agora(); }
+          else { const i = db.insc[u] ||= { id: id(), user_id: u, dados: {}, status: "rascunho", criado_em: agora() }; i.dados = { ...i.dados, ...campos }; const pc = R.preCuradoria(i.dados); Object.assign(i, { score: pc.score, faixa: pc.faixa, score_detalhe: pc.detalhe, alertas: pc.alertas, atualizado_em: agora() }); }
+        }
+        const ref = casa ? db.usuarios[u]?.perfil.vinculo_nome || db.casas[u]?.dados?.nome || x.alvo_ref : null;
+        for (const it of disp || []) {
+          const cid = casa ? null : it.cidade || null, achou = (db.sem ||= []).find((s) => casa ? s.casa_ref && ref && s.casa_ref.toLowerCase() === ref.toLowerCase() : s.user_id === u && String(s.cidade || "").toLowerCase() === String(cid || "").toLowerCase());
+          if (casa && !ref) continue;
+          if (achou) achou.dias = [...new Set([...achou.dias, ...it.dias])].sort(); else db.sem.push(casa ? { casa_ref: ref, dias: [...it.dias].sort() } : { user_id: u, cidade: cid, dias: [...it.dias].sort() });
+        }
+        Object.assign(x, { status: ajustou ? "ajustada" : "aceita", aplicado: { campos, disponibilidade: disp }, respondido_em: agora() }); gravar(); return x;
+      },
       async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
       async semanal() { const p = eu(); return (db.sem || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || (x.user_id && x.user_id === p?.id) || (x.casa_ref && x.casa_ref === p?.vinculo_nome)); },
@@ -699,6 +736,9 @@ const TQConta = (() => {
       async solicitacoesTodas() { return ok(await sb.from("solicitacoes_ficha").select("*").order("criado_em", { ascending: false }).limit(300)); },
       async responderSolicitacao(sid, aprovar, resposta) { ok(await sb.rpc("responder_solicitacao_ficha", { sid, aprovar, resposta_: resposta || null })); },
       async definirCombinados(cid, c) { ok(await sb.rpc("definir_combinados", { cid, c })); },
+      async propostas() { return ok(await sb.from("propostas_atualizacao").select("*").order("criado_em", { ascending: false }).limit(500)); },
+      async criarProposta(n) { return ok(await sb.from("propostas_atualizacao").insert({ alvo_tipo: n.alvo_tipo, alvo_user: n.alvo_user || null, alvo_ref: n.alvo_ref || null, convite_email: n.convite_email || null, campos: n.campos || {}, disponibilidade: n.disponibilidade?.length ? n.disponibilidade : null, motivo: n.motivo || null }).select().single()); },
+      async responderProposta(pid, aceitar, ajustes) { return ok(await sb.rpc("responder_proposta", { pid, aceitar, ajustes: ajustes || null })); },
       async definirAreas(conta, areas) { ok(await sb.rpc("definir_areas", { conta, novas: areas })); },
       async semanal() { const r = await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias,cidade"); return ok(r.error && /cidade/.test(r.error.message || "") ? await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias") : r); },
       async salvarSemanal(alvo, dias, cidade = null) {
@@ -767,6 +807,9 @@ const TQConta = (() => {
       if (perfil.tipo === "casa" && !perfil.funcoes) conta.trilha = await api.minhaTrilha().catch(() => null);
       // Documentos e materiais são da versão nova do banco: se falharem, o resto da conta funciona.
       [conta.docs, conta.arqs, conta.contr, conta.datasP] = await Promise.all([api.documentos().catch(() => []), api.meusArquivos().catch(() => ({})), api.contratos().catch(() => []), api.datasPortal().catch(() => [])]);
+      // Propostas de atualização da equipe (v34): só o responsável (artista ou dono da casa) responde.
+      conta.prop = perfil.funcoes ? [] : await api.propostas().catch(() => []);
+      if (conta.prop.some((x) => x.status === "pendente")) conta.sem = await api.semanal().catch(() => []);
     }
     S.conta = conta;
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
@@ -2034,7 +2077,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
       if (aberto) return telaContrato(aberto);
       // A pendência mais importante primeiro (pedido da Marina, 18/11/2026): contrato para assinar ou devolvido, depois a trilha.
-      return avisoContratos() + blocoTrilha() + (p.tipo === "casa" ? passosCasa() : passosArtista());
+      return cartaoPropostas() + avisoContratos() + blocoTrilha() + (p.tipo === "casa" ? passosCasa() : passosArtista());
     },
     inscricao() {
       const i = S.conta.insc, trav = i && !["rascunho", "ajustes"].includes(i.status), rec = trav ? null : recuperarLocal(i?.dados || {}), d = rec || i?.dados || {};
@@ -2571,6 +2614,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (f.q) { const q = f.q.toLowerCase(); ls = ls.filter((i) => JSON.stringify(i.dados).toLowerCase().includes(q)); }
       const n = (s) => L.filter((i) => i.status === s).length;
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
+      ${blocoPropostas("artista")}
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
       <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t}</option>`).join("")}</select>
       <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option${f.faixa === x ? " selected" : ""}>${x}</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
@@ -2588,6 +2632,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const L = S.eq?.casas; if (!L) { carregarEquipe(); return carregando("cadastros de casas"); }
       const n = (s) => L.filter((c) => c.status === s).length;
       return `<div class="tag">Casas</div><h1>Cadastros e habilitação</h1><p class="sub">Habilitar o suficiente para testar; qualificar pela execução. Classificação depois das datas: 🟢 confiável, 🟡 desenvolvimento, 🔴 correção necessária, ⛔ suspensa.</p>
+      ${blocoPropostas("casa")}
       <div class="stats">${kpi(n("em_analise"), "aguardando análise")}${kpi(n("incompleto"), "faltando dados mínimos")}${kpi(n("habilitada"), "habilitadas")}${kpi(L.filter((c) => c.ja_parceira).length, "já parceiras")}</div>
       ${tabela("casc", [
         { t: "Casa", v: (c) => c.dados.nome, h: (c) => `<b>${esc(c.dados.nome || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(c.dados.cidade || "")} · ${c.ja_parceira ? "já parceira" : "nova"}</div>` },
@@ -3095,8 +3140,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol, disp] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato()), novo(api.solicitacoesTodas()), novo(api.disponibilidade())]);
       const eqc = await api.equipesTodas().catch(() => null);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
-      const [datasP, dispA, sem] = await Promise.all([api.datasPortal().catch(() => null), api.dispArtistas().catch(() => null), api.semanal().catch(() => [])]);
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA, sem: sem || [], eqc };
+      const [datasP, dispA, sem, prop] = await Promise.all([api.datasPortal().catch(() => null), api.dispArtistas().catch(() => null), api.semanal().catch(() => []), api.propostas().catch(() => [])]);
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA, sem: sem || [], eqc, prop: prop || [] };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("✕ Erro: não foi possível carregar os dados da equipe. " + e.message + " Recarregue a página.");
@@ -3712,6 +3757,16 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const diasLivres = (c) => { const L = livresDe(); for (let i = 0; i <= 30; i++) { const d = mais(i); if (!L(d).cs.some((x) => x.id === c.id)) continue; const as = L(d, cidadeCasa(c), true).as; if (as.length) return { d, as }; } return null; };
     const semData = (c) => !futuros.some((e) => e.d <= mais(30) && (e.kc === c.id || [k(c.dados?.nome), k(c.perfil?.vinculo_nome)].filter(Boolean).includes(k(e.h))));
     const quandoLivre = (m) => m ? `livre ${NOME_SEM[wdDe(m.d)].slice(0, 3)}, ${dm(m.d)}` : "sem dia livre com artista nos próximos 30 dias";
+    // Propostas de atualização (v34): o que espera resposta e o que foi aceito hoje.
+    const propostasBl = (tipo, aba) => {
+      const L = (E.prop || []).filter((p) => p.alvo_tipo === tipo);
+      bloco("Propostas aguardando resposta", "Você mandou a atualização da ficha e a pessoa ainda não respondeu. Passou de 3 dias? Vale um alô.", aba,
+        L.filter((p) => p.status === "pendente").map((p) => ({ abrir: "pp:" + p.id, quem: nomeAlvoPP(p, E), extra: `enviada ${dm(p.criado_em.slice(0, 10))}${p.convite_email && !p.alvo_user ? " · convite ainda não aceito" : ""}` })), { prio: 8, info: true, grupo: ["proposta aguardando resposta", "propostas aguardando resposta"] });
+      bloco("Propostas aceitas hoje", "A ficha já foi atualizada com o que a pessoa aceitou.", aba,
+        L.filter((p) => ["aceita", "ajustada"].includes(p.status) && String(p.respondido_em || "").slice(0, 10) === hoje).map((p) => ({ abrir: "pp:" + p.id, quem: nomeAlvoPP(p, E), extra: p.status === "ajustada" ? "aceita com ajustes" : "aceita" })), { prio: 9, info: true, grupo: ["proposta aceita hoje", "propostas aceitas hoje"] });
+    };
+    if (areas.includes("operacoes")) propostasBl("casa", "casas_cad");
+    if (areas.includes("agenda")) propostasBl("artista", "curadoria");
     if (areas.includes("operacoes")) {
       contratos("operacoes");
       bloco("Habilitar casas", "Abra a Ficha para habilitar ou pedir ajustes.", "casas_cad",
@@ -3937,8 +3992,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // Tranquilo e os artistas ligados àquela cidade (praça preferida, onde mora, onde já tocou), sem bloqueio de concorrência.
   // Nunca se mistura com a disponibilidade marcada no portal: é sempre "confirmar com a casa e o artista".
   function sugestaoHistorico() {
-    if (S.basesPub === undefined) { S.basesPub = null; fetch("bases.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { S.basesPub = j || false; render(); }, () => { S.basesPub = false; }); }
-    const B = S.basesPub; if (!B) return "";
+    const B = basesPub(); if (!B) return "";
+    const ppCasa = PP()?.podePropor(S.conta?.perfil, "casa"), ppArt = PP()?.podePropor(S.conta?.perfil, "artista");
     const k = (x) => String(x || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
     const b = S.dpb || {}, de = b.de || hojeIso(), ate = b.ate || new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cidF = k(b.cid);
     const ocupado = new Set((S.pac?.eventos || []).filter((e) => !e.z).map((e) => `${k(e.h)}|${e.d}`));
@@ -3960,12 +4015,227 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     cards.sort((x, y) => x.dia.localeCompare(y.dia));
     const motivo = (a, c) => [k(a.praca) === k(c.cidade) && "prefere " + c.cidade, k(a.mora) === k(c.cidade) && "mora em " + c.cidade, (a.cidades || []).some((x) => k(x) === k(c.cidade)) && "já tocou em " + c.cidade, a.vezes ? `${a.vezes}x no Tranquilo` : ""].filter(Boolean).join(" · ");
     const card = ({ c, dia, livres }) => `<div class="card" style="padding:12px 14px"><div class="row"><div><b>${esc(NS[new Date(dia + "T12:00:00Z").getUTCDay()])} ${dt(dia)} · ${esc(c.nome)}</b> <span class="muted">(${esc(c.cidade)}${c.uf ? "/" + esc(c.uf) : ""}${c.cap ? ` · ${c.cap} lugares` : ""})</span>
-      <div class="muted" style="font-size:13px">Costuma receber às ${c.dias.map((n, i) => [i, n]).filter(([, n]) => n >= 2).sort((x, y) => y[1] - x[1]).map(([i, n]) => `${NS[i]} (${n}x)`).join(", ")} · ${c.noites} noites no histórico</div></div><span class="badge b-warn">confirmar</span></div>
-      <ul style="margin:8px 0 0;padding-left:18px">${livres.map(({ a }) => `<li><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc(motivo(a, c))}${a.formatos?.length ? " · " + esc(a.formatos.join(", ")) : ""}${a.instagram ? ` · <a href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}</span></li>`).join("")}</ul></div>`;
+      <div class="muted" style="font-size:13px">Costuma receber às ${c.dias.map((n, i) => [i, n]).filter(([, n]) => n >= 2).sort((x, y) => y[1] - x[1]).map(([i, n]) => `${NS[i]} (${n}x)`).join(", ")} · ${c.noites} noites no histórico</div></div><span style="display:inline-flex;gap:6px;align-items:center;flex-wrap:wrap"><span class="badge b-warn">confirmar</span>${ppCasa ? `<button class="btn sm" data-pp-novo="casa|base:${esc(c.id)}" title="Mandar para a casa atualizar a ficha e os dias, pelo histórico">Propor atualização</button>` : ""}</span></div>
+      <ul style="margin:8px 0 0;padding-left:18px">${livres.map(({ a }) => `<li><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc(motivo(a, c))}${a.formatos?.length ? " · " + esc(a.formatos.join(", ")) : ""}${a.instagram ? ` · <a href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}</span>${ppArt ? ` <button class="btn sm" data-pp-novo="artista|base:${esc(a.id)}" title="Mandar para a artista atualizar a ficha e os dias, pelo histórico">Propor atualização</button>` : ""}</li>`).join("")}</ul></div>`;
     return `<details class="card" id="dpSugHist" style="margin-top:12px;border:2px dashed var(--warn, #c98a00)"${S.dpSugAberta ? " open" : ""}><summary style="cursor:pointer"><b style="font-size:17px">💡 Sugestão POR HISTÓRICO (${cards.length})</b>
       <div class="muted" style="font-size:13px;margin-top:4px">Não é disponibilidade marcada: são as casas nos dias em que mais receberam o Tranquilo e os artistas ligados àquela cidade, pelo Notion. <b>Confirme com a casa e com o artista antes de criar a data.</b></div></summary>
       ${cards.length ? `<div class="list" style="margin-top:10px">${cards.slice(0, 30).map(card).join("")}</div>${cards.length > 30 ? `<p class="muted">Mostrando 30 de ${cards.length}. Diminua o período ou escolha a cidade.</p>` : ""}` : `<p class="muted">Nenhuma sugestão no período${b.cid ? " em " + esc(b.cid) : ""}.</p>`}
       <p class="muted" style="font-size:12px;margin-bottom:0">Base do Notion de ${esc(B.gerado || "")} (${B.casas.length} casas · ${B.artistas.length} artistas). Artistas com bloqueio de concorrência no dia não aparecem.</p></details>`;
+  }
+  // ---------- propostas de atualização (pedido da Marina, 18/11/2026; banco v34) ----------
+  // A Isa (artistas) e o Gui (casas) mandam para a pessoa o que falta na ficha, já preenchido pelo histórico das bases do
+  // Notion; a pessoa vê o antes → depois em Próximos passos e aceita, ajusta ou recusa. Regras puras em src/propostas.js.
+  const PP = () => window.TQPropostas;
+  const kpp = (x) => PP().chave(x);
+  function basesPub() {
+    if (S.basesPub === undefined) { S.basesPub = null; fetch("bases.json", { cache: "no-store" }).then((r) => r.ok ? r.json() : null).then((j) => { S.basesPub = j || false; render(); }, () => { S.basesPub = false; }); }
+    return S.basesPub || null;
+  }
+  const STATUS_PP = { pendente: ["b-warn", "aguardando resposta"], aceita: ["b-good", "aceita"], ajustada: ["b-good", "aceita com ajustes"], recusada: ["b-serious", "recusada"] };
+  const badgePP = (s) => `<span class="badge ${(STATUS_PP[s] || [""])[0]}">${esc((STATUS_PP[s] || [, s])[1])}</span>`;
+  // Conta do portal de uma artista ou casa: { user_id, nome, dados, whatsapp, email, ref (casa) }.
+  function contaPP(tipo, { uid, nome }, E) {
+    const n = kpp(nome);
+    if (tipo === "casa") {
+      const c = (E.casas || []).find((x) => (uid && x.user_id === uid) || (n && (kpp(x.dados?.nome) === n || kpp(x.perfil?.vinculo_nome) === n)));
+      const p = c?.perfil || (E.perfis || []).find((x) => x.tipo === "casa" && !x.funcoes && ((uid && x.id === uid) || (n && kpp(x.vinculo_nome) === n)));
+      if (!c && !p) return null;
+      return { user_id: c?.user_id || p.id, nome: c?.dados?.nome || p?.vinculo_nome || p?.nome || nome, dados: c?.dados || {}, whatsapp: p?.whatsapp || "", email: p?.email || "", ref: p?.vinculo_nome || c?.dados?.nome || "" };
+    }
+    const i = (E.insc || []).find((x) => (uid && x.user_id === uid) || (n && (kpp(x.dados?.nome_artistico) === n || kpp(x.perfil?.vinculo_nome) === n)));
+    const p = i?.perfil || (E.perfis || []).find((x) => x.tipo === "artista" && ((uid && x.id === uid) || (n && (kpp(x.vinculo_nome) === n || kpp(x.nome) === n))));
+    if (!i && !p) return null;
+    return { user_id: i?.user_id || p.id, nome: i?.dados?.nome_artistico || p?.vinculo_nome || p?.nome || nome, dados: i?.dados || {}, whatsapp: i?.dados?.whatsapp || p?.whatsapp || "", email: p?.email || "" };
+  }
+  const semanalPP = (tipo, conta, E) => (E.sem || []).filter((s) => tipo === "casa" ? s.casa_ref && conta.ref && kpp(s.casa_ref) === kpp(conta.ref) : s.user_id === conta.user_id);
+  function nomeAlvoPP(p, E) { if (p.alvo_ref) return p.alvo_ref; const pf = (E.perfis || []).find((x) => x.id === p.alvo_user); return pf ? nomeDaConta(pf) : "conta"; }
+  // Contas do portal com informação importante faltando (cidades, formato, disponibilidade, dados de contrato, equipe…).
+  function alvosComFalta(tipo, E) {
+    if (tipo === "casa") return (E.casas || []).filter((c) => c.status !== "encerrada" && !c.perfil?.funcoes).map((c) => {
+      const conta = contaPP("casa", { uid: c.user_id }, E), semEquipe = Array.isArray(E.eqc) && !E.eqc.some((m) => kpp(m.casa_ref) === kpp(conta.ref));
+      return { user_id: c.user_id, nome: conta.nome || "(casa sem nome)", onde: c.dados?.cidade_uf || "", falta: PP().faltando("casa", c.dados, semanalPP("casa", conta, E), { semEquipe }) }; }).filter((x) => x.falta.length);
+    return (E.insc || []).filter((i) => i.status !== "encerrada").map((i) => {
+      const conta = contaPP("artista", { uid: i.user_id }, E);
+      return { user_id: i.user_id, nome: conta.nome || "(sem nome)", onde: [i.dados?.cidade_base, i.dados?.estado].filter(Boolean).join("/"), falta: PP().faltando("artista", i.dados, semanalPP("artista", conta, E)) }; }).filter((x) => x.falta.length);
+  }
+  // Quem já trabalhou com o Tranquilo (bases do Notion) e ainda não tem conta no portal.
+  function historicoSemConta(tipo, E, B) {
+    const L = tipo === "casa" ? B.casas.filter((c) => c.noites >= 1).sort((a, b) => b.noites - a.noites) : B.artistas.filter((a) => a.vezes >= 1 || a.ja_tocou).sort((a, b) => (b.vezes || 0) - (a.vezes || 0));
+    return L.filter((x) => !contaPP(tipo, { nome: x.nome }, E));
+  }
+  // Bloco da equipe (Curadoria para artistas, Fichas das casas para casas): começa fechado e mostra os números.
+  function blocoPropostas(tipo) {
+    const E = S.eq; if (!E || !PP()?.podePropor(S.conta.perfil, tipo)) return "";
+    const B = basesPub(), hoje = hojeIso(), aberto = !!S.ppAberto?.[tipo], mais = S.ppMais || {};
+    const minhas = (E.prop || []).filter((p) => p.alvo_tipo === tipo), aguard = minhas.filter((p) => p.status === "pendente");
+    const aceitasHoje = minhas.filter((p) => ["aceita", "ajustada"].includes(p.status) && String(p.respondido_em || "").slice(0, 10) === hoje);
+    const pendUser = new Set(aguard.map((p) => p.alvo_user).filter(Boolean)), pendRef = new Set(aguard.map((p) => kpp(p.alvo_ref)).filter(Boolean));
+    const falta = alvosComFalta(tipo, E), semConta = B ? historicoSemConta(tipo, E, B) : [];
+    const quem = tipo === "casa" ? "a casa" : "a artista";
+    const botao = (chave, enviada) => enviada ? `<span class="badge b-warn">proposta enviada</span>` : `<button class="btn sm" data-pp-novo="${esc(chave)}">Propor atualização</button>`;
+    const linha = (titulo, sub, acao, attr = "") => `<li class="pp-linha"${attr}><div style="min-width:0"><b>${titulo}</b><div class="muted" style="font-size:13px">${sub}</div></div>${acao}</li>`;
+    const lista = (id, L, f) => { const n = mais[id] ? L.length : Math.min(L.length, 5);
+      return L.length ? `<ul class="pp-lista">${L.slice(0, n).map(f).join("")}</ul>${L.length > n ? `<button class="btn sm ghost" data-pp-mais="${id}">Mostrar mais ${L.length - n}</button>` : ""}` : ""; };
+    const corpo = !aberto ? "" : `
+      <h3 class="pp-h">Faltando informação importante <span class="muted">(${falta.length})</span></h3>
+      ${falta.length ? lista(tipo + "f", falta, (x) => linha(esc(x.nome) + (x.onde ? ` <span class="muted" style="font-weight:400">· ${esc(x.onde)}</span>` : ""), "Falta: " + esc(x.falta.map((f) => f.rotulo.toLowerCase()).join(", ")), botao(`${tipo}|user:${x.user_id}`, pendUser.has(x.user_id)))) : `<p class="muted" style="font-size:13px">Ninguém com informação importante faltando 🌿</p>`}
+      <h3 class="pp-h">Pelo histórico, ainda sem conta no portal <span class="muted">(${B ? semConta.length : "…"})</span></h3>
+      <p class="muted" style="font-size:13px;margin:0 0 6px">Já trabalhou com o Tranquilo, mas ainda não entrou no portal. A proposta vai junto com o convite (mensagem de WhatsApp pronta).</p>
+      ${B ? lista(tipo + "h", semConta, (x) => linha(esc(x.nome) + ` <span class="muted" style="font-weight:400">· ${esc(tipo === "casa" ? [x.cidade, x.uf].filter(Boolean).join("/") : x.mora || "")}</span>`,
+        esc(tipo === "casa" ? `${x.noites} ${x.noites === 1 ? "noite" : "noites"} no histórico` : `${x.vezes || 0}x no Tranquilo${x.cidades?.length ? " · " + x.cidades.join(", ") : ""}`), botao(`${tipo}|base:${x.id}`, pendRef.has(kpp(x.nome))))) : `<p class="muted">Carregando o histórico…</p>`}
+      <h3 class="pp-h">Propostas enviadas <span class="muted">(${minhas.length})</span></h3>
+      ${minhas.length ? lista(tipo + "e", minhas, (p) => linha(esc(nomeAlvoPP(p, E)) + " " + badgePP(p.status),
+        esc(`${PP().linhas(tipo, p, {}, []).map((l) => l.rotulo).join(", ")} · enviada ${dt(p.criado_em.slice(0, 10))}${p.respondido_em ? " · respondida " + dt(p.respondido_em.slice(0, 10)) : ""}${p.convite_email && !p.alvo_user ? " · convite ainda não aceito" : ""}`), "", ` data-pp-id="${esc(p.id)}"`)) : `<p class="muted" style="font-size:13px">Nenhuma proposta enviada ainda.</p>`}`;
+    return `<section class="card pp-bloco" id="ppBloco-${tipo}" style="margin:0 0 14px">
+      <button type="button" class="pp-topo" data-pp-bloco="${tipo}" aria-expanded="${aberto}"><span><b style="font-size:16px">📝 Propostas de atualização ${tipo === "casa" ? "das casas" : "dos artistas"}</b>
+      <span class="pp-chips"><span class="badge b-warn">${aguard.length} aguardando resposta</span><span class="badge b-good">${aceitasHoje.length} ${aceitasHoje.length === 1 ? "aceita" : "aceitas"} hoje</span><span class="badge">${falta.length} com informação faltando</span></span>
+      <span class="muted" style="display:block;font-size:13px;margin-top:4px;font-weight:400">Mande para ${quem} o que falta na ficha, já preenchido pelo histórico. ${quem[0].toUpperCase() + quem.slice(1)} vê o antes → depois e aceita, ajusta ou recusa; aceitando, a ficha muda na hora.</span></span>
+      <span class="pp-seta" aria-hidden="true">${aberto ? "▲" : "▼"}</span></button>${corpo}</section>`;
+  }
+  // Controle de um campo da proposta (equipe e ajuste da pessoa): texto, lista (vírgulas), opção ou número.
+  function controlePP(tipo, k, v, attr) {
+    const c = PP().campo(tipo, k) || [k, k, "texto"], [, rot, tp, opts] = c;
+    if (tp === "opcao") return `<select ${attr}="${k}" aria-label="${esc(rot)}"><option value="">Escolha</option>${opts.map(([o, t]) => `<option value="${o}"${o === v ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>`;
+    return `<input ${attr}="${k}" aria-label="${esc(rot)}" value="${esc(Array.isArray(v) ? v.join(", ") : v ?? "")}"${tp === "numero" ? ' inputmode="numeric"' : ""}${tp === "lista" ? ' placeholder="separe por vírgula"' : ""}>`;
+  }
+  function valorPP(tipo, k, bruto) {
+    const tp = PP().campo(tipo, k)?.[2], x = String(bruto ?? "").trim();
+    if (tp === "lista") return x.split(",").map((s) => s.trim()).filter(Boolean);
+    if (tp === "numero") return /^\d+$/.test(x) ? +x : x;
+    return x;
+  }
+  function linhaDispPP(tipo, x, i, attr) {
+    return `<div class="pp-disp" data-pp-disp="${i}">${tipo === "artista" ? `<label class="fcampo" style="margin:0"><b>Cidade</b><input data-${attr}-dcid="${i}" value="${esc(x.cidade || "")}" placeholder="ex.: Campinas"></label>` : ""}
+      <div class="pp-dias" role="group" aria-label="Dias da semana${x.cidade ? " em " + esc(x.cidade) : ""}">${PP().DIAS.map((d, j) => `<label class="fcheck"><input type="checkbox" data-${attr}-dia="${i}|${j}"${(x.dias || []).includes(j) ? " checked" : ""}> <span>${d}</span></label>`).join("")}</div></div>`;
+  }
+  const lerDispPP = (attr, tipo) => [...document.querySelectorAll("[data-pp-disp]")].map((el) => { const i = el.dataset.ppDisp;
+    return { cidade: tipo === "artista" ? (el.querySelector(`[data-${attr}-dcid="${i}"]`)?.value || "").trim() || null : null, dias: [...el.querySelectorAll(`[data-${attr}-dia]:checked`)].map((c) => +c.dataset[attr === "pp" ? "ppDia" : "aj" + "Dia"].split("|")[1]).sort((a, b) => a - b) }; });
+  // "Propor atualização": abre o formulário já preenchido pelo histórico (editável).
+  function abrirFormProposta(chave) {
+    const E = S.eq, B = basesPub(); if (!E) return;
+    const [tipo, ref] = chave.split("|"), i = ref.indexOf(":"), modo = ref.slice(0, i), id = ref.slice(i + 1);
+    const base = B ? (tipo === "casa" ? B.casas : B.artistas) : [];
+    let conta, item;
+    if (modo === "user") { conta = contaPP(tipo, { uid: id }, E); item = base.find((x) => kpp(x.nome) === kpp(conta?.nome)); }
+    else { item = base.find((x) => x.id === id); conta = item && contaPP(tipo, { nome: item.nome }, E); }
+    if (!conta && !item) return;
+    const sem = conta ? semanalPP(tipo, conta, E) : [], hist = PP().doHistorico(tipo, item, B), sug = conta ? PP().soOQueFalta(tipo, hist, conta.dados, sem) : hist;
+    const precisaDisp = !sug.disponibilidade.length && !sem.some((s) => (s.dias || []).length);
+    const conv = !conta && (E.conv || []).find((c) => c.tipo === tipo && kpp(c.vinculo_nome || c.nome) === kpp(item.nome));
+    S.ppForm = { tipo, conta, nome: conta?.nome || item?.nome || "", dados: conta?.dados || {}, campos: { ...sug.campos }, incluir: Object.keys(sug.campos),
+      disp: sug.disponibilidade.length ? sug.disponibilidade.map((x) => ({ ...x, dias: [...x.dias] })) : precisaDisp ? [{ cidade: tipo === "artista" ? conta?.dados?.cidade_base || item?.mora || null : null, dias: [] }] : [],
+      motivo: sug.motivo || "", email: conv?.email || "", whatsapp: conta?.whatsapp || conv?.whatsapp || "", falta: conta ? PP().faltando(tipo, conta.dados, sem) : [] };
+    desenharFormProposta();
+  }
+  function lerFormProposta() {
+    const F = S.ppForm; if (!F || !$("#ppForm")) return F;
+    document.querySelectorAll("[data-pp-campo]").forEach((el) => { F.campos[el.dataset.ppCampo] = valorPP(F.tipo, el.dataset.ppCampo, el.value); });
+    F.incluir = [...document.querySelectorAll("[data-pp-inc]:checked")].map((x) => x.dataset.ppInc);
+    F.disp = lerDispPP("pp", F.tipo); F.motivo = ($("#ppMotivo")?.value || "").trim();
+    if ($("#ppEmail")) { F.nome = $("#ppNome").value.trim(); F.email = $("#ppEmail").value.trim().toLowerCase(); F.whatsapp = $("#ppWa").value.trim(); }
+    return F;
+  }
+  function desenharFormProposta() {
+    const F = S.ppForm, P = PP(), C = P.CAMPOS[F.tipo];
+    const linhaCampo = ([k, rot]) => { const agora = P.fmtValor(F.tipo, k, F.dados[k]);
+      return `<div class="pp-campo"><label class="fcheck"><input type="checkbox" data-pp-inc="${k}"${F.incluir.includes(k) ? " checked" : ""}> <span><b>${esc(rot)}</b></span></label>${controlePP(F.tipo, k, F.campos[k], "data-pp-campo")}
+        <div class="muted" style="font-size:12px">${F.conta ? (agora ? "Hoje na ficha: " + esc(agora) : "Hoje na ficha: vazio") : ""}</div></div>`; };
+    const principais = C.filter(([k]) => F.incluir.includes(k) || (F.conta && P.vazio(F.dados[k]))), outros = C.filter((c) => !principais.includes(c));
+    const avisoEquipe = F.falta.some((f) => f.chave === "equipe") ? `<p class="muted" style="font-size:13px">A casa também não cadastrou a equipe (em Equipe → Quem é quem). Vale lembrar na mensagem.</p>` : "";
+    $("#dlgIn").innerHTML = `<div class="tag">Proposta de atualização · ${F.tipo === "casa" ? "casa" : "artista"}</div><h2 style="margin-top:4px">${esc(F.nome)}</h2>
+      <p class="sub" style="margin-top:0">Já preenchemos com o que o histórico sugere. Confira, mude o que precisar e marque o que vai na proposta. Nada muda na ficha antes de ${F.tipo === "casa" ? "a casa" : "a artista"} aceitar.</p>
+      <div id="ppForm">
+      ${F.conta ? "" : `<div class="alert warn" style="margin-bottom:10px"><b>${esc(F.nome)} ainda não tem conta no portal</b>A proposta vai junto com o convite: ao entrar pelo link, ${F.tipo === "casa" ? "a casa" : "a artista"} vê a sugestão logo no começo, em Próximos passos.</div>
+        <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="ppNome" value="${esc(F.nome)}"></label><label class="fcampo"><b>E-mail para o convite</b><input id="ppEmail" type="email" value="${esc(F.email)}" placeholder="nome@email.com"></label><label class="fcampo"><b>WhatsApp (opcional)</b><input id="ppWa" value="${esc(F.whatsapp)}" placeholder="11 99999-9999"></label></div>`}
+      <h3 class="pp-h">Informações da ficha</h3>
+      <div class="pp-campos">${principais.map(linhaCampo).join("") || `<p class="muted" style="font-size:13px">A ficha já tem as informações importantes. Abra "Mudar outra informação" se quiser propor outra.</p>`}</div>
+      ${outros.length ? `<details style="margin-top:6px"><summary>Mudar outra informação (${outros.length})</summary><div class="pp-campos">${outros.map(linhaCampo).join("")}</div></details>` : ""}
+      <h3 class="pp-h">${F.tipo === "casa" ? "Dias da semana em que a casa pode receber" : "Dias da semana em que pode tocar, por cidade"}</h3>
+      <p class="muted" style="font-size:13px;margin:0 0 6px">Os dias aceitos somam aos que a pessoa já marcou em Disponibilidade (nada é apagado).</p>
+      <div class="pp-disps">${F.disp.map((x, i) => linhaDispPP(F.tipo, x, i, "pp")).join("") || `<p class="muted" style="font-size:13px">Sem dias na proposta.</p>`}</div>
+      <div class="barra-acoes" style="margin-top:6px">${F.tipo === "artista" || !F.disp.length ? `<button class="btn sm" data-pp-dmais>+ ${F.tipo === "artista" ? "Adicionar cidade" : "Propor dias da semana"}</button>` : ""}</div>
+      ${avisoEquipe}
+      <label class="fcampo"><b>Por que estamos sugerindo (a pessoa lê)</b><textarea id="ppMotivo" rows="2" maxlength="1000">${esc(F.motivo)}</textarea></label>
+      <div class="err" role="status" aria-live="polite" id="ppErr"></div>
+      <div class="barra-acoes"><button class="btn pri" id="ppEnviar">${F.conta ? "Enviar proposta" : "Enviar proposta e criar convite"}</button><button class="btn" onclick="dlg.close()">Cancelar</button></div></div>`;
+    $("#dlg").dataset.alvo = "proposta"; if (!$("#dlg").open) $("#dlg").showModal();
+  }
+  async function enviarProposta(btn) {
+    const F = lerFormProposta(), P = PP();
+    const campos = Object.fromEntries(F.incluir.map((k) => [k, F.campos[k]]).filter(([, v]) => !P.vazio(v)));
+    const disp = F.disp.filter((x) => x.dias.length).map((x) => ({ cidade: F.tipo === "artista" ? x.cidade || null : null, dias: x.dias }));
+    const err = $("#ppErr");
+    if (!Object.keys(campos).length && !disp.length) { err.textContent = "✕ Não enviou: marque pelo menos uma informação (a caixinha ao lado do nome) ou um dia da semana."; return; }
+    if (!F.conta && barrar(err, [[$("#ppNome"), !F.nome && "escreva o nome"], [$("#ppEmail"), !VAL.email(F.email) && (F.email ? "esse e-mail não parece válido (ex.: nome@gmail.com)" : "escreva o e-mail para o convite")],
+      [$("#ppWa"), F.whatsapp && !VAL.tel(F.whatsapp) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"]], "Não enviou")) return;
+    const conv = F.conta ? null : { email: F.email, tipo: F.tipo, nome: F.nome, whatsapp: F.whatsapp || null, codigo_acesso: null, vinculo_nome: F.nome };
+    const res = await acao(btn, async () => {
+      const prop = await api.criarProposta({ alvo_tipo: F.tipo, alvo_user: F.conta?.user_id || null, alvo_ref: F.conta ? null : F.nome, convite_email: conv?.email || null, campos, disponibilidade: disp, motivo: F.motivo });
+      const r = conv ? await api.convidar(conv) : null;
+      return { prop, r };
+    }, { st: "#ppErr", espera: "Enviando…", ok: "Proposta enviada." });
+    if (!res.ok) return;
+    if (S.eq) { S.eq.prop = [res.r.prop, ...(S.eq.prop || [])]; if (conv) S.eq = null; }
+    const texto = P.mensagem({ nome: F.nome, tipo: F.tipo, prop: { campos, disponibilidade: disp, motivo: F.motivo }, convite: !!conv, link: conv ? `${site()}#criar&email=${encodeURIComponent(conv.email)}&tipo=${F.tipo}` : site() });
+    S.ppForm = null; render();
+    if (conv) dialogoResultado({ oque: "Convite com a proposta", nome: F.nome, email: conv.email, whatsapp: conv.whatsapp, texto, assunto: "Sua ficha na Rede Tranquilo", resultado: res.r.r, recebe: RECEBE.convite + " Ao entrar, a proposta aparece logo no começo, em Próximos passos.", reenviar: () => api.convidar(conv) });
+    else dialogoEnvio({ titulo: `Proposta enviada para ${F.nome}`, texto, email: F.conta.email, whatsapp: F.conta.whatsapp, assunto: "Sugestão para atualizar sua ficha", aviso: `✓ Proposta enviada. Ela já aparece para ${F.tipo === "casa" ? "a casa" : "a artista"} em Próximos passos. Se quiser, avise pelo WhatsApp com a mensagem abaixo.` });
+  }
+  // Cartão da pessoa, no topo de Próximos passos: o antes → depois, "Aceitar tudo", "Ajustar" e "Recusar".
+  function cartaoPropostas() {
+    const C = S.conta, tipo = C.perfil.tipo; if (!["artista", "casa"].includes(tipo) || funcoesDe() || !PP()) return "";
+    const msg = S.ppMsg ? `<div class="alert ${S.ppMsg.ok ? "good" : "warn"}" id="ppMsg" role="status" style="margin-bottom:14px"><b>${esc(S.ppMsg.t)}</b>${esc(S.ppMsg.d)}</div>` : "";
+    const L = (C.prop || []).filter((p) => p.status === "pendente"); if (!L.length) return msg;
+    const dados = (tipo === "casa" ? C.casa : C.insc)?.dados || {}, sem = (C.sem || []).filter((s) => tipo === "casa" ? !!s.casa_ref : s.user_id === C.perfil.id);
+    const um = (p) => { const ls = PP().linhas(tipo, p, dados, sem), aj = S.ppAjuste === p.id;
+      const ajuste = `<div class="pp-ajuste" id="ppAjuste"><p class="muted" style="font-size:13px;margin:0 0 6px">Mude o que não estiver certo. Deixe em branco o que não quer na sua ficha.</p>
+        <div class="pp-campos">${Object.entries(p.campos || {}).map(([k, v]) => `<label class="fcampo"><b>${esc(PP().rotulo(tipo, k))}</b>${controlePP(tipo, k, v, "data-aj-campo")}<span class="muted" style="font-size:12px">Hoje: ${esc(PP().fmtValor(tipo, k, dados[k]) || "vazio")}</span></label>`).join("")}</div>
+        ${(p.disponibilidade || []).length ? `<b style="display:block;margin-top:8px">Dias da semana</b>${p.disponibilidade.map((x, i) => linhaDispPP(tipo, x, i, "aj")).join("")}` : ""}
+        <div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-pp-ajok="${p.id}">Salvar os ajustes e atualizar a ficha</button><button class="btn" data-pp-ajustar="">Voltar</button></div></div>`;
+      return `<div class="pp-prop" data-pp-prop="${p.id}">
+        <p style="margin:0 0 6px"><b>${ls.length} ${ls.length === 1 ? "informação" : "informações"}:</b> ${esc(ls.map((l) => l.rotulo).join(", "))}</p>
+        ${p.motivo ? `<p class="muted" style="font-size:13px;margin:0 0 6px">${esc(p.motivo)}</p>` : ""}
+        <details class="pp-det"><summary>Ver o antes → depois</summary><ul class="pp-ad">${ls.map((l) => `<li><b>${esc(l.rotulo)}</b><span><span class="pp-antes">${esc(l.antes || "vazio")}</span> <span aria-hidden="true">→</span><span class="sr-only">passa a ser</span> <span class="pp-depois">${esc(l.depois)}</span></span></li>`).join("")}</ul></details>
+        ${aj ? ajuste : `<div class="barra-acoes" style="margin-top:8px"><button class="btn pri" data-pp-aceitar="${p.id}">Aceitar tudo</button><button class="btn" data-pp-ajustar="${p.id}">Ajustar</button><button class="btn" data-pp-recusar="${p.id}">Recusar</button></div>`}
+        <div class="err" role="status" aria-live="polite" id="ppSt-${p.id}"></div></div>`; };
+    return msg + `<section class="card pp-cartao" id="ppCartao" style="margin-bottom:14px;border:2px solid var(--violet, #7c8ff3)"><h2 style="margin:0 0 4px;font-size:19px">✨ O Tranquilo sugeriu atualizar sua ficha</h2>
+      <p class="muted" style="font-size:13px;margin:0 0 10px">Pelo nosso histórico com ${tipo === "casa" ? "a sua casa" : "você"}. Confira o antes → depois: aceitando, a sua ficha${tipo === "casa" ? " e os dias da semana" : " e a sua disponibilidade"} mudam na hora. Você também pode ajustar ou recusar.</p>
+      ${L.map(um).join('<hr style="border:0;border-top:1px solid var(--line);margin:12px 0">')}</section>`;
+  }
+  async function responderPP(btn, pid, aceitar, ajustes) {
+    const tipo = S.conta.perfil.tipo, p = (S.conta.prop || []).find((x) => x.id === pid);
+    const res = await acao(btn, async () => {
+      const r = await api.responderProposta(pid, aceitar, ajustes);
+      const [prop, ficha, sem] = await Promise.all([api.propostas().catch(() => S.conta.prop), tipo === "casa" ? api.minhaCasa() : api.minhaInscricao(), api.semanal().catch(() => [])]);
+      S.conta.prop = prop; S.conta.sem = sem; if (tipo === "casa") S.conta.casa = ficha; else S.conta.insc = ficha;
+      S.disp = undefined; S.sem = undefined; return r;
+    }, { st: "#ppSt-" + pid, espera: aceitar ? "Atualizando a sua ficha…" : "Registrando…", ok: aceitar ? "Ficha atualizada." : "Proposta recusada." });
+    if (!res.ok) return;
+    const nomes = p ? PP().linhas(tipo, res.r?.aplicado ? { campos: res.r.aplicado.campos || {}, disponibilidade: res.r.aplicado.disponibilidade || [] } : p, {}, []).map((l) => l.rotulo.toLowerCase()) : [];
+    S.ppAjuste = null;
+    S.ppMsg = aceitar ? { ok: true, t: "✓ Pronto! Sua ficha foi atualizada.", d: `Atualizamos: ${nomes.join(", ") || "o que você aceitou"}. Confira em ${tipo === "casa" ? "Cadastro e Disponibilidade" : "Minha ficha e Disponibilidade"} quando quiser.` }
+      : { ok: false, t: "Proposta recusada", d: "Nada mudou na sua ficha. Se algo estiver diferente do que sugerimos, fale com a equipe do Tranquilo." };
+    render(); $("#ppMsg")?.scrollIntoView({ block: "center" });
+  }
+  async function cliquesPropostas(t) {
+    const nv = t.closest("[data-pp-novo]"); if (nv) { abrirFormProposta(nv.dataset.ppNovo); return true; }
+    const bl = t.closest("[data-pp-bloco]"); if (bl) { const k = bl.dataset.ppBloco; (S.ppAberto ||= {})[k] = !S.ppAberto[k]; render(); return true; }
+    const mm = t.closest("[data-pp-mais]"); if (mm) { (S.ppMais ||= {})[mm.dataset.ppMais] = true; render(); return true; }
+    if (t.closest("[data-pp-dmais]")) { const F = lerFormProposta(); F.disp.push({ cidade: null, dias: [] }); desenharFormProposta(); return true; }
+    if (t.id === "ppEnviar") { await enviarProposta(t); return true; }
+    const ac = t.closest("[data-pp-aceitar]"); if (ac) { await responderPP(ac, ac.dataset.ppAceitar, true, null); return true; }
+    const rc = t.closest("[data-pp-recusar]"); if (rc) {
+      if (!confirm("Recusar a sugestão? Nada muda na sua ficha.")) return true;
+      await responderPP(rc, rc.dataset.ppRecusar, false, null); return true;
+    }
+    const aj = t.closest("[data-pp-ajustar]"); if (aj) { S.ppAjuste = aj.dataset.ppAjustar || null; render(); if (S.ppAjuste) $("#ppAjuste")?.scrollIntoView({ block: "center" }); return true; }
+    const ok = t.closest("[data-pp-ajok]"); if (ok) {
+      const pid = ok.dataset.ppAjok, p = (S.conta.prop || []).find((x) => x.id === pid), tipo = S.conta.perfil.tipo;
+      const campos = {}; document.querySelectorAll(`[data-pp-prop="${CSS.escape(pid)}"] [data-aj-campo]`).forEach((el) => { campos[el.dataset.ajCampo] = valorPP(tipo, el.dataset.ajCampo, el.value); });
+      const ajustes = { campos }; if ((p?.disponibilidade || []).length) ajustes.disponibilidade = lerDispPP("aj", tipo).filter((x) => x.dias.length);
+      await responderPP(ok, pid, true, ajustes); return true;
+    }
+    return false;
   }
   function buscaDatas(E, casas) {
     const hoje = hojeIso();
@@ -4251,6 +4521,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       irPara("datas_portal"); S.dpEd = null; S.dpPre = { casa_id: cid, dia: dia || "", cidade: c?.dados?.cidade_uf || c?.dados?.cidade || "", artistas: art ? [{ nome: art }] : [] }; render();
       depois(() => { $("#dpForm")?.scrollIntoView({ block: "start" }); (dia ? $("#dpCasa") : $("#dpDia"))?.focus({ preventScroll: true }); });
     }
+    else if (tipo === "pp") {
+      const x = (S.eq?.prop || []).find((y) => y.id === id), tp = x?.alvo_tipo || "artista";
+      (S.ppAberto ||= {})[tp] = true; (S.ppMais ||= {})[tp + "e"] = true; irPara(tp === "casa" ? "casas_cad" : "curadoria"); render(); scrollTo(0, 0);
+      depois(() => { const el = $(`[data-pp-id="${CSS.escape(id)}"]`); if (el) { el.classList.add("foco"); el.scrollIntoView({ block: "center" }); } });
+    }
     else if (tipo === "dp") { irPara("datas_portal"); S.dpEd = id; S.dpPre = null; render(); depois(() => $("#dpForm")?.scrollIntoView({ block: "start" })); }
   }
   async function cliques(ev) {
@@ -4261,6 +4536,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const sb = t.closest("[data-sub]"); if (sb) { await salvarPendente(); const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
     const ab = t.closest("[data-abrir]"); if (ab) { ev.preventDefault(); abrirItem(ab.dataset.abrir); return; }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
+    if (await cliquesPropostas(t)) return;
     if (await cliquesEquipe(t)) return;
     if (await cliquesFicha(t)) return;
     if (await cliquesDatas(t)) return;
@@ -4739,6 +5015,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   });
   document.addEventListener("input", (ev) => {
     const t = ev.target;
+    // Proposta de atualização: escrever num campo já marca a caixinha "vai na proposta".
+    if (t.dataset?.ppCampo && String(t.value).trim()) { const c = document.querySelector(`[data-pp-inc="${CSS.escape(t.dataset.ppCampo)}"]`); if (c) c.checked = true; }
     if (t.closest("#form") && S.aba === "inscricao") { const m = $("#medidor"); if (m) m.innerHTML = medidor(R.preCuradoria(lerForm($("#form")))); }
     if (t.closest("#form") && (S.aba === "inscricao" || (S.aba === "ficha" && (S.sub?.ficha || "cadastro_casa") === "cadastro_casa"))) {
       const raiz = $("#form");

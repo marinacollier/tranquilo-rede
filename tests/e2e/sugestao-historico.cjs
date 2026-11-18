@@ -17,6 +17,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#dpSugHist summary'); await p.waitForTimeout(300);
     const n = await p.$$eval('#dpSugHist .card', (x) => x.length);
     ok(n > 0, `traz sugestões no período (${n})`);
+    ok((await p.$$('#dpSugHist [data-pp-novo^="casa|base:"]')).length > 0 && (await p.$$('#dpSugHist [data-pp-novo^="artista|base:"]')).length > 0, 'cada sugestão tem "Propor atualização" (casa e artistas)');
+    await p.click('#dpSugHist [data-pp-novo^="casa|base:"]'); await p.waitForSelector('#ppForm', { timeout: 5000 });
+    ok(/Pelo histórico do Tranquilo/.test(await p.inputValue('#ppMotivo')) && (await p.$$('[data-pp-dia]:checked')).length > 0, 'formulário vem preenchido pelo histórico (motivo e dias da semana)');
+    await p.keyboard.press('Escape');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));
   console.log(res.join('\n')); await b.close();
