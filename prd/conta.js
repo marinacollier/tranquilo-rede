@@ -2164,11 +2164,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return cartaoPropostas() + avisoContratos() + blocoTrilha() + (p.tipo === "casa" ? passosCasa() : passosArtista());
     },
     inscricao() {
-      const i = S.conta.insc, trav = i && !["rascunho", "ajustes"].includes(i.status), rec = trav ? null : recuperarLocal(i?.dados || {}), d = rec || i?.dados || {};
+      const i = S.conta.insc, trav = i && !["rascunho", "ajustes"].includes(i.status), rec = trav ? null : recuperarLocal(i?.dados || {}), d0 = rec || i?.dados || {};
+      // Inscrição nova já nasce com o que a equipe mandou junto com o convite (pré-ficha pelo Notion, proposta pendente).
+      const sugConv = trav ? {} : Object.fromEntries(doConvitePP("artista").filter(([k, v]) => F_ARTISTA.some(([, cs]) => cs.some((c) => c[0] === k)) && PP()?.vazio(d0[k]) === true && !PP().vazio(v)));
+      const d = { ...d0, ...sugConv };
       return `<div class="tag">Inscrição de artista</div><h1>${trav ? "Sua inscrição" : "Inscreva-se na rede"}</h1>
       <p class="sub">${trav ? "Sua inscrição está com a equipe. Você pode consultar as respostas e preencher o que ficou vazio; o que já foi respondido só muda se a curadoria pedir ajustes." : "Leva uns 10 minutos. O rascunho fica salvo e você pode voltar depois. Ao enviar, a pré-curadoria é automática e o resultado aparece na hora."}</p>
       ${i?.parecer && i.status === "ajustes" ? `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer)}</div>` : ""}
       ${rec || (!trav && S.recuperado === S.conta.perfil.id) ? avisoRecuperado : ""}
+      ${Object.keys(sugConv).length ? `<div class="alert" id="sugConvite"><b>Já deixamos preenchido o que o Tranquilo sabe de você</b>Confira e corrija se precisar: ${esc(Object.keys(sugConv).map((k) => F_ARTISTA.flatMap(([, cs]) => cs).find((c) => c[0] === k)?.[1] || k).join(", "))}. Só fica salvo quando você salvar ou enviar.</div>` : ""}
       <div id="medidor">${medidor(R.preCuradoria(d))}</div>
       <div id="form" data-editavel="${trav ? "" : "1"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav ? (i.status === "encerrada" ? true : "vazios") : false)}</div>
       <section class="card fsec" style="margin-top:12px" id="dispFicha"><h3>Disponibilidade: dias em que você pode tocar</h3>${calendarioArtista()}</section>
@@ -2182,7 +2186,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const enviada = !!c && ["em_analise", "habilitada", "suspensa"].includes(c.status), pedindo = enviada && S.fichaPedido, travado = enviada && !pedindo;
       const rec = enviada ? null : recuperarLocal(c?.dados || {}), d = rec || c?.dados || {};
       // "Já deixamos preenchido o que você nos contou" (Ficha v1): o que a base Casas do Notion tem e a ficha ainda não.
-      const sug = enviada ? {} : Object.fromEntries(Object.entries(S.pac?.ficha_notion || {}).filter(([k, v]) => CHAVES_FICHA.has(k) && v != null && v !== "" && [null, undefined, ""].includes(valorCasa(d, k))));
+      // E o que a equipe mandou junto com o convite (pré-ficha pelo Notion, proposta pendente): a Ficha já nasce preenchida.
+      const sug = enviada ? {} : Object.fromEntries([...doConvitePP("casa"), ...Object.entries(S.pac?.ficha_notion || {})].filter(([k, v]) => CHAVES_FICHA.has(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length) && [null, undefined, ""].includes(valorCasa(d, k))));
       const sols = S.conta.sol || [], aberto = sols.find((x) => x.status === "pendente");
       const ultimaRecusa = [...sols].filter((x) => x.status !== "cancelada").sort((x, y) => String(y.criado_em).localeCompare(String(x.criado_em)))[0];
       const pend = semDiasSemana(c?.pendencias || R.pendenciasCasa(d));
@@ -2563,9 +2568,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const nome = String(S.conta.perfil.nome || "").split(" ")[0];
       const blocos = pendenciasEquipe(E, areas), acoes = blocos.filter((b) => !b.info), resto = blocos.filter((b) => b.info);
       const carregandoHub = areas.includes("marketing") && !S.hub ? `<p class="muted" style="font-size:13px">Carregando as campanhas…</p>` : "";
+      // Sem a agenda do Notion (pacote da equipe) ou sem as bases, a tela não pode dizer que não há nada: avisa o que falta.
+      const carregandoBases = S.basesPub === null ? `<p class="muted" style="font-size:13px">Carregando as casas e artistas do Notion…</p>` : "";
+      const semAgenda = S.pac ? "" : `<div class="alert warn"><b>A agenda do Notion não abriu nesta conta</b>Sem ela, as datas, casas e line-ups reais não entram aqui. Entre de novo; se continuar, peça à administração para conferir o código interno da equipe.</div>`;
       return `<div class="tag">Para você</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
       <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, organizado pelo que fazer. Toque numa linha para abrir aquele item; "Abrir" mostra a lista toda.</p>
-      ${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}
+      ${semAgenda}${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : resto.length ? `<div class="alert"><b>Nada urgente agora</b>O que está em andamento fica logo abaixo, em “Pode interessar”.</div>` : carregandoBases || semAgenda ? "" : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}${carregandoBases}
       ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((b) => blocoAcao(b)).join("")}</div>` : ""}`;
     },
     // "Seu histórico": o que a própria pessoa fez nos últimos 30 dias (telaHistorico, para todo acesso).
@@ -2690,6 +2698,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="tag">Curadoria</div><h1>Fila de artistas</h1><p class="sub">Toda inscrição enviada passa pela pré-curadoria automática (pontuação de 0 a 100 e alertas). A equipe decide: aprovar, pedir ajustes ou não seguir.</p>
       ${filaNotionCuradoria()}
       ${blocoPropostas("artista")}
+      ${blocoPreFichas("artista")}
       <div class="stats">${kpi(n("em_curadoria"), "aguardando curadoria")}${kpi(n("ajustes"), "com ajustes pedidos")}${kpi(n("aprovada"), "aprovadas")}${kpi(n("rascunho"), "rascunhos não enviados")}</div>
       <div class="filters"><select id="eqStatus" aria-label="Filtrar por status"><option value="">Todos os status (${L.length})</option>${Object.entries(STATUS_INSC).map(([k, [, t]]) => `<option value="${k}"${f.status === k ? " selected" : ""}>${t} (${n(k)})</option>`).join("")}</select>
       <select id="eqFaixa" aria-label="Filtrar por faixa"><option value="">Todas as faixas</option>${["Prioridade", "Avaliar", "Abaixo do corte"].map((x) => `<option value="${x}"${f.faixa === x ? " selected" : ""}>${x} (${L.filter((i) => i.faixa === x).length})</option>`).join("")}</select><input id="eqQ" placeholder="Buscar nome, cidade, gênero" value="${esc(f.q)}"></div>
@@ -2708,6 +2717,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const n = (s) => L.filter((c) => c.status === s).length;
       return `<div class="tag">Casas</div><h1>Cadastros e habilitação</h1><p class="sub">Habilitar o suficiente para testar; qualificar pela execução. Classificação depois das datas: 🟢 confiável, 🟡 desenvolvimento, 🔴 correção necessária, ⛔ suspensa.</p>
       ${blocoPropostas("casa")}
+      ${blocoPreFichas("casa")}
       <div class="stats">${kpi(n("em_analise"), "aguardando análise")}${kpi(n("incompleto"), "faltando dados mínimos")}${kpi(n("habilitada"), "habilitadas")}${kpi(L.filter((c) => c.ja_parceira).length, "já parceiras")}</div>
       ${tabela("casc", [
         { t: "Casa", v: (c) => c.dados.nome, h: (c) => `<b>${esc(c.dados.nome || "(sem nome)")}</b><div class="muted" style="font-size:12px">${esc(c.dados.cidade || "")} · ${c.ja_parceira ? "já parceira" : "nova"}</div>` },
@@ -3844,6 +3854,51 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       bloco("Propostas aceitas hoje", "A ficha já foi atualizada com o que a pessoa aceitou.", aba,
         L.filter((p) => ["aceita", "ajustada"].includes(p.status) && String(p.respondido_em || "").slice(0, 10) === hoje).map((p) => ({ abrir: "pp:" + p.id, quem: nomeAlvoPP(p, E), extra: p.status === "ajustada" ? "aceita com ajustes" : "aceita" })), { prio: 9, info: true, grupo: ["proposta aceita hoje", "propostas aceitas hoje"] });
     };
+    // Trabalho real em produção (pedido da Marina, 18/11/2026): mesmo sem nenhuma casa ou artista com conta, a agenda e
+    // as bases do Notion já dizem o que fazer. Cada linha abre a pré-ficha (o que já sabemos e o que falta).
+    // Evento com o nome real da casa (o título do Notion às vezes traz só "Casa em Belo Horizonte · 061c").
+    const comNomeReal = (e) => { const pf = casaDoNotion(e); return pf && !PF().generica(pf.nome) && PF().generica(e.h) ? { ...e, h: pf.nome } : e; };
+    function blocosReaisOperacoes() {
+      if (!PF()) return;
+      const D = preFichas(), vistos = new Set(), conv = [];
+      for (const e of futuros.filter((x) => !x.portal && x.d <= mais(60))) {
+        if (casaDoEv(e)) continue;
+        const pf = casaDoNotion(e), ch = pf ? pf.id : "h:" + k(e.h); if (vistos.has(ch)) continue; vistos.add(ch);
+        const sit = pf && situacaoPF("casa", pf, E); if (sit?.ficha) continue;
+        const n = pf ? pf.proximas.filter((x) => x.d <= mais(60)).length : 1;
+        conv.push({ abrir: pf ? `pf:casa|${pf.id}` : "ev:" + e.id, quem: pf?.nome || e.h || "casa a definir", onde: e.c || "", quando: e.d, ev: comNomeReal(e),
+          extra: [sit ? (sit.prop ? "pedido enviado, aguardando a casa" : sit.txt) : "casa sem cadastro no Notion", n > 1 ? `${n} datas em 60 dias` : ""].filter(Boolean).join(" · ") });
+      }
+      bloco("Convidar a casa e completar a Ficha", "Casa com data no Notion nos próximos 60 dias e sem Ficha no portal. Abre a Ficha já pré-preenchida pelo Notion; o que falta você pede em “Solicitar à casa” (convite e proposta, com a mensagem de WhatsApp pronta).", "casas_cad",
+        conv, { prio: 3, grupo: ["casa sem Ficha", "casas sem Ficha"] });
+      const incompletas = new Map();
+      for (const c of (E.casas || []).filter((x) => ["rascunho", "incompleto", "ajustes"].includes(x.status))) incompletas.set(c.id, { c, falta: [...(c.pendencias?.habilitacao || [])] });
+      for (const a of alvosComFalta("casa", E)) { const c = casaDoUser(a.user_id); if (c && c.status !== "encerrada") { const x = incompletas.get(c.id) || { c, falta: [] }; x.falta = [...new Set([...x.falta, ...a.falta.map((f) => f.rotulo)])]; incompletas.set(c.id, x); } }
+      bloco("Completar a Ficha da casa", "A casa já tem Ficha no portal, mas falta informação. Abre a Ficha; dá para pedir o que falta com “Propor atualização”.", "casas_cad",
+        [...incompletas.values()].map(({ c, falta }) => { const e = proxDaCasa(c); return { abrir: "casa:" + c.id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null, ev: e || null, extra: falta.length ? "falta: " + esc(falta.slice(0, 4).join(", ").toLowerCase()) + (falta.length > 4 ? ` e mais ${falta.length - 4}` : "") : esc(STATUS_CASA[c.status]?.[1] || "") }; }), { prio: 6, grupo: ["Ficha incompleta", "Fichas incompletas"] });
+      bloco("Reativar casa sem data", "Recebeu o Tranquilo nos últimos 6 meses e não tem nenhuma data marcada. Abre a Ficha pré-preenchida, com as noites e os dias em que a casa costuma receber.", "casas_cad",
+        D.casas.filter((c) => c.ultima >= mais(-180) && !c.proximas.length && !proxDaCasa(situacaoPF("casa", c, E).ficha)).sort((a, b) => b.ultima.localeCompare(a.ultima))
+          .map((c) => ({ abrir: `pf:casa|${c.id}`, quem: c.nome, onde: c.valores.cidade_uf || c.cidade, quando: null, extra: `última noite ${dt(c.ultima)} · ${c.noites} ${c.noites === 1 ? "noite" : "noites"}` })), { prio: 8 });
+    }
+    function blocosReaisAgenda() {
+      if (!PF()) return;
+      const B = basesPub(), vistos = new Set(), pedir = [];
+      for (const e of futuros.filter((x) => !x.portal && x.d <= mais(60))) for (const nome of e.a || []) {
+        if (vistos.has(k(nome))) continue; vistos.add(k(nome));
+        const pf = pfDe("artista", "n:" + PF().chave(nome)), sit = pf ? situacaoPF("artista", pf, E) : null;
+        if (sit?.ficha) { const falta = ["whatsapp", "contato_producao"].filter((c) => PP().vazio(sit.ficha.dados?.[c])); if (falta.length) pedir.push({ abrir: "insc:" + sit.ficha.id, quem: nome, onde: e.h || e.c || "", quando: e.d, ev: comNomeReal(e), extra: "falta para o contrato: " + falta.map((c) => PP().rotulo("artista", c).toLowerCase()).join(", ") }); continue; }
+        pedir.push({ abrir: pf ? `pf:artista|${refPF(pf)}` : "ev:" + e.id, quem: nome, onde: e.h || e.c || "", quando: e.d, ev: comNomeReal(e), extra: sit ? (sit.prop ? "pedido enviado, aguardando a artista" : sit.txt) : "sem conta no portal" });
+      }
+      bloco("Convidar artista e pedir os dados", "Artista no line-up de uma data do Notion (60 dias) sem conta no portal ou sem os dados para o contrato. Abre a inscrição pré-preenchida pelo Notion e o “Solicitar à artista”.", "curadoria",
+        pedir, { prio: 3, grupo: ["artista sem dados", "artistas sem dados"] });
+      const FILA = /^(Avaliando|Para avaliar|Pré-aprovado|Falta link)/;
+      if (B?.fila) bloco("Decidir na fila de curadoria do Notion", "Avaliando, Para avaliar, Pré-aprovado e Falta dados, na base Artistas e bandas. A decisão ainda é no Notion; a linha abre o que já sabemos da artista.", "curadoria",
+        B.fila.filter((a) => FILA.test(a.status)).sort((a, b) => (B.ordemFila || []).indexOf(a.status) - (B.ordemFila || []).indexOf(b.status))
+          .map((a) => ({ abrir: `pf:artista|${semTraco(a.id)}`, quem: a.nome, onde: a.mora || "", quando: null, extra: esc(a.status) })), { prio: 6 });
+      const ocupados = new Set(futuros.map((e) => `${PF().chave(e.h)}|${e.d}`)), NS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+      if (B) bloco("Sugestões por histórico para as próximas semanas", "Casa no dia em que mais recebe o Tranquilo ↔ artistas ligadas à cidade, pelo Notion. Não é disponibilidade marcada: confirme antes de criar a data.", "datas_portal",
+        PF().sugestoes(B, ocupados, hoje, mais(30), 20).map((x) => ({ abrir: "sughist:", quem: `${x.casa.nome} ↔ ${x.artistas.map((a) => a.nome).join(", ")}`, onde: x.casa.cidade || "", quando: null, extra: `${NS[wdDe(x.dia)]} ${dm(x.dia)}` })), { prio: 9, info: true });
+    }
     if (areas.includes("operacoes")) propostasBl("casa", "casas_cad");
     if (areas.includes("agenda")) propostasBl("artista", "curadoria");
     if (areas.includes("operacoes")) {
@@ -3854,8 +3909,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato").map((c) => { const e = proxDaCasa(c); return { abrir: `ctpre:|${c.user_id}`, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null, ev: e }; }), { prio: 3, grupo: ["casa sem contrato", "casas sem contrato"] });
       bloco("Revisar pedido de atualização de Ficha", "A casa pediu para mudar dados que já tinha enviado.", "casas_cad",
         (E.sol || []).filter((x) => x.status === "pendente").map((x) => { const c = (E.casas || []).find((y) => y.id === x.casa_id), e = proxDaCasa(c); return { abrir: "casa:" + x.casa_id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null, ev: e }; }), { prio: 4 });
-      bloco("Chamar casa para completar a Ficha", "Data nos próximos 14 dias com casa sem Ficha habilitada: vale chamar a casa ou mandar um convite.", "casas_cad",
-        proximas(14).filter((e) => casaDoEv(e)?.status !== "habilitada").map((e) => { const c = casaDoEv(e); return { abrir: c ? "casa:" + c.id : "ev:" + e.id, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d, ev: e, extra: c ? "" : "sem Ficha no portal" }; }), { prio: 5 });
+      bloco("Chamar casa para completar a Ficha", "Data nos próximos 14 dias com a Ficha da casa ainda não habilitada: vale um alô para a casa terminar.", "casas_cad",
+        proximas(14).filter((e) => { const c = casaDoEv(e); return c && c.status !== "habilitada"; }).map((e) => { const c = casaDoEv(e); return { abrir: "casa:" + c.id, quem: e.h || nomeCasa(c), onde: e.c || "", quando: e.d, ev: e, extra: STATUS_CASA[c.status]?.[1] || "" }; }), { prio: 5 });
+      blocosReaisOperacoes();
       // Criar datas é da Agenda: quem tem a área abre a Nova data já preenchida; quem não tem (o Gui) abre a Ficha e combina com a Isa.
       const criaDatas = areas.includes("agenda");
       bloco("Fechar data para casa habilitada sem data", criaDatas ? "Casas prontas sem nenhuma data nos próximos 30 dias. Abre a Nova data com a casa (e o dia livre) já escolhidos."
@@ -3876,16 +3932,17 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         futuros.filter((e) => e.portal && e.d <= mais(30)).flatMap((e) => { const arts = [...(e.portal.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
           const sem = arts.filter((a) => a.user_id ? !temCtArt(e, a.user_id) : !temCtEv(e));
           return (sem.length ? sem : arts.length ? [] : temCtEv(e) ? [] : [{}]).map((a) => ({ abrir: a.user_id ? `lp:${e.portal.id}` : `ctpre:${e.id}|`, quem: a.nome || "line-up a definir", onde: e.h || "", quando: e.d, ev: e, extra: a.nome && !a.user_id ? "artista sem conta no portal" : "" })); }), { prio: 3, grupo: ["artista sem contrato", "artistas sem contrato"] });
-      bloco("Completar line-up", "Data nos próximos 14 dias com menos de 2 artistas confirmados. Fechado o line-up, a casa recebe a mensagem de cronograma.", "datas_portal",
-        proximas(14).filter((e) => ((noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length) < 2)
+      bloco("Completar line-up", "Data nos próximos 30 dias com menos de 2 artistas no line-up. Fechado o line-up, a casa recebe a mensagem de cronograma.", "datas_portal",
+        proximas(30).filter((e) => ((noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length) < 2)
           .map((e) => ({ abrir: e.portal && areas.includes("agenda") ? "dp:" + e.portal.id : "ev:" + e.id, quem: (e.a || []).join(", ") || "line-up a definir", onde: e.h || e.c || "", quando: e.d, ev: e, extra: e.portal ? "" : "data do Notion" })), { prio: 5, grupo: ["line-up incompleto", "line-ups incompletos"] });
       bloco("Fechar data / montar line-up", "Casa e artista livres no mesmo dia, com match de cidade, e a casa sem data nos próximos 30 dias. Abre a Nova data já preenchida.", "datas_portal",
         (E.casas || []).filter((c) => c.status !== "encerrada" && semData(c)).map((c) => ({ c, m: diasLivres(c) })).filter((x) => x.m).sort((a, b) => a.m.d.localeCompare(b.m.d))
           .map(({ c, m }) => ({ abrir: `dpnova:${c.id}|${m.d}|${m.as[0].nome}`, quem: `${nomeCasa(c)} ↔ ${m.as.slice(0, 3).map((a) => a.nome).join(", ")}${m.as.length > 3 ? ` e mais ${m.as.length - 3}` : ""}`, onde: cidadeCasa(c), quando: null, extra: quandoLivre(m) })), { prio: 7 });
+      blocosReaisAgenda();
     }
     if (areas.includes("marketing")) {
       const H = S.hub;
-      if (H && !H.erro) {
+      if (H) {
         const kc = TQCampanha.chaveCasa, casaRef = (ref) => (E.casas || []).find((c) => [kc(c.dados?.nome), kc(c.perfil?.vinculo_nome)].includes(kc(ref)));
         const proxRef = (ref) => proxDaCasa(casaRef(ref)) || futuros.find((e) => kc(e.h) === kc(ref));
         bloco("Cobrar campanha atrasada", "Dias que passaram sem \"Feito\" da casa: talvez valha um alô.", "campanhas",
@@ -3894,8 +3951,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           (H.andamento || []).filter((a) => a.proximo && String(a.proximo).slice(0, 10) === hoje).map((a) => { const it = (H.itens || []).find((i) => i.campanha_id === a.campanha_id && String(i.dia).slice(0, 10) === hoje);
             const canais = [...new Set((it?.acoes || []).map((x) => x.canal).filter(Boolean))].join(", ");
             return { abrir: "camp:" + a.campanha_id, quem: a.casa_ref, onde: "", quando: proxRef(a.casa_ref)?.d || null, ev: proxRef(a.casa_ref) || null, extra: "hoje" + (canais ? ": " + esc(canais) : "") }; }), { prio: 3 });
-        bloco("Carregar campanha para a data", "Data nos próximos 30 dias sem campanha carregada.", "campanhas",
-          proximas(30).filter((e) => !(H.campanhas || []).some((c) => kc(c.casa_ref) === kc(e.h))).map((e) => ({ abrir: "ev:" + e.id, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d, ev: e })), { prio: 9, info: true });
+        // Datas reais do Notion com vendas abertas ou confirmadas (30 dias) e sem campanha carregada no portal.
+        bloco("Carregar campanha para a data", "Vendas abertas ou data confirmada no Notion, nos próximos 30 dias, e nenhuma campanha carregada para a casa no portal. Abre a data; a campanha se carrega em Campanhas." + (H.erro ? " (As campanhas não carregaram agora: confira em Campanhas.)" : ""), "campanhas",
+          proximas(30).filter((e) => (e.portal || /vendas|confirmad/i.test(e.s || "")) && !(H.erro ? [] : H.campanhas || []).some((c) => kc(c.casa_ref) === kc(e.h) || (casaDoNotion(e) && kc(c.casa_ref) === kc(casaDoNotion(e).nome)))).map((e) => ({ abrir: "ev:" + e.id, quem: casaDoNotion(e)?.nome || e.h || "casa a definir", onde: e.c || "", quando: e.d, ev: comNomeReal(e), extra: esc(e.s || "") })), { prio: 4, grupo: ["data sem campanha", "datas sem campanha"] });
+        bloco("Campanhas no ar", "Campanhas com dias pela frente e sem atraso.", "campanhas",
+          (H.andamento || []).filter((a) => !a.atrasados && a.proximo && String(a.proximo).slice(0, 10) > hoje).map((a) => ({ abrir: "camp:" + a.campanha_id, quem: a.casa_ref, onde: "", quando: proxRef(a.casa_ref)?.d || null, ev: proxRef(a.casa_ref) || null, extra: "próximo dia " + dm(String(a.proximo).slice(0, 10)) })), { prio: 9, info: true, grupo: ["campanha no ar", "campanhas no ar"] });
       }
     }
     const chave = (b) => b.itens.find((x) => x.quando)?.quando || "9999";
@@ -4251,6 +4311,124 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <span class="muted" style="display:block;font-size:13px;margin-top:4px;font-weight:400">Mande para ${quem} o que falta na ficha, já preenchido pelo histórico. ${quem[0].toUpperCase() + quem.slice(1)} vê o antes → depois e aceita, ajusta ou recusa; aceitando, a ficha muda na hora.</span></span>
       <span class="pp-seta" aria-hidden="true">${aberto ? "▲" : "▼"}</span></button>${corpo}</section>`;
   }
+  // ---------- pré-fichas pelo Notion (pedido da Marina, 18/11/2026: "preciso de tudo em produção") ----------
+  // Cada casa e artista real (bases do Notion e agenda do pacote da equipe), mesmo sem conta no portal: os campos da Ficha
+  // que já sabemos aparecem "do Notion"; os que faltam, "falta", com "Solicitar à casa/artista" (convite + proposta com o
+  // que já temos; ao criar a conta, a Ficha nasce preenchida). Regras puras em src/prefichas.js.
+  const PF = () => window.TQPreFicha;
+  const semTraco = (id) => String(id || "").replace(/-/g, "");
+  function preFichas() {
+    const P = S.pac, B = basesPub(), hoje = hojeIso(), C = S.pfCache;
+    if (C && C.P === P && C.B === B && C.hoje === hoje) return C;
+    const evs = P?.eventos || [];
+    const casas = PF().casas({ notion: P?.notion?.casas, bases: B?.casas, eventos: evs, enderecos: P?.enderecos, fichas: P?.fichas, hoje });
+    const artistas = PF().artistas({ notion: P?.notion?.artistas, bases: B?.artistas, fila: B?.fila, eventos: evs, hoje });
+    return (S.pfCache = { P, B, hoje, casas, artistas, casa: new Map(casas.map((c) => [c.id, c])), art: new Map(artistas.map((a) => [PF().chave(a.nome), a])) });
+  }
+  const refPF = (pf) => pf.id || "n:" + PF().chave(pf.nome);
+  function pfDe(tipo, ref) {
+    const D = preFichas(); ref = String(ref || "");
+    if (tipo === "casa") return D.casa.get(semTraco(ref)) || D.casas.find((c) => PF().chave(c.nome) === PF().chave(ref.replace(/^n:/, ""))) || null;
+    return ref.startsWith("n:") ? D.art.get(ref.slice(2)) || null : D.artistas.find((a) => a.id === semTraco(ref)) || D.art.get(PF().chave(ref)) || null;
+  }
+  const casaDoNotion = (e) => e?.k ? pfDe("casa", e.k) : null;
+  // Situação no portal: conta (e Ficha), convite e proposta pendente.
+  function situacaoPF(tipo, pf, E) {
+    let conta = null, ficha = null;
+    if (tipo === "casa") {
+      ficha = (E.casas || []).find((c) => (c.notion_casa_id && semTraco(c.notion_casa_id) === pf.id) || kpp(c.dados?.nome) === kpp(pf.nome) || kpp(c.perfil?.vinculo_nome) === kpp(pf.nome)) || null;
+      conta = ficha ? { user_id: ficha.user_id } : contaPP("casa", { nome: pf.nome }, E);
+    } else { conta = contaPP("artista", { nome: pf.nome }, E); ficha = conta ? (E.insc || []).find((i) => i.user_id === conta.user_id) || null : null; }
+    const conv = (E.conv || []).find((c) => c.tipo === tipo && kpp(c.vinculo_nome || c.nome) === kpp(pf.nome)) || null;
+    const prop = (E.prop || []).find((p) => p.alvo_tipo === tipo && p.status === "pendente" && ((conta && p.alvo_user === conta.user_id) || (p.alvo_ref && kpp(p.alvo_ref) === kpp(pf.nome)))) || null;
+    const txt = ficha ? (tipo === "casa" ? "Ficha no portal" : "inscrição no portal") : conta ? "tem conta no portal" : conv ? (conv.aceito_em ? "convite aceito" : `convite enviado${conv.criado_em ? " " + dm(conv.criado_em.slice(0, 10)) : ""}, ainda não entrou`) : "sem conta no portal";
+    return { conta, ficha, conv, prop, txt };
+  }
+  const SECOES_PF = (tipo) => tipo === "casa" ? F_CASA.map(([t, , cs, sens]) => [t, cs, !!sens]) : F_ARTISTA.map(([t, cs]) => [t, cs.filter((c) => c[2] !== "check"), false]);
+  function contagemPF(tipo, pf) {
+    let tem = 0, total = 0;
+    for (const [, cs, sens] of SECOES_PF(tipo)) { total += cs.length; if (!sens) tem += PF().marcar(pf, cs).filter((x) => x.fonte === "notion").length; }
+    return { tem, total, falta: total - tem };
+  }
+  function valorPFHtml(c, v) {
+    const [, , tipo, opts] = c;
+    if (Array.isArray(v)) return esc(v.join(", "));
+    if ((tipo === "select" || tipo === "multi") && opts) return esc((opts.find(([o]) => o === v) || [, v])[1]);
+    if (/^https?:\/\//.test(String(v))) return `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(String(v).replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
+    return esc(String(v).length > 160 ? String(v).slice(0, 160) + "…" : v);
+  }
+  const linhaEvPF = (e, futuro) => `<li><b>${NOME_SEM[wdDe(e.d)].slice(0, 3)}, ${dt(e.d)}</b> · ${esc(e.c || "")}${futuro ? "" : e.h ? " · " + esc(e.h) : ""}${(e.a || []).length ? " · " + esc(e.a.join(", ")) : ""}${e.s ? ` <span class="muted">· ${esc(e.s)}</span>` : ""}${e.p != null ? ` <span class="muted">· ${fmt(e.p)} pessoas</span>` : ""}${futuro && e.l ? ` · <a href="${esc(e.l)}" target="_blank" rel="noopener">ingressos</a>` : ""}</li>`;
+  // A pré-ficha: situação, o que já sabemos e o que falta (por parte da Ficha), o histórico e o botão de solicitar.
+  function htmlPreFicha(tipo, pf) {
+    const E = S.eq || {}, sit = situacaoPF(tipo, pf, E), n = contagemPF(tipo, pf), quem = tipo === "casa" ? "à casa" : "à artista";
+    const pode = PP()?.podePropor(S.conta?.perfil, tipo);
+    const secoes = SECOES_PF(tipo).map(([t, cs, sens]) => {
+      if (sens) return `<details class="pf-sec"><summary><b>${esc(t)}</b> <span class="muted">· ${cs.length} faltam (a ${tipo === "casa" ? "casa" : "artista"} preenche)</span></summary><p class="muted" style="font-size:13px;margin:4px 0">Dados pessoais e bancários não vêm do Notion: ${tipo === "casa" ? "a casa preenche" : "a artista preenche"} ao criar a conta.</p></details>`;
+      const ms = PF().marcar(pf, cs), tem = ms.filter((x) => x.fonte === "notion").length;
+      return `<details class="pf-sec"><summary><b>${esc(t)}</b> <span class="muted">· ${tem} do Notion · ${ms.length - tem} ${ms.length - tem === 1 ? "falta" : "faltam"}</span></summary><ul class="pf-campos">${ms.map((x) => { const c = cs.find((y) => y[0] === x.chave);
+        return `<li data-pf-campo="${esc(x.chave)}"><span>${esc(x.rotulo.length > 70 ? x.rotulo.slice(0, 70) + "…" : x.rotulo)}</span><span class="pf-v">${x.fonte === "notion" ? valorPFHtml(c, x.valor) : '<span class="muted">–</span>'}</span>${x.fonte === "notion" ? '<span class="badge b-good">do Notion</span>' : '<span class="badge b-warn">falta</span>'}</li>`; }).join("")}</ul></details>`;
+    }).join("");
+    const NS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+    const dias = tipo === "casa" && pf.diasFortes?.length ? `<p style="margin:6px 0;font-size:14px"><b>Dias em que costuma receber:</b> ${pf.diasFortes.map((i) => `${NS[i]} (${pf.dias[i]}x)`).join(", ")}</p>` : "";
+    const tocou = tipo === "artista" && (pf.cidadesTocou?.length || pf.status) ? `<p style="margin:6px 0;font-size:14px">${pf.cidadesTocou?.length ? `<b>Já tocou em:</b> ${esc(pf.cidadesTocou.join(", "))}. ` : ""}${pf.status ? `<b>Status no Notion:</b> ${esc(pf.status)}` : ""}</p>` : "";
+    const hist = `<details class="pf-sec" data-pf-hist><summary><b>Noites no histórico</b> <span class="muted">· ${pf.realizadas.length}${pf.realizadas[0] ? ", a última em " + dt(pf.realizadas[0].d) : ""}</span></summary>${pf.realizadas.length ? `<ul class="pf-ev">${pf.realizadas.slice(0, 40).map((e) => linhaEvPF(e, false)).join("")}</ul>${pf.realizadas.length > 40 ? `<p class="muted" style="font-size:13px">e mais ${pf.realizadas.length - 40} no Notion.</p>` : ""}` : `<p class="muted" style="font-size:13px">Nenhuma noite registrada no Notion.</p>`}</details>
+      <details class="pf-sec"${pf.proximas.length ? "" : ""}><summary><b>Próximas datas no Notion</b> <span class="muted">· ${pf.proximas.length}</span></summary>${pf.proximas.length ? `<ul class="pf-ev">${pf.proximas.map((e) => linhaEvPF(e, true)).join("")}</ul>` : `<p class="muted" style="font-size:13px">Nenhuma data marcada.</p>`}</details>`;
+    const acoes = [
+      sit.ficha ? `<button class="btn sm" data-abrir="${tipo === "casa" ? "casa:" : "insc:"}${esc(sit.ficha.id)}">${tipo === "casa" ? "Abrir a Ficha no portal" : "Abrir a inscrição"}</button>` : "",
+      sit.prop ? `<span class="badge b-warn">pedido enviado ${dm(sit.prop.criado_em.slice(0, 10))}, aguardando resposta</span>` : !pode ? `<span class="muted" style="font-size:13px">Quem solicita é a área de ${tipo === "casa" ? "Operações" : "Agenda"}.</span>`
+        : sit.conta ? `<button class="btn sm pri" data-pp-novo="${tipo}|user:${esc(sit.conta.user_id)}">Pedir o que falta ${quem}</button>`
+        : `<button class="btn sm pri" data-pp-novo="${tipo}|pf:${esc(refPF(pf))}" title="Gera o convite e a proposta com o que já sabemos; a mensagem de WhatsApp sai pronta.">Solicitar ${quem}</button>`,
+      pf.id ? `<a class="btn sm ghost" href="https://www.notion.so/${esc(pf.id)}" target="_blank" rel="noopener">Abrir no Notion</a>` : "",
+    ].filter(Boolean).join("");
+    return `<div class="pf-ficha" data-pf-ficha="${esc(tipo + "|" + refPF(pf))}">
+      <p style="margin:0 0 6px;font-size:14px"><span class="badge ${sit.ficha ? "b-good" : sit.conv ? "b-warn" : ""}">${esc(sit.txt)}</span> <b>${n.tem} de ${n.total}</b> campos da ${tipo === "casa" ? "Ficha" : "inscrição"} já preenchidos pelo Notion · <b>${n.falta}</b> ${n.falta === 1 ? "falta" : "faltam"}.</p>
+      <p class="muted" style="font-size:13px;margin:0 0 6px">"do Notion" = já sabemos e vai preenchido; "falta" = ${tipo === "casa" ? "a casa" : "a artista"} completa. Toque em cada parte para ver os campos.</p>
+      ${dias}${tocou}${secoes}${hist}
+      <div class="barra-acoes" style="margin-top:10px">${acoes}</div></div>`;
+  }
+  function abrirPreFicha(tipo, ref) {
+    const pf = pfDe(tipo, ref); if (!pf) return;
+    $("#dlgIn").innerHTML = `<div class="tag">${tipo === "casa" ? "Ficha da casa" : "Inscrição da artista"} · pré-preenchida pelo Notion</div><h2 style="margin-top:4px">${esc(pf.nome)}</h2>
+      <p class="muted" style="margin-top:0">${esc(tipo === "casa" ? pf.valores.cidade_uf || pf.cidade || "" : pf.valores.cidade_base || "")}</p>${htmlPreFicha(tipo, pf)}
+      <div class="barra-acoes" style="margin-top:10px"><button class="btn ghost" onclick="dlg.close()">Fechar</button></div>`;
+    $("#dlg").dataset.alvo = "pf:" + tipo; if (!$("#dlg").open) $("#dlg").showModal();
+  }
+  // Lista das telas Casas (Gui) e Curadoria (Isa): começa fechada; cada linha expande a pré-ficha.
+  function blocoPreFichas(tipo) {
+    const E = S.eq; if (!E || !PF()) return "";
+    const D = preFichas(), hoje = hojeIso(), aberto = !!S.pfBloco?.[tipo];
+    if (!D.B && !D.P) return `<section class="card" style="margin:0 0 14px"><p class="muted" style="margin:0">Carregando as ${tipo === "casa" ? "casas" : "artistas"} do Notion…</p></section>`;
+    const FILA = /^(Avaliando|Para avaliar|Pré-aprovado|Falta link)/;
+    const base = tipo === "casa" ? D.casas : D.artistas.filter((a) => a.proximas.length || a.realizadas.length || a.vezes || FILA.test(a.status));
+    const L = base.map((pf) => ({ pf, sit: situacaoPF(tipo, pf, E) }))
+      .sort((a, b) => (!!a.sit.ficha - !!b.sit.ficha) || ((a.pf.proximas[0]?.d || "9999").localeCompare(b.pf.proximas[0]?.d || "9999")) || (b.pf.realizadas.length - a.pf.realizadas.length) || a.pf.nome.localeCompare(b.pf.nome, "pt-BR"));
+    const semConta = L.filter((x) => !x.sit.conta).length, comData = L.filter((x) => !x.sit.ficha && x.pf.proximas.some((e) => e.d >= hoje)).length;
+    const LIM = 12, todas = !!S.pfTodas?.[tipo];
+    const item = ({ pf, sit }, i) => { const ref = refPF(pf), ab = S.pfAberto === tipo + "|" + ref, n = contagemPF(tipo, pf), prox = pf.proximas[0];
+      const onde = tipo === "casa" ? pf.valores.cidade_uf || pf.cidade : pf.valores.cidade_base || "";
+      return `<li class="pf-item" data-pf-item data-busca="${esc(PF().chave([pf.nome, onde].join(" ")))}"${!todas && i >= LIM ? " hidden" : ""}><button type="button" class="pf-linha" data-pf-abrir="${esc(tipo + "|" + ref)}" aria-expanded="${ab}"><b>${esc(pf.nome)}</b>${onde ? `<span class="muted">${esc(onde)}</span>` : ""}
+        <span class="badge ${sit.ficha ? "b-good" : sit.conv ? "b-warn" : ""}">${esc(sit.txt)}</span>${prox ? `<span class="badge b-warn">próxima data ${dm(prox.d)}</span>` : ""}<span class="muted" style="font-size:13px">${pf.realizadas.length} ${pf.realizadas.length === 1 ? "noite" : "noites"} · ${n.tem} de ${n.total} campos do Notion</span></button>
+        ${ab ? `<div class="pf-corpo">${htmlPreFicha(tipo, pf)}</div>` : ""}</li>`; };
+    const corpo = !aberto ? "" : `<div class="filters" style="margin:10px 0 0"><input data-pf-busca="${tipo}" placeholder="Buscar ${tipo === "casa" ? "casa ou cidade" : "artista ou cidade"}" aria-label="Buscar" value="${esc(S.pfBusca?.[tipo] || "")}"></div>
+      <ul class="pf-lista" data-pf-lista="${tipo}">${L.map(item).join("")}</ul>
+      ${L.length > LIM && !todas ? `<button class="btn sm ghost" data-pf-todas="${tipo}" style="margin-top:6px">Mostrar ${tipo === "casa" ? "todas as" : "todos os"} ${L.length}</button>` : ""}`;
+    return `<section class="card pp-bloco" id="pfBloco-${tipo}" style="margin:0 0 14px">
+      <button type="button" class="pp-topo" data-pf-bloco="${tipo}" aria-expanded="${aberto}"><span><b style="font-size:16px">🗂️ ${tipo === "casa" ? "Casas reais do Notion: Ficha pré-preenchida" : "Artistas reais do Notion: inscrição pré-preenchida"}</b>
+      <span class="pp-chips"><span class="badge b-warn">${semConta} sem conta no portal</span><span class="badge">${comData} com data marcada e sem ${tipo === "casa" ? "Ficha" : "inscrição"}</span><span class="badge">${L.length} no total</span></span>
+      <span class="muted" style="display:block;font-size:13px;margin-top:4px;font-weight:400">${tipo === "casa" ? "Toda casa do Notion" : "Quem está nos line-ups, já tocou ou está na fila de curadoria do Notion"}, mesmo sem conta: o que já sabemos aparece "do Notion" e o que falta, "falta". "Solicitar" gera o convite e a proposta com o que já temos; ao criar a conta, ${tipo === "casa" ? "a Ficha" : "a inscrição"} já nasce preenchida.</span></span>
+      <span class="pp-seta" aria-hidden="true">${aberto ? "▲" : "▼"}</span></button>${corpo}</section>`;
+  }
+  function filtrarPF(tipo) {
+    const q = PF().chave(S.pfBusca?.[tipo] || ""), todas = !!S.pfTodas?.[tipo]; let i = 0;
+    document.querySelectorAll(`[data-pf-lista="${tipo}"] [data-pf-item]`).forEach((li) => { const bate = !q || li.dataset.busca.includes(q); li.hidden = !bate || (!q && !todas && i >= 12); if (bate) i++; });
+  }
+  document.addEventListener("input", (ev) => { const t = ev.target; if (!t.matches?.("[data-pf-busca]")) return; (S.pfBusca ||= {})[t.dataset.pfBusca] = t.value; filtrarPF(t.dataset.pfBusca); });
+  function cliquesPreFichas(t) {
+    const bl = t.closest("[data-pf-bloco]"); if (bl) { const k = bl.dataset.pfBloco; (S.pfBloco ||= {})[k] = !S.pfBloco[k]; render(); return true; }
+    const ab = t.closest("[data-pf-abrir]"); if (ab) { const k = ab.dataset.pfAbrir; S.pfAberto = S.pfAberto === k ? null : k; render(); if (S.pfBusca?.[k.split("|")[0]]) filtrarPF(k.split("|")[0]); $(`[data-pf-abrir="${CSS.escape(k)}"]`)?.focus({ preventScroll: true }); return true; }
+    const td = t.closest("[data-pf-todas]"); if (td) { (S.pfTodas ||= {})[td.dataset.pfTodas] = true; render(); return true; }
+    return false;
+  }
   // Controle de um campo da proposta (equipe e ajuste da pessoa): texto, lista (vírgulas), opção ou número.
   function controlePP(tipo, k, v, attr) {
     const c = PP().campo(tipo, k) || [k, k, "texto"], [, rot, tp, opts] = c;
@@ -4274,14 +4452,23 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const E = S.eq, B = basesPub(); if (!E) return;
     const [tipo, ref] = chave.split("|"), i = ref.indexOf(":"), modo = ref.slice(0, i), id = ref.slice(i + 1);
     const base = B ? (tipo === "casa" ? B.casas : B.artistas) : [];
-    let conta, item;
+    let conta, item, pf = null;
     if (modo === "user") { conta = contaPP(tipo, { uid: id }, E); item = base.find((x) => kpp(x.nome) === kpp(conta?.nome)); }
+    else if (modo === "pf") { pf = pfDe(tipo, id); item = pf && (base.find((x) => pf.id && semTraco(x.id) === pf.id) || base.find((x) => kpp(x.nome) === kpp(pf.nome))); conta = pf && contaPP(tipo, { nome: pf.nome }, E); }
     else { item = base.find((x) => x.id === id); conta = item && contaPP(tipo, { nome: item.nome }, E); }
-    if (!conta && !item) return;
-    const sem = conta ? semanalPP(tipo, conta, E) : [], hist = PP().doHistorico(tipo, item, B), sug = conta ? PP().soOQueFalta(tipo, hist, conta.dados, sem) : hist;
+    if (!conta && !item && !pf) return;
+    // Pré-ficha pelo Notion: tudo o que já sabemos vai junto (nome, capacidade, site, rider, endereço…), não só o histórico.
+    pf ||= PF() && pfDe(tipo, item?.id || conta?.nome || "");
+    const hist = PP().doHistorico(tipo, item, B);
+    if (pf) {
+      hist.campos = { ...hist.campos, ...PF().campos(pf, PP().todos(tipo).map(([c]) => c)) };
+      if (tipo === "casa" && !hist.disponibilidade.length && pf.diasFortes?.length) hist.disponibilidade = [{ cidade: null, dias: [...pf.diasFortes] }];
+      if (!hist.motivo) hist.motivo = pf.realizadas.length ? `Pelo histórico do Tranquilo: ${pf.realizadas.length} ${pf.realizadas.length === 1 ? "noite" : "noites"}${tipo === "casa" ? " na casa" : ""}.` : `Pelo que o Tranquilo já tem ${tipo === "casa" ? "da sua casa" : "de você"} no Notion.`;
+    }
+    const sem = conta ? semanalPP(tipo, conta, E) : [], sug = conta ? PP().soOQueFalta(tipo, hist, conta.dados, sem) : hist;
     const precisaDisp = !sug.disponibilidade.length && !sem.some((s) => (s.dias || []).length);
-    const conv = !conta && (E.conv || []).find((c) => c.tipo === tipo && kpp(c.vinculo_nome || c.nome) === kpp(item.nome));
-    S.ppForm = { tipo, conta, nome: conta?.nome || item?.nome || "", dados: conta?.dados || {}, campos: { ...sug.campos }, incluir: Object.keys(sug.campos),
+    const conv = !conta && (E.conv || []).find((c) => c.tipo === tipo && kpp(c.vinculo_nome || c.nome) === kpp(item?.nome || pf?.nome));
+    S.ppForm = { tipo, conta, nome: conta?.nome || item?.nome || pf?.nome || "", dados: conta?.dados || {}, campos: { ...sug.campos }, incluir: Object.keys(sug.campos),
       disp: sug.disponibilidade.length ? sug.disponibilidade.map((x) => ({ ...x, dias: [...x.dias] })) : precisaDisp ? [{ cidade: tipo === "artista" ? conta?.dados?.cidade_base || item?.mora || null : null, dias: [] }] : [],
       motivo: sug.motivo || "", email: conv?.email || "", whatsapp: conta?.whatsapp || conv?.whatsapp || "", falta: conta ? PP().faltando(tipo, conta.dados, sem) : [] };
     desenharFormProposta();
@@ -4295,7 +4482,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return F;
   }
   function desenharFormProposta() {
-    const F = S.ppForm, P = PP(), C = P.CAMPOS[F.tipo];
+    const F = S.ppForm, P = PP(), C = P.todos(F.tipo);
     const linhaCampo = ([k, rot]) => { const agora = P.fmtValor(F.tipo, k, F.dados[k]);
       return `<div class="pp-campo"><label class="fcheck"><input type="checkbox" data-pp-inc="${k}"${F.incluir.includes(k) ? " checked" : ""}> <span><b>${esc(rot)}</b></span></label>${controlePP(F.tipo, k, F.campos[k], "data-pp-campo")}
         <div class="muted" style="font-size:12px">${F.conta ? (agora ? "Hoje na ficha: " + esc(agora) : "Hoje na ficha: vazio") : ""}</div></div>`; };
@@ -4339,6 +4526,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     S.ppForm = null; render();
     if (conv) dialogoResultado({ oque: "Convite com a proposta", nome: F.nome, email: conv.email, whatsapp: conv.whatsapp, texto, assunto: "Sua ficha na Rede Tranquilo", resultado: res.r.r, recebe: RECEBE.convite + " Ao entrar, a proposta aparece logo no começo, em Próximos passos.", reenviar: () => api.convidar(conv) });
     else dialogoEnvio({ titulo: `Proposta enviada para ${F.nome}`, texto, email: F.conta.email, whatsapp: F.conta.whatsapp, assunto: "Sugestão para atualizar sua ficha", aviso: `✓ Proposta enviada. Ela já aparece para ${F.tipo === "casa" ? "a casa" : "a artista"} em Próximos passos. Se quiser, avise pelo WhatsApp com a mensagem abaixo.` });
+  }
+  // Campos das propostas pendentes da própria conta (a mais nova vale), para a Ficha/inscrição nascer preenchida.
+  function doConvitePP(tipo) {
+    if (S.conta?.perfil.tipo !== tipo || funcoesDe()) return [];
+    return (S.conta.prop || []).filter((p) => p.status === "pendente" && p.alvo_tipo === tipo).sort((a, b) => String(a.criado_em).localeCompare(String(b.criado_em))).flatMap((p) => Object.entries(p.campos || {}));
   }
   // Cartão da pessoa, no topo de Próximos passos: o antes → depois, "Aceitar tudo", "Ajustar" e "Recusar".
   function cartaoPropostas() {
@@ -4664,6 +4856,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   function abrirItem(alvo) {
     const i = alvo.indexOf(":"), tipo = alvo.slice(0, i), id = alvo.slice(i + 1);
     const depois = (fn) => setTimeout(fn, 60);
+    if (tipo === "pf") { const j = id.indexOf("|"); abrirPreFicha(id.slice(0, j), id.slice(j + 1)); return; }
+    if ($("#dlg")?.open) $("#dlg").close();   // item aberto de dentro de uma pré-ficha
+    if (tipo === "sughist") { irPara("datas_portal"); S.dpSugAberta = true; render(); depois(() => $("#dpSugHist")?.scrollIntoView({ block: "start" })); return; }
     if (tipo === "ct") {
       S.ctFoco = id; S.ctDevolver = null; irPara("documentos"); render(); scrollTo(0, 0);
       depois(() => { const tr = $(`[data-ct-ver="${CSS.escape(id)}"]`)?.closest("tr"); if (tr) { tr.classList.add("foco"); tr.scrollIntoView({ block: "center" }); (tr.querySelector("[data-ct-conferir]") || tr.querySelector("button"))?.focus({ preventScroll: true }); } });
@@ -4698,6 +4893,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ab = t.closest("[data-abrir]"); if (ab) { ev.preventDefault(); abrirItem(ab.dataset.abrir); return; }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesPropostas(t)) return;
+    if (cliquesPreFichas(t)) return;
     if (await cliquesEquipe(t)) return;
     if (await cliquesFicha(t)) return;
     if (await cliquesDatas(t)) return;

@@ -30,7 +30,26 @@
       ["instagram", "Instagram da casa", "texto"],
     ],
   };
-  const campo = (tipo, chave) => CAMPOS[tipo].find(([c]) => c === chave);
+  // Outras informações que a proposta pode levar (pré-ficha pelo Notion, junto com o convite). Não contam como "faltando".
+  const EXTRAS = {
+    artista: [
+      ["nome_artistico", "Nome artístico", "texto"],
+      ["generos", "Gêneros e referências", "texto"],
+      ["youtube", "Link do YouTube", "texto"],
+      ["outro_link", "Outro link (site, Deezer, Bandcamp)", "texto"],
+    ],
+    casa: [
+      ["nome", "Nome da casa", "texto"],
+      ["capacidade", "Capacidade em pé", "numero"],
+      ["site", "Site", "texto"],
+      ["rider", "Rider técnico da casa (link ou texto)", "texto"],
+      ["menores", "Menores de idade", "opcao", [["permite", "Permite"], ["responsavel", "Permite com responsável legal"], ["nao", "Não permite"]]],
+      ["complemento", "Complemento e ponto de referência", "texto"],
+      ["como_chegar", "Como chegar", "texto"],
+    ],
+  };
+  const todos = (tipo) => [...CAMPOS[tipo], ...EXTRAS[tipo]];
+  const campo = (tipo, chave) => todos(tipo).find(([c]) => c === chave);
   const rotulo = (tipo, chave) => campo(tipo, chave)?.[1] || chave;
   // Artista → área Agenda (Isa); casa → Operações (Gui); administração e equipe sem área → todos (igual a pode_propor).
   function podePropor(perfil, tipo) {
@@ -100,5 +119,5 @@
     const ls = linhas(tipo, prop, {}, []).map((l) => `• ${l.rotulo}: ${l.depois}`).join("\n");
     return `Oi${nome ? ", " + nome : ""}! Aqui é do Tranquilo 🌿 Pelo nosso histórico com ${tipo === "casa" ? "a sua casa" : "você"}, preparamos uma sugestão para atualizar a sua ficha no portal da Rede Tranquilo:\n\n${ls}\n${prop.motivo ? "\n" + prop.motivo + "\n" : ""}\n${convite ? `Você ainda não tem conta no portal: entre por este link (use este mesmo e-mail) e a sugestão aparece logo no começo, em "Próximos passos": ${link}` : `Entre no portal e veja em "Próximos passos": ${link}`}\n\nÉ só tocar em "Aceitar tudo", "Ajustar" ou "Recusar". Aceitando, a sua ficha já fica atualizada.`;
   }
-  g.TQPropostas = { CAMPOS, DIAS, DIAS_LONGO, campo, rotulo, podePropor, fmtDias, fmtValor, diasFortes, doHistorico, soOQueFalta, faltando, linhas, mensagem, vazio, chave: k };
+  g.TQPropostas = { CAMPOS, EXTRAS, todos, DIAS, DIAS_LONGO, campo, rotulo, podePropor, fmtDias, fmtValor, diasFortes, doHistorico, soOQueFalta, faltando, linhas, mensagem, vazio, chave: k };
 })(typeof window !== "undefined" ? window : globalThis);
