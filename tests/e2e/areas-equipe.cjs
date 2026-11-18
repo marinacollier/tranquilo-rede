@@ -40,7 +40,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await entrar('equipe');
     const mk = await abas();
     ok(mk.includes('campanhas') && !mk.includes('datas_portal') && !mk.includes('documentos') && !mk.includes('prontidao') && !mk.includes('relatos'), `Marketing: abas da área (${mk.join(', ')})`);
-    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'feito', 'geral', 'painel', 'campanhas', 'demanda', 'convites', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
+    ok(JSON.stringify(mk) === JSON.stringify(['hoje', 'acompanhamento', 'feito', 'geral', 'painel', 'campanhas', 'demanda', 'convites', 'materiais', 'base', 'metodo', 'conta']), `Marketing (júnior): telas da área (${mk.join(', ')})`);
     { const r = await p.evaluate(() => { const ks = [...TQConta.abas().map(([k]) => k), ...TQConta.abas().flatMap(([k]) => k.startsWith('g_') ? TQConta.subsDoGrupo(k).map(([x]) => x) : [])]; return { rot: TQConta.roteiroConta(), falta: TQTour.semTutorial('eq_areas', ks) }; });
       ok(r.rot === 'eq_areas' && !r.falta.length, `tutorial da área Marketing: cobre o menu inteiro${r.falta.length ? ' (faltam ' + r.falta.join(', ') + ')' : ''}`); }
     await ir('hoje');

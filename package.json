@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/campanha-leitura.test.mjs && node tests/schema.test.mjs && node tests/equipe.test.mjs && node tests/regras.test.mjs && node tests/materiais.test.mjs && node tests/campanhas.test.mjs && node tests/contratos.test.mjs && node tests/contrato-conferir.test.mjs && node tests/contrato-modelos.test.mjs && node tests/datas-portal.test.mjs && node tests/lineup.test.mjs && node tests/equilibrio.test.mjs && node tests/bases.test.mjs && node tests/historico.test.mjs && node tests/propostas.test.mjs && node tests/prefichas.test.mjs"
+    "test": "node tests/campanha-leitura.test.mjs && node tests/schema.test.mjs && node tests/equipe.test.mjs && node tests/regras.test.mjs && node tests/modelos.test.mjs && node tests/materiais.test.mjs && node tests/campanhas.test.mjs && node tests/contratos.test.mjs && node tests/contrato-conferir.test.mjs && node tests/contrato-modelos.test.mjs && node tests/datas-portal.test.mjs && node tests/lineup.test.mjs && node tests/equilibrio.test.mjs && node tests/bases.test.mjs && node tests/historico.test.mjs && node tests/propostas.test.mjs && node tests/prefichas.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.2.17",

@@ -150,6 +150,11 @@
   function passosDaData(modelo, dataIso, feitos, hoje, produto) {
     const camp = modelo === "casa" ? [] : (CAMPANHA_ARTISTA[produto] || CAMPANHA_ARTISTA[produtoBase(produto) || "Descubra"]);
     const lista = modelo === "casa" ? PASSOS_CASA : [...PASSOS_ARTISTA, ...camp].sort((a, b) => a[1] - b[1]);
+    return montarPassos(lista, dataIso, feitos, hoje, (chave) => modelo === "casa" && A_VALIDAR.has(chave));
+  }
+  /** Mesma conta de prazo, atraso e "não registrado" para qualquer lista [chave, dias, titulo, texto] (casa, artista e
+   *  os modelos da equipe em src/modelos.js). feitos[chave] pode ser true ou { por, em } (quem marcou e quando). */
+  function montarPassos(lista, dataIso, feitos, hoje, validar = () => false) {
     const base = new Date(dataIso + "T12:00:00");
     return lista.map(([chave, dias, titulo, texto]) => {
       const prazo = new Date(base.getTime() + dias * 864e5).toISOString().slice(0, 10);
@@ -157,7 +162,7 @@
       // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
       // não "atrasado". Só conta como atraso o que ainda dá para fazer.
       const passou = !feito && dias <= 0 && dataIso < hoje;
-      return { chave, dias, titulo, texto, prazo, feito, passou, validar: modelo === "casa" && A_VALIDAR.has(chave), atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje };
+      return { chave, dias, titulo, texto, prazo, feito, passou, validar: validar(chave), atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje, marca: feito && typeof feitos[chave] === "object" ? feitos[chave] : null };
     });
   }
 
@@ -194,5 +199,5 @@
     });
   }
 
-  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, FORMATOS, NOMES_FORMATO, formatoDe, produtoBase, topaFormato, vagasFormato, lineupRemovidos, passosDoLineup };
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, montarPassos, CAMPANHA_ARTISTA, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, FORMATOS, NOMES_FORMATO, formatoDe, produtoBase, topaFormato, vagasFormato, lineupRemovidos, passosDoLineup };
 })(typeof window !== "undefined" ? window : globalThis);

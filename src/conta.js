@@ -1019,7 +1019,7 @@ const TQConta = (() => {
   // Menu padrão do time (pedido da Marina, 17/11/2026): o mesmo formato para Gui, Isa, Bruno, equipe e administração.
   // Na lateral, as partes do trabalho; dentro de cada uma, as abas em cima. Cada área vê só as suas; a adm vê todas.
   const GRUPOS_EQ = {
-    g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
+    g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["acompanhamento", "Acompanhamento"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
     g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["base_artistas", "Base de artistas"], ["artistas", "Histórico dos artistas"]]],
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["base_casas", "Base de casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
@@ -1079,7 +1079,7 @@ const TQConta = (() => {
     if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha ficha"], ["disp_artista", "Disponibilidade"], ["contratos_meus", "Contrato"], ["art_mkt", "Divulgação"], ["meu_hist", "Seu histórico"], ...doPac, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["duvidas", "Dúvidas"], ["conta", "Conta"]];
-    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
+    const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["acompanhamento", "Acompanhamento"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
     if (t === "adm") base.push(["pessoas", "Pessoas"], ["historico", "Histórico de alterações"]);
     // Equipe com área (Gui, Isa, Bruno): menu enxuto, só o que cada área usa no dia a dia, começando por "Hoje".
     if (menuAgrupado()) {
@@ -1640,14 +1640,33 @@ const TQConta = (() => {
       <dt>Passagem de som</dt><dd>Quem toca por último passa o som primeiro. Horário no cronograma da noite.</dd>
       <dt>Contatos ${A_VALIDAR_HTML}</dt><dd>Isa · Comercial e Artístico (datas, artistas e line-up). Contato da casa a confirmar.</dd></dl>`;
   }
-  function blocoPassos(e, modelo) {
-    const feitos = Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
-    // Contrato da data: assinado conta como feito; enviado ganha o botão no próprio passo; sem contrato, a vez é da equipe.
+  // Passos da data para a própria conta (casa ou artista), com o modelo do papel (quem faz, o que conta como feito e o
+  // método, src/modelos.js) e o SOS do que é dela: equipe incompleta a 14 dias, contrato sem assinar a 10 e passos atrasados.
+  function passosDaConta(e, modelo) {
+    const feitos = window.TQModelos ? TQModelos.feitosDe(S.conta.chk, e.id) : Object.fromEntries(S.conta.chk.filter((c) => c.evento_id === e.id && c.feito).map((c) => [c.item, true]));
     const ctData = meusContratos().filter((c) => c.evento_id === e.id), ctPend = ctData.find((c) => c.status === "enviado" && !ctRecebido(c));
-    if (ctData.some((c) => c.status === "assinado" || ctRecebido(c))) feitos.contrato = true;
-    else if (ctData.some(ctPedidoDeNovo)) feitos.contrato = false;   // a equipe pediu o arquivo de novo: o passo volta a pendente
+    if (ctData.some((c) => c.status === "assinado" || ctRecebido(c))) feitos.contrato ||= true;
+    else if (ctData.some(ctPedidoDeNovo)) feitos.contrato = false;
     const fs = funcoesDe();
-    const ps = R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
+    const ps = (window.TQModelos ? TQModelos.passos(modelo, e.d, feitos, hojeIso(), e.m) : R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m)).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
+    const d = Math.round((Date.parse(e.d + "T12:00:00Z") - Date.parse(hojeIso() + "T12:00:00Z")) / 864e5), sos = [];
+    if (d >= 0) {
+      const L = S.conta.equipe, cob = modelo === "casa" && Array.isArray(L) && TQEquipe.veTudo(fs) ? TQEquipe.cobertura(L) : null;
+      if (cob && !cob.completa && d <= 14) sos.push({ titulo: "Equipe da casa incompleta", texto: `Faltam ${d} dias e ainda falta: ${TQEquipe.listaFalta(cob)}. Sem a equipe completa a noite não fecha.`, botao: `<button class="btn sm pri" data-ir="equipe_casa">Completar a equipe</button>` });
+      if (ctPend && d <= 10 && (modelo === "artista" || !fs)) sos.push({ titulo: "Contrato sem assinar", texto: `Faltam ${d} dias para a data e o contrato ainda não voltou assinado.`, botao: `<button class="btn sm pri" data-ct-abrir="${ctPend.id}">Abrir o contrato</button>` });
+      const atr = ps.filter((p) => p.atrasado);
+      if (atr.length >= 2) sos.push({ titulo: `${atr.length} passos atrasados`, texto: `${atr.slice(0, 3).map((p) => p.titulo).join(", ")}${atr.length > 3 ? ` e mais ${atr.length - 3}` : ""}. Faça o que der e marque Feito; se travou, avise a Central pelo grupo.`, botao: "" });
+    }
+    return { ps, sos, ctPend, fs };
+  }
+  // Acompanhamento da própria conta, no topo de Próximos passos: % feito, atrasados e SOS das próximas datas.
+  function painelConta(evs, modelo) {
+    const fut = evs.filter((e) => e.d >= hojeIso()); if (!fut.length || !window.TQModelos) return "";
+    const todos = fut.map((e) => passosDaConta(e, modelo)), r = TQModelos.resumo(todos.flatMap((x) => x.ps)), sos = todos.reduce((t, x) => t + x.sos.length, 0);
+    return `<div class="card md-conta row" style="margin-bottom:12px"><span><b>Seu acompanhamento</b> <span class="muted" style="font-size:13px">· ${fut.length} ${fut.length === 1 ? "data" : "datas"} pela frente</span></span><span>${pctBadge({ ...r, sos })}</span></div>`;
+  }
+  function blocoPassos(e, modelo) {
+    const { ps, sos, ctPend, fs } = passosDaConta(e, modelo);
     const n = ps.filter((p) => p.feito).length, atras = ps.filter((p) => p.atrasado).length;
     const proximo = ps.find((p) => !p.feito && !p.passou);
     const registro = modelo === "casa" && e.d <= hojeIso() && TQEquipe.vePasso(fs, "publico") ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
@@ -1655,9 +1674,11 @@ const TQConta = (() => {
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
       <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${local}
+      ${sos.length ? `<div class="alert crit md-sos-conta" style="margin:10px 0"><b>🆘 SOS: algo está atrasado ou travado</b><ul class="passos md-lista">${sos.map((x) => `<li><b>${esc(x.titulo)}</b><br><span style="font-size:13px">${esc(x.texto)}</span>${x.botao ? `<div class="barra-acoes" style="margin-top:6px">${x.botao}</div>` : ""}</li>`).join("")}</ul></div>` : ""}
       ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Abrir o contrato". Você não precisa fazer nada agora.</div>`
-        : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Abrir o contrato →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
-      <details><summary>Ver todos os passos</summary><ul class="passos">${ps.map((p) => `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b>${p.validar ? " " + A_VALIDAR_HTML : ""} <span class="muted">· ${p.dias < 0 ? `${-p.dias} dias antes` : p.dias === 0 ? "no dia" : `${p.dias} dia${p.dias > 1 ? "s" : ""} depois`} (${dtc(p.prazo)})${p.passou ? " · não registrado" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
+        : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${window.TQModelos && proximo.metodo ? `<div style="margin-top:6px">${linkMetodo(proximo.metodo, e.m)}</div>` : ""}${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Abrir o contrato →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
+      <details data-dobra="pp-todos:${esc(e.id)}"${S.dobras?.["pp-todos:" + e.id] ? " open" : ""}><summary>Ver todos os passos (quem faz, o que conta como feito e como fazer)</summary><ul class="passos">${ps.map((p) => window.TQModelos ? linhaModelo(p, { evId: e.id, produto: e.m, marcar: true, campo: "passo", soQuemMarcou: false, quemMarcou: (u) => u === S.conta.perfil.id ? "você" : modelo === "casa" ? "alguém da equipe da casa" : "você" }).replace("</b>", `</b>${p.validar ? " " + A_VALIDAR_HTML : ""}`)
+        : `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${dtc(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
@@ -2587,8 +2608,30 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const semAgenda = S.pac ? "" : `<div class="alert warn"><b>A agenda do Notion não abriu nesta conta</b>Sem ela, as datas, casas e line-ups reais não entram aqui. Entre de novo; se continuar, peça à administração para conferir o código interno da equipe.</div>`;
       return `<div class="tag">Para você</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
       <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, organizado pelo que fazer. Toque numa linha para abrir aquele item; "Abrir" mostra a lista toda.</p>
-      ${semAgenda}${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : resto.length ? `<div class="alert"><b>Nada urgente agora</b>O que está em andamento fica logo abaixo, em “Pode interessar”.</div>` : carregandoBases || semAgenda ? "" : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}${carregandoBases}
+      ${semAgenda}${painelModelo(E, areas)}${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : resto.length ? `<div class="alert"><b>Nada urgente agora</b>O que está em andamento fica logo abaixo, em “Pode interessar”.</div>` : carregandoBases || semAgenda ? "" : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}${carregandoBases}
       ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((b) => blocoAcao(b)).join("")}</div>` : ""}`;
+    },
+    // Acompanhamento (pedido da Marina, 18/11/2026): o modelo de cada papel em cada data, para a equipe e a adm.
+    // Começa fechadinho: uma linha por data com o % de cada papel; abre para as ações, o Feito e os SOS.
+    acompanhamento() {
+      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o acompanhamento"); }
+      if (!S.hub) carregarHub();
+      const ver = S.acompVer || "", hoje = hojeIso(), datas = modeloDatas(E);
+      const papeis = ["operacoes", "agenda", "marketing", "casa", "artista"], sosTodos = sosAbertos(E, ["operacoes", "agenda", "marketing"]);
+      const futuras = datas.filter((x) => x.e.d >= hoje), lista = ver === "sos" ? datas.filter((x) => x.sos.length) : datas;
+      const kpiPapel = (p) => { const ps = futuras.flatMap((x) => p === "casa" ? x.casaPs : p === "artista" ? x.artistas.flatMap((a) => a.passos) : x.eq[p]);
+        const r = MD().resumo(ps, sosTodos.filter((s) => s.papel === p));
+        return `<button type="button" class="card md-kpi${ver === p ? " on" : ""}" data-acomp-ver="${ver === p ? "" : p}" aria-pressed="${ver === p}"><b>${esc(NOME_PAPEL[p])}</b><span class="md-kpi-v">${r.total ? r.pct + "%" : "–"}</span><span class="muted" style="font-size:12px">${r.total ? `${r.feitos} de ${r.total} feitos · ${r.atrasados} atrasados${["casa", "artista"].includes(p) ? "" : ` · ${r.sos} SOS`}` : "sem passos ainda"}</span></button>`; };
+      const escalados = sosTodos.filter((s) => s.escalado);
+      return `<div class="tag">Acompanhamento</div><h1>Quem faz o quê em cada data</h1>
+      <p class="sub">Cada papel tem o seu modelo, como a campanha do Bruno: a sequência de ações por data, o próximo passo, o SOS quando algo atrasa e o "como fazer". Toque num papel para ver só ele; toque numa data para abrir as ações.</p>
+      <div class="barra-acoes" style="margin-bottom:10px"><button class="btn sm" data-acomp-atualizar title="Busca de novo o que cada um marcou">Atualizar agora</button><button class="btn sm${ver === "sos" ? " pri" : ""}" data-acomp-ver="${ver === "sos" ? "" : "sos"}">${ver === "sos" ? "Ver todas as datas" : `Só as datas com SOS (${datas.filter((x) => x.sos.length).length})`}</button></div>
+      <div class="md-kpis">${papeis.map(kpiPapel).join("")}</div>
+      ${escalados.length ? `<div class="alert crit"><b>Escalado para a adm (${escalados.length})</b><ul class="passos md-lista">${escalados.map(htmlSos).join("")}</ul></div>` : ""}
+      ${dobra("md-sos-todos", "SOS abertos", `${sosTodos.length} ${sosTodos.length === 1 ? "alerta" : "alertas"} com a ação de socorro pronta · toque para ver`, sosTodos.length ? `<ul class="passos md-lista">${sosTodos.map(htmlSos).join("")}</ul>` : `<p class="muted">Nenhum SOS aberto.</p>`)}
+      ${dobra("md-padrao", "O modelo de cada papel (padrão)", "a sequência de ações por data, com prazo, quem faz, o que conta como feito e o método", padraoDosPapeis())}
+      <h2>Datas (3 dias atrás até 35 dias à frente)</h2>
+      ${lista.length ? `<div class="list">${lista.map((x) => dataNoAcomp(x, ["operacoes", "agenda", "marketing", "casa", "artista"].includes(ver) ? ver : "")).join("")}</div>` : vazio(ver === "sos" ? "Nenhuma data com SOS" : "Nenhuma data nos próximos 35 dias", "As datas do Notion e as criadas no portal entram aqui sozinhas.", "", "acompanhamento")}`;
     },
     // "Seu histórico": o que a própria pessoa fez nos últimos 30 dias (telaHistorico, para todo acesso).
     feito() { return telaHistorico(); },
@@ -2694,6 +2737,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <p class="inicio-oi">Três coisas para olhar hoje. O menu completo continua à esquerda${matchMedia("(max-width:959px)").matches ? ", no botão ☰" : ""}.</p>
       ${blocos.length || avisos ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:18px 0 0">Vale olhar primeiro</h2>
       <div class="list" id="filaPrimeiro" style="margin-top:12px">${blocos.map((b) => blocoAcao(b, 3)).join("")}${avisos ? blocoAcao({ acao: "Responder pedidos de show", dica: "Pedidos no \u201cme avise\u201d esperando resposta.", aba: "demanda", itens: [], n: avisos }) : ""}</div>` : ""}
+      <div style="margin-top:14px">${painelModelo(E, ["operacoes", "agenda", "marketing"])}</div>
       <div class="atalhos">
         ${atalho(adm ? "estrategia" : "operacao", "#7c8ff3", mes, mes == null ? "" : "de 50 datas este mês", "Como a rede está indo", adm ? "Cidades, casas e artistas que estão acima ou abaixo da média, e onde abrir datas a seguir." : "Calendário do mês, meta de 50 datas e o que acontece nos próximos 14 dias.", adm ? "Ver o painel" : "Ver a operação")}
         ${atalho("operacao", "#f9b436", alertas, alertas == null ? "" : alertas === 1 ? "ponto" : "pontos", "O que precisa de atenção", "Datas sem link de ingressos, noites sem público lançado e status desatualizados no Notion.", "Ver os alertas")}
@@ -2964,7 +3008,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <p class="sub">Aqui fica o que você precisa fazer em cada etapa, do cadastro ao pós-show.</p>
     ${et ? `<div class="card row" style="margin-bottom:12px" id="etapaConta"><span><b>Sua situação</b> ${badgeEtapa(et)}</span>${/Contrato (enviado|devolvido)/.test(et[1]) ? `<button class="btn sm pri" data-ir="contratos_meus">Abrir o contrato</button>` : ""}</div>` : ""}
     ${linhaTempo(etapas, etapa)}${agora}${comoFunciona}
-    ${evs.length ? `<h2>Suas datas</h2><p class="sub">Passo a passo de cada show, com prazo contado a partir da data. Marque o que já fez: a equipe acompanha por aqui.</p><div class="list">${evs.map((e) => blocoPassos(e, "artista")).join("")}</div>` : ""}`;
+    ${evs.length ? `<h2>Suas datas</h2><p class="sub">Passo a passo de cada show, com prazo contado a partir da data. Marque o que já fez: a equipe acompanha por aqui.</p>${painelConta(evs, "artista")}<div class="list">${evs.map((e) => blocoPassos(e, "artista")).join("")}</div>` : ""}`;
   }
   // Parte 1 da Ficha (Sua unidade): textos do modelo v1 e os combinados desta casa, registrados pela Central.
   // Combinado ainda não registrado aparece vazio (nunca um valor de exemplo ou de outra casa).
@@ -3040,7 +3084,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const p = S.conta.perfil, c = S.conta.casa, evs = eventosDaConta();
     if (funcoesDe()) return `<div class="tag">${esc(nomesFuncoes(funcoesDe()))}</div><h1>${esc(p.vinculo_nome || "Sua casa")}</h1>
       <p class="sub">Os passos de cada data que são da sua função, com prazo. O que você marca vale para a casa inteira: o responsável e a Central acompanham.</p>
-      ${evs.length ? `<h2>Datas da casa</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, os passos da sua função aparecem aqui.", "", "passos")}`;
+      ${evs.length ? `<h2>Datas da casa</h2>${painelConta(evs, "casa")}<div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, os passos da sua função aparecem aqui.", "", "passos")}`;
     // O status da habilitação e o que falta ficam na Ficha da Casa (uma fonte só); aqui, só o aviso com o atalho.
     const aviso = !c || c.status !== "habilitada" ? `<div class="alert ${c?.status === "suspensa" ? "crit" : "warn"}" style="margin-bottom:12px"><b>${!c ? "A Ficha da Casa ainda não foi enviada" : c.status === "suspensa" ? "Casa suspensa" : `Ficha: ${esc(STATUS_CASA[c.status]?.[1] || c.status)}`}</b>${c?.parecer ? esc(c.parecer) + " " : ""}<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="cadastro_casa">Abrir a Ficha da Casa</button></div></div>` : "";
     if (S.conta.equipe === undefined && p.vinculo_nome) carregarEquipeCasa();
@@ -3048,7 +3092,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const etapaTxt = c?.status === "habilitada" ? `<div class="card row" style="margin-bottom:12px" id="etapaConta"><span><b>Situação da casa</b> ${badgeEtapa(et)}</span>${et[1] === "Equipe incompleta" ? `<button class="btn sm pri" data-ir="equipe_casa">Completar a equipe</button>` : /Contrato (enviado|devolvido)/.test(et[1]) ? `<button class="btn sm pri" data-ir="contratos_meus">Abrir o contrato</button>` : ""}</div>` : "";
     return `<div class="tag">Datas</div><h1>Datas confirmadas</h1>
     <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e marca cada passo, com prazo. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
-    ${aviso}${etapaTxt}
+    ${aviso}${etapaTxt}${painelConta(evs, "casa")}
     ${evs.length ? `<div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, o passo a passo aparece aqui. Para o Tranquilo saber quando a casa pode receber shows, preencha a Disponibilidade.", `<button class="btn" data-ir="agenda_casa">Abrir a disponibilidade</button>`, "passos")}
     ${S.conta.reg.length ? `<h2>Noites registradas</h2><div class="list">${S.conta.reg.map((r) => `<div class="card row"><span>${esc(S.pac?.eventos.find((e) => e.id === r.evento_id)?.n || r.evento_id)}</span><span>${r.publico != null ? fmt(r.publico) + " pessoas" : ""} ${r.gravidade === "excecao" ? '<span class="badge b-crit">exceção</span>' : ""}</span></div>`).join("")}</div>` : ""}`;
   }
@@ -3978,6 +4022,153 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return blocos.sort((a, b) => chave(a).localeCompare(chave(b)) || a.prio - b.prio);
   }
   const dm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  // ---------- Modelo de cada papel e acompanhamento (pedido da Marina, 18/11/2026; regras em src/modelos.js) ----------
+  // O mesmo formato da campanha do Bruno para todos: PADRÃO por data, AÇÃO FUNCIONANDO (o próximo passo), AÇÃO SOS
+  // (alerta com socorro pronto), ACOMPANHAMENTO (% feito, atrasados, SOS) e MÉTODO (cada ação abre o "como fazer").
+  // O "Feito" da equipe usa a tabela checklist (item "op:…", "ag:…", "mk:…"), com quem marcou e quando.
+  const MD = () => window.TQModelos;
+  const NOME_PAPEL = { operacoes: "Gui · Operações", agenda: "Isa · Agenda", marketing: "Bruno · Marketing", casa: "Casa", artista: "Artistas" };
+  /** Datas que entram no acompanhamento (de 3 dias atrás a 35 dias à frente) com os passos de cada papel e os SOS. */
+  function modeloDatas(E) {
+    const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+    const chave = `${hoje}|${(E.chk || []).length}|${(E.contr || []).length}|${(E.datasP || []).length}|${(E.eqc || []).length}|${S.hub ? 1 : 0}|${(S.pac?.eventos || []).length}`;
+    if (E._modelo?.chave === chave) return E._modelo.datas;
+    const vistos = new Set(), evs = [...(S.pac?.eventos || []).filter((e) => !e.z), ...(E.datasP || []).filter((x) => x.status !== "cancelada").map(eventoDoPortal)]
+      .filter((e) => e.d >= mais(-3) && e.d <= mais(35) && !vistos.has(e.id) && vistos.add(e.id)).sort((a, b) => a.d.localeCompare(b.d));
+    const perfis = E.perfis || [], tipoDe = (uid) => perfis.find((p) => p.id === uid)?.tipo, H = S.hub, kc = TQCampanha.chaveCasa;
+    const datas = evs.map((e) => {
+      const casa = (E.casas || []).find((c) => c.id === e.kc || (e.h && (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h))));
+      const ref = casa?.perfil?.vinculo_nome || casa?.dados?.nome || e.h || "";
+      const casaUsers = perfis.filter((p) => p.tipo === "casa" && (p.id === casa?.user_id || (ref && k(p.vinculo_nome) === k(ref)))).map((p) => p.id);
+      const cts = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado");
+      const pdf = (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
+      const estado = (cs) => !cs.length ? (pdf ? "assinado" : "sem") : cs.every(ctAssinado) ? "assinado" : "enviado";
+      const fCasa = MD().feitosDe(E.chk, e.id, (c) => casaUsers.includes(c.user_id));
+      const casaPs = casaUsers.length ? MD().passos("casa", e.d, fCasa, hoje, e.m) : [];
+      const arts = e.portal ? [...(e.portal.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99))
+        : (e.a || []).map((nome) => ({ nome, user_id: perfis.find((p) => p.tipo === "artista" && k(p.vinculo_nome) === k(nome))?.id || null }));
+      const artistas = arts.map((a) => {
+        const cA = a.user_id ? cts.filter((c) => c.user_id === a.user_id) : [], f = a.user_id ? MD().feitosDe(E.chk, e.id, (c) => c.user_id === a.user_id) : {};
+        if (cA.some(ctRecebido)) f.contrato ||= true;
+        const ps = a.user_id ? MD().passos("artista", e.d, f, hoje, e.m) : [];
+        const wa = a.whatsapp || (E.insc || []).find((i) => i.user_id === a.user_id)?.dados?.whatsapp || perfis.find((p) => p.id === a.user_id)?.whatsapp || "";
+        return { nome: a.nome, user_id: a.user_id || null, passos: ps, whatsapp: wa, contrato: a.user_id || e.portal ? estado(cA) : null, atrasados: ps.filter((p) => p.atrasado).map((p) => p.titulo) };
+      });
+      const eqc = E.eqc == null || !ref ? null : E.eqc.filter((m) => k(m.casa_ref) === k(ref)), cob = eqc && casaUsers.length ? TQEquipe.cobertura(eqc) : null;
+      const camp = H && !H.erro && ref ? (H.campanhas || []).find((c) => kc(c.casa_ref) === kc(ref)) : null;
+      const and = camp && (H.andamento || []).find((a) => a.campanha_id === camp.id);
+      const campanha = H && !H.erro && ref ? { existe: !!camp, atrasados: and?.atrasados || 0 } : null;
+      const lineup = { n: (noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || arts.length, minimo: R.vagasFormato(e.m).minimo };
+      const ctCasa = casaUsers.length ? estado(cts.filter((c) => casaUsers.includes(c.user_id))) : null;
+      const auto = { ficha: casa?.status === "habilitada", treino: (S.pac?.eventos || []).some((x) => x.d < hoje && !x.z && k(x.h) === k(e.h)) || !!S.tri?.find?.((t) => k(t.casa_ref) === k(ref) && t.concluida),
+        equipe: !!cob?.completa, ct_casa: ctCasa === "assinado", casa_em_dia: casaPs.length > 0 && !casaPs.some((p) => p.atrasado), registro: (E.reg || []).some((r) => r.evento_id === e.id) || !!fCasa.publico,
+        fechamento: !!(fCasa.fechamento && fCasa.estoque), material: !!fCasa.material_social, lineup: lineup.n >= lineup.minimo,
+        ct_art_env: artistas.length > 0 && artistas.every((a) => a.contrato !== "sem"), ct_art_ok: artistas.length > 0 && artistas.every((a) => a.contrato === "assinado" || a.contrato === null && pdf),
+        campanha: !!campanha?.existe, campanha_em_dia: !!campanha?.existe && !campanha.atrasados, art_ok: artistas.some((a) => a.user_id) && artistas.filter((a) => a.user_id).every((a) => a.passos.some((p) => p.chave === "camp_ok" && p.feito)) };
+      const fEq = MD().feitosDe(E.chk, e.id, (c) => /^(op|ag|mk):/.test(c.item) && ["equipe", "adm"].includes(tipoDe(c.user_id)));
+      const eq = Object.fromEntries(MD().PAPEIS_EQUIPE.map((p) => [p, MD().passos(p, e.d, fEq, hoje, e.m, auto)]));
+      const whatsCasa = casa?.dados?.whatsapp || casa?.perfil?.whatsapp || (ref ? waDaCasa(ref) : "");
+      const sos = MD().sosDaData({ id: e.id, dia: e.d, hoje, casa: e.h || ref, produto: e.m, lineup, artistas, contratoCasa: ctCasa, equipe: cob ? { completa: cob.completa, falta: TQEquipe.listaFalta(cob) } : null,
+        campanha, casaAtrasados: casaPs.filter((p) => p.atrasado).map((p) => p.titulo), whatsCasa });
+      const escalados = MD().feitosDe(E.chk, e.id, (c) => /^sos:/.test(c.item));
+      return { e, ref, casa, casaUsers, casaPs, artistas, eq, sos, escalados, whatsCasa };
+    });
+    E._modelo = { chave, datas };
+    return datas;
+  }
+  /** SOS de todas as datas e das Fichas paradas, só dos papéis pedidos. */
+  function sosAbertos(E, papeis) {
+    const fichas = MD().sosFichas((E.casas || []).map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", status: c.status, enviado_em: c.enviado_em })), hojeIso())
+      .map((s) => ({ ...s, x: null, escalado: MD().feitosDe(E.chk, "ficha:" + s.chave.split("|")[1], (c) => /^sos:/.test(c.item))["sos:ficha"] }));
+    const porData = modeloDatas(E).flatMap((x) => x.sos.map((s) => ({ ...s, x, escalado: x.escalados["sos:" + s.chave.split("|").slice(1).join("|")] })));
+    return [...porData, ...fichas].filter((s) => papeis.includes(s.papel));
+  }
+  const nomeMarcou = (uid) => { if (!uid) return ""; if (uid === S.conta?.perfil.id) return "você"; const p = (S.eq?.perfis || []).find((x) => x.id === uid); return p ? (p.tipo === "casa" || p.tipo === "artista" ? nomeDaConta(p) : String(p.nome || p.email || "").split(" ")[0]) : "a equipe"; };
+  const quandoMarcou = (iso) => iso ? ` em ${dm(String(iso).slice(0, 10))}` : "";
+  /** "Como fazer": o trecho do Método, o Guia, o Manual do formato ou o material do Bruno. */
+  function linkMetodo(m, produto) {
+    if (!m) return "";
+    if (m.ler) return `<button type="button" class="link-doc" data-ler="${esc(m.ler)}">Como fazer: ${esc(DOCS[m.ler]?.titulo || "material")} →</button>`;
+    if (m.manual) { const f = R.produtoBase(produto) || "Descubra"; return `<button type="button" class="link-doc" data-manual="${f}">Como fazer: Manual do ${f} →</button>`; }
+    if (m.metodo) return `<button type="button" class="link-doc" data-metodo-sec="${esc(m.metodo)}">Como fazer: Método, “${esc(m.metodo)}” →</button>`;
+    if (m.ir) return `<button type="button" class="link-doc" data-ir="${esc(m.ir)}">Onde fazer: ${esc(m.rotulo || "abrir")} →</button>`;
+    return "";
+  }
+  /** Uma ação do modelo: Feito (com quem e quando), prazo, quem faz, o que conta como feito e o método. */
+  function linhaModelo(p, { evId, produto, marcar = false, quemMarcou = nomeMarcou, campo = "passo-eq", soQuemMarcou = true }) {
+    const marca = p.marca?.auto ? "✓ conferido pelo portal" : p.marca?.por ? `✓ feito por ${esc(quemMarcou(p.marca.por))}${quandoMarcou(p.marca.em)}` : p.feito ? "✓ feito" : "";
+    const meu = !soQuemMarcou || !p.marca?.por || p.marca.por === S.conta?.perfil.id;
+    const caixa = marcar && !p.marca?.auto ? `<input type="checkbox" data-${campo}="${esc(evId)}|${esc(p.chave)}"${p.feito ? " checked" : ""}${meu ? "" : ` disabled title="Marcado por ${esc(quemMarcou(p.marca.por))}: só quem marcou desmarca"`} aria-label="Feito: ${esc(p.titulo)}">` : `<span class="md-marca" aria-hidden="true">${p.feito ? "✓" : p.atrasado ? "!" : "○"}</span>`;
+    return `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label>${caixa} <span><b>${esc(p.titulo)}</b> <span class="muted">· ${MD().rotuloD(p.dias)} (${dtc(p.prazo)})${p.atrasado ? " · atrasado" : p.passou ? " · não registrado" : ""} · quem faz: ${esc(p.quem)}</span>
+      <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}</li>`;
+  }
+  /** Botões do SOS: cobrar no WhatsApp (mensagem pronta), abrir, ir e escalar para a adm. */
+  function acoesSos(s) {
+    const x = s.x, ev = x?.e, regra = s.chave.split("|").slice(1).join("|"), evId = ev ? ev.id : "ficha:" + s.chave.split("|")[1];
+    return `<div class="barra-acoes" style="margin-top:6px">${s.acoes.map((a) => {
+      if (a.tipo === "whatsapp") return `<a class="btn sm pri" href="https://wa.me/${soDigitos(a.para)}?text=${encodeURIComponent(a.texto)}" target="_blank" rel="noopener">${esc(a.rotulo)}${a.para ? "" : " (escolher contato)"}</a>`;
+      if (a.tipo === "abrir") return `<button class="btn sm" data-abrir="${esc(a.alvo === "ev" ? (ev.portal ? "lp:" + ev.portal.id : "ev:" + ev.id) : a.alvo)}">${esc(a.rotulo)}</button>`;
+      if (a.tipo === "ir") return `<button class="btn sm" data-ir="${esc(a.alvo)}">${esc(a.rotulo)}</button>`;
+      if (a.tipo === "escalar") return s.escalado ? `<span class="badge b-warn">escalado por ${esc(nomeMarcou(s.escalado.por))}${quandoMarcou(s.escalado.em)}</span>` : `<button class="btn sm" data-sos-escalar="${esc(evId)}|${esc(regra)}" title="${esc(a.texto)}">${esc(a.rotulo)}</button>`;
+      return "";
+    }).join("")}</div>`;
+  }
+  function htmlSos(s) {
+    const ev = s.x?.e, onde = ev ? `${NOME_SEM[wdDe(ev.d)].slice(0, 3)} ${dm(ev.d)} · ${esc(ev.h || ev.c || "casa a definir")} · ` : "";
+    return `<li class="md-sos"><b>🆘 ${esc(s.titulo)}</b> <span class="muted">· ${onde}${esc(NOME_PAPEL[s.papel])}</span><br><span class="muted" style="font-size:13px">${esc(s.porque)}</span>${acoesSos(s)}</li>`;
+  }
+  const pctBadge = (r) => `<span class="badge ${r.atrasados || r.sos ? "b-crit" : r.pct === 100 ? "b-good" : "b-warn"}">${r.pct}%${r.atrasados ? ` · ${r.atrasados} atrasado${r.atrasados > 1 ? "s" : ""}` : ""}${r.sos ? ` · ${r.sos} SOS` : ""}</span>`;
+  /** Resumo de um papel numa data (passos e SOS daquele papel). */
+  function resumoPapel(x, papel) {
+    const ps = papel === "casa" ? x.casaPs : papel === "artista" ? x.artistas.flatMap((a) => a.passos) : x.eq[papel];
+    return MD().resumo(ps, x.sos.filter((s) => s.papel === papel));
+  }
+  /** Painel compacto do "Para você" e do "Comece por aqui": % feito, atrasados, SOS, e o que fazer agora. */
+  function painelModelo(E, papeis) {
+    if (!MD()) return "";
+    const datas = modeloDatas(E).filter((x) => x.e.d >= hojeIso());
+    const ps = datas.flatMap((x) => papeis.flatMap((p) => x.eq[p].map((y) => ({ ...y, x }))));
+    const sos = sosAbertos(E, papeis), r = MD().resumo(ps, sos);
+    const agora = datas.flatMap((x) => papeis.map((p) => ({ p, x, prox: MD().proximo(x.eq[p]) })).filter((y) => y.prox)).sort((a, b) => a.prox.prazo.localeCompare(b.prox.prazo)).slice(0, 8);
+    const quem = papeis.length === 3 ? "da equipe" : papeis.map((p) => NOME_PAPEL[p]).join(" e ");
+    const corpo = `${sos.length ? `<h4 style="margin:4px 0 6px">SOS: algo atrasou ou travou</h4><ul class="passos md-lista">${sos.slice(0, 6).map(htmlSos).join("")}</ul>${sos.length > 6 ? `<p class="muted" style="font-size:13px">e mais ${sos.length - 6} em Acompanhamento.</p>` : ""}` : `<p class="muted" style="font-size:13px">Nenhum SOS aberto: nada atrasado ou travado.</p>`}
+      <h4 style="margin:12px 0 6px">Ação funcionando: o próximo passo de cada data</h4>
+      ${agora.length ? `<ul class="passos md-lista">${agora.map(({ p, x, prox }) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis.length > 1 ? " · " + esc(NOME_PAPEL[p]) : ""}</span></li>${linhaModelo(prox, { evId: x.e.id, produto: x.e.m, marcar: temArea(p) })}`).join("")}</ul>` : `<p class="muted" style="font-size:13px">Tudo em dia nas próximas datas.</p>`}
+      <div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="acompanhamento">Ver o acompanhamento de todos os papéis →</button></div>`;
+    return dobra("md-painel", `Seu modelo de trabalho ${quem === "da equipe" ? "(todos os papéis)" : "· " + esc(quem)}`,
+      `${r.total ? `${r.pct}% feito ${datas.length === 1 ? "na próxima data" : `nas próximas ${datas.length} datas`}` : "sem datas nos próximos 35 dias"} · ${r.atrasados} ${r.atrasados === 1 ? "atrasado" : "atrasados"} · ${sos.length} SOS · toque para ver`, corpo, { classe: "md-painel" + (sos.length ? " md-tem-sos" : "") });
+  }
+  /** O PADRÃO de cada papel: a sequência de ações por data, com prazo, quem faz, o que conta como feito e o método. */
+  function padraoDosPapeis() {
+    const linha = (dias, titulo, quem, feito, met, prod = "Descubra") => `<tr><td><b>${MD().rotuloD(dias)}</b></td><td>${esc(titulo)}</td><td>${esc(quem)}</td><td>${esc(feito)}</td><td>${linkMetodo(met, prod)}</td></tr>`;
+    const tab = (linhas) => `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl pilha"><thead><tr><th>Prazo</th><th>Ação</th><th>Quem faz</th><th>Conta como feito</th><th>Método</th></tr></thead><tbody>${linhas}</tbody></table></div>`;
+    const eq = MD().PAPEIS_EQUIPE.map((p) => dobra("md-padrao-" + p, `${esc(NOME_PAPEL[p])}`, `${MD().PASSOS_EQUIPE[p].length} ações · ${esc(MD().PAPEIS[p].faz)}`,
+      tab(MD().PASSOS_EQUIPE[p].map((l) => linha(l[1], l[2], MD().PAPEIS[p].pessoa, l[4] + (l[6] ? " (o portal confere sozinho)" : ""), l[5])).join(""))));
+    const casa = dobra("md-padrao-casa", "Casa (dono e equipe da casa)", `${R.PASSOS_CASA.length} ações · líder, anfitrião, social media, som e porta`,
+      tab(R.PASSOS_CASA.map(([k, d, t]) => linha(d, t, MD().quemNaCasa(k), MD().FEITO_CASA[k] || "", MD().METODO_CASA[k])).join("")));
+    const art = dobra("md-padrao-artista", "Artista", `${R.PASSOS_ARTISTA.length} ações e a campanha do formato`,
+      tab([...R.PASSOS_ARTISTA, ...R.CAMPANHA_ARTISTA.Descubra].sort((a, b) => a[1] - b[1]).map(([k, d, t]) => linha(d, t, "Artista", MD().FEITO_ARTISTA[k] || "", MD().metodoArtista(k))).join("")) + `<p class="muted" style="font-size:13px">A campanha do artista muda com o formato: acima, a do Descubra; no Apresenta, o kit sai no D-35.</p>`);
+    const sos = dobra("md-padrao-sos", "Regras do SOS", `${MD().REGRAS_SOS.length} alertas com a ação de socorro pronta`,
+      `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl pilha"><thead><tr><th>Quando dispara</th><th>De quem</th><th>Ação de socorro</th></tr></thead><tbody>${MD().REGRAS_SOS.map((r) => `<tr><td>${esc(r.quando)}</td><td>${esc(NOME_PAPEL[r.papel])}</td><td>${esc(r.acao)}</td></tr>`).join("")}</tbody></table></div>`);
+    return eq.join("") + casa + art + sos;
+  }
+  /** Uma data no acompanhamento: resumo por papel na linha; abre para os passos de cada um, com Feito e SOS. */
+  function dataNoAcomp(x, ver) {
+    const e = x.e, pap = ver ? [ver] : ["operacoes", "agenda", "marketing", "casa", "artista"];
+    const chip = (p) => { const r = resumoPapel(x, p); return r.total ? `<span class="md-chip"><span class="muted">${esc(NOME_PAPEL[p].split(" · ")[0])}</span> ${pctBadge(r)}</span>` : `<span class="md-chip muted">${esc(NOME_PAPEL[p].split(" · ")[0])}: sem conta</span>`; };
+    const parte = (p) => {
+      const sos = x.sos.filter((s) => s.papel === p).map((s) => ({ ...s, x, escalado: x.escalados["sos:" + s.chave.split("|").slice(1).join("|")] }));
+      const sosHtml = sos.length ? `<ul class="passos md-lista">${sos.map(htmlSos).join("")}</ul>` : "";
+      if (p === "casa") return `<h4>${esc(x.ref || e.h || "Casa")}</h4>${x.casaPs.length ? `<ul class="passos">${x.casaPs.map((y) => linhaModelo(y, { evId: e.id, produto: e.m })).join("")}</ul>` : `<p class="muted" style="font-size:13px">A casa ainda não tem conta no portal: os passos aparecem quando ela entrar.</p>`}`;
+      if (p === "artista") return `<h4>Artistas</h4>${x.artistas.length ? x.artistas.map((a) => a.passos.length ? `<details class="pp-det" data-dobra="md-art:${esc(e.id)}:${esc(a.nome)}"${S.dobras?.[`md-art:${e.id}:${a.nome}`] ? " open" : ""}><summary><b>${esc(a.nome)}</b> ${pctBadge(MD().resumo(a.passos))}</summary><ul class="passos">${a.passos.map((y) => linhaModelo(y, { evId: e.id, produto: e.m })).join("")}</ul></details>` : `<p class="muted" style="font-size:13px">${esc(a.nome)}: sem conta no portal.</p>`).join("") : `<p class="muted" style="font-size:13px">Line-up a definir.</p>`}`;
+      const prox = MD().proximo(x.eq[p]);
+      return `<h4>${esc(NOME_PAPEL[p])}</h4>${sosHtml}${prox ? `<p style="font-size:13px;margin:4px 0"><b>Ação funcionando:</b> ${esc(prox.titulo)} <span class="muted">· ${MD().rotuloD(prox.dias)} (${dtc(prox.prazo)})</span></p>` : `<p class="muted" style="font-size:13px">Tudo feito para esta data.</p>`}
+        <details data-dobra="md-eq:${esc(e.id)}:${p}"${S.dobras?.[`md-eq:${e.id}:${p}`] ? " open" : ""}><summary>Ver as ${x.eq[p].length} ações</summary><ul class="passos">${x.eq[p].map((y) => linhaModelo(y, { evId: e.id, produto: e.m, marcar: temArea(p) })).join("")}</ul></details>`;
+    };
+    return `<details class="card md-data-card" data-dobra="md-data:${esc(e.id)}"${S.dobras?.["md-data:" + e.id] ? " open" : ""}><summary><span class="dp-sum-tit"><b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))} ${dt(e.d)} · ${esc(e.h || e.c || "casa a definir")}</b> <span class="badge">${esc(e.m || "")}</span>${x.sos.length ? ` <span class="badge b-crit">${x.sos.length} SOS</span>` : ""}</span><span class="md-chips">${pap.map(chip).join("")}</span></summary>
+      <div class="md-partes">${pap.map((p) => `<div class="md-parte">${parte(p)}</div>`).join("")}</div>
+      <div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-abrir="${esc(e.portal && (temArea("agenda") || temArea("operacoes")) ? "lp:" + e.portal.id : "ev:" + e.id)}">Abrir a data</button></div></details>`;
+  }
   // Um bloco de ação: título com verbo e quantos, a dica, o "Abrir" (a lista toda) e cada linha clicável.
   // ---------- "Seu histórico" (pedido da Marina, 18/11/2026: "fiz coisa e meu histórico continuou sem nada") ----------
   // Para todo acesso: equipe (Gui, Isa, Bruno, adm), casa e artista. As linhas vêm de src/historico.js (colunas de quem e
@@ -4000,6 +4191,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   function nomePassoHist(k) {
     if (!S.passosNomes) { S.passosNomes = {}; const d = "2030-01-01"; for (const m of ["artista", "casa"]) for (const pr of ["Descubra", "Apresenta"]) for (const x of R.passosDaData(m, d, {}, d, pr)) S.passosNomes[x.chave] ||= x.titulo; }
+    if (window.TQModelos && !S.passosNomes["op:ficha"]) for (const ls of Object.values(TQModelos.PASSOS_EQUIPE)) { for (const l of ls) S.passosNomes[l[0]] = l[2]; }
+    if (/^sos:/.test(k)) return "SOS escalado para a adm";
     return k === "contrato" ? "Contrato" : S.passosNomes[k] || "";
   }
   function telaHistorico() {
@@ -4944,6 +5137,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.closest("[data-ler-voltar]")) { fecharLeitor(); return; }
     const sb = t.closest("[data-sub]"); if (sb) { await salvarPendente(); const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
     const ab = t.closest("[data-abrir]"); if (ab) { ev.preventDefault(); abrirItem(ab.dataset.abrir); return; }
+    // Modelo de cada papel: "como fazer" no Método, filtro do acompanhamento, atualizar e escalar um SOS para a adm.
+    const ms = t.closest("[data-metodo-sec]"); if (ms) {
+      ev.preventDefault(); const sec = ms.dataset.metodoSec; irPara("metodo"); render(); scrollTo(0, 0);
+      setTimeout(() => { const h = [...document.querySelectorAll("#app h2, #app h3")].find((x) => x.textContent.trim() === sec); if (h) { h.classList.add("foco"); h.scrollIntoView({ block: "start" }); } }, 80); return;
+    }
+    const av = t.closest("[data-acomp-ver]"); if (av) { S.acompVer = av.dataset.acompVer; render(); return; }
+    if (t.closest("[data-acomp-atualizar]")) { S.eq = null; S.hub = null; carregarEquipe(); carregarHub(); render(); return; }
+    const sosB = t.closest("[data-sos-escalar]"); if (sosB) {
+      const v = sosB.dataset.sosEscalar, i = v.indexOf("|");
+      await acao(sosB, async () => { await api.marcar(v.slice(0, i), "sos:" + v.slice(i + 1), true); TQDiario.registrar("sos_escalado", { regra: v.slice(i + 1).split(":")[0] }); const y = scrollY; S.eq.chk = await api.checklistTodos(); render(); scrollTo(0, y); },
+        { ok: "Escalado: a adm já vê no Acompanhamento.", espera: "Escalando…" });
+      return;
+    }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesPropostas(t)) return;
     if (cliquesPreFichas(t)) return;
@@ -5397,6 +5603,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const feito = t.checked;
       const r = await acao(t, async () => { await api.marcarCampanha(t.dataset.campFeito, feito); TQDiario.registrar("campanha_feito", { item: t.dataset.campFeito, feito }); const y = scrollY; S.hub = null; await carregarHub(); scrollTo(0, y); },
         { ok: feito ? "Marcado como feito." : "Desmarcado." });
+      if (!r.ok && t.isConnected) t.checked = !feito;
+      return;
+    }
+    // "Feito" da equipe no modelo do papel (Acompanhamento e "Para você"): fica com quem marcou e quando.
+    const pe = t.dataset?.passoEq; if (pe) {
+      const i = pe.indexOf("|"), eventoId = pe.slice(0, i), item = pe.slice(i + 1), feito = t.checked;
+      const r = await acao(t, async () => { await api.marcar(eventoId, item, feito); TQDiario.registrar("modelo_feito", { item, feito }); const y = scrollY; S.eq.chk = await api.checklistTodos(); render(); scrollTo(0, y); },
+        { ok: feito ? "Feito: quem acompanha já vê." : "Desmarcado." });
       if (!r.ok && t.isConnected) t.checked = !feito;
       return;
     }

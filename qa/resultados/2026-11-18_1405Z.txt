@@ -1,0 +1,1125 @@
+# Testes da Rede Tranquilo — 2026-11-18 14:05 UTC — commit 2173da2
+
+## Banco (PGlite com o supabase/schema.sql)
+OK    e-mail da lista não vira adm antes de confirmar o e-mail
+OK    e-mail da lista vira adm ao confirmar
+OK    pedir "equipe" no cadastro não dá equipe
+OK    cadastro de casa vira casa
+OK    artista não se autoaprova nem forja score (status rascunho, score 85, Prioridade)
+OK    artista envia para curadoria
+OK    inscrição em análise fica travada para a artista
+OK    artista não cria cadastro de casa
+OK    artista não vê inscrição de outra
+OK    artista só vê o próprio perfil
+OK    artista não se promove a adm
+OK    antes da promoção, não vê fila
+OK    adm promove para equipe
+OK    equipe vê a fila de curadoria
+OK    equipe aprova e fica registrada como avaliadora
+OK    equipe não vira adm sozinha
+OK    equipe lê só a chave de equipe
+OK    casa sem dados mínimos fica "incompleto" (Nome da casa; Endereço completo; Dono A: WhatsApp; Capacidade com público sentado no chão)
+OK    casa completa vai para análise e não se autoclassifica
+OK    equipe lê só a chave de equipe
+OK    equipe vê prontidão e registros da noite
+OK    adm lê as duas chaves
+OK    casa habilitada não muda o que já respondeu (pede atualização)
+OK    e continua habilitada
+OK    pedido sem mudança é recusado
+OK    pedido guarda só o que mudou, com o valor anterior
+OK    casa não aprova o próprio pedido
+OK    casa não muda os combinados da parceria
+OK    equipe vê o pedido de atualização
+OK    pedido aprovado atualiza a ficha
+OK    e a casa continua habilitada
+OK    exigência nova (público sentado) não tira a habilitação de quem já estava habilitada
+OK    casa lê os combinados da parceria
+OK    casa vê o próprio registro
+OK    artista não vê registros de casa nem chaves
+OK    inscrição vazia: score 0, abaixo do corte, alertas
+OK    equipe não convida para administração
+OK    equipe não convida para equipe
+OK    artista não lê convites
+OK    artista não cria convite para si
+OK    artista não chama aplicar_convite
+OK    convite não vale antes de confirmar o e-mail
+OK    ao confirmar o e-mail, o convite liga a conta à artista
+OK    convite fica marcado como aceito
+OK    convite por link cria a conta de equipe pedindo para definir senha
+OK    sem e-mail confirmado, reivindicar não vincula
+OK    conta antiga recebe o vínculo ao confirmar o e-mail
+OK    pessoa marca o próprio tutorial como visto
+OK    aviso sem consentimento é recusado
+OK    mesmo contato na mesma cidade não duplica
+OK    visitante não lê os avisos de ninguém
+OK    equipe lê os avisos por cidade
+OK    artista não lê os avisos
+OK    número quebrado não derruba o salvamento e datas/avaliação não são forjáveis (score 30)
+OK    artista não troca o nome do vínculo sem trocar o código
+OK    capacidade com decimal é aceita
+OK    equipe não manda convite que rebaixaria a adm
+OK    equipe avalia mas não reescreve o score
+OK    artista não registra noite de casa
+OK    conta logada não consegue TRUNCATE
+OK    público negativo é recusado
+OK    a última adm não se rebaixa
+OK    aviso: contato inválido, duplicata com espaço e TRUNCATE recusados
+OK    data do aviso vem do banco
+OK    enxurrada de avisos é barrada
+OK    visitante grava no diário mas não lê
+OK    artista não lê o diário
+OK    o diário liga ao usuário do token, não ao enviado
+OK    equipe lê o diário
+OK    documento só aceita link https
+OK    artista vê o próprio contrato e o modelo
+OK    artista não anexa documento
+OK    outra artista não vê o contrato alheio
+OK    nem a adm lê a configuração interna pelo site
+OK    equipe grava e lê a nota interna
+OK    nota interna nunca fica na linha que a artista lê
+OK    artista não lê notas internas
+OK    casa não grava nota interna
+OK    artista encerrada perde o vínculo com as datas
+OK    encerrar não apaga a inscrição (histórico fica)
+OK    casa encerrada não muda a ficha
+OK    casa encerrada não se reabre sozinha
+OK    equipe não edita a Ficha da casa direto
+OK    administração edita a Ficha da casa direto
+OK    administração edita a inscrição direto
+OK    alteração da adm fica no histórico: quem, tabela, antes e depois
+OK    só a administração lê o histórico
+OK    administração lê o histórico
+OK    conta criada pelo link do convite nasce com senha_definida = false
+OK    cadastro com senha continua com senha_definida = true
+OK    schema.sql roda de novo sem erro e sem perder dados
+OK    schema.sql roda de novo sem erro e sem perder dados
+
+## Contrato automático (PGlite)
+OK    artista não cria contrato
+OK    artista não cria modelo
+OK    equipe não cria contrato já assinado
+OK    outra artista não vê o contrato
+OK    outra artista não preenche o contrato
+OK    artista vê o próprio contrato
+OK    artista não altera o texto
+OK    artista não preenche campo que não é dela
+OK    valor não pode trazer {{campo}}
+OK    não assina com campo vazio
+OK    não assina sem ler até o fim
+OK    exige nome completo
+OK    não assina se o texto da tela for outro
+OK    assinatura guarda o texto final, o hash, o nome e a hora
+OK    depois de assinado, os dados não mudam
+OK    não assina duas vezes
+OK    nem a equipe cancela um contrato assinado
+OK    contrato assinado não é apagado
+OK    equipe cancela contrato ainda não assinado
+OK    equipe não reescreve o texto depois de enviado
+OK    equipe não cria contrato já conferido
+OK    artista não confere o próprio contrato
+OK    sem arquivo enviado, não há o que conferir
+OK    Operações não confere contrato de artista
+OK    Agenda não confere contrato de casa
+OK    pedir de novo exige o motivo
+OK    pedir de novo guarda quem, quando e o motivo
+OK    pedir de novo volta o passo "contrato" da data para pendente
+OK    a artista lê o motivo no próprio contrato
+OK    depois de pedir de novo, só confere quando chegar o arquivo novo
+OK    não pede de novo duas vezes sem arquivo novo
+OK    conferir guarda quem e quando e limpa o pedido de novo
+OK    não confere duas vezes
+OK    depois de conferido, os dados da artista não mudam
+OK    contrato conferido não é cancelado
+OK    a equipe não desfaz a conferência pela tabela
+OK    contrato conferido não é apagado
+OK    conferir e pedir de novo ficam na auditoria
+OK    Operações confere o contrato da casa
+OK    equipe sem área marcada também confere (como na tela)
+OK    administração confere qualquer contrato
+OK    contrato cancelado não é conferido
+OK    {NOME DO ARTISTA}, {data}, {cidade/UF}, {data de hoje} e {{cache}} viram campos que a equipe já sabe
+OK    [NOME ARTÍSTICO] e [DATA] reaproveitam os mesmos campos
+OK    siglas ficam em maiúsculas (CPF/CNPJ, PIX)
+OK    colchetes com número de cláusula não viram campo
+OK    sugestões: nome, data do show e data da assinatura por extenso
+OK    preencher troca todos os campos, inclusive os repetidos
+
+## Segurança (ataques da auditoria; ABERTO = problema conhecido ainda não corrigido)
+OK    [A01] artista lê inscrição de outra
+OK    [A02] artista altera inscrição de outra
+OK    [A03] artista cria inscrição em nome de outra (user_id alheio)
+OK    [A04] artista se autoaprova/forja score no INSERT
+OK    [A05] artista forja avaliado_por/avaliado_em no INSERT
+OK    [A06] artista se autoaprova no UPDATE / escreve parecer
+OK    [A07] artista apaga inscrição de outra
+OK    [A08] artista transfere a própria inscrição para outro user_id
+OK    [A09] artista lê nota_interna da própria inscrição ("só a equipe vê")
+OK    [A10] artista reenvia após ajustes (transição legítima)
+OK    [A11] artista edita inscrição em análise
+OK    [P01] artista muda o próprio tipo para adm e o e-mail
+OK    [P02] artista sem vínculo grava codigo_acesso/vinculo_nome arbitrários direto na API ("só adm muda vínculos")
+OK    [P02b] artista pede vínculo colando o código
+OK    [P03] artista já vinculada troca só vinculo_nome (mantendo o código)
+OK    [P04] artista vinculada troca codigo_acesso
+OK    [P05] artista altera perfil de outra
+OK    [P06] artista lista perfis
+OK    [P07] artista insere perfil adm novo
+OK    [P08] artista apaga o próprio perfil (direito de exclusão LGPD)
+OK    [P09] artista com sessão SQL seta tq.sistema=1 e vira adm (gatilho confia numa GUC que o próprio usuário define)
+OK    [P10] equipe se promove a adm
+OK    [P11] equipe muda tipo de outra conta
+OK    [P12] equipe lê codigo_acesso de artistas/casas em perfis (o pacote de equipe não traz a lista de códigos; só o de adm)
+OK    [P13] equipe lê o código do pacote de adm guardado em perfis.codigo_acesso da adm
+OK    [P14] equipe lê chaves_internas
+OK    [P15] artista lê chaves_internas
+OK    [P16] artista lê admins_iniciais
+OK    [C01] casa se autohabilita no INSERT (status/classificacao/parecer/pendencias)
+OK    [C02] casa forja avaliado_por no INSERT
+OK    [C03] casa se declara já parceira e aponta notion_casa_id de outra casa
+OK    [C04] casa se autohabilita no UPDATE
+OK    [C05] casa lê cadastro de outra
+OK    [C06] casa altera cadastro de outra
+OK    [C07] casa cria inscrição de artista
+OK    [C08] casa lê nota_interna do próprio cadastro
+OK    [C09] casa habilitada apaga os dados mínimos e continua habilitada
+OK    [K01] artista lê checklist de outra conta
+OK    [K02] artista grava checklist em nome de outra
+OK    [K03] artista altera checklist de outra
+OK    [K04] artista apaga checklist de outra
+OK    [K05] artista lê registros da noite de casa
+OK    [K06] artista (não casa) grava "registro da noite" com público
+OK    [K07] artista apaga registro de casa
+OK    [V01] equipe convida adm
+OK    [V02] equipe redireciona convite de equipe (criado pela adm) para outro e-mail
+OK    [V03] equipe rebaixa convite de equipe criado pela adm para artista
+OK    [V04] equipe apaga convite de equipe criado pela adm
+OK    [V05a] equipe cria convite de artista para o e-mail de uma conta adm existente
+OK    [V05] adm faz login depois do convite da equipe: reivindicar_convite() a rebaixa
+OK    [V06] equipe troca perfil e vínculo de conta artista existente via convite ("só adm muda perfis/vínculos")
+OK    [V07] equipe "reabre" convite já aceito (aceito_em = null) para reaplicar
+OK    [V08] artista reivindica convite de outro e-mail (função sem parâmetro usa auth.users.email)
+OK    [V09] authenticated chama aplicar_convite(uid, e-mail alheio) direto
+OK    [V10] authenticated chama função de gatilho direto
+OK    [V11] artista lê convites
+OK    [V12] conta com e-mail convidado mas NÃO confirmado tenta reivindicar
+OK    [V13] com confirmação de e-mail desligada, quem se cadastra primeiro com o e-mail convidado herda o convite de adm
+OK    [V14] cadastro NÃO confirmado com e-mail de admins_iniciais já nasce adm
+OK    [N01] anon lê perfis
+OK    [N01] anon lê inscricoes_artistas
+OK    [N01] anon lê cadastros_casas
+OK    [N01] anon lê checklist
+OK    [N01] anon lê registros_noite
+OK    [N01] anon lê chaves_internas
+OK    [N01] anon lê admins_iniciais
+OK    [N01] anon lê convites
+OK    [N01] anon lê avisos_cidade
+OK    [N01] anon lê diario
+OK    [N01] anon lê diario_servidor
+OK    [N01] anon lê notas_internas
+OK    [N02] anon insere aviso com consentimento=false
+OK    [N03] anon insere aviso com campo enorme
+OK    [N04] anon insere 2000 avisos com contatos distintos em sequência (limite de taxa?)
+OK    [N05] anon insere aviso com contato inválido, HTML na cidade e criado_em forjado
+OK    [N06] anon cadastra o e-mail de terceiro no "me avise" (sem dupla confirmação)
+OK    [N07] anon apaga avisos
+OK    [N08] anon chama aplicar_convite
+OK    [N09] anon chama reivindicar_convite
+OK    [N10] anon chama eh_adm/eh_equipe/pre_curadoria/pendencias_casa
+OK    [N11] anon grava no diário um evento atribuído à conta da adm
+OK    [N12] anon grava 1000 eventos de ~3,5 KB no diário (limite de taxa/volume?)
+OK    [N13] anon insere perfil
+OK    [N14] anon cria convite
+OK    [N15] diário tem evento atribuído à adm sem ela estar logada
+OK    [X01] equipe grava HTML em faixa/score_detalhe de inscrição (renderizados sem esc() em conta.js medidor/curadoria)
+OK    [X02] a artista recebe a faixa com HTML do banco (passosArtista → medidor)
+OK    [X03] artista grava spotify = "javascript:..." (vira <a href> na ficha da equipe)
+OK    [L01] adm apaga inscrição a pedido do titular
+OK    [L02] adm apaga perfil a pedido do titular
+[modo mock do teste original] 90 verificações, 0 falha(s): 
+
+## areas-equipe
+OK    equipe sem área marcada vê todas as partes do time (relatos e prontidão só a administração)
+OK    Pessoas: conta de equipe tem as caixas de área (Operações, Agenda, Marketing)
+OK    marcar a área mostra "✓ Feito"
+OK    Convites: ao convidar equipe, a administração escolhe a área
+OK    o convite guarda a área (["agenda"])
+OK    Marketing: abas da área (hoje, acompanhamento, feito, geral, painel, campanhas, demanda, convites, materiais, base, metodo, conta)
+FALHA Marketing (júnior): telas da área (hoje, acompanhamento, feito, geral, painel, campanhas, demanda, convites, materiais, base, metodo, conta)
+OK    tutorial da área Marketing: cobre o menu inteiro
+OK    menu simples: Hoje, Campanhas, Materiais e Conta (g_hoje, g_campanhas, convites, materiais, base, metodo, conta)
+OK    A fazer mostra o que é da área de Marketing
+OK    Visão geral (só leitura) abre
+OK    Feito abre
+OK    Cadastros de casas: sem ficha no modo demonstração para abrir
+OK    Materiais: Marketing pode publicar documentos
+OK    Agenda (Isa): Hoje, Criar datas, Curadoria, Agenda das casas, Documentos e Convites (hoje, acompanhamento, feito, geral, painel, datas_portal, lado_a_lado, agenda_casas, curadoria, documentos, convites, materiais, base, metodo, conta)
+OK    tutorial da área Agenda: cobre o menu inteiro
+OK    Materiais: Agenda só lê (sem publicar)
+OK    Operações: Documentos e contratos (contrato com a casa), sem Criar datas e Campanhas (hoje, acompanhamento, feito, geral, painel, casas_cad, trilhas, documentos, convites, materiais, base, metodo, conta)
+OK    tutorial da área Operações: cobre o menu inteiro
+OK    Operações: Habilitar e Editar a Ficha
+OK    Administração vê tudo, com Pessoas e Histórico
+OK    menu da administração no mesmo padrão do time: Seu trabalho · Ajuda
+OK    Conta: Mudar a senha abre com Cancelar
+OK    Cancelar fecha a troca de senha
+OK    senha nova salva com ✓ Feito ✓ Feito: senha salva. Das próximas vezes, entre com o seu e-mail e essa senha.
+OK    sem erro JS 
+
+## areas-gui
+OK    menu da casa: Próximos passos · Cadastro · Equipe · Disponibilidade · Contrato · Dúvidas
+OK    Ficha ainda não enviada: a casa entra pela Ficha (porta de entrada)
+OK    Operações abre no Guia do franqueado, com os manuais do Apresenta e do Descubra
+OK    Cronogramas: datas fechadas com mensagem pronta (texto a validar)
+OK    Marketing por função: Divulgação
+OK    Financeiro: combinados e conta para repasses
+OK    Bonificações: marca, período e combinados, com a regra dos parceiros do Guia
+OK    recarregar mantém a parte aberta da área (#/campanha)
+OK    artista: cada data mostra local, ordem da noite e horários (a validar)
+OK    artista com data futura (Analu Sampaio): endereço clicável abre no mapa (2 links)
+OK    mensagem do Apresenta (19/11 Santo André): abertura Thay Santos, YOÙN passa o som primeiro (quem toca por último)
+OK    mensagem do Descubra com 3 artistas: ordem do line-up e olho no olho
+OK    sem ordem no line-up, a mensagem não sai e pede à Isa
+OK    equipe: cada data com artista e casa lado a lado, com endereço clicável
+OK    painel estratégico: réguas "a validar" e qualidade dos dados
+OK    Gui: blocos por ação, "Conferir contrato assinado" primeiro (Conferir contrato assinado (1) | Habilitar casas (1) | Preparar contrato da casa (1) | Cobrar reenvio de contrato devolvido (1) | Completar a Ficha da casa (5) | Fechar data para casa habilitada sem data (4))
+OK    Gui: Habilitar casas, Preparar contrato da casa, Cobrar reenvio e Fechar data aparecem como ações
+OK    Gui: cada linha diz quem e onde, é botão e tem cursor de mão
+OK    Gui: Enter na linha do contrato abre Contratos com a linha em destaque e "Conferir e confirmar"
+OK    Gui: a Ficha para habilitar abre direto, com "Habilitar" e as respostas recolhidas
+OK    Gui: "aguarda o contrato" abre Preparar contrato com a casa já escolhida
+OK    Gui: "Fechar data" diz se há dia livre com artista e abre a Ficha (Criar datas é da Agenda)
+OK    Fichas das casas: etapa real (aguardando contrato, em conferência, devolvido, equipe incompleta)
+OK    a casa vê na Ficha "Contrato assinado · em conferência"
+OK    Próximos passos da casa: contrato devolvido primeiro e a situação real da casa
+OK    sem erro JS 
+
+## base-notion
+OK    pacote da equipe traz as bases inteiras (226 casas, 1158 artistas)
+OK    pacote da equipe sem campos sensíveis (priv) nem grafias alternativas
+OK    Casas: base inteira, começa compacta (30 linhas)
+OK    "Mostrar mais" cresce a lista
+OK    filtro por cidade (30 em Florianópolis)
+OK    filtro por status (Avaliação padrão Tranquilo)
+OK    busca por nome
+OK    ficha da casa: sugestão POR HISTÓRICO (dias da semana)
+OK    ficha da casa: histórico de eventos clicável e "Abrir no Notion"
+OK    equipe não vê bloco de dados sensíveis
+OK    evento do histórico abre o detalhe da data
+OK    Artistas: base inteira (1158)
+OK    quem tem eventos na rede aparece primeiro
+OK    ficha da artista: cidades e formatos em que já tocou
+OK    public.json não leva nada das bases
+OK    Criar datas: grupo "Sugestão POR HISTÓRICO" separado e recolhido
+OK    a sugestão não se mistura com a busca de quem está livre
+OK    vínculo: a artista da base abre a ficha dela no portal (nome bate)
+OK    administração também recebe a base
+OK    sem erros de página
+
+## busca-modelo
+OK    busca abre no Descubra, com os 4 formatos e "Todos os dias"
+OK    a regra do formato aparece embaixo do seletor
+OK    cartões casa + dia: só a casa com 3 artistas livres que topam o Descubra (12 por vez, "Ver mais")
+OK    cartão começa fechadinho: uma linha (dia · casa · cidade · nº de artistas · formato) e o botão de criar
+OK    line-up sugerido na quantidade do formato: quem escolheu Descubra primeiro
+OK    quem escolheu outro formato não entra no Descubra
+OK    troca de artista no cartão ("ainda não escolheu formato" também topa)
+OK    quem já está no cartão não aparece nas outras vagas
+OK    "Criar este evento" pede confirmação na própria página e ainda não criou
+OK    cria a data com o line-up de uma vez (ordem, contas)
+OK    confirma e o cartão sai (a casa não está mais livre nesse dia)
+OK    a data nova aparece aberta em "Datas criadas no portal", com "contratos 0/4"
+OK    Apresenta: regra com abertura opcional; a casa de BH entra (Tuca topa Apresenta e quer tocar lá)
+OK    Apresenta: atração é quem escolheu Apresenta, com abertura sugerida
+OK    Apresenta criado: abertura primeiro, atração por último, com o horário escolhido
+OK    filtro por casa: só os cartões da Casa Serra (12) e as datas criadas filtradas
+OK    filtro por artista: só onde a Duda está livre, já no line-up (12)
+OK    Turnê: regra e o que falta validar
+OK    lista de artistas da turnê (quem escolheu Turnê primeiro)
+OK    sequência: uma casa por cidade, em dias diferentes
+OK    confirmação na página antes de criar as datas
+OK    Turnê: 2 datas, o mesmo artista por último em cada uma, em cidades diferentes
+OK    Nova data: os 4 formatos; o Descubra começa com 3 artistas
+OK    trocar para Apresenta mostra a regra e ajusta o line-up (abertura e atração)
+OK    Noite Tranquilo: marcado "a validar"
+OK    celular: sem rolagem lateral (390 x 390)
+OK    sem erro JS 
+
+## cidade-uf
+OK    cidades.json no site: 27 UFs e 5571 municípios
+OK    a base de cidades não carrega na página inicial (só sob demanda)
+OK    artista: o estado vem antes da cidade
+OK    artista: lista com as 27 UFs
+OK    a base carrega quando o formulário com cidade aparece (1 pedido)
+OK    sem estado, a busca sugere "Cidade - UF" (Campina da Lagoa - PR, Campina das Missões - RS, Campina do Monte Alegre - SP, Campina do Simão - PR…)
+OK    escolheu "Campinas - SP": a UF entra sozinha e a cidade fica "Campinas"
+OK    com estado, a busca mostra só as cidades dele (645 de SP)
+OK    trocou para PE: Campinas sai e a busca passa a ser de PE
+OK    sem acento: ao sair do campo vira o nome oficial do IBGE
+OK    cidade fora do estado escolhido segura o envio, dizendo o motivo
+OK    artista: grava cidade_base e estado como antes (Recife/PE)
+OK    com estado e cidade certos, nada falta sobre cidade
+OK    casa: Cidade/UF vira estado + cidade com busca
+OK    só o estado: pede a cidade
+OK    casa: grava "Cidade/UF" como antes (Itajaí/SC)
+OK    casa: com estado e cidade, Cidade/UF sai do que falta
+OK    ficha antiga só com a cidade: mostra a cidade e pede o estado
+OK    celular: estado e cidade um embaixo do outro, dentro da tela
+OK    sem erro JS 
+
+## contratos
+OK    lista de datas sem contrato e "Preparar contrato" já escolhe a data
+OK    modelo salvo: [PREENCHER …] e {{…}} viram 7 campos
+OK    preparar preenche o nome e deixa o CPF para a artista
+OK    contrato enviado aparece como "Aguardando dados"
+OK    artista vê o aviso do contrato no passo a passo
+OK    texto do contrato vem recolhido em "Ver o texto do contrato"
+OK    abrir "Ver o texto do contrato" mostra o texto
+OK    texto mostra o cachê da equipe e marca o que falta
+OK    baixar e enviar ficam travados até salvar os dados
+OK    dados salvos entram no texto, com ✓ Feito
+OK    com os dados salvos, libera baixar o PDF e enviar o assinado
+OK    não assina dentro do portal: baixa, assina e envia
+OK    PDF sai com os dados da pessoa e a assinatura do Tranquilo
+OK    equipe vê o contrato aguardando a assinatura
+OK    criar contrato repetido pede confirmação na própria página (evita duplicata por clique duplo ou reenvio)
+OK    segundo contrato já vem com CPF, endereço e Pix do contrato anterior para conferir
+OK    ao salvar, os dados trazidos entram no texto
+OK    artista envia o assinado e vê que a equipe vai conferir
+OK    Para você (Agenda): bloco "Conferir contrato assinado" com a linha de quem assinou
+OK    Para você: o contrato fica sob o cabeçalho da data ("1 contrato para conferir"), recuado
+OK    o item abre Contratos com a linha do contrato em destaque e o botão "Conferir e confirmar"
+OK    equipe vê "arquivo recebido" com "Conferir e confirmar" e "Pedir de novo"
+OK    pedir de novo sem motivo explica o que falta
+OK    pedido de novo fica na tabela com o motivo e sem o botão de conferir
+OK    Para você: contrato devolvido aguardando o reenvio, com o motivo
+OK    Próximos passos: o contrato devolvido vem antes de tudo
+OK    artista vê no passo a passo que precisa enviar de novo, com o motivo
+OK    tela do contrato mostra o motivo e libera o envio do arquivo novo
+OK    arquivo novo enviado: o pedido some da tela da artista
+OK    equipe confere e confirma: "✓ Assinado e conferido", com quem e quando
+OK    conferir pede confirmação antes, na própria página
+OK    na lista de contratos da artista aparece "✓ Assinado e conferido"
+OK    artista vê "assinado e conferido", sem envio nem edição dos dados
+OK    sem erro JS 
+
+## convite-senha
+OK    convite: topo diz "✓ Convite … para <e-mail>" (✓ Convite criado para casa.convite@teste.com)
+OK    convite: explica o que a pessoa vai receber
+OK    convite: ações embaixo, nesta ordem (Reenviar o e-mail | Mandar também pelo WhatsApp | Copiar mensagem | Fechar)
+OK    convite: a mensagem pronta fica recolhida em "Ver a mensagem"
+OK    convite: "Ver a mensagem" mostra a mensagem com o link
+OK    convite: WhatsApp vai para o número da pessoa
+OK    convite: "Reenviar o e-mail" mantém a janela com o resultado
+OK    convite: "Fechar" fecha
+OK    "Reenviar convite": mesma janela clara
+OK    "Enviar link de senha": topo claro e o que a pessoa recebe
+OK    casa do link (senha_definida true, sem senha salva): TELA "Crie a sua senha"
+OK    casa do link: o tutorial espera a senha
+OK    o link do e-mail fica guardado na aba e o token sai do endereço
+OK    casa do link: trocar de aba não pula a tela de senha
+OK    senha curta: explica
+OK    depois de salvar, segue para o tutorial
+OK    a senha nova fica salva na conta
+OK    depois de salvar, não pede de novo
+OK    artista do link: tela de senha também
+OK    artista: "fazer depois" segue para o tutorial
+OK    artista: "fazer depois" vale na aba (não insiste a cada recarga)
+OK    equipe com senha_definida false: tela de senha
+OK    sem erro JS 
+
+## correcoes-qa
+OK    trocar de área não perde o que foi digitado na Ficha
+OK    o salvamento automático grava a Ficha (sobrevive a recarregar a página)
+OK    capacidade "80 a 100" grava 80 (gravou 80)
+OK    exemplo da capacidade sentada é de casa pequena, não "ex.: 12.000"
+OK    critério de habilitação marcado "a validar" para o Gui
+OK    e-mail e WhatsApp abrem o teclado certo no celular
+OK    "Enviar respostas" inclui Sua equipe, como no modelo do Gui
+OK    respostas da Ficha saem por WhatsApp do Gui, e-mail ou cópia
+OK    "Como é a noite" sem cartões vazios (oculto sem conteúdo)
+OK    Ficha nova já vem com o que o Notion tem da casa (nome: Café Maritaka)
+OK    a sugestão fica na Ficha quando a casa salva (2 fichas no modo demonstração)
+OK    Copiar Ficha para a Tranks: pergunta + dados da Ficha, sem dados bancários para a equipe
+OK    sem erro JS 
+
+## cruzar-datas
+OK    casa: dias fixos da semana no checklist e verdes no calendário
+OK    casa: sem exceções, só o botão "Ajustar uma data"
+OK    dia do padrão: o formulário já sugere Bloquear
+OK    exceção grava na tabela por data (indisponível, com motivo) e confirma
+OK    a exceção aparece na lista, com o motivo
+OK    calendário diferencia exceção (destacada) e padrão ("toda semana")
+OK    liberar um dia que já é do padrão: avisa e não grava
+OK    remover a exceção: o dia volta ao padrão
+OK    artista tem a aba Disponibilidade
+OK    tocar no dia marca disponível
+OK    terceiro toque limpa o dia
+OK    Ficha do artista: calendário marca todos os dias que faltam no mês (13)
+OK    limpar o mês tira tudo
+OK    artista marca os dias fixos da semana (checklist)
+OK    os sábados e domingos ficam verdes no calendário (9 dias)
+OK    artista: fora do padrão o formulário sugere Liberar, e grava os dias com motivo
+OK    artista: as duas exceções na lista
+OK    busca por modelo abre no Descubra, com a regra; sem 3 livres, nenhum cartão
+OK    Criar datas mostra o dia com a casa e o artista livres
+OK    exceção vale no cruzamento: o dia que a casa bloqueou (feriado) não aparece, mesmo com o artista livre
+OK    cada dia começa fechadinho (dia · casas livres · artistas livres)
+OK    tocar na casa preenche dia, casa e cidade da Nova data
+OK    tocar no artista coloca no line-up sem perder a casa
+OK    Nova data: a lista de artistas é só de quem marcou o dia como livre, e quem já está no line-up não aparece nas outras linhas
+OK    rótulo diz onde mora e que está livre no dia: Ana Cruza · mora em Recife/PE · livre sáb 21/11
+OK    quem não marcou o dia fica recolhido em "Não marcaram este dia"
+OK    abrir o grupo mostra quem não marcou, com o motivo, sem perder o 1º artista
+OK    escolher quem não marcou liga a Exceção com aviso
+OK    sem a Exceção, avisa que o escolhido não está livre
+OK    a data criada pela busca salva
+OK    depois de criada, casa e artista saem dos livres desse dia (e seguem livres em outro)
+OK    nenhuma casa livre: diz, recolhe a casa com o motivo e sugere outro dia
+OK    a casa recolhida mostra o motivo
+OK    tocar na sugestão troca o dia para um com casa e artista livres
+OK    filtro por cidade
+OK    sem erro JS 
+
+## curadoria-suporte
+OK    "Algo deu errado?" abre, envia e responde com clareza (Não deu para enviar daquiMande pelo WhatsApp da equipe, com )
+OK    curadoria: Aprova Teste fica aprovada (aprovada · linha true · Inscrição · Com a curadoriaAprova Testeaprova@cur.com · enviada em 18/11/2026 )
+OK    curadoria: Reprova Teste fica reprovada (reprovada · linha true · Inscrição · Com a curadoriaReprova Testereprova@cur.com · enviada em 18/11/2026 )
+OK    sem erro JS 
+
+## datas-portal
+OK    Central tem "Criar datas" (em Datas) no menu
+OK    sem dia, casa e artista não salva e diz o que falta
+OK    sem disponibilidade marcada, a Nova data não oferece casa nenhuma
+OK    ligar a exceção não perde o dia
+OK    com a Exceção, a casa aparece com o motivo de não estar livre
+OK    data criada; avisa quem ainda não tem conta
+OK    data aparece na lista com casa e abertura
+OK    "Preparar contrato" abre o contrato já com a data
+OK    a casa vê a data nos Cronogramas, com o line-up 
+OK    mensagem de cronograma sai com a abertura das 20h
+OK    sem erro JS 
+
+## diario
+OK    tabela ausente: eventos guardados no navegador (8)
+OK    o que foi digitado não entra no diário
+OK    recarregar a página não perde a fila
+OK    banco aceitando: todos os 8 eventos que esperavam chegaram (14 enviados)
+OK    chegam abertura do site e cliques
+OK    sem erros de JavaScript 
+
+## equipe
+OK    dono vê a aba Equipe da casa (e ainda não a Trilha)
+OK    equipe vazia: uma linha fechada por função, cada uma com "Adicionar"; o bar só informa (Líder Local · Anfitrião · Social Media · Técnico de som · Porta · Reserva · Bar)
+OK    sem blocos repetidos: um só "+ Adicionar mais um membro" e o formulário fechado
+OK    "Faltam 6 de 6" no topo, com o que falta
+OK    Bar aparece como informativo
+OK    a linha abre e mostra o que a função faz e o "Quando"
+OK    "Adicionar" do Técnico de som abre o formulário dentro da linha, com a função já escolhida
+OK    "Adicionar Reserva" já marca a reserva
+OK    "+ Adicionar mais um membro" abre o formulário sem função escolhida
+OK    sem função escolhida, o site explica e não salva
+OK    uma função por pessoa (Guia v1.5): a escolha é única
+OK    WhatsApp incompleto é barrado e o campo fica em vermelho
+OK    salvar a pessoa termina com "✓ Feito", diz o que ainda falta e fecha o formulário
+OK    pessoa entra na linha da função (✓, aberta) e o topo diz "Faltam 5 de 6"
+OK    "Dar acesso" cria o convite ligado à casa, com a função
+OK    "Dar acesso" abre a mensagem pronta para WhatsApp ou e-mail (sem alert)
+OK    "Dar acesso" termina com status ✓ Feito na tela
+OK    primeiro acesso da equipe abre o tutorial dela, cobrindo as 7 abas
+OK    porta vê Minha função, sem a equipe, o cadastro e as métricas da casa
+OK    Minha função mostra o que a porta lê, recebe e devolve
+OK    trilha começada em 04/01/2027 fecha em 12/01 (7 dias úteis)
+OK    Central marca a etapa dela (nota de passagem)
+OK    Central vê a equipe da casa na mesma lista por função (Ana em Porta, "Faltam 5 de 6"), sem botões de editar
+OK    com a trilha começada, o dono vê a aba Trilha da nova casa
+OK    a casa não vê a nota de passagem
+OK    a casa confirma a leitura do Guia e não marca etapa da Central
+OK    marcar a etapa mostra "✓ Feito" ao lado
+OK    sem erro JS 
+
+## ficha-etapas
+OK    casa: 8 partes recolhíveis, só a primeira (incompleta) aberta (10000000)
+OK    progresso no topo (0 de 8 partes completas)
+OK    Enviar fica desabilitado e diz o que falta
+OK    obrigatórios para habilitar e gerar o contrato (12 itens)
+OK    casa: sem a pergunta "Dias da semana" (vai no calendário de disponibilidade)
+OK    o link do que falta abre a parte e leva ao campo
+OK    Salvar esta parte: ✓ na parte completa
+OK    a parte completa fecha e abre a próxima incompleta
+OK    progresso atualiza (1 de 8 partes completas)
+OK    a parte vai para o banco como rascunho
+OK    Cidade/UF: colar "Recife/PE" escolhe PE no estado e grava "Recife/PE" como antes
+OK    salvar a parte não envia a Ficha
+OK    campo inválido também segura o envio
+OK    com tudo preenchido e válido, Enviar libera
+OK    cópia local guardada no navegador enquanto digita
+OK    saiu e voltou: o que não tinha chegado ao banco volta da cópia local
+OK    o recuperado é salvo no banco sozinho
+OK    depois de salvo, a cópia local sai
+OK    Enviar pergunta na própria página antes, dizendo o que acontece
+OK    Ficha completa enviada vai para análise
+OK    artista: 5 partes, só a primeira aberta (10000)
+OK    artista: sem a observação de disponibilidade; o calendário continua
+OK    artista: Enviar desabilitado dizendo o que falta
+OK    artista: rascunho salvo sozinho no banco, sem enviar
+OK    parte incompleta: rascunho salvo, em amarelo, dizendo o que falta pelo nome (⚠ Atenção: Rascunho salvo às 14:10. Para completar esta parte: escolha o estado (UF); escolha a cidade onde mora; preencha Gêneros e referências; responda "Form…)
+OK    parte incompleta: os campos que faltam ficam em vermelho
+OK    mínimo de caracteres conta como incompleto na parte e no Enviar
+OK    mesmo incompleta, a parte foi guardada como rascunho
+OK    caixa obrigatória: conta como falta e fica em vermelho (⚠ Atenção: Rascunho salvo às 14:10. Para completar esta parte: responda "Topa cachê base com bônus por meta de público?"…)
+OK    artista: a observação antiga de disponibilidade continua guardada
+OK    sem erro JS 
+
+## ficha-obrigatorios
+OK    Enviar sem obrigatórios fica desabilitado e diz o que falta (Para enviar, faltam 11 itens: Nome da casa · Razão social · CNPJ · Endereço completo · Don…)
+OK    o link leva o cursor ao campo que falta e marca em vermelho
+OK    ao digitar, o campo sai do vermelho
+OK    o rascunho continua salvando sozinho
+OK    Salvar rascunho incompleto avisa em amarelo o que falta (⚠ Atenção: Rascunho salvo. Para enviar, ainda faltam 10 itens: Razão social; CNPJ; Endereç…)
+OK    sem erro JS 
+
+## ficha-vazios
+OK    artista: campo respondido travado, campo vazio aberto
+OK    artista salva o campo vazio e a inscrição continua na curadoria
+OK    mostra "✓ Feito"
+OK    casa habilitada: respondido travado, vazio aberto, Solicitar atualização continua
+OK    casa salva o campo vazio e continua habilitada
+OK    sem erro JS 
+
+## fluxos
+OK    público: tutorial abre na primeira visita
+OK    público: avança para o passo do aviso
+OK    público: destaca o bloco "Me avise" na página
+OK    público: voltar funciona
+OK    público: Esc fecha (pausa) o tutorial
+OK    público: depois de fechar, a próxima visita continua do mesmo passo
+OK    público: depois de "Pular tutorial", não reabre
+OK    público: "Como funciona" reabre
+OK    aviso: "Outra cidade" abre campo
+OK    aviso: valida contato
+OK    aviso: exige autorização
+OK    aviso: pedido registrado
+OK    artista: tutorial abre no primeiro acesso
+OK    artista: atalho do tutorial abre a inscrição
+OK    artista: no segundo login o tutorial continua de onde o atalho parou
+OK    artista: depois de pular, não reabre no login seguinte
+OK    artista: "Ver o tutorial de novo" reabre
+OK    artista: "Concluir" no último passo fecha
+OK    equipe: tutorial próprio no primeiro acesso
+OK    equipe: não pode convidar administração
+OK    equipe: convite gera mensagem com link de criar senha
+OK    equipe: WhatsApp já vai para o número da casa (com +55)
+OK    equipe: convite aparece na lista como aguardando
+OK    equipe: tutorial da casa vai com o link certo
+OK    equipe: registra que o tutorial foi enviado
+OK    equipe: demanda mostra Recife pedida e sem data
+OK    convite: link abre o cadastro preenchido como casa
+OK    convite: casa convidada vê o tutorial de casa
+OK    convite: casa convidada entra na área da casa
+OK    link #tutorial-artista abre sem login
+OK    celular: tutorial cabe na tela (390px, página 390px)
+OK    sem erros de JavaScript
+
+## historico
+OK    artista tem "Seu histórico" no menu
+OK    artista: salvar a ficha aparece no histórico, em "Hoje"
+OK    agrupado por dia (começa fechadinho) e com filtro por tipo
+OK    clicar na linha abre a ficha
+OK    casa: "Seu histórico" dentro de Próximos passos
+OK    casa: salvar o cadastro aparece no histórico
+OK    filtro por tipo mostra só aquele tipo
+OK    clicar na linha abre o cadastro da casa
+OK    equipe sem área também vê "Seu histórico" em Início
+OK    equipe: o convite aparece no histórico, com o tipo
+OK    clicar na linha abre o convite
+OK    o histórico é só de quem está logado
+OK    sem erros de JavaScript
+
+## hub
+OK    campanha começa fechada, só com o resumo (0 de 10 feitos, atrasados)
+OK    casa abre e vê os 10 dias da campanha do Rooftap
+OK    progresso começa em 0 de 10
+OK    dias que já passaram aparecem como atrasados
+OK    links das ações viram botões
+OK    marcar Feito atualiza o progresso, mostra quem marcou e a campanha continua aberta
+OK    Feito continua depois de recarregar
+OK    campanha baixa em .ics com os 10 dias (linhas dentro do limite)
+OK    casa não vê Materiais, Base nem Método
+OK    topo de Campanhas explica numa frase o papel: acompanhar, cobrar e ajustar
+OK    equipe vê o mesmo resumo da casa, fechado (Rooftap · A campanha do Rooftap 1 de 10 dias feitos, 9 atrasados ATRASADA)
+OK    equipe abre o dia a dia, com os mesmos 10 dias, sem a caixa "Feito" da casa
+OK    cada dia atrasado tem "Cobrar a casa no WhatsApp" e "Marcar como feito pela casa"
+OK    mensagem de cobrança pronta: o que fazer no dia e o link da campanha
+OK    feito pela casa: conta no resumo, mostra quem e quando, e a campanha continua aberta
+OK    ajustar o dia troca o texto
+OK    casa vê o "feito pela casa" que a equipe marcou (2 de 10)
+OK    casa vê quem marcou, a anotação e o dia ajustado
+OK    Para você (Marketing): "Cobrar campanha atrasada" com a casa e quantos dias
+OK    Para você (Marketing): campanha com data fica sob o cabeçalho do evento, que abre o detalhe da data (sem acesso a Contratos)
+OK    o item abre direto o dia a dia da campanha
+OK    matriz vê quantos confirmaram a leitura
+OK    casas no hub: Rooftap com pessoa, formato e campanha (CASA ↑ PESSOAS FORMATO CAMPANHA LEITURAS PENDENTES Rooftap 1 sem agenda 2/10 8 ATRASADOS 1)
+OK    arquivo de dados: prévia com dias, ações, casa e identificador
+OK    campanha nova aparece nas campanhas (0 de 2)
+OK    página HTML: prévia da versão nova (9 dias, 24 ações)
+OK    carregar a campanha termina com "✓ Feito" na tela (sem alert)
+OK    reimportar: dia retirado sai e o feito continua (Rooftap · A campanha do Rooftap 2 de 9 dias feitos, 7 atrasados ATRASADA)
+OK    campanha atualizada pede "Li e estou ciente" em Materiais
+OK    versão sem pedir ciência não gera pendência
+OK    versão repetida é recusada com mensagem clara
+OK    versão que muda o que a casa faz pede ciência de novo
+OK    link sem https é recusado
+OK    material novo aparece com ciência pedida
+OK    sem exceções JS 
+
+## inicio
+OK    adm-d: entra no Comece por aqui
+OK    adm-d: mostra datas do mês e alertas
+OK    adm-d: "Vale olhar primeiro" por ação, começando pelo que trava o evento mais próximo (Conferir contrato assinado (1) | Convidar a casa e completar a Ficha (13) | Convidar artista e pedir os dados (14) | Carregar campanha para a data (35) | Completar line-up (30) | Decidir na fila de curadoria do Notion (38) | Reativar casa sem data (13))
+OK    adm-d: a linha do contrato é um botão com cursor de mão
+OK    adm-d: Enter na linha abre Contratos com aquele contrato em foco
+OK    adm-d: artistas da mesma data juntos sob um cabeçalho ("4 artistas sem contrato"), recolhidos por ter mais de 3
+OK    adm-d: o cabeçalho do evento abre o quadro Line-up e contratos da data
+OK    adm-d: atalho abre Convites
+OK    eq-m: entra no Comece por aqui
+OK    eq-m: mostra datas do mês e alertas
+OK    eq-m: atalho abre Convites
+OK    sem erros de JavaScript 
+
+## leitor
+OK    área de envio aparece aberta, em primeiro lugar
+OK    equipe publica 2 documentos de uma vez (✓ Feito: 2 documentos publicados: Guia do Franqueado (versão 1.9); Briefing · Anfitrião da noite (versão 1.9). Já abrem dentro do portal.)
+OK    mensagem de feito fica verde (classe feito)
+OK    arquivo com nome desconhecido: erro claro e nada publicado
+OK    Guia não manda para outro link
+OK    Guia abre dentro da página
+OK    quadro cresce com o documento, sem rolagem dupla (6270px)
+OK    mostra a versão do documento
+OK    todo documento ganha o mesmo "Nesta página" no topo
+OK    o visual próprio do documento sai e entra o padrão do portal
+OK    link interno (#fechamento) rola a página até a seção
+OK    link para outro documento abre no mesmo leitor
+OK    "Voltar" fecha o documento
+OK    manual do Apresenta abre no mesmo leitor dos outros documentos, completo
+OK    casa não tem mais a Divulgação do Bruno
+OK    trocar de parte fecha o leitor; Marketing do anfitrião tem o briefing para ler na página
+OK    Plano de Ação saiu do Marketing
+OK    no celular, o documento não estoura a largura
+OK    sem erro JS 
+
+## lineup-contratos
+OK    Nova data começa com 3 artistas no line-up (padrão do Descubra)
+OK    "+ Adicionar artista" abre a 4ª linha sem perder o que já estava escrito
+OK    o mesmo artista duas vezes não salva e diz quem repetiu
+OK    "Tirar" remove a linha do line-up
+OK    data salva com 3 artistas, na ordem e ligados às contas
+OK    a data criada abre na lista; o resumo diz "contratos 0/4"
+OK    quadro da data: os 3 artistas e a casa, todos "Sem contrato"
+OK    preparar: cada artista com os dados da Ficha; nome completo, CPF/CNPJ e Pix ficam para o artista
+OK    um contrato para cada artista do line-up e o da casa
+OK    cada contrato vem com a Ficha daquele artista (WhatsApp, cidade) e o cachê dele
+OK    sem WhatsApp na inscrição, vale o da conta
+OK    o artista preenche no contrato só o que a Ficha não tem
+OK    o contrato da casa sai com o modelo da casa e a Ficha da casa
+OK    confirma quantos preparou e o botão some: não duplica
+OK    quadro: "Aguardando dados" e "Cobrar no WhatsApp" com o número da artista
+OK    Ana vê só o contrato dela da data
+OK    Ana marca o passo dela na data
+OK    cada artista com os próprios passos no quadro (Ana 1 feito, Bia 0)
+OK    Agenda vê os artistas; o contrato da casa fica com a Operações
+OK    Datas criadas no portal: a data começa compacta, sem os botões à vista
+OK    aberta: botões numa linha, alinhados à direita, dentro do cartão {"dentro":true,"umaLinha":true,"direita":true}
+OK    tirar a Bia pede confirmação na própria página (sem janela do navegador) e ainda não salvou
+OK    confirmado: a Bia sai do line-up e o contrato dela é cancelado
+OK    os outros contratos continuam e a mensagem diz o que foi cancelado
+OK    sem erro JS 
+
+## link-email
+OK    link vencido abre o Entrar com a explicação (✕ Erro: Esse link do e-mail já foi usado ou venceu (cada lin)
+OK    o erro sai do endereço
+OK    casa que entrou pelo link sem senha recebe "Crie a sua senha"
+OK    sem erro JS 
+
+## modelos-papel
+OK    Gui: o painel "Seu modelo de trabalho" começa fechado
+OK    Gui: o resumo diz % feito, atrasados e SOS (Seu modelo de trabalho · Gui · Operações13% feito na próxima data · 3 atrasados · 4 SOS · toque para ver)
+OK    Gui: SOS de contrato da casa (D-10), equipe incompleta (D-14) e Ficha parada há 7+ dias
+OK    Gui: "Cobrar a casa no WhatsApp" abre com o número da casa e a mensagem pronta
+OK    Gui: "Ação funcionando" traz o próximo passo de cada data, com Feito
+OK    Acompanhamento: um painel por papel (Gui · Operações, Isa · Agenda, Bruno · Marketing, Casa, Artistas)
+OK    a data começa fechada, com o % de cada papel na linha
+OK    Gui marca "Porta liberada na Ingresse": fica "feito por você em dd/mm"
+OK    o que o portal confere sozinho (Ficha habilitada) aparece "conferido pelo portal"
+OK    cada ação diz o que conta como feito e tem o "Como fazer"
+OK    o "Como fazer: Método" abre o Método no trecho certo
+OK    o padrão de cada papel e as regras do SOS ficam numa dobra
+OK    Isa: SOS de line-up, contrato sem assinar e não enviado (só o que é da Agenda)
+OK    Isa escala o line-up para a adm: fica "escalado por você"
+OK    Bruno: SOS de data a 21 dias sem campanha, com "Carregar a campanha"
+OK    adm: o SOS escalado aparece em destaque
+OK    adm: vê "feito por Gui" na hora
+OK    casa: acompanhamento e SOS com "Completar a equipe"
+OK    casa: SOS do contrato com "Abrir o contrato"
+OK    casa: cada passo com quem faz (função), o que conta como feito, o método e quem marcou
+OK    casa vê só o que é dela
+OK    artista: SOS do contrato dele, sem o que é da casa
+OK    sem erro JS 
+
+## movel
+OK    aviso de privacidade não fica por cima do tutorial
+OK    casa-tutorial: sem rolagem lateral (390px de 390)
+OK    aviso de privacidade volta quando o tutorial fecha
+OK    casa-campanha: sem rolagem lateral (390px de 390)
+OK    casa-campanha-aberta: sem rolagem lateral (390px de 390)
+OK    casa: dúvidas novas aparecem (campanha, agenda, ciência)
+OK    casa-duvidas: sem rolagem lateral (390px de 390)
+OK    casa-ficha: sem rolagem lateral (390px de 390)
+OK    casa-disponibilidade: sem rolagem lateral (390px de 390)
+OK    equipe-campanhas: sem rolagem lateral (390px de 390)
+OK    equipe-campanha-aberta: sem rolagem lateral (390px de 390)
+OK    ações do dia (cobrar, feito pela casa, ajustar) cabem no celular
+OK    equipe-materiais: sem rolagem lateral (390px de 390)
+OK    sem erro JS 
+
+## operacao
+OK    computador: Roteiro da noite mostra cronogramas, camarim, rider e crianças
+OK    computador: sem rolagem lateral
+OK    celular: Roteiro da noite mostra cronogramas, camarim, rider e crianças
+OK    celular: sem rolagem lateral
+OK    sem erro JS 
+
+## portal-casa
+OK    menu da casa por tema (17/11): Próximos passos · Cadastro · Equipe · Disponibilidade · Contrato · Dúvidas
+OK    Minha conta no rodapé, fora das quatro áreas
+OK    seções na ordem do modelo: A casa · Dono A (responsável legal) · Dados para repasses · O espaço · Som, luz e palco · Bar e cozinha · Ingressos e agenda · Sua equipe · Dúvidas sobre o Guia
+OK    todos os campos, textos e opções do modelo v1 na tela
+OK    Parte 1 com combinados vazios (sem valor de exemplo) e o rodapé do modelo
+OK    ficha nova: todos os campos aparecem, vazios
+OK    sem a pergunta "Dias da semana" (vai no calendário de disponibilidade)
+OK    ficha enviada: o que foi respondido trava, o que ficou vazio continua aberto (v25)
+OK    pedido de atualização sem nenhuma mudança não é enviado
+OK    pedido sem dizer o que mudou é barrado e o campo fica em vermelho
+OK    pedido enviado termina com "✓ Feito"
+OK    pedido guarda só o que mudou e a ficha ainda não muda
+OK    a casa vê o pedido aberto
+OK    disponibilidade: sem informação → disponível → indisponível, guardada para a casa
+OK    Central vê o pedido com o antes e o proposto
+OK    equipe não vê dados pessoais e bancários do Dono A
+OK    pedido aprovado atualiza a ficha
+OK    Agenda das casas mostra a casa que informou a disponibilidade
+OK    Painel da operação abre para a equipe
+OK    sem erro JS 
+
+## producao-real
+OK    Gui: "Para você" mostra as casas com data no Notion e sem Ficha no portal
+OK    Gui: nunca "nada pra fazer" quando há pendência real
+OK    Gui: casas que receberam e estão sem data (quando houver)
+OK    linhas agrupadas por evento (cabeçalho da data)
+OK    pré-ficha de Distrital: "do Notion" e "falta", com a contagem
+OK    partes da pré-ficha começam fechadas
+OK    pré-ficha traz o histórico de noites e as próximas datas
+OK    nome "do Notion"; CNPJ "falta"
+OK    Solicitar: a proposta já leva o nome e o que sabemos
+OK    proposta com 6 informações do Notion (cidade_uf, capacidade_sentado, instagram, nome, capacidade, menores)
+OK    convite e proposta criados, com a mensagem de WhatsApp pronta
+OK    convite e proposta gravados
+OK    a casa passa a aparecer como "pedido enviado, aguardando"
+OK    Casas: bloco das casas reais começa fechado
+OK    bloco mostra quantas estão sem conta no portal
+OK    lista curta ao abrir (12)
+OK    linha expande a pré-ficha com o "Solicitar à casa"
+OK    busca filtra as casas
+OK    Ficha da casa nasce com o nome que a equipe mandou
+OK    a casa vê o aviso do que já veio preenchido
+OK    Isa: artistas do line-up das próximas datas sem conta
+OK    Isa: fila de curadoria do Notion
+OK    Isa: line-up incompleto ou sugestões por histórico
+OK    pré-inscrição da artista com "Solicitar à artista"
+OK    Curadoria: bloco das artistas reais começa fechado
+OK    Bruno: datas com vendas abertas sem campanha carregada
+OK    Bruno: nunca "nada pra fazer" com pendência real
+OK    adm: resumo com o trabalho real das áreas
+OK    sem erro JS 
+
+## propostas
+OK    bloco de propostas começa compacto (fechado)
+OK    bloco mostra os números (aguardando, aceitas hoje, faltando)
+OK    Ana aparece em "Faltando informação importante", com o que falta
+OK    formulário mostra o que está hoje na ficha
+OK    escrever no campo já marca "vai na proposta"
+OK    proposta enviada, com mensagem de WhatsApp pronta
+OK    Ana fica marcada como "proposta enviada"
+OK    lista "Propostas enviadas" com o status
+OK    Isa não propõe para casas
+OK    sem conta: o formulário avisa e pede o e-mail do convite
+OK    sem e-mail o convite não sai
+OK    convite criado com a proposta e a mensagem de WhatsApp pronta
+OK    convite gravado
+OK    "Para você" mostra as propostas aguardando resposta
+OK    cartão no topo de Próximos passos com Aceitar tudo, Ajustar e Recusar
+OK    antes → depois começa recolhido
+OK    mostra o antes → depois
+OK    mensagem clara depois de aceitar
+OK    ficha atualizada na hora (inscrição continua em curadoria)
+OK    disponibilidade semanal em Campinas às sextas
+OK    cartão some depois de responder
+OK    Gui não propõe para artistas
+OK    Gui envia a proposta para a casa
+OK    casa ajusta e a ficha muda na hora (continua habilitada)
+OK    dias da semana da casa gravados
+OK    proposta fica "aceita com ajustes"
+OK    "Para você" mostra as propostas aceitas hoje
+OK    sem erro JS 
+
+## sugestao-historico
+OK    bloco "Sugestão POR HISTÓRICO" aparece com o aviso de confirmar
+OK    traz sugestões no período (30)
+OK    cada sugestão começa numa linha, fechadinha
+OK    cada sugestão tem "Propor atualização" (casa e artistas)
+OK    formulário vem preenchido pelo histórico (motivo e dias da semana)
+OK    sem erro JS 
+
+## trilha
+OK    casa nova: Equipe, Disponibilidade e Contrato travados
+OK    Próximos passos mostra a trilha da casa
+OK    parte travada explica o que falta
+OK    casa habilitada: Equipe liberada; Disponibilidade espera a equipe completa
+OK    Disponibilidade travada diz o motivo: o que falta na equipe
+OK    equipe quase completa: ainda travada, com "faltam: Porta e Reserva"
+OK    equipe completa libera a Disponibilidade
+OK    artista nova: Disponibilidade e Contrato travados (disp_artista, contratos_meus)
+OK    curadoria aprovada libera a Disponibilidade
+OK    sem erro JS 
+
+## tudo-clicavel
+OK    público: data da agenda abre o detalhe pelo teclado, com line-up e ingressos
+OK    público · início: 10 itens, todos abrem algo
+OK    adm · inicio: 259 itens, todos abrem algo
+OK    adm · acompanhamento: 986 itens, todos abrem algo
+OK    adm · feito: 0 itens, todos abrem algo
+OK    adm · geral: 10 itens, todos abrem algo
+OK    adm · painel: 10 itens, todos abrem algo
+OK    adm · operacao: 10 itens, todos abrem algo
+OK    adm · datas_portal: 0 itens, todos abrem algo
+OK    adm · lado_a_lado: 0 itens, todos abrem algo
+OK    adm · agenda_casas: 0 itens, todos abrem algo
+OK    adm · datas: 10 itens, todos abrem algo
+OK    adm · curadoria: 0 itens, todos abrem algo
+OK    adm · base_artistas: 30 itens, todos abrem algo
+OK    adm · artistas: 10 itens, todos abrem algo
+OK    adm · casas_cad: 0 itens, todos abrem algo
+OK    adm · base_casas: 30 itens, todos abrem algo
+OK    adm · casas: 10 itens, todos abrem algo
+OK    adm · trilhas: 0 itens, todos abrem algo
+OK    adm · g_contratos: 30 itens, todos abrem algo
+OK    adm · campanhas: 0 itens, todos abrem algo
+OK    adm · demanda: 0 itens, todos abrem algo
+OK    adm · convites: 0 itens, todos abrem algo
+OK    adm · estrategia: 50 itens, todos abrem algo
+OK    adm · pessoas: 1 itens, todos abrem algo
+OK    adm · prontidao: 0 itens, todos abrem algo
+OK    adm · relatos: 0 itens, todos abrem algo
+OK    adm · historico: 0 itens, todos abrem algo
+OK    adm · acessos: 10 itens, todos abrem algo
+OK    adm · materiais: 0 itens, todos abrem algo
+OK    adm · base: 121 itens, todos abrem algo
+OK    adm · metodo: 0 itens, todos abrem algo
+OK    adm · conta: 0 itens, todos abrem algo
+OK    equipe · inicio: 259 itens, todos abrem algo
+OK    equipe · acompanhamento: 986 itens, todos abrem algo
+OK    equipe · feito: 0 itens, todos abrem algo
+OK    equipe · geral: 10 itens, todos abrem algo
+OK    equipe · painel: 10 itens, todos abrem algo
+OK    equipe · operacao: 10 itens, todos abrem algo
+OK    equipe · datas_portal: 0 itens, todos abrem algo
+OK    equipe · lado_a_lado: 0 itens, todos abrem algo
+OK    equipe · agenda_casas: 0 itens, todos abrem algo
+OK    equipe · datas: 10 itens, todos abrem algo
+OK    equipe · curadoria: 0 itens, todos abrem algo
+OK    equipe · base_artistas: 30 itens, todos abrem algo
+OK    equipe · artistas: 10 itens, todos abrem algo
+OK    equipe · casas_cad: 0 itens, todos abrem algo
+OK    equipe · base_casas: 30 itens, todos abrem algo
+OK    equipe · casas: 10 itens, todos abrem algo
+OK    equipe · trilhas: 0 itens, todos abrem algo
+OK    equipe · g_contratos: 30 itens, todos abrem algo
+OK    equipe · campanhas: 0 itens, todos abrem algo
+OK    equipe · demanda: 0 itens, todos abrem algo
+OK    equipe · convites: 0 itens, todos abrem algo
+OK    equipe · materiais: 0 itens, todos abrem algo
+OK    equipe · base: 121 itens, todos abrem algo
+OK    equipe · metodo: 0 itens, todos abrem algo
+OK    equipe · conta: 0 itens, todos abrem algo
+OK    equipe (operacoes) · hoje: 57 itens, todos abrem algo
+OK    equipe (operacoes) · acompanhamento: 986 itens, todos abrem algo
+OK    equipe (operacoes) · feito: 0 itens, todos abrem algo
+OK    equipe (operacoes) · geral: 10 itens, todos abrem algo
+OK    equipe (operacoes) · painel: 10 itens, todos abrem algo
+OK    equipe (operacoes) · operacao: 10 itens, todos abrem algo
+OK    equipe (operacoes) · casas_cad: 0 itens, todos abrem algo
+OK    equipe (operacoes) · base_casas: 30 itens, todos abrem algo
+OK    equipe (operacoes) · casas: 10 itens, todos abrem algo
+OK    equipe (operacoes) · trilhas: 0 itens, todos abrem algo
+OK    equipe (operacoes) · g_contratos: 30 itens, todos abrem algo
+OK    equipe (operacoes) · convites: 0 itens, todos abrem algo
+OK    equipe (operacoes) · materiais: 0 itens, todos abrem algo
+OK    equipe (operacoes) · base: 121 itens, todos abrem algo
+OK    equipe (operacoes) · metodo: 0 itens, todos abrem algo
+OK    equipe (operacoes) · conta: 0 itens, todos abrem algo
+OK    equipe (agenda) · hoje: 162 itens, todos abrem algo
+OK    equipe (agenda) · acompanhamento: 986 itens, todos abrem algo
+OK    equipe (agenda) · feito: 0 itens, todos abrem algo
+OK    equipe (agenda) · geral: 10 itens, todos abrem algo
+OK    equipe (agenda) · painel: 10 itens, todos abrem algo
+OK    equipe (agenda) · operacao: 10 itens, todos abrem algo
+OK    equipe (agenda) · datas_portal: 0 itens, todos abrem algo
+OK    equipe (agenda) · lado_a_lado: 0 itens, todos abrem algo
+OK    equipe (agenda) · agenda_casas: 0 itens, todos abrem algo
+OK    equipe (agenda) · datas: 10 itens, todos abrem algo
+OK    equipe (agenda) · curadoria: 0 itens, todos abrem algo
+OK    equipe (agenda) · base_artistas: 30 itens, todos abrem algo
+OK    equipe (agenda) · artistas: 10 itens, todos abrem algo
+OK    equipe (agenda) · g_contratos: 30 itens, todos abrem algo
+OK    equipe (agenda) · convites: 0 itens, todos abrem algo
+OK    equipe (agenda) · materiais: 0 itens, todos abrem algo
+OK    equipe (agenda) · base: 121 itens, todos abrem algo
+OK    equipe (agenda) · metodo: 0 itens, todos abrem algo
+OK    equipe (agenda) · conta: 0 itens, todos abrem algo
+OK    equipe (marketing) · hoje: 93 itens, todos abrem algo
+OK    equipe (marketing) · acompanhamento: 986 itens, todos abrem algo
+OK    equipe (marketing) · feito: 0 itens, todos abrem algo
+OK    equipe (marketing) · geral: 10 itens, todos abrem algo
+OK    equipe (marketing) · painel: 10 itens, todos abrem algo
+OK    equipe (marketing) · operacao: 10 itens, todos abrem algo
+OK    equipe (marketing) · campanhas: 0 itens, todos abrem algo
+OK    equipe (marketing) · demanda: 0 itens, todos abrem algo
+OK    equipe (marketing) · convites: 0 itens, todos abrem algo
+OK    equipe (marketing) · materiais: 0 itens, todos abrem algo
+OK    equipe (marketing) · base: 121 itens, todos abrem algo
+OK    equipe (marketing) · metodo: 0 itens, todos abrem algo
+OK    equipe (marketing) · conta: 0 itens, todos abrem algo
+OK    equipe: data da rede abre o detalhe (casa, cidade, line-up, status, ingressos, Ficha e contrato)
+OK    casa · passos: 412 itens, todos abrem algo
+OK    casa · cronograma: 0 itens, todos abrem algo
+OK    casa · campanha: 0 itens, todos abrem algo
+OK    casa · minhas: 57 itens, todos abrem algo
+OK    casa · meu_hist: 0 itens, todos abrem algo
+OK    casa · cadastro_casa: 9 itens, todos abrem algo
+OK    casa · guia: 3 itens, todos abrem algo
+OK    casa · equipe_g: 0 itens, todos abrem algo
+OK    casa · disp_g: 0 itens, todos abrem algo
+OK    casa · contratos_meus: 0 itens, todos abrem algo
+OK    casa · financeiro_casa: 0 itens, todos abrem algo
+OK    casa · duvidas: 0 itens, todos abrem algo
+OK    casa · conta: 0 itens, todos abrem algo
+OK    artista · passos: 0 itens, todos abrem algo
+OK    artista · inscricao: 0 itens, todos abrem algo
+OK    artista · disp_artista: 0 itens, todos abrem algo
+OK    artista · contratos_meus: 0 itens, todos abrem algo
+OK    artista · mkt_produtor: 7 itens, todos abrem algo
+OK    artista · mkt_anfitriao: 5 itens, todos abrem algo
+OK    artista · mkt_social: 5 itens, todos abrem algo
+OK    artista · meu_hist: 0 itens, todos abrem algo
+OK    artista · agenda: 1 itens, todos abrem algo
+OK    artista · pracas: 10 itens, todos abrem algo
+OK    artista · duvidas: 0 itens, todos abrem algo
+OK    artista · conta: 0 itens, todos abrem algo
+OK    percorreu 130 telas (62 com itens) e abriu 6 detalhes pelo teclado
+OK    sem erro JS 
+
+## tut-cobertura
+OK    conta artista: tutorial cobre as 11 abas
+OK    conta artista: abre sozinho no primeiro acesso com 9 passos
+OK    conta artista: "Concluir" fecha o tutorial
+OK    conta artista: sem erro JS 
+OK    conta casa: tutorial cobre as 14 abas
+OK    conta casa: abre sozinho no primeiro acesso com 11 passos
+OK    conta casa: "Concluir" fecha o tutorial
+OK    conta casa: sem erro JS 
+OK    conta equipe: tutorial cobre as 11 abas
+OK    conta equipe: abre sozinho no primeiro acesso com 18 passos
+OK    conta equipe: "Concluir" fecha o tutorial
+OK    conta equipe: quem já tinha visto recebe só as novidades (9 passos, começa em "Artista e casa")
+OK    conta equipe: depois de ver as novidades, não abre de novo
+OK    conta equipe com código interno: tutorial cobre as 17 abas
+OK    conta equipe: sem erro JS 
+OK    conta adm: tutorial cobre as 12 abas
+OK    conta adm: abre sozinho no primeiro acesso com 22 passos
+OK    conta adm: "Concluir" fecha o tutorial
+OK    conta adm com código interno: tutorial cobre as 20 abas
+OK    conta adm: sem erro JS 
+OK    código artista: tutorial cobre as 3 abas
+OK    código artista: abre sozinho no primeiro acesso com 6 passos
+OK    código artista: "Concluir" fecha o tutorial
+OK    código artista: sem erro JS 
+OK    código casa: tutorial cobre as 3 abas
+OK    código casa: abre sozinho no primeiro acesso com 6 passos
+OK    código casa: "Concluir" fecha o tutorial
+OK    código casa: novidades para quem já tinha visto
+OK    código casa: sem erro JS 
+OK    código equipe: tutorial cobre as 6 abas
+OK    código equipe: abre sozinho no primeiro acesso com 5 passos
+OK    código equipe: "Concluir" fecha o tutorial
+OK    código equipe: sem erro JS 
+OK    código adm: tutorial cobre as 8 abas
+OK    código adm: abre sozinho no primeiro acesso com 7 passos
+OK    código adm: "Concluir" fecha o tutorial
+OK    código adm: sem erro JS 
+
+## tut-controles
+OK    código casa: tutorial abre sozinho no primeiro acesso
+OK    código casa: "Voltar" desabilitado no primeiro passo
+OK    código casa: Avançar e setas do teclado mudam de passo
+OK    código casa: clicar fora da caixa não fecha
+OK    código casa: tem "Pular tutorial" e ×
+OK    código casa: × fecha e avisa que continua do passo 2
+OK    código casa: no acesso seguinte continua do mesmo passo
+OK    código casa: fechado de novo, não volta sozinho (conta como visto)
+OK    "Como funciona" abre o tutorial inteiro, do primeiro passo
+OK    código casa: sem erro JS 
+OK    código artista: "Pular tutorial" avisa onde ver de novo
+OK    código artista: depois de pular, não abre sozinho
+OK    código artista: sem erro JS 
+OK    conta artista: tutorial abre no primeiro acesso
+OK    conta artista: último passo tem "Concluir" e diz onde ver de novo
+OK    conta artista: "Concluir" fecha sem aviso
+OK    conta artista: concluído, não abre de novo
+OK    conta artista: "Ver o tutorial de novo" abre do começo
+OK    conta artista: fechar o "ver de novo" não mostra aviso de pausa
+OK    conta artista: fechar o "ver de novo" não faz o tutorial voltar sozinho
+OK    conta artista: atalho do passo leva para a aba
+OK    conta artista: sem erro JS 
+OK    novidades: abre só o que é novo
+OK    novidades: "Ver o tutorial completo" abre os 18 passos
+OK    novidades: sem erro JS 
+OK    celular: botões cabem na tela e têm 44px de toque (×44, pular 44)
+
+## ux-geral
+OK    trilha: passo de agora visível, os próximos recolhidos numa linha
+OK    Ficha: Parte 1, "O que falta" e as linhas de "Sua equipe" começam recolhidas
+OK    cada bloco recolhido diz o que é e o status numa linha
+OK    a primeira parte pendente vem aberta, as outras recolhidas
+OK    abre ao tocar e continua aberta depois de redesenhar a tela
+OK    Ficha: cada botão tem a linha do que acontece (Editar a equipe · Enviar a Ficha ao Tranquilo · Salvar rascunho · Mandar uma cópia das respostas ao Gui)
+OK    rótulos com efeito e destino: "Mandar uma cópia…" não envia a Ficha; rascunho ainda não vai para análise
+OK    Ficha no celular: nada passa da tela ()
+OK    #copiarFicha cabe na tela (direita em 374px)
+OK    Enviar abre a confirmação na própria página, dizendo o que acontece (sem janelinha)
+OK    "Não, voltar" fecha a caixa e não envia nada
+OK    "Sim, enviar" envia e a mensagem diz o próximo passo
+OK    Ficha enviada: "Pedir para mudar…" (o Gui aprova) e "Salvar os campos em branco" (já chega ao Tranquilo)
+OK    Ficha enviada no celular: nada passa da tela ()
+OK    lista vazia mostra só o aviso, inteiro na tela
+OK    Início da equipe: filas zeradas ficam numa linha recolhida
+OK    Criar datas: passo a passo numerado (1Escolha o formato → 2Escolha a combinação (abra a linha para trocar artistas)) e filtros de período, cidade, casa e artista no topo
+OK    cada formato mostra a contagem (Descubra0 combinações | Apresenta0 combinações | Turnê0 artistas topam | Noite Tranquilo0 combinações | Todos os dias0 dias)
+OK    o formato escolhido fica preenchido, diferente dos outros
+OK    abas de cima com rótulo "Ver:" antes
+OK    sem erro JS 
+
+## vinculo
+OK    depois de colar o código, a conta mostra o vínculo aguardando confirmação
+OK    o campo de código some enquanto o pedido está aberto
+OK    as métricas do código já abrem (aba Minha agenda)
+OK    o pedido e as métricas continuam depois de recarregar
+OK    sem erro JS 
