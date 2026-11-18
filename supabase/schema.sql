@@ -2651,7 +2651,12 @@ create table if not exists disponibilidade_semanal (
   check ((casa_ref is null) <> (user_id is null))
 );
 create unique index if not exists disp_sem_casa on disponibilidade_semanal (lower(casa_ref)) where casa_ref is not null;
-create unique index if not exists disp_sem_user on disponibilidade_semanal (user_id) where user_id is not null;
+-- Índice antigo (um padrão por artista); a v29 troca por um por artista e cidade. Só cria em banco que ainda não tem o novo.
+do $$ begin
+  if to_regclass('public.disp_sem_user_cid') is null then
+    create unique index if not exists disp_sem_user on disponibilidade_semanal (user_id) where user_id is not null;
+  end if;
+end $$;
 alter table disponibilidade_semanal enable row level security;
 drop policy if exists dsem_ler on disponibilidade_semanal;
 create policy dsem_ler on disponibilidade_semanal for select using (
