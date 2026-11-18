@@ -80,3 +80,40 @@ await como(adm, async () => {
   const h = (await q(`select acao, por from campanha_historico order by id`)).rows;
   ok(h.length === 2 && h[0].acao === 'feito' && h[0].por === roof1 && h[1].acao === 'desfeito' && h[1].por === roof2, 'histórico registra quem marcou e quem desmarcou');
 });
+
+// v32: casa ligada pela Ficha (sem convite) e nome escrito diferente vê a mesma campanha que a equipe.
+const farol = await novo('farol@x.com', 'casa');
+await q(`update perfis set vinculo_nome = 'TESTE · Bar do Farol' where id = $1`, [farol]);   // como a Ficha habilitada (v20) ou o seed
+const n = async (s) => (await q(`select chave_casa($1) k`, [s])).rows[0].k;
+ok(await n('TESTE · Bar do Farol') === 'bar do farol' && await n('  bar   DO farol ') === 'bar do farol' && await n('Casa Aurora (teste)') === 'casa aurora' && await n('Galpão Maré') === 'galpao mare', 'nome da casa normalizado (TESTE ·, maiúsculas, espaços, acentos)');
+await como(adm, async () => {
+  await q(`select importar_campanha($1)`, [{ slug: 'teste-farol', titulo: 'Campanha Farol', casa: 'teste ·  bar do  FAROL', itens: [{ chave: 'd0101', dia: '2026-01-01', rotulo: 'qui 01/01', acoes: [] }, { chave: 'd0102', dia: '2026-01-02', rotulo: 'sex 02/01', acoes: [] }] }]);
+});
+const itFarol = (await q(`select i.id from campanha_itens i join campanhas c on c.id = i.campanha_id where c.slug = 'teste-farol' order by i.dia`)).rows.map((r) => r.id);
+await como(farol, async () => {
+  const cs = (await q(`select slug from campanhas`)).rows;
+  ok(cs.length === 1 && cs[0].slug === 'teste-farol', 'casa ligada pela Ficha (sem convite) vê a campanha dela, mesmo com o nome escrito diferente');
+  const a = (await q(`select * from andamento_campanhas()`)).rows;
+  ok(a.length === 1 && a[0].atrasados === 2, 'casa vê os mesmos dias atrasados que a equipe');
+  await q(`insert into campanha_feitos (item_id) values ($1)`, [itFarol[0]]);
+});
+await como(adm, async () => {
+  const a = (await q(`select * from andamento_campanhas() where slug = 'teste-farol'`)).rows[0];
+  ok(a.feitos === 1 && a.atrasados === 1, '"Feito" marcado pela casa aparece para a equipe');
+  await q(`insert into campanha_feitos (item_id, nota) values ($1, 'Feito pela casa (Joana, ontem)')`, [itFarol[1]]);
+  await q(`update campanha_itens set dia = '2026-01-03', rotulo = 'sáb 03/01' where id = $1`, [itFarol[1]]);
+});
+await como(farol, async () => {
+  const f = (await q(`select feito_por, nota from campanha_feitos where item_id = $1`, [itFarol[1]])).rows[0];
+  ok(f?.feito_por === adm && /Joana/.test(f.nota), 'casa vê o "feito pela casa" que a equipe marcou, com quem e quando');
+  ok((await q(`select dia::text d from campanha_itens where id = $1`, [itFarol[1]])).rows[0].d === '2026-01-03', 'casa vê o dia ajustado pela equipe');
+  await tenta(() => q(`update campanha_itens set dia = '2026-02-01' where id = $1`, [itFarol[0]]));
+});
+ok((await q(`select dia::text d from campanha_itens where id = $1`, [itFarol[0]])).rows[0].d === '2026-01-01', 'casa não ajusta o dia (só a equipe)');
+await como(outra, async () => ok(!(await q(`select * from campanhas where slug = 'teste-farol'`)).rows.length, 'outra casa continua sem ver a campanha do Farol'));
+// O site (TQCampanha.chaveCasa) e o banco (chave_casa) normalizam igual.
+await import('../src/campanha.js');
+const nomes = ['TESTE · Bar do Farol', 'teste·bar do farol', ' Bar  do   Farol ', 'Casa Aurora (teste)', 'Galpão Maré', 'TESTE - Casa Ipê', 'Açaí & Cia', 'Rooftap'];
+const difs = [];
+for (const s of nomes) { const b = await n(s), j = globalThis.TQCampanha.chaveCasa(s); if ((b || '') !== j) difs.push(`${s}: banco "${b}" x site "${j}"`); }
+ok(!difs.length, `site e banco normalizam o nome da casa igual${difs.length ? ' — ' + difs.join('; ') : ''}`);
