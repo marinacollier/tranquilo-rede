@@ -901,8 +901,8 @@ function rodape() {
 // ---------- estado ----------
 const S = { pub: null, pac: null, aba: null, filtros: { periodo: "12m", modelo: "Todos" }, datas: { cidade: "", modelo: "", status: "", q: "", quando: "futuras" } };
 const PERFIS = {
-  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Histórico dos artistas (Notion)"],["casas","Histórico das casas (Notion)"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
-  equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["artistas","Histórico dos artistas (Notion)"],["casas","Histórico das casas (Notion)"],["base","Base de conhecimento"],["metodo","Método"]] },
+  adm: { rotulo: "Administração", abas: [["estrategia","O que está dando certo"],["operacao","Operação"],["datas","Datas"],["artistas","Histórico dos artistas (Notion)"],["casas","Histórico das casas (Notion)"],["base_artistas","Base de artistas (Notion)"],["base_casas","Base de casas (Notion)"],["base","Base de conhecimento"],["metodo","Método"],["acessos","Acessos"]] },
+  equipe: { rotulo: "Equipe", abas: [["operacao","Operação"],["datas","Datas"],["artistas","Histórico dos artistas (Notion)"],["casas","Histórico das casas (Notion)"],["base_artistas","Base de artistas (Notion)"],["base_casas","Base de casas (Notion)"],["base","Base de conhecimento"],["metodo","Método"]] },
   artista: { rotulo: "Artista", abas: [["agenda","Minha agenda"],["pracas","Praças da rede"],["duvidas","Dúvidas frequentes"]] },
   casa: { rotulo: "Casa", abas: [["minhas","Minhas datas"],["roteiro","Roteiro da noite"],["duvidas","Dúvidas frequentes"]] },
 };
@@ -1023,7 +1023,7 @@ function abrirEvento(id) {
 }
 // Tudo clicável (Marina, 18/11/2026): linha de tabela, item de lista ou cartão que ainda não abre nada ganha um detalhe
 // só de leitura com tudo o que a linha mostra (sem cortes). Quem tem ação continua usando os botões da própria linha.
-const INTERATIVO = "a,button,input,select,textarea,label,summary,details,[data-ev],[data-click],[data-abrir],[data-det]";
+const INTERATIVO = "a,button,input,select,textarea,label,summary,details,[data-ev],[data-click],[data-abrir],[data-det],[data-bn]";
 function tornarClicaveis(raiz = $("#app")) {
   if (!raiz) return;
   const marcar = (el) => { if (el.closest(".tour-caixa,form,#form,.cal,.calendario") || !el.textContent.trim()) return; el.setAttribute("data-det", ""); el.tabIndex = 0; el.setAttribute("role", "button"); };
@@ -1304,6 +1304,10 @@ const TELAS = {
       { t: "Cancel./adiadas", n: 1, v: (l) => l.cancelados },
     ], linhas, { i: 2, dir: -1 })}`;
   },
+  // Base inteira do Notion (Casas de Shows e Artistas e bandas), pedido da Marina, 18/11/2026: "tudo". Começa compacta
+  // (nome, cidade, status, noites) e cresce com "Mostrar mais"; a linha abre a ficha com tudo o que o pacote desta pessoa traz.
+  base_casas() { return telaBaseNotion("casas"); },
+  base_artistas() { return telaBaseNotion("artistas"); },
   base() {
     const P = S.pac?.base ? S.pac : referencia(), q = (S.bq || "").toLowerCase();
     if (!P) return `<div class="tag">Base de conhecimento</div><p class="muted">Carregando…</p>`;
@@ -1394,6 +1398,70 @@ function markdown(md) {
     else if (l.trim()) h += `<p>${inl(l)}</p>`;
   }
   return h + (lista ? "</ul>" : "");
+}
+
+// ---------- bases Casas de Shows e Artistas e bandas (Notion) ----------
+// O pacote da equipe traz os campos não sensíveis; o da administração traz também priv (CNPJ, contatos, Pix, cachê…).
+const BN_ROT = { cid: "Cidade", uf: "UF", cp: "Capacidade em pé", cs: "Capacidade sentado", m2: "Metragem (m²)", and: "Andares", men: "Menores de idade", av: "Avaliação (padrão Tranquilo)",
+  ig: "Instagram", site: "Site", rider: "Rider técnico", mora: "Onde mora", gen: "Gêneros", st: "Status de curadoria", sp: "Spotify", yt: "YouTube", dz: "Deezer", slug: "Página no site", tempo: "Tempo de show", ja: "Já tocou no Tranquilo", vz: "Vezes no Tranquilo (manual)", praca: "Praça preferencial", bloq: "Concorrência: bloqueado até" };
+const bnCidade = (tipo, r) => (tipo === "casas" ? [r.cid, r.uf].filter(Boolean).join("/") : r.mora || "");
+const bnStatus = (tipo, r) => (tipo === "casas" ? r.av : r.st) || "";
+const bnBadge = (s) => s ? `<span class="badge ${/^aprovad|^apto$/i.test(s) ? "b-good" : /reprovad|não apto|encerrou/i.test(s) ? "b-crit" : /avaliando|em avalia|pré-aprov|risco/i.test(s) ? "b-warn" : ""}">${esc(s)}</span>` : `<span class="muted">sem status</span>`;
+function bnValor(v) {
+  if (v == null || v === "") return "–";
+  if (Array.isArray(v)) return v.map((x) => bnValor(x)).join(", ");
+  if (typeof v === "boolean") return v ? "Sim" : "Não";
+  if (typeof v === "number") return fmt(v);
+  const s = String(v);
+  if (/^https?:\/\/\S+$/i.test(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
+  if (/^\d{4}-\d{2}-\d{2}(T|$)/.test(s)) return dt(s.slice(0, 10));
+  return esc(s).replace(/\n/g, "<br>");
+}
+const bnSugTxt = (tipo, sg) => !sg ? "" : tipo === "casas" ? `recebeu mais eventos em ${sg.dias.map(([d, n]) => `${d} (${n})`).join(", ")}`
+  : `já tocou em ${sg.cidades.map(([c, n]) => `${c} (${n})`).join(", ") || "–"} · formatos: ${sg.formatos.map(([m, n]) => `${m} (${n})`).join(", ")}`;
+function telaBaseNotion(tipo) {
+  const N = S.pac?.notion, nome = tipo === "casas" ? "casas" : "artistas", Tit = tipo === "casas" ? "Casas de Shows" : "Artistas e bandas";
+  if (!N?.[tipo]) return `<div class="tag">${Tit}</div><h1>Base do Notion</h1>${vazio("A base ainda não chegou neste acesso", "Ela vem no pacote da equipe e da administração. Entre com a conta da equipe (ou o código da equipe) para ver.")}`;
+  const L = N[tipo], f = ((S.bn ||= {})[tipo] ||= { q: "", cid: "", st: "", n: 30 });
+  const cids = [...new Set(L.map((r) => bnCidade(tipo, r)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const sts = [...new Set(L.map((r) => bnStatus(tipo, r)).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const sem = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+  const q = sem(f.q);
+  const ls = L.filter((r) => (!f.cid || bnCidade(tipo, r) === f.cid) && (!f.st || (f.st === "__sem" ? !bnStatus(tipo, r) : bnStatus(tipo, r) === f.st))
+      && (!q || sem([r.n, bnCidade(tipo, r), (r.gen || []).join(" "), r.ig, r.slug].join(" ")).includes(q)))
+    .sort((a, b) => (b.ev?.length || 0) - (a.ev?.length || 0) || a.n.localeCompare(b.n, "pt-BR"));
+  const vis = ls.slice(0, f.n), comEv = L.filter((r) => r.ev?.length).length;
+  const linha = (r) => `<div class="row card bn-linha" data-bn="${tipo}:${esc(r.id)}" tabindex="0" role="button" style="margin:0;padding:10px 14px"><span><b>${esc(r.n || "(sem nome)")}</b> <span class="muted" style="font-size:13px">· ${esc(bnCidade(tipo, r) || "cidade não informada")}${tipo === "casas" && (r.cp || r.cs) ? ` · ${fmt(r.cp || r.cs)} pessoas` : ""}${tipo === "artistas" && r.gen?.length ? ` · ${esc(r.gen.join(", "))}` : ""}</span></span>
+    <span style="display:flex;gap:8px;align-items:center">${bnBadge(bnStatus(tipo, r))}<span class="muted" style="font-size:13px">${r.ev?.length ? `${r.ev.length} ${r.ev.length === 1 ? "evento" : "eventos"}` : "sem eventos"}</span></span></div>`;
+  return `<div class="tag">${Tit} · base do Notion</div><h1>${fmt(L.length)} ${nome} na base</h1>
+  <p class="sub">Tudo o que está na base ${Tit} do Notion, com busca e filtros. ${comEv} ${comEv === 1 ? "tem" : "têm"} eventos na rede. Toque numa linha para ver a ficha completa, o histórico e a sugestão por histórico. ${S.pac.perfil === "adm" ? "Como administração, você vê também os campos sensíveis (quando a base vem pela API do Notion)." : "Contatos, dados fiscais, bancários e cachês ficam só com a administração: use \"Abrir no Notion\"."}</p>
+  <div class="filters"><input id="bnQ" data-bn-tipo="${tipo}" placeholder="Buscar nome, cidade, gênero, Instagram" value="${esc(f.q)}" aria-label="Buscar na base">
+    <select id="bnCid" data-bn-tipo="${tipo}" aria-label="Filtrar por cidade"><option value="">Todas as cidades</option>${cids.map((c) => `<option${c === f.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select>
+    <select id="bnSt" data-bn-tipo="${tipo}" aria-label="Filtrar por status"><option value="">Todos os status</option>${sts.map((s) => `<option${s === f.st ? " selected" : ""}>${esc(s)}</option>`).join("")}<option value="__sem"${f.st === "__sem" ? " selected" : ""}>Sem status</option></select></div>
+  <p class="muted" style="font-size:13px" id="bnConta">${ls.length === L.length ? `${fmt(ls.length)} ${nome}` : `${fmt(ls.length)} de ${fmt(L.length)} ${nome}`} · mostrando ${vis.length}</p>
+  <div class="list" id="bnLista">${vis.map(linha).join("") || vazio("Nada com estes filtros", "Tente limpar a busca ou trocar a cidade.")}</div>
+  ${ls.length > vis.length ? `<div class="barra-acoes"><button class="btn" data-bn-mais="${tipo}">Mostrar mais ${Math.min(30, ls.length - vis.length)}</button><button class="btn" data-bn-tudo="${tipo}">Mostrar todos (${fmt(ls.length)})</button></div>` : ""}
+  <p class="muted" style="font-size:12px;margin-top:10px">Fonte: ${esc(N.fonte || "Notion")}.</p>`;
+}
+function fichaBase(tipo, id) {
+  const N = S.pac?.notion, r = (N?.[tipo] || []).find((x) => x.id === id); if (!r) return;
+  const evs = (r.ev || []).map((i) => (S.pac.eventos || []).find((e) => e.id === i)).filter(Boolean).sort((a, b) => b.d.localeCompare(a.d));
+  const campos = Object.entries(BN_ROT).filter(([k]) => r[k] != null && r[k] !== "" && !(Array.isArray(r[k]) && !r[k].length) && !(k === "ja" && !r[k]));
+  const kv = (pares) => `<dl class="kv">${pares.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${bnValor(v)}</dd>`).join("")}</dl>`;
+  const vinc = TQConta.vinculoBase?.(tipo, r) || "";
+  $("#dlgIn").innerHTML = `<div class="tag">${tipo === "casas" ? "Casa" : "Artista"} · base do Notion</div><h2 style="margin-top:4px">${esc(r.n)}</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px">${bnBadge(bnStatus(tipo, r))}<span class="badge">${evs.length} ${evs.length === 1 ? "evento" : "eventos"} na rede</span></div>
+  ${kv(campos.map(([k]) => [BN_ROT[k], r[k]]))}
+  ${Object.keys(r.x || {}).length ? `<h3>Mais da base</h3>${kv(Object.entries(r.x))}` : ""}
+  ${r.priv && Object.keys(r.priv).length ? `<h3>Só administração (sensível)</h3><div class="alert warn" style="margin:0 0 8px">Dados pessoais, fiscais, bancários e valores. Não copie para grupos nem documentos abertos.</div>${kv(Object.entries(r.priv))}` : ""}
+  ${vinc}
+  <h3>Sugestão POR HISTÓRICO — confirmar com a ${tipo === "casas" ? "casa" : "artista"}</h3>
+  <p class="muted" style="font-size:13px;margin:0 0 6px">Calculado só pelos eventos passados; não é disponibilidade marcada. Vale até a ${tipo === "casas" ? "casa" : "artista"} preencher no portal.</p>
+  <p style="margin:0 0 10px">${r.sug ? esc(bnSugTxt(tipo, r.sug)) : '<span class="muted">sem eventos para sugerir</span>'}</p>
+  <h3>Histórico de eventos</h3><div class="list" style="max-height:300px;overflow:auto">${evs.map((e) => `<div class="row" style="font-size:14px;cursor:pointer" data-ev="${esc(e.id)}" tabindex="0" role="button"><span>${dt(e.d)} · ${esc(e.c)} · ${esc(e.m || "")}${tipo === "artistas" ? ` · ${esc(nomeCasa(e.h) || "")}` : ` · ${esc((e.a || []).join(", ") || "line-up a definir")}`}</span><span class="muted">${esc(e.s || "")}${e.p != null ? ` · ${fmt(e.p)} pessoas` : ""}</span></div>`).join("") || '<p class="muted">Nenhum evento ligado a este nome ainda.</p>'}</div>
+  <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap"><a class="btn pri" href="${notion(r.id)}" target="_blank" rel="noopener" data-bn-notion>Abrir no Notion</a><button class="btn" onclick="dlg.close()">Fechar</button></div>
+  <p class="muted" style="font-size:12px;margin-top:8px">"Abrir no Notion" mostra a página completa (inclusive contatos e dados de pagamento) para quem tem acesso ao Notion.</p>`;
+  if (!$("#dlg").open) $("#dlg").showModal();
 }
 
 // ---------- fichas de artista/casa vistas pela administração ----------
@@ -1572,6 +1640,16 @@ function ligar() {
   on("#bq", "oninput", (e) => { S.bq = e.target.value; clearTimeout(S.t); S.t = setTimeout(() => { render(); const i = $("#bq"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 200); });
   on("#acf", "onchange", (e) => { S.acf = e.target.value; render(); });
 }
+// Busca e filtros das bases do Notion (Casas e Artistas): o filtro volta para os primeiros 30.
+document.addEventListener("input", (ev) => {
+  const el = ev.target; if (el.id !== "bnQ") return;
+  const f = S.bn[el.dataset.bnTipo]; f.q = el.value; f.n = 30; clearTimeout(S.tbn);
+  S.tbn = setTimeout(() => { render(); const i = $("#bnQ"); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }, 200);
+});
+document.addEventListener("change", (ev) => {
+  const el = ev.target; if (el.id !== "bnCid" && el.id !== "bnSt") return;
+  const f = S.bn[el.dataset.bnTipo]; f[el.id === "bnCid" ? "cid" : "st"] = el.value; f.n = 30; render();
+});
 document.addEventListener("input", (ev) => {
   if (ev.target.id !== "faqQ") return;
   S.faqQ = ev.target.value;
@@ -1584,7 +1662,7 @@ document.addEventListener("keydown", (ev) => {
     if (S.cidMenu) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); $("#cidBtn")?.focus(); return; }
     if (document.body.classList.contains("menu-aberto")) { menu(false); return; }
   }
-  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],[data-det],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],[data-det],[data-bn],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
   // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
   if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
   if (ev.key === "Enter" && ev.target.matches?.("#ns1,#ns2")) { ev.preventDefault(); $("#nsok")?.click(); }
@@ -1605,6 +1683,8 @@ document.addEventListener("click", (ev) => {
   const agc = t.closest("[data-agcidade]"); if (agc) { S.agCidade = agc.dataset.agcidade; telaPublica(); return; }
   if (t.closest("[data-agtudo]")) { S.agTudo = true; telaPublica(); return; }
   const rol = t.closest("[data-rolar]"); if (rol) { ev.preventDefault(); document.getElementById(rol.dataset.rolar)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  const bn = t.closest("[data-bn]"); if (bn) { const [tp, ...r] = bn.dataset.bn.split(":"); return fichaBase(tp, r.join(":")); }
+  const bnm = t.closest("[data-bn-mais],[data-bn-tudo]"); if (bnm) { const tp = bnm.dataset.bnMais || bnm.dataset.bnTudo, f = S.bn[tp]; f.n = bnm.dataset.bnTudo ? 1e9 : f.n + 30; const y = scrollY; render(); scrollTo(0, y); return; }
   const evEl = t.closest("[data-ev]"); if (evEl) return abrirEvento(evEl.dataset.ev);
   const det = t.closest("[data-det]"); if (det && !t.closest("a,button,input,select,textarea,label,summary")) return abrirDetalhe(det);
   const cl = t.closest("[data-click]"); if (cl) { const [k, ...r] = cl.dataset.click.split(":"), v = r.join(":"); if (k === "ev") abrirEvento(v); else fichaPor(k, v); }

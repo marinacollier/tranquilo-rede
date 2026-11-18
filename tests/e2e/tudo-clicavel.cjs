@@ -6,7 +6,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
 const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acessos.tsv', 'utf8').trim().split('\n').map((l) => l.split('\t'));
 // O que conta como "abre algo" e o que não precisa abrir (formulários, calendário, tutorial).
 const SONDA = () => {
-  const ABRE = 'a,button,input,select,textarea,label,summary,details,[data-ev],[data-click],[data-abrir],[data-det]';
+  const ABRE = 'a,button,input,select,textarea,label,summary,details,[data-ev],[data-click],[data-abrir],[data-bn],[data-det]';
   const itens = [...document.querySelectorAll('#app tbody tr, #app ul.passos > li, #app ul.pend > li, #app .list > .card, #app .list > .alert, #app .list > .row, #app .evo')]
     .filter((el) => !el.closest('.tour-caixa,form,#form') && !el.querySelector('td[colspan]') && el.textContent.trim() && el.offsetParent !== null);
   const mudos = itens.filter((el) => !el.matches(ABRE) && !el.querySelector(ABRE) && !el.closest(ABRE.replace(',[data-det]', '') + ',[data-det]'));

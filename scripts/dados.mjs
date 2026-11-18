@@ -60,7 +60,7 @@ export async function baseDoRetrato() {
 
 // ---------- API do Notion ----------
 const NOTION_VERSAO = '2025-09-03';
-async function notion(token, metodo, rota, corpo) {
+export async function notion(token, metodo, rota, corpo) {
   // O portal só LÊ o Notion: qualquer escrita é recusada aqui (casos reais nunca são alterados).
   if (!(metodo === 'GET' || (metodo === 'POST' && /^data_sources\/[^/]+\/query$/.test(rota)))) throw new Error(`Notion: escrita bloqueada (${metodo} ${rota}). O portal só lê o Notion.`);
   for (let tentativa = 1; ; tentativa++) {
@@ -80,7 +80,7 @@ async function notion(token, metodo, rota, corpo) {
   }
 }
 
-async function consultarTudo(token, dataSource) {
+export async function consultarTudo(token, dataSource) {
   const linhas = [];
   let cursor;
   do {
@@ -92,7 +92,7 @@ async function consultarTudo(token, dataSource) {
 }
 
 const texto = (p) => (p?.title || p?.rich_text || []).map((t) => t.plain_text).join('').trim();
-function valor(p) {
+export function valor(p) {
   if (!p) return null;
   switch (p.type) {
     case 'title': case 'rich_text': return texto(p) || null;
@@ -103,6 +103,23 @@ function valor(p) {
     case 'date': return p.date?.start ?? null;
     case 'relation': return p.relation.map((x) => semHifen(x.id));
     case 'formula': return p.formula[p.formula.type] ?? null;
+    // Tipos usados pelas bases Casas e Artistas (scripts/bases.mjs).
+    case 'multi_select': return p.multi_select.map((o) => o.name);
+    case 'checkbox': return p.checkbox;
+    case 'email': return p.email;
+    case 'phone_number': return p.phone_number;
+    case 'people': return (p.people || []).map((u) => u.name).filter(Boolean);
+    case 'files': return (p.files || []).map((f) => f.name).filter(Boolean);
+    case 'created_time': return p.created_time;
+    case 'last_edited_time': return p.last_edited_time;
+    case 'verification': return p.verification?.state ?? null;
+    case 'unique_id': return p.unique_id ? `${p.unique_id.prefix || ''}${p.unique_id.number}` : null;
+    case 'place': { const x = p.place || {}; return x.address || x.name || null; }
+    case 'rollup': {
+      const r = p.rollup || {};
+      if (r.type === 'array') { const vs = (r.array || []).map(valor).flat().filter((x) => x != null && x !== ''); return vs.length ? vs : null; }
+      return r[r.type] ?? null;
+    }
     default: return null;
   }
 }

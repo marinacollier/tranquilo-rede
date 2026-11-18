@@ -12,6 +12,7 @@ import path from 'node:path';
 import {
   eventosDoRetrato, lineupDoRetrato, baseDoRetrato, eventosDaApi, baseDaApi, titulosDaApi, textoDaPaginaApi, normalizar, chave,
 } from './dados.mjs';
+import { casasDaApi, artistasDaApi, casasDoRetrato, artistasDoRetrato, montarBases } from './bases.mjs';
 
 // Título como o site oficial mostra: sem a data na frente e sem a casa entre parênteses no fim.
 const tituloPublico = (n) => (n || '').replace(/^\d{2}\/\d{2}\/\d{4}\s+—\s+/, '').replace(/\s+\([^()]*\)\s*$/, '').replace(/\s+—\s*$/, '').trim() || null;
@@ -51,6 +52,17 @@ if (eventos.length < MINIMO_EVENTOS) {
   console.error(`Só ${eventos.length} eventos lidos (mínimo ${MINIMO_EVENTOS}). Publicação abortada para não pôr dados quebrados no ar.`);
   process.exit(2);
 }
+
+// Bases Casas de Shows e Artistas e bandas (pedido da Marina, 18/11/2026: "tudo"). Com token: todos os campos, os sensíveis
+// só no pacote da adm. Sem token (ou se a API falhar): o retrato não sensível de data/. Nada disso vai para o público nem para log.
+let casasB = null, artistasB = null, fonteBases = 'Retrato do Notion (data/casas.psv, data/artistas.psv)';
+if (token) {
+  try { casasB = await casasDaApi(token); artistasB = await artistasDaApi(token); fonteBases = 'API do Notion'; }
+  catch (e) { casasB = artistasB = null; console.error(`Bases Casas/Artistas: a API respondeu ${e.status || 'com erro'}; usando o retrato de data/.`); }
+}
+casasB ||= await casasDoRetrato(); artistasB ||= await artistasDoRetrato();
+const apelidos = JSON.parse(await readFile(path.join(RAIZ, 'data/referencias.json'), 'utf8')).artistas || {};
+const bases = montarBases(casasB, artistasB, eventos, apelidos);
 
 // ---------- 2. códigos de acesso ----------
 const ALFABETO = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -160,11 +172,11 @@ for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))
     ficha_notion: { ...(/^Casa (em|da rede)\b/.test(c.nome) ? {} : { nome: c.nome }), ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
   }, { cidades: c.cidade });
 }
-await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos) });
+await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.equipe } });
 // O pacote de adm leva a lista de todos os códigos, para distribuir.
 const codAdm = await codigo('adm', 'adm');
 pacotes.push([codAdm, {
-  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos),
+  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.adm },
   acessos: [...acessos, { tipo: 'adm', nome: 'Administração', codigo: codAdm }],
 }]);
 acessos.push({ tipo: 'adm', nome: 'Administração', codigo: codAdm });
@@ -208,4 +220,5 @@ if (process.env.ACESSOS_SAIDA) {
 
 console.log(`Fonte: ${fonte}`);
 console.log(`${eventos.length} eventos · ${eventos.filter((e) => e.realizado).length} realizados · ${futuros.length} futuros · ${cidades.length} cidades`);
+console.log(`Bases do Notion (${fonteBases}): ${bases.resumo.casas} casas (${bases.resumo.casasComEventos} com eventos) · ${bases.resumo.artistas} artistas (${bases.resumo.artistasComEventos} com eventos)`);
 console.log(`${pacotes.length} pacotes de acesso (${artistasAtivos.length} artistas, ${casas.size} casas, equipe, adm)`);
