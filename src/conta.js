@@ -2713,8 +2713,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // ---------- primeiro acesso: senha e tutorial ----------
   function primeiroAcesso() {
     const p = S.conta?.perfil; if (!p) return;
-    // Criar senha no primeiro acesso: só a equipe do Tranquilo convidada (Gui, Isa, Bruno) ou quem veio pelo link "esqueci a senha".
-    if (!S.senhaDepois && (api.precisaSenha?.() || (p.senha_definida === false && p.tipo === "equipe"))) return pedirSenha();
+    // Criar senha no primeiro acesso: toda conta que entrou pelo link do e-mail (convite de casa, artista ou equipe) e ainda
+    // não tem senha, e quem veio pelo link "esqueci a senha". Sem isso a casa convidada não conseguia entrar de novo.
+    if (!S.senhaDepois && (api.precisaSenha?.() || p.senha_definida === false)) return pedirSenha();
     if (TQTour.aberto()) return;
     if (!p.tutorial_visto_em) abrirTutorial(roteiroConta(), true);
     // Quem já viu o tutorial antes de partes novas entrarem recebe só as novidades do que o acesso dele tem.

@@ -1541,8 +1541,13 @@ S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
   const cod = hash || store.get("tq-codigo");
   // A agenda pública não espera o banco de contas: se ele demorar mais de 4 s, a página segue e
   // a área logada aparece quando a conexão terminar.
+  // Link do e-mail (convite, primeiro acesso, senha): o login vem no endereço. Nesse caso a página espera a conta abrir
+  // em vez de mostrar a página pública depois de 4 s (a casa convidada caía no início e achava que o link não funcionou).
+  const vindoDoEmail = /access_token=|[?&#]code=|type=(magiclink|signup|invite|recovery)/.test(location.hash + location.search);
+  const erroLink = /error_code=|error_description=/.test(location.hash + location.search);
+  if (vindoDoEmail) $("#app").innerHTML = `<div class="card" style="max-width:520px;margin:40px auto;text-align:center"><h2 style="margin-top:0">Entrando na sua conta…</h2><p class="sub">Um instante: estamos abrindo a sua área.</p></div>`;
   const contaP = TQConta.iniciar().catch((e) => { console.error(e); return false; });
-  const logado = await Promise.race([contaP, new Promise((ok) => setTimeout(() => ok(null), 4000))]);
+  const logado = await Promise.race([contaP, new Promise((ok) => setTimeout(() => ok(null), vindoDoEmail ? 30000 : 4000))]);
   if (logado) { render(); if (tutorialLink && tutorialLink !== "publico") TQConta.abrirTutorial(tutorialLink, false); return; }
   if (logado === null) contaP.then((ok) => { if (ok && !S.pac) render(); else { const av = $("#contaAviso"); if (av) av.outerHTML = TQConta.avisoConta(); } });
   if (cod) {
@@ -1554,7 +1559,14 @@ S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
     }
   }
   if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; }
+  if (erroLink || vindoDoEmail) { S.entrada = "entrar"; history.replaceState(null, "", location.pathname); }
   render();
+  if (erroLink || vindoDoEmail) {
+    const er = $("#eerr");
+    if (er) TQDiz(er, "Esse link do e-mail já foi usado ou venceu (cada link abre uma vez só). Digite o seu e-mail acima e toque em \"Esqueci a senha\": chega um link novo para você criar a senha e entrar.");
+    setTimeout(() => { $("#acesso")?.scrollIntoView({ block: "start" }); $("#email")?.focus({ preventScroll: true }); }, 30);
+    return;
+  }
   if (S.erroCodigo) { const er = $("#err"); if (er) { TQDiz(er, `O link de acesso não abriu: ${S.erroCodigo}`); er.closest(".card")?.scrollIntoView({ block: "center" }); } S.erroCodigo = null; return; }
   if (convite) { const em = $("#email"); if (em) { em.value = convite.email; $("#acesso")?.scrollIntoView({ block: "start" }); $("#enome")?.focus(); } return; }
   if (tutorialLink) return tutorialLink === "publico" ? TQConta.tutorialPublico(true) : TQConta.abrirTutorial(tutorialLink, false);
