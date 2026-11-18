@@ -48,7 +48,7 @@ const COD = {}; for (const [t, c] of require('fs').readFileSync(process.env.ACES
     await p.fill('#eqcWa', '123'); await p.click('#eqcOk');
     ok(/WhatsApp: número com DDD/.test(await p.textContent('#eqcErr')) && await p.$eval('#eqcWa', (e) => e.classList.contains('campo-falta')), 'WhatsApp incompleto é barrado e o campo fica em vermelho');
     await p.fill('#eqcWa', '');
-    await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]');
+    await p.click('#eqcOk'); await p.waitForSelector('[data-eqc-convidar]'); await p.waitForFunction(() => /Feito/.test(document.querySelector('#eqcErr')?.textContent || ''), null, { timeout: 5000 }).catch(() => {});
     ok(/✓ Feito: Ana entrou na equipe\. Faltam: Líder Local/.test(await p.textContent('#eqcErr')) && !(await p.$('#eqcForm')), 'salvar a pessoa termina com "✓ Feito", diz o que ainda falta e fecha o formulário');
     const txt = await p.textContent('#app');
     ok(/Ana/.test(txt) && /Falta completar a equipe/.test(txt) && /Faltam: Líder Local, Anfitrião, Social Media, Técnico de som e Reserva/.test(txt), 'pessoa entra na equipe e o site mostra o que falta (Líder Local, reserva…)');
