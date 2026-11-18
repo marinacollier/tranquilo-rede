@@ -2092,28 +2092,29 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (L === null) return faltaSchema("Equipe da casa");
       const cob = TQEquipe.cobertura(L), ed = dono && L.find((m) => m.id === S.eqcEd), novo = ed ? null : S.eqcNovo ?? null;
       const ACESSO = { ativo: ["b-good", "com acesso"], convidado: ["b-warn", "convite enviado"], sem_convite: ["", "sem acesso à plataforma"], sem_email: ["", "sem e-mail"] };
-      const pessoa = (m) => `<div class="card row"><span><b>${esc(m.nome)}</b>${m.reserva ? ' <span class="badge">reserva</span>' : ""} ${(m.funcoes || []).map((f) => `<span class="pill">${esc(TQEquipe.NOME[f] || f)}</span>`).join("")}
-        <div class="muted" style="font-size:12px">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}${dono ? ` · <span class="badge ${ACESSO[m.acesso]?.[0] || ""}">${ACESSO[m.acesso]?.[1] || ""}</span>` : ""}</div>
-        ${TQEquipe.funcoesAvisos(m.funcoes).map((a) => `<div class="muted" style="font-size:12px">⚠️ ${esc(a)}</div>`).join("")}</span>
-        ${dono ? `<span style="display:flex;gap:6px;flex-wrap:wrap">${(m.funcoes || []).includes("bar") ? `<span class="muted" style="font-size:12px">Bar sem acesso ao portal ${A_VALIDAR_HTML}</span>` : m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
-      return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
-      <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} Pelo Guia do Franqueado: as 4 cadeiras (você, o Líder Local, o anfitrião e a social media), o técnico de som e os operadores de porta, cada função com uma pessoa diferente (só você pode ser também o Líder Local), e 1 reserva para a equipe da noite.</p>
-      <div class="alert ${cob.completa ? "good" : "warn"}" id="eqcFalta"><b>${cob.completa ? "✓ Equipe completa" : "Falta completar a equipe"}</b>${cob.completa ? "Tripé (Líder Local, anfitrião e social media), técnico de som e porta, com reserva." : esc([...(TQEquipe.faltando(cob).length ? [`Faltam: ${TQEquipe.listaFalta(cob)}.`] : []), ...cob.erros].join(" · "))}${!cob.completa && dono ? `<div class="muted" style="font-size:13px;margin-top:4px">A Disponibilidade da casa libera quando a equipe estiver completa.</div>` : ""}</div>
-      ${dono && TQEquipe.faltando(cob).length ? `<h2>O que falta</h2><div class="grid g3" id="eqcFaltam" style="margin:8px 0 12px">${TQEquipe.faltando(cob).map((k) => { const f = TQEquipe.FUNCOES.find((x) => x[0] === k);
-        return `<div class="card"><b>${esc(TQEquipe.CURTO[k])}</b> <span class="badge b-warn">falta</span><div class="muted" style="font-size:12px;margin:4px 0 8px">${esc(f ? f[2] : "Cobre quem faltar na semana do evento. Pode ser de qualquer função.")}</div><button class="btn sm pri" data-eqc-nova="${k}">Adicionar ${esc(TQEquipe.CURTO[k])}</button></div>`; }).join("")}</div>` : ""}
-      <h2>Quem ocupa cada função</h2><div class="grid g3" style="margin:12px 0">${TQEquipe.FUNCOES.map(([k, n, o, q]) => { const quem = L.filter((m) => !m.reserva && (m.funcoes || []).includes(k)).map((m) => m.nome);
-        return `<div class="card"><b>${esc(n)}</b>${TQEquipe.TRIPE.includes(k) ? ' <span class="badge">tripé</span>' : ""}<div style="margin:4px 0">${quem.length ? esc(quem.join(", ")) : '<span class="badge b-warn">falta</span>'}</div><div class="muted" style="font-size:12px">${esc(o)} <b>Quando:</b> ${esc(q)}.</div></div>`; }).join("")}</div>
-      <div class="row" style="margin-top:8px"><h2 style="margin:0">Pessoas (${L.length})</h2>${dono ? `<button class="btn" data-eqc-nova="">+ Adicionar mais um membro</button>` : ""}</div>
-      ${L.length ? `<div class="list">${L.map(pessoa).join("")}</div>` : `<p class="muted">Ninguém cadastrado ainda.${dono ? " Comece pelo que falta, acima." : ""}</p>`}
-      ${dono && (ed || novo != null) ? `<div class="card" id="eqcForm" style="margin-top:14px"><h3 style="margin-top:0">${ed ? "Editar pessoa" : novo ? `Adicionar ${esc(TQEquipe.CURTO[novo] || "pessoa")}` : "Adicionar mais um membro"}</h3>
+      const pessoa = (m, r) => `<div class="eqlin-pessoa"><span><b>${esc(m.nome)}</b>${r.k === "reserva" ? ` <span class="muted">· ${esc(nomesFuncoes(m.funcoes))}</span>` : m.reserva ? ' <span class="badge">reserva</span>' : ""}
+        <span class="muted eqlin-contato">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}${dono && m.acesso ? ` · <span class="badge ${ACESSO[m.acesso]?.[0] || ""}">${ACESSO[m.acesso]?.[1] || ""}</span>` : ""}</span>
+        ${TQEquipe.funcoesAvisos(m.funcoes).map((a) => `<span class="muted eqlin-contato">⚠️ ${esc(a)}</span>`).join("")}</span>
+        ${dono ? `<span class="eqlin-acoes">${(m.funcoes || []).includes("bar") ? `<span class="muted" style="font-size:12px">Bar sem acesso ao portal ${A_VALIDAR_HTML}</span>` : m.email && m.acesso !== "ativo" ? `<button class="btn sm" data-eqc-convidar="${m.id}">${m.acesso === "convidado" ? "Reenviar convite" : "Dar acesso"}</button>` : ""}<button class="btn sm" data-eqc-editar="${m.id}">Editar</button><button class="btn sm" data-eqc-remover="${m.id}">Tirar da equipe</button></span>` : ""}</div>`;
+      // O formulário abre dentro da linha da função (Adicionar/Editar); "+ Adicionar mais um membro" abre embaixo da lista.
+      const linhas = linhasCasaEq(), formK = !dono ? null : ed ? (ed.reserva ? "reserva" : (ed.funcoes || []).find((f) => linhas.some((r) => r.k === f)) || "") : novo != null ? (linhas.some((r) => r.k === novo) ? novo : "") : null;
+      const formHtml = formK == null ? "" : `<div class="card" id="eqcForm"><h3 style="margin-top:0">${ed ? `Editar ${esc(ed.nome)}` : novo ? `Adicionar ${esc(TQEquipe.CURTO[novo] || "pessoa")}` : "Adicionar mais um membro"}</h3>
         <div class="fgrid"><label class="fcampo"><b>Nome</b><input id="eqcNome" maxlength="120" value="${esc(ed?.nome || "")}"></label><label class="fcampo"><b>WhatsApp</b><input id="eqcWa" inputmode="tel" maxlength="30" value="${esc(ed?.whatsapp || "")}"></label>
         <label class="fcampo"><b>E-mail (opcional, para dar acesso)</b><input id="eqcEmail" type="email" maxlength="160" value="${esc(ed?.email || "")}"></label>
         <label class="fcampo"><b>Instagram (anfitrião e social media)</b><input id="eqcInsta" maxlength="80" placeholder="@" value="${esc(ed?.instagram || "")}"></label>
         <label class="fcampo"><b>Observação</b><input id="eqcObs" maxlength="300" value="${esc(ed?.observacao || "")}"></label></div>
-        <b style="font-size:14px">Função${novo === "reserva" ? " (a reserva também tem uma função)" : ""}</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${(ed ? ed.funcoes?.includes(k) : novo === k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
+        <b style="font-size:14px">Função${novo === "reserva" || ed?.reserva ? " (a reserva também tem uma função)" : ""}</b><div class="filters" style="margin:6px 0">${TQEquipe.FUNCOES.map(([k, n]) => `<label class="fcheck"><input type="radio" name="eqcFuncao" data-eqc-funcao="${k}"${(ed ? ed.funcoes?.includes(k) : novo === k) ? " checked" : ""}> ${esc(n)}</label>`).join("")}</div>
         <label class="fcheck"><input type="checkbox" id="eqcReserva"${(ed ? ed.reserva : novo === "reserva") ? " checked" : ""}> <span>Reserva: cobre quem faltar na semana do evento</span></label>
         <p class="muted" style="font-size:12px;margin:6px 0 0">Cada função é de uma pessoa diferente. Se você mesmo for o Líder Local, cadastre-se sem e-mail (você já tem a conta da casa). O bar é responsabilidade sua; o Tranquilo não fala com a equipe de bar.</p>
-        <div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button><button class="btn" data-eqc-editar="">Cancelar</button></div></div>` : ""}
+        <div class="barra-acoes"><button class="btn pri" id="eqcOk">${ed ? "Salvar" : "Adicionar à equipe"}</button><button class="btn" data-eqc-editar="">Cancelar</button></div></div>`;
+      const outros = L.filter((m) => !m.reserva && !(m.funcoes || []).some((f) => TQEquipe.CHAVES.includes(f)));
+      return `<div class="tag">Equipe da casa</div><h1>Quem faz a noite</h1>
+      <p class="sub">${dono ? "Você monta a equipe e responde por ela: a Central não contrata nem escala. Quem tiver e-mail ganha acesso à plataforma só com o que é da função dela." : "A equipe da casa, montada pelo responsável. Só ele muda as funções."} Cada função com uma pessoa diferente (só ${dono ? "você" : "o dono"} pode ser também o Líder Local), e 1 reserva para a noite. Toque numa função para ver o que ela faz.</p>
+      <div class="alert ${cob.completa ? "good" : "warn"}" id="eqcFalta"><b>${cob.completa ? "✓ Equipe completa" : fraseEquipe(cob)}</b>${cob.completa ? "" : esc([...(TQEquipe.faltando(cob).length ? [`${TQEquipe.listaFalta(cob)}.`] : []), ...cob.erros].join(" · "))}${!cob.completa && dono ? `<div class="muted" style="font-size:13px;margin-top:4px">A Disponibilidade da casa libera quando a equipe estiver completa.</div>` : ""}</div>
+      ${listaEquipe(L, linhas, { chave: "eqc", dono, pessoa, form: formK ? { k: formK, html: formHtml } : null })}
+      ${outros.length ? `<div class="eqlista" style="margin-top:8px">${outros.map((m) => pessoa(m, { k: "" })).join("")}</div>` : ""}
+      ${dono ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn" data-eqc-nova="">+ Adicionar mais um membro</button></div>` : ""}
+      ${formK === "" ? formHtml : ""}
       ${dono ? `<div class="err" role="status" aria-live="polite" id="eqcErr"></div>` : ""}`;
     },
     // ---------- administração: histórico de alterações (v17) ----------
@@ -2227,7 +2228,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           <span class="badge ${A.atrasadas ? "b-crit" : A.fechada ? "b-good" : "b-warn"}">${A.feitas}/${A.total}${A.atrasadas ? ` · ${A.atrasadas} atrasada${A.atrasadas > 1 ? "s" : ""}` : ""}</span> ${A.fechada ? "" : `<span class="muted">com ${esc(A.com === "casa" ? "a casa" : A.com)}</span>`} <span class="badge ${cob.completa ? "b-good" : ""}">equipe ${cob.completa ? "completa" : `${eq.length} pessoa${eq.length === 1 ? "" : "s"}`}</span></summary>
           <ul class="passos" style="margin-top:10px">${[...A.etapas, ...A.depois].map(linha).join("")}</ul>
           ${t.nota_passagem ? `<div class="alert" style="margin-top:8px"><b>Nota de passagem (só a Central vê)</b><span style="white-space:pre-wrap">${esc(t.nota_passagem)}</span></div>` : ""}
-          ${eq.length ? `<p style="margin:10px 0 4px"><b>Equipe da casa</b></p><ul class="passos">${eq.map((m) => `<li>${esc(m.nome)}${m.reserva ? " (reserva)" : ""} · ${esc(nomesFuncoes(m.funcoes))}${m.whatsapp ? ` · ${esc(m.whatsapp)}` : ""}</li>`).join("")}</ul>${cob.completa ? "" : `<p class="muted" style="font-size:13px">${esc(cob.pend.join(" · "))}</p>`}` : `<p class="muted" style="font-size:13px">A casa ainda não cadastrou a equipe.</p>`}
+          <p style="margin:10px 0 4px"><b>Equipe da casa</b> <span class="badge ${cob.completa ? "b-good" : "b-warn"}">${esc(fraseEquipe(cob))}</span>${eq.length ? "" : ' <span class="muted" style="font-size:13px">A casa ainda não cadastrou a equipe.</span>'}</p>
+          ${listaEquipe(eq, linhasCasaEq(), { chave: `tri:${k(t.casa_ref)}` })}
           <div class="barra-acoes"><button class="btn sm" data-tri-editar="${esc(t.casa_ref)}">Editar dia 1 e nota</button><button class="btn sm" data-tri-apagar="${esc(t.casa_ref)}">Apagar trilha</button></div></details>`;
       };
       return `<div class="tag">Treinamentos</div><h1>Treinamento da nova casa</h1>
@@ -2832,6 +2834,33 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <li class="${eq?.tripe ? "feito" : ""}"><b>Líder Local, anfitrião e social media definidos</b> <span class="muted">· até 10 dias após receber${eq?.tripe ? " · feito" : ""}</span></li>
       <li><b>Primeiras datas com a Isa</b> <span class="muted">· com a equipe definida</span></li></ul></section>`;
   }
+  // Equipe da casa em UMA lista (pedido da Marina, 18/11/2026): uma linha pequena por função, com quem ocupa (✓) ou
+  // "Falta"; a linha abre para mostrar o que a função faz, o "Quando" e as pessoas. A mesma lista serve à Equipe da casa
+  // (dono e equipe), à "Sua equipe" da Ficha e aos Treinamentos (a Central vê a equipe de cada casa).
+  // As linhas da casa: as funções obrigatórias, a reserva e o bar (informativo: é do dono e não entra no portal).
+  const RESERVA_EQ = { k: "reserva", titulo: "Reserva", desc: "Cobre quem faltar na semana do evento. Tem também uma função (escolhida ao cadastrar).", quando: "Definida na semana do evento" };
+  const linhasCasaEq = () => [...TQEquipe.FUNCOES.filter((f) => f[4]).map(([k, , desc, quando]) => ({ k, titulo: TQEquipe.CURTO[k], desc, quando })), RESERVA_EQ,
+    { k: "bar", titulo: "Bar", desc: TQEquipe.FUNCOES.find((f) => f[0] === "bar")[2], quando: TQEquipe.FUNCOES.find((f) => f[0] === "bar")[3], info: "responsabilidade do dono, sem acesso ao portal" }];
+  const quemNaFuncao = (L, k) => (L || []).filter((m) => k === "reserva" ? m.reserva : !m.reserva && (m.funcoes || []).includes(k));
+  /** "Faltam 3 de 6" ou "Equipe completa" (as 5 funções obrigatórias e a reserva). */
+  function fraseEquipe(cob) {
+    const f = TQEquipe.faltando(cob).length, tot = TQEquipe.OBRIGATORIAS.length + 1;
+    return cob.completa ? "Equipe completa" : f ? `Faltam ${f} de ${tot}` : "Falta acertar a equipe";
+  }
+  // o: { chave (prefixo das linhas abertas), dono, pessoa(m, linha) → html, form: { k, html } }
+  function listaEquipe(L, linhas, o = {}) {
+    const abertas = S.eqlinAbertas || [];
+    return `<div class="eqlista">${linhas.map((r) => {
+      const quem = quemNaFuncao(L, r.k), id = `${o.chave || "eq"}:${r.k}`, st = quem.length ? "ok" : r.info ? "info" : "falta";
+      const resumo = quem.length ? `<span class="eqlin-quem">${esc(quem[0].nome)}${quem[0].whatsapp ? ` <span class="muted">· ${esc(quem[0].whatsapp)}</span>` : ""}${quem.length > 1 ? ` <span class="badge">+${quem.length - 1}</span>` : ""}</span>`
+        : r.info ? `<span class="eqlin-quem muted">${esc(r.info)}</span>` : `<span class="eqlin-quem"><span class="badge b-warn">Falta</span></span>`;
+      const marca = `<span class="eqlin-st" aria-hidden="true">${st === "ok" ? "✓" : st === "info" ? "i" : "!"}</span>`;
+      const form = o.form && o.form.k === r.k ? o.form.html : "";
+      return `<details class="eqlin eqlin-${st}" data-eqlin="${esc(id)}"${form || abertas.includes(id) ? " open" : ""}><summary>${marca}<b>${esc(r.titulo)}</b>${resumo}${o.dono && st === "falta" ? `<button class="btn sm pri" data-eqc-nova="${r.k}">Adicionar</button>` : ""}</summary>
+        <div class="eqlin-corpo">${r.desc ? `<p class="muted">${esc(r.desc)}${r.quando ? ` <b>Quando:</b> ${esc(r.quando)}.` : ""}</p>` : ""}${quem.map((m) => (o.pessoa || pessoaEqSimples)(m, r)).join("")}${form}</div></details>`;
+    }).join("")}</div>`;
+  }
+  const pessoaEqSimples = (m, r) => `<div class="eqlin-pessoa"><span><b>${esc(m.nome)}</b>${r.k === "reserva" ? ` <span class="muted">· ${esc(nomesFuncoes(m.funcoes))}</span>` : ""}<span class="muted eqlin-contato">${esc([m.whatsapp, m.email].filter(Boolean).join(" · ") || "sem contato")}</span></span></div>`;
   // "Sua equipe" da Ficha: mostra a Equipe da casa (a fonte é uma só; edita-se lá).
   // Respostas da Ficha em texto (WhatsApp/Tranks), na ordem do modelo do Gui. sensivel=false deixa de fora Dono A e repasses.
   function textoFicha(d, sensivel, equipe) {
@@ -2841,13 +2870,16 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   function equipeNaFicha() {
     const L = S.conta.equipe; if (L === undefined) carregarEquipeCasa();
-    const de = (f) => (L || []).filter((m) => !m.reserva && (m.funcoes || []).includes(f));
-    const bloco = (f, titulo, desc, campos) => `<div class="card func-card"><b>${esc(titulo)}</b>${desc ? ` <span class="muted" style="font-size:13px">${esc(desc)}</span>` : ""}${(de(f).length ? de(f) : [{}]).map((m) => `<dl class="kv" style="margin-top:10px">${campos.map(([k, t]) => `<dt>${t}</dt><dd>${m[k] ? esc(m[k]) : '<span class="muted">—</span>'}</dd>`).join("")}</dl>`).join("")}</div>`;
+    // Os 4 blocos do modelo do Gui, cada um numa linha pequena que abre com os campos (Nome, WhatsApp…).
+    const linhas = [["lider", "Líder Local (produtor)", "Tripé · conduz o dia do evento e fala com os artistas. Pode ser o próprio Dono A.", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["email", "E-mail"]]],
+      ["anfitriao", "Anfitrião(ã)", "Tripé · conduz o público durante o evento", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]]],
+      ["social_media", "Social Media", "Tripé · registra o evento de acordo com o briefing", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]]],
+      ["som", "Técnico(a) de som", "", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["observacao", "Observação"]]]].map(([k, titulo, desc, campos]) => ({ k, titulo, desc, campos }));
+    const pessoa = (m, r) => `<dl class="kv eqlin-kv">${r.campos.map(([k, t]) => `<dt>${t}</dt><dd>${m[k] ? esc(m[k]) : '<span class="muted">—</span>'}</dd>`).join("")}</dl>`;
+    const cob = Array.isArray(L) ? TQEquipe.cobertura(L) : null;
     return `<section class="card fsec"><h3>Sua equipe</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Precisa estar completa antes do primeiro evento. Cada função é de uma pessoa diferente; a única exceção é o Dono A, que pode ser também o Líder Local. O bar é responsabilidade do Dono A: o Tranquilo não fala com a equipe de bar.</p>
-      <div class="grid g2">${bloco("lider", "Líder Local (produtor)", "Tripé · conduz o dia do evento e fala com os artistas. Pode ser o próprio Dono A.", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["email", "E-mail"]])}
-      ${bloco("anfitriao", "Anfitrião(ã)", "Tripé · conduz o público durante o evento", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]])}
-      ${bloco("social_media", "Social Media", "Tripé · registra o evento de acordo com o briefing", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["instagram", "Instagram"]])}
-      ${bloco("som", "Técnico(a) de som", "", [["nome", "Nome"], ["whatsapp", "WhatsApp"], ["observacao", "Observação"]])}</div>
+      ${cob ? `<p class="eqlin-frase"><b>${cob.completa ? "✓ Equipe completa" : esc(fraseEquipe(cob))}</b>${cob.completa ? "" : ` <span class="muted">· ${esc(TQEquipe.listaFalta(cob))}</span>`}</p>` : ""}
+      ${listaEquipe(L || [], linhas, { chave: "ficha", pessoa })}
       <div class="barra-acoes"><button class="btn sm" data-ir="equipe_casa">Editar a equipe</button></div></section>`;
   }
   function passosCasa() {
@@ -3769,7 +3801,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (barrar(err, [[$("#eqcNome"), m.nome.length < 2 && "coloque o nome da pessoa"], [document.querySelector("[data-eqc-funcao]"), fe && fe.replace(/\.$/, "")],
         [$("#eqcWa"), m.whatsapp && !VAL.tel(m.whatsapp) && "WhatsApp: número com DDD (ex.: 11 99999-9999)"], [$("#eqcEmail"), m.email && !VAL.email(m.email) && "esse e-mail não parece válido. Confira se está escrito certo (ex.: nome@gmail.com)"]])) return true;
       if (m.whatsapp) m.whatsapp = VAL.fTel(m.whatsapp);
-      await acao(t, async () => { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); S.eqcEd = null; S.eqcNovo = null; S.conta.equipe = undefined; await carregarEquipeCasa(); },
+      await acao(t, async () => { await api.salvarMembro(m); TQDiario.registrar("equipe_casa", { acao: m.id ? "editou" : "adicionou", funcoes }); abrirLinhaEq(`eqc:${m.reserva ? "reserva" : funcoes[0]}`); S.eqcEd = null; S.eqcNovo = null; S.conta.equipe = undefined; await carregarEquipeCasa(); },
         { st: "#eqcErr", ok: () => { const c = Array.isArray(S.conta.equipe) ? TQEquipe.cobertura(S.conta.equipe) : null;
           return `${m.id ? `${m.nome}: alterações salvas.` : `${m.nome} entrou na equipe.`}${c ? c.completa ? " Equipe completa: a Disponibilidade da casa está liberada." : TQEquipe.faltando(c).length ? ` Faltam: ${TQEquipe.listaFalta(c)}.` : "" : ""}`; }, erro: (x) => /equipe_casa_email|duplicate/i.test(x.message || "") ? "Já tem alguém da equipe com este e-mail." : traduz(x.message || "") });
       return true;
@@ -4423,6 +4455,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
 
+  // Lembra quais funções da equipe estão abertas (Equipe da casa, Ficha e Treinamentos), pelo mesmo motivo.
+  const abrirLinhaEq = (id) => { if (!(S.eqlinAbertas || []).includes(id)) S.eqlinAbertas = [...(S.eqlinAbertas || []), id]; };
+  document.addEventListener("toggle", (ev) => {
+    const det = ev.target; if (!det.matches?.("details[data-eqlin]") || det.querySelector("#eqcForm")) return;
+    const id = det.dataset.eqlin; if (det.open) abrirLinhaEq(id); else S.eqlinAbertas = (S.eqlinAbertas || []).filter((x) => x !== id);
+  }, true);
   // Lembra quais partes do formulário estão abertas, para um redesenho da tela não fechar o que a pessoa abriu.
   document.addEventListener("toggle", (ev) => {
     const det = ev.target; if (!det.matches?.("details[data-parte]") || !det.closest("#form")) return;
