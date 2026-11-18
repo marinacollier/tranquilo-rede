@@ -998,12 +998,114 @@ const TQConta = (() => {
     return { cpf, cnpj, doc, pix, email, tel, cep, nome, fCpf, fCnpj, fDoc, fPix, fTel, fCep, porRotulo };
   })();
   window.TQVal = VAL;
+  // ---------- Cidade e estado (pedido da Marina, 18/11/2026) ----------
+  // Primeiro o estado (27 UFs), depois a cidade com busca só daquele estado; escolher "Campinas - SP" na busca já marca a
+  // UF. A base dos 5.570 municípios do IBGE (src/cidades.json, UF -> nomes) só carrega quando um formulário com cidade
+  // aparece. Sem a base (sem rede), dá para digitar a cidade à mão. As chaves gravadas não mudam: cidade_base + estado
+  // na inscrição da artista; cidade_uf ("Cidade/UF") na Ficha da casa, na data do portal e nos dados do contrato.
+  const UFS = [["AC", "Acre"], ["AL", "Alagoas"], ["AP", "Amapá"], ["AM", "Amazonas"], ["BA", "Bahia"], ["CE", "Ceará"], ["DF", "Distrito Federal"],
+    ["ES", "Espírito Santo"], ["GO", "Goiás"], ["MA", "Maranhão"], ["MT", "Mato Grosso"], ["MS", "Mato Grosso do Sul"], ["MG", "Minas Gerais"],
+    ["PA", "Pará"], ["PB", "Paraíba"], ["PR", "Paraná"], ["PE", "Pernambuco"], ["PI", "Piauí"], ["RJ", "Rio de Janeiro"], ["RN", "Rio Grande do Norte"],
+    ["RS", "Rio Grande do Sul"], ["RO", "Rondônia"], ["RR", "Roraima"], ["SC", "Santa Catarina"], ["SP", "São Paulo"], ["SE", "Sergipe"], ["TO", "Tocantins"]];
+  const UF_OK = new Set(UFS.map(([s]) => s)), ufDe = (v) => String(v ?? "").trim().toUpperCase();
+  const normCid = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[’`]/g, "'").replace(/\s+/g, " ").trim();
+  const CID = { lista: null, idx: null, p: null };
+  function carregarCidades() {
+    CID.p ||= fetch("cidades.json").then((r) => r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))).then((j) => {
+      CID.lista = j; CID.idx = Object.fromEntries(Object.entries(j).map(([uf, l]) => [uf, new Map(l.map((n) => [normCid(n), n]))]));
+      setTimeout(() => { document.querySelectorAll("[data-cid-uf], [data-cid-de]").forEach(preencherLista); atualizarPartes(); }); return j;
+    }).catch(() => { CID.p = null; CID.falhou = true; return null; });
+    return CID.p;
+  }
+  // Nome oficial da cidade naquele estado (ignora acento e maiúscula), ou null. Sem a base carregada: undefined.
+  const cidadeOficial = (cid, uf) => CID.idx ? CID.idx[uf]?.get(normCid(cid)) || null : undefined;
+  // "Campinas/SP", "Campinas - SP", "Campinas, SP" e "/SP" -> { cid, uf }; sem UF reconhecida, tudo é cidade.
+  function separarCidadeUF(v) {
+    const t = String(v ?? "").trim(), m = t.match(/^(.*?)\s*(?:\/|,|\s[-–]\s|[-–])\s*([A-Za-z]{2})$/);
+    return m && UF_OK.has(m[2].toUpperCase()) ? { cid: m[1].trim(), uf: m[2].toUpperCase() } : { cid: t, uf: "" };
+  }
+  const opcoesUF = (uf) => `<option value="">Escolha o estado</option>${UFS.map(([s, n]) => `<option value="${s}"${s === uf ? " selected" : ""}>${n} (${s})</option>`).join("")}`;
+  let nLista = 0;
+  // Campo combinado (um valor só, "Cidade/UF"): estado + cidade com busca. attrs (data-k, id, data-ct-dado) vão na cidade.
+  function cidadeUfHtml(attrs, valor, dis = "") {
+    const { cid, uf } = separarCidadeUF(valor), id = "tqCidLista" + ++nLista;
+    return `<span class="fcid" data-fcid><select data-fcid-uf aria-label="Estado (UF)"${dis}>${opcoesUF(uf)}</select><input ${attrs} data-cid-uf list="${id}" value="${esc(cid)}" autocomplete="off" maxlength="120" aria-label="Cidade" placeholder="${uf ? "Busque a cidade" : "Escolha o estado ou busque: Campinas - SP"}"${dis}><datalist id="${id}"></datalist></span>`;
+  }
+  // Select de estado ligado a um campo de cidade separado (inscrição: estado + cidade_base).
+  function ufSelectHtml(attrs, valor, dis = "") {
+    const uf = ufDe(valor), velho = valor && !UF_OK.has(uf) ? `<option value="${esc(valor)}" selected>${esc(valor)} (resposta anterior)</option>` : "";
+    return `<select ${attrs} data-uf${dis}>${opcoesUF(uf)}${velho}</select>`;
+  }
+  const cidadeSoltaHtml = (attrs, valor, ufK, uf, dis = "") => { const id = "tqCidLista" + ++nLista;
+    return `<input ${attrs} data-cid-de="${esc(ufK)}" list="${id}" value="${esc(valor ?? "")}" autocomplete="off" maxlength="120" placeholder="${uf ? "Busque a cidade" : "Escolha o estado ou busque: Campinas - SP"}"${dis}><datalist id="${id}"></datalist>`; };
+  // O select de UF que vale para este campo de cidade (e o inverso).
+  const ufDoCampo = (el) => el.hasAttribute("data-cid-uf") ? el.closest("[data-fcid]")?.querySelector("[data-fcid-uf]")
+    : el.dataset.cidDe ? (el.closest("#form, form, dialog") || document).querySelector(`[data-k="${CSS.escape(el.dataset.cidDe)}"]`) : null;
+  const cidadeDoUf = (sel) => sel.hasAttribute("data-fcid-uf") ? sel.closest("[data-fcid]")?.querySelector("[data-cid-uf]")
+    : sel.dataset.k ? (sel.closest("#form, form, dialog") || document).querySelector(`[data-cid-de="${CSS.escape(sel.dataset.k)}"]`) : null;
+  // Valor para gravar do campo combinado: "Cidade/UF" (só a cidade, se não escolheu estado; "/UF", se só o estado).
+  function valorCidade(el) {
+    if (!el) return ""; if (!el.hasAttribute("data-cid-uf")) return el.value.trim();
+    const p = separarCidadeUF(el.value), uf = p.uf || ufDoCampo(el)?.value || "";
+    return uf ? `${p.cid}/${uf}` : p.cid;
+  }
+  // Põe um valor "Cidade/UF" no campo combinado (ex.: a cidade da casa ao escolher a casa da data).
+  function definirCidade(el, valor) { const { cid, uf } = separarCidadeUF(valor), s = ufDoCampo(el); el.value = cid; if (s) s.value = uf; preencherLista(el); }
+  // Sugestões da busca: com estado, todas as cidades dele (o navegador filtra); sem estado, "Nome - UF" que batem com o texto.
+  function preencherLista(el) {
+    const dl = el.list || document.getElementById(el.getAttribute("list") || ""); if (!dl) return;
+    const uf = ufDoCampo(el)?.value || "";
+    el.placeholder = uf ? "Busque a cidade" : "Escolha o estado ou busque: Campinas - SP";
+    if (!CID.lista) return;
+    if (UF_OK.has(uf)) { if (dl.dataset.uf !== uf) { dl.dataset.uf = uf; dl.innerHTML = (CID.lista[uf] || []).map((n) => `<option value="${esc(n)}">`).join(""); } return; }
+    const q = normCid(el.value); dl.dataset.uf = "";
+    if (q.length < 2) { dl.innerHTML = ""; return; }
+    const achou = [];
+    for (const [s, l] of Object.entries(CID.lista)) for (const n of l) { const k = normCid(n); if (k.includes(q)) achou.push([k.startsWith(q) ? 0 : 1, n, s]); }
+    achou.sort((a, b) => a[0] - b[0] || a[1].localeCompare(b[1], "pt-BR"));
+    dl.innerHTML = achou.slice(0, 60).map(([, n, s]) => `<option value="${esc(n)} - ${s}">`).join("");
+  }
+  // Escolheu "Campinas - SP" (ou colou "Campinas/SP"): a UF entra sozinha e a cidade fica só com o nome.
+  function aoDigitarCidade(el) {
+    const s = ufDoCampo(el), p = separarCidadeUF(el.value);
+    if (p.uf && s && [...s.options].some((o) => o.value === p.uf)) { s.value = p.uf; el.value = p.cid; }
+    if (CID.lista) preencherLista(el); else carregarCidades().then(() => preencherLista(el));
+  }
+  // Trocou o estado: a cidade que não é desse estado sai, e a busca passa a mostrar só as cidades dele.
+  function aoTrocarUf(sel) {
+    const el = cidadeDoUf(sel); if (!el) return;
+    const limpar = () => { if (el.value && UF_OK.has(sel.value) && cidadeOficial(separarCidadeUF(el.value).cid, sel.value) === null) el.value = ""; preencherLista(el); };
+    if (CID.lista) limpar(); else carregarCidades().then(limpar);
+    if (el.hasAttribute("data-cid-uf")) el.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+  // Ao sair do campo: "sao paulo" vira "São Paulo" (nome oficial do IBGE).
+  function aoSairCidade(el) {
+    const uf = ufDoCampo(el)?.value, of = UF_OK.has(uf) && cidadeOficial(separarCidadeUF(el.value).cid, uf);
+    if (of && of !== el.value) { el.value = of; el.dispatchEvent(new Event("input", { bubbles: true })); }
+  }
+  document.addEventListener("input", (ev) => { const t = ev.target;
+    if (t.matches?.("[data-cid-uf], [data-cid-de]")) aoDigitarCidade(t); else if (t.matches?.("[data-fcid-uf], select[data-uf]")) aoTrocarUf(t); }, true);
+  document.addEventListener("change", (ev) => { if (ev.target.matches?.("[data-cid-uf], [data-cid-de]")) aoSairCidade(ev.target); }, true);
+  document.addEventListener("focusin", (ev) => { if (ev.target.matches?.("[data-cid-uf], [data-cid-de], [data-fcid-uf], select[data-uf]")) carregarCidades(); });
+  // Quando aparece um formulário com cidade, a base carrega e a conferência (cidade do estado escolhido) passa a valer.
+  new MutationObserver((_, obs) => { if (CID.lista) return obs.disconnect(); if (!CID.p && !CID.falhou && document.querySelector("[data-cid-uf], [data-cid-de]")) carregarCidades(); })
+    .observe(document.documentElement, { childList: true, subtree: true });
+  // Problemas de cidade/UF num valor "Cidade/UF" (rot = nome do campo para a mensagem).
+  function problemaCidadeUF(v, rot = "Cidade/UF") {
+    const { cid, uf } = separarCidadeUF(v);
+    if (!uf) return `${rot}: escolha o estado`;
+    if (!cid) return `${rot}: escolha a cidade`;
+    if (cidadeOficial(cid, uf) === null) return `${rot}: "${cid}" não está na lista de cidades de ${uf}; escolha na busca`;
+    return null;
+  }
   // Devolve a lista de problemas (texto para a pessoa) e, em .chaves, os campos com problema (para marcar em vermelho).
   function conferirFormato(d) {
     const e = [], ch = e.chaves = [], add = (k, m) => { e.push(m); ch.push(k); };
     const url = (k, nome) => { if (d[k] && !/^https?:\/\/\S+\.\S+/i.test(String(d[k]).trim())) add(k, `${nome} precisa ser um link começando com https://`); };
     url("spotify", "Spotify"); url("youtube", "YouTube"); url("outro_link", "Outro link"); url("foto", "Foto"); url("rider_link", "Link do rider técnico");
-    if (d.estado && !/^[A-Za-z]{2}$/.test(String(d.estado).trim())) add("estado", "Estado: use a sigla com 2 letras (ex.: PE)");
+    if (d.estado && !UF_OK.has(ufDe(d.estado))) add("estado", "Estado (UF): escolha o estado na lista");
+    else if (d.cidade_base && UF_OK.has(ufDe(d.estado)) && cidadeOficial(d.cidade_base, ufDe(d.estado)) === null) add("cidade_base", `Cidade onde mora: "${String(d.cidade_base).trim()}" não está na lista de cidades de ${ufDe(d.estado)}; escolha na busca`);
+    if (d.cidade_uf) { const m = problemaCidadeUF(d.cidade_uf); if (m) add("cidade_uf", m); }
     if (d.whatsapp) { const n = String(d.whatsapp).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.whatsapp)) add("whatsapp", "WhatsApp: só números, com DDD (ex.: 81 99999-9999)"); }
     if (d.telefone) { const n = String(d.telefone).replace(/\D/g, "").length; if (n < 10 || n > 13 || /[^\d\s()+-]/.test(d.telefone)) add("telefone", "Telefone da casa: só números, com DDD"); }
     for (const [k, nome] of [["dono_email", "E-mail do Dono A"], ["email_contato", "E-mail"]]) if (d[k] && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(d[k]).trim())) add(k, `${nome}: confira o endereço (ex.: nome@casa.com.br)`);
@@ -1013,7 +1115,7 @@ const TQConta = (() => {
     if (d.rep_documento && !VAL.doc(d.rep_documento)) add("rep_documento", "CPF ou CNPJ do titular da conta inválido");
     if (d.rep_pix && !VAL.pix(d.rep_pix)) add("rep_pix", "Chave Pix: use CPF, CNPJ, e-mail, celular com DDD ou a chave aleatória");
     // Mínimo de caracteres: nunca deixa seguir sem (pedido da Marina, 17/11/2026).
-    for (const [k, nome, min] of MINIMOS) { const n = String(d[k] ?? "").trim().length; if (n && n < min) add(k, `${nome}: escreva pelo menos ${min} caracteres (agora tem ${n})`); }
+    for (const [k, nome, min] of MINIMOS) { const n = String(d[k] ?? "").trim().length; if (n && n < min) add(k, `${nome} precisa de pelo menos ${min} caracteres (agora tem ${n})`); }
     for (const [k, nome] of [["ouvintes_mensais", "Ouvintes mensais"], ["seguidores_instagram", "Seguidores"], ["integrantes", "Integrantes"], ["cache_minimo", "Cachê mínimo"], ["capacidade", "Capacidade em pé"], ["capacidade_sentado", "Capacidade sentada"], ["equipe_viagem", "Quantas pessoas viajam"]]) {
       if (d[k] != null && d[k] !== "" && !(/^\d+$/.test(String(d[k]).trim()))) add(k, `${nome}: só números, sem sinal de menos`);
     }
@@ -1023,15 +1125,15 @@ const TQConta = (() => {
   const MINIMOS = [["release", "Release curto", 200]];
   // Marca em vermelho os campos com formato errado (depois de conferirFormato).
   function marcarFormato(raiz, erros) {
-    const els = (erros.chaves || []).map((k) => raiz?.querySelector(`[data-k="${k}"]`)).filter(Boolean);
+    const els = (erros.chaves || []).map((k) => campoVisivel(raiz, k)).filter(Boolean);
     els.forEach((el) => { const det = el.closest("details"); if (det) det.open = true; });
     if (els.length) marcar(els);
   }
   const F_ARTISTA = [
     ["Quem é você", [
       ["nome_artistico", "Nome artístico", "text", null, 1],
-      ["cidade_base", "Cidade onde mora", "text", null, 1],
-      ["estado", "Estado (UF)", "text", null, 1],
+      ["estado", "Estado (UF)", "uf", null, 1],
+      ["cidade_base", "Cidade onde mora", "cidade", "estado", 1, "Escolha o estado e busque a cidade (ou busque direto: Campinas - SP)."],
       ["generos", "Gêneros e referências", "text", null, 1, "Ex.: MPB, indie, samba. Pode citar até 3 artistas de referência."],
       ["formato_interesse", "Formato que mais te interessa", "select", [["descubra", "Descubra: noite com 3 artistas em ascensão"], ["apresenta", "Apresenta: show próprio numa data"], ["turne", "Turnê: várias cidades da rede"], ["nao_sei", "Ainda não sei"]], 1],
       ["release", "Release curto", "textarea", null, 1, "Pelo menos 200 caracteres. Se você for aprovada, ele vai para a sua página no site do Tranquilo."],
@@ -1074,7 +1176,7 @@ const TQConta = (() => {
   const SIM_NAO = [["sim", "Sim"], ["nao", "Não"]];
   const F_CASA = [
     ["A casa", "Dados da empresa e do espaço. Usamos para o contrato, a página do evento e a divulgação.", [
-      ["nome", "Nome da casa", "text", null, 1], ["cidade_uf", "Cidade/UF", "text", null, 1], ["razao_social", "Razão social", "text", null, 1], ["cnpj", "CNPJ", "text", null, 1],
+      ["nome", "Nome da casa", "text", null, 1], ["cidade_uf", "Cidade/UF", "cidade_uf", null, 1], ["razao_social", "Razão social", "text", null, 1], ["cnpj", "CNPJ", "text", null, 1],
       ["inscricao", "Inscrição municipal ou estadual", "text"], ["emite_nf", "A casa emite nota fiscal?", "select", SIM_NAO],
       ["endereco", "Endereço completo", "text", null, 1, "Rua, número, bairro e CEP."], ["complemento", "Complemento e ponto de referência", "text"],
       ["instagram", "Instagram da casa", "text", null, 0, null, "@"], ["site", "Site", "text"], ["telefone", "Telefone da casa", "text"],
@@ -1136,7 +1238,7 @@ const TQConta = (() => {
   const EDITAR_FICHA_ATIVO = true;  // banco v16 e v17 em produção (conferido em 13/11)
   const A_VALIDAR_HTML = '<span class="a-validar" title="Ainda não confirmado pelo Gui (Operações)">a validar</span>';
   // travado = "vazios": Ficha já enviada; só os campos ainda vazios ficam abertos (banco v25).
-  function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado) {
+  function campo([k, rot, tipo, opts, obrig, ajuda, ph], d, travado, ctx = d) {
     const v = d[k] ?? "", dis = travado === "vazios" ? (vazioV(v) ? "" : " disabled") : travado ? " disabled" : "", req = obrig ? ' <span class="muted">*</span>' : "";
     const aj = ajuda ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(ajuda)}</div>` : "";
     if (tipo === "check") return `<label class="fcheck"><input type="checkbox" data-k="${k}"${String(v) === "true" ? " checked" : ""}${dis}> <span>${esc(rot)}${req}</span></label>`;
@@ -1149,7 +1251,10 @@ const TQConta = (() => {
       return `<div class="fcampo"><b>${esc(rot)}${req}</b><div class="fcidades">${R.CIDADES_REDE.map((c) => `<label><input type="checkbox" data-cidade="${esc(c)}"${sel.has(c) ? " checked" : ""}${dis}> ${esc(c)}</label>`).join("")}</div>${aj}</div>`;
     }
     let inp;
-    if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}${v && !opts.some(([ov]) => ov === String(v)) ? `<option value="${esc(v)}" selected>${esc(v)} (resposta anterior)</option>` : ""}</select>`;
+    if (tipo === "uf") inp = ufSelectHtml(`data-k="${k}"`, v, dis);
+    else if (tipo === "cidade") inp = cidadeSoltaHtml(`data-k="${k}"`, v, opts, ufDe(ctx?.[opts]), dis);
+    else if (tipo === "cidade_uf") inp = cidadeUfHtml(`data-k="${k}"`, v, dis);
+    else if (tipo === "select") inp = `<select data-k="${k}"${dis}><option value="">Escolha</option>${opts.map(([ov, ot]) => `<option value="${ov}"${String(v) === ov ? " selected" : ""}>${esc(ot)}</option>`).join("")}${v && !opts.some(([ov]) => ov === String(v)) ? `<option value="${esc(v)}" selected>${esc(v)} (resposta anterior)</option>` : ""}</select>`;
     else if (tipo === "textarea") inp = `<textarea data-k="${k}" rows="4"${dis}>${esc(v)}</textarea>`;
     else inp = `<input data-k="${k}" type="${tipo === "url" ? "url" : /(^|_)email/.test(k) ? "email" : "text"}"${/whatsapp|telefone/.test(k) ? ' inputmode="tel" autocomplete="tel"' : /cpf|cnpj|nascimento|agencia|rep_conta|rep_documento/.test(k) ? ' inputmode="numeric"' : ""} value="${esc(v)}"${tipo === "number" ? ` data-num inputmode="numeric" placeholder="${esc(ph || "ex.: 12.000")}"` : ` maxlength="${k === "release" ? 3000 : 300}"${ph ? ` placeholder="${esc(ph)}"` : ""}`}${dis}>`;
     return `<label class="fcampo"><b>${esc(rot)}${req}</b>${inp}${aj}</label>`;
@@ -1170,13 +1275,18 @@ const TQConta = (() => {
   function pendenciasForm(def, d) {
     const secs = secoesDe(def), lista = [], secDe = (k) => secs.findIndex((s) => s.cs.some((c) => c[0] === k));
     const txt = (k, rot) => { const pre = PREFIXO_PARTE[secs[secDe(k)]?.titulo]; return pre ? `${pre}: ${rot}` : rot; };
-    for (const [k, rot] of camposFaltando(def, d)) lista.push({ k, sec: secDe(k), txt: txt(k, rot) });
+    for (const [k, rot, tipo] of camposFaltando(def, d)) lista.push({ k, sec: secDe(k), txt: txt(k, rot), frase: FRASE_FALTA[k] || (tipo === "check" ? `marque "${rot}"` : tipo === "select" ? `responda "${rot}"` : tipo === "cidades" || tipo === "multi" ? `marque ${rot}` : `preencha ${rot}`) });
     if (def === F_CASA && !REPASSE_BANCO.every((k) => !vazioV(d[k])) && vazioV(d.rep_pix))
-      lista.push({ k: REPASSE_BANCO.find((k) => vazioV(d[k])), sec: secDe("rep_pix"), txt: "Repasses: banco, agência e conta, ou a chave Pix" });
+      lista.push({ k: REPASSE_BANCO.find((k) => vazioV(d[k])), sec: secDe("rep_pix"), txt: "Repasses: banco, agência e conta, ou a chave Pix", frase: "preencha banco, agência e conta, ou a chave Pix" });
     const erros = conferirFormato(d);
-    erros.forEach((m, i) => { const k = erros.chaves[i], sec = secDe(k); if (sec >= 0 && !lista.some((x) => x.k === k)) lista.push({ k, sec, txt: m, formato: true }); });
+    erros.forEach((m, i) => { const k = erros.chaves[i], sec = secDe(k); if (sec >= 0 && !lista.some((x) => x.k === k)) lista.push({ k, sec, txt: m, frase: m, formato: true }); });
     return lista.sort((a, b) => a.sec - b.sec);
   }
+  // Como o item aparece no aviso de "Salvar esta parte" (o resto usa "preencha <rótulo>" ou "marque "<rótulo>"").
+  const FRASE_FALTA = { aceite: "marque a autorização de uso dos dados", cidades_interesse: "marque pelo menos uma cidade da rede", cidade_uf: "escolha o estado e a cidade", cidade_base: "escolha a cidade onde mora", estado: "escolha o estado (UF)" };
+  // Elemento visível de um campo (a caixa de marcar fica pequena demais: marca a linha toda).
+  const campoVisivel = (raiz, k) => { const el = raiz?.querySelector(`[data-k="${k}"]`) || raiz?.querySelector(`[data-multi="${k}"]`) || (k === "cidades_interesse" ? raiz?.querySelector("[data-cidade]") : null);
+    return el && el.type === "checkbox" ? el.closest(".fcheck, .fcidades") || el : el; };
   // Partes que a pessoa salvou com "Salvar esta parte" (contam como completas mesmo sem obrigatório): só neste navegador.
   const chavePartes = () => S.conta ? `tq-partes-${S.conta.perfil.tipo === "casa" ? "casa" : "artista"}-${S.conta.perfil.id}` : "";
   const partesSalvas = () => { try { return new Set(JSON.parse(store.get(chavePartes()) || "[]")); } catch { return new Set(); } };
@@ -1196,7 +1306,7 @@ const TQConta = (() => {
     const est = estadoPartes(def, dv), abertas = S.partesAbertas?.[S.aba], primeira = est.findIndex((e) => !e.completa);
     return progressoPartes(est, proprio && travado === false) + secs.map((s, i) => antes(s.titulo) + `<details class="card fsec" data-parte="${i}"${(abertas ? abertas.includes(i) : i === primeira) ? " open" : ""}>
       <summary><span class="fsec-n${est[i].completa ? " ok" : ""}" data-parte-n aria-hidden="true">${est[i].completa ? "✓" : i + 1}</span><span class="fsec-tit"><h3>${esc(s.titulo)}</h3><span class="fsec-res" data-parte-res>${resumoParte(est[i])}</span></span></summary>
-      ${s.desc ? `<p class="muted fsec-desc">${esc(s.desc)}</p>` : ""}<div class="fgrid">${s.cs.map((c) => campo(c, { [c[0]]: dv[c[0]] }, travado)).join("")}</div>
+      ${s.desc ? `<p class="muted fsec-desc">${esc(s.desc)}</p>` : ""}<div class="fgrid">${s.cs.map((c) => campo(c, { [c[0]]: dv[c[0]] }, travado, dv)).join("")}</div>
       ${proprio && travado === false ? `<div class="fsec-acoes"><button type="button" class="btn sm" data-salvar-parte="${i}">Salvar esta parte</button><span class="muted" data-parte-msg role="status" aria-live="polite"></span></div>` : ""}</details>`).join("");
   }
   const formHtml = (def, d, travado) => formPartes(def, d, travado);
@@ -1223,7 +1333,7 @@ const TQConta = (() => {
     const el = raiz.querySelector(`[data-k="${k}"]`) || raiz.querySelector(`[data-multi="${k}"]`) || (k === "cidades_interesse" ? raiz.querySelector("[data-cidade]") : null);
     if (!el) return;
     const det = el.closest("details"); if (det && !det.open) det.open = true;
-    if (marcarErro && el.dataset.k) { el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); }
+    if (marcarErro && el.dataset.k) marcar(el.type === "checkbox" ? el.closest(".fcheck") || el : el);
     el.scrollIntoView({ block: "center" }); el.focus({ preventScroll: true });
   }
   // Cópia local do rascunho (neste navegador): o que foi digitado e ainda não chegou ao banco não se perde.
@@ -1262,7 +1372,7 @@ const TQConta = (() => {
     const d = {};
     // Campos numéricos viram inteiros (12000.5 → 12000; acima de 999.999.999 é cortado): o banco calcula a
     // pré-curadoria com números inteiros e recusaria a inscrição inteira por causa de um valor quebrado.
-    raiz.querySelectorAll("[data-k]").forEach((el) => { d[el.dataset.k] = el.type === "checkbox" ? String(el.checked) : el.hasAttribute("data-num") ? inteiroBR(el.value) : el.value.trim(); });
+    raiz.querySelectorAll("[data-k]").forEach((el) => { d[el.dataset.k] = el.type === "checkbox" ? String(el.checked) : el.hasAttribute("data-num") ? inteiroBR(el.value) : el.hasAttribute("data-cid-uf") ? valorCidade(el) : el.value.trim(); });
     for (const el of raiz.querySelectorAll("[data-multi]")) { const k = el.dataset.multi; d[k] ||= []; if (el.checked) d[k].push(el.value); }
     const cs = [...raiz.querySelectorAll("[data-cidade]")].filter((el) => el.checked).map((el) => el.dataset.cidade);
     if (raiz.querySelector("[data-cidade]")) d.cidades_interesse = cs;
@@ -1273,8 +1383,8 @@ const TQConta = (() => {
   // Marca em vermelho os campos obrigatórios vazios e leva a pessoa até o primeiro.
   function marcarFaltando(raiz, def, d) {
     raiz.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
-    const els = camposFaltando(def, d).map(([k]) => raiz.querySelector(`[data-k="${k}"]`)).filter(Boolean);
-    els.forEach((el) => { const det = el.closest("details"); if (det) det.open = true; el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); });
+    const els = camposFaltando(def, d).map(([k]) => campoVisivel(raiz, k)).filter(Boolean);
+    els.forEach((el) => { const det = el.closest("details"); if (det) det.open = true; }); marcar(els);
     if (els[0]) { els[0].scrollIntoView({ block: "center" }); els[0].focus({ preventScroll: true }); }
   }
 
@@ -1547,6 +1657,14 @@ const TQConta = (() => {
   const lerCtLocal = (id) => { try { return JSON.parse(store.get("tq-rascunho-ct-" + id) || "{}") || {}; } catch { return {}; } };
   // Contrato (pedido da Marina, 17/11/2026): o Tranquilo já manda assinado; a pessoa completa os dados, baixa o PDF,
   // assina (à mão ou gov.br) e envia o arquivo de volta. O envio marca o passo "contrato" da data sozinho.
+  // Campo dos dados do contrato: cidade e estado com a mesma escolha da Ficha (estado, depois a cidade com busca).
+  const rotuloCt = (x) => String(x.rotulo || x.chave).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+  function campoCt(x, v) {
+    const attr = `data-ct-dado="${esc(x.chave)}"`, r = rotuloCt(x);
+    if (/^cidade/.test(r)) return cidadeUfHtml(attr, v);
+    if (/^(estado|uf)\b/.test(r)) return ufSelectHtml(attr, v);
+    return `<input ${attr} maxlength="300" value="${esc(v)}">`;
+  }
   function telaContrato(c) {
     const si = TQContrato.situacao(c), conferido = !!c.conferido_em, assinado = c.status === "assinado" || conferido, env = arqsNovos(c), deNovo = ctPedidoDeNovo(c);
     const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
@@ -1559,7 +1677,7 @@ const TQConta = (() => {
         : deNovo ? `<div class="alert crit" id="ctDeNovo"><b>Envie o contrato assinado de novo</b>A equipe do Tranquilo conferiu o arquivo que você mandou e pediu outro. O motivo: <q>${esc(c.devolvido_motivo || "")}</q> Corrija, assine e envie o arquivo novo no passo ${n0 + 2} abaixo.</div>`
         : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${arqTxt(env[0])}. Está tudo certo: a equipe do Tranquilo já recebeu e vai conferir.</div>`
         : `<p class="sub">O contrato já vai assinado pelo Tranquilo. ${c.campos.length ? "Complete os seus dados, baixe" : "Baixe"} o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>`}
-      ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(locCt[x.chave] ?? (c.dados?.[x.chave] || ant[x.chave] || ""))}"></label>`).join("")}</div>
+      ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b>${campoCt(x, locCt[x.chave] ?? (c.dados?.[x.chave] || ant[x.chave] || ""))}</label>`).join("")}</div>
         ${Object.keys(locCt).length ? `<div class="alert" style="margin:8px 0"><b>Recuperamos o que você tinha digitado</b>Estava guardado neste aparelho e ainda não foi salvo. Confira e toque em "Salvar dados".</div>` : ""}
         ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
         <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><div class="err" role="status" aria-live="polite" id="ctDadosMsg">${completo ? "✓ Feito: dados salvos." : ""}</div>`, completo) : ""}
@@ -2167,7 +2285,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           <label class="fcampo"><b>Abertura da casa *</b><input type="time" id="dpAbre" value="${esc(String(f.abertura || "19:00").slice(0, 5))}"></label>
           <label class="fcampo"><b>Formato *</b><select id="dpProd">${["Descubra", "Apresenta"].map((p) => `<option${f.produto === p ? " selected" : ""}>${p}</option>`).join("")}</select></label>
           <label class="fcampo"><b>Casa *</b><select id="dpCasa" data-valor="${esc(f.casa_id || "")}"${!dia && !exc ? " disabled" : ""}>${selCasa}</select></label>
-          <label class="fcampo"><b>Cidade</b><input id="dpCidade" value="${esc(f.cidade || "")}" placeholder="vem da Ficha da casa"></label>
+          <label class="fcampo"><b>Cidade</b>${cidadeUfHtml('id="dpCidade"', f.cidade || "")}<span class="muted" style="font-size:12px">Vem da Ficha da casa.</span></label>
           <label class="fcampo"><b>Link de ingressos</b><input id="dpLink" value="${esc(f.link_ingressos || "")}" placeholder="https://ingresse.com/..."></label>
         </div>
         ${avisoDia}
@@ -3101,7 +3219,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const semConta = artistas.filter((a) => !a.user_id).map((a) => a.nome);
       await acao(t.closest("[data-dp-salvar]"), async () => {
         await api.salvarDataPortal({ ...(S.dpEd ? { id: S.dpEd } : {}), dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: casa.id,
-          casa_nome: casa.dados?.nome || casa.perfil?.vinculo_nome || casa.perfil?.nome || "Casa", cidade: v("#dpCidade") || casa.dados?.cidade_uf || null,
+          casa_nome: casa.dados?.nome || casa.perfil?.vinculo_nome || casa.perfil?.nome || "Casa", cidade: valorCidade($("#dpCidade")) || casa.dados?.cidade_uf || null,
           artistas, link_ingressos: v("#dpLink") || null, observacao: v("#dpObs") || null });
         TQDiario.registrar("data_portal", { editou: !!S.dpEd, artistas: artistas.length });
         S.dpEd = null; S.dpPre = null; S.dpExc = false; S.dpExcAuto = null; S.dpOutros = S.dpOutrasC = false; S.eq = null; await carregarEquipe(); render();
@@ -3152,8 +3270,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (t.id === "ctSalvarDados") {
       const c = meusContratos().find((x) => x.id === S.contrAberto); if (!c) return true;
-      const d = {}, erros = []; document.querySelectorAll("[data-ct-dado]").forEach((i) => { const campo = c.campos.find((x) => x.chave === i.dataset.ctDado), r = VAL.porRotulo(campo?.rotulo || i.dataset.ctDado, i.value);
-        i.classList.toggle("campo-falta", !!r.erro); if (r.erro) erros.push(r.erro); else { d[i.dataset.ctDado] = r.v; i.value = r.v; } });
+      const d = {}, erros = []; document.querySelectorAll("[data-ct-dado]").forEach((i) => { const campo = c.campos.find((x) => x.chave === i.dataset.ctDado), rot = campo?.rotulo || i.dataset.ctDado;
+        const comb = i.hasAttribute("data-cid-uf"), val = comb ? valorCidade(i) : i.value, pc = comb && val ? problemaCidadeUF(val, rot) : null;
+        const r = pc ? { erro: pc } : i.matches("select[data-uf]") ? (UF_OK.has(ufDe(val)) ? { v: ufDe(val) } : { erro: `${rot}: escolha o estado` }) : VAL.porRotulo(rot, val);
+        i.classList.toggle("campo-falta", !!r.erro); if (r.erro) erros.push(r.erro); else { d[i.dataset.ctDado] = r.v; if (!comb) i.value = r.v; } });
       const msg = $("#ctDadosMsg");
       if (erros.length) { diz(msg, `✕ Não salvou. Corrija: ${erros.join("; ")}.`); marcar([...document.querySelectorAll("[data-ct-dado].campo-falta")]); return true; }
       await acao(t, async () => { await api.contratoSalvarDados(c.id, d); store.del("tq-rascunho-ct-" + c.id); S.conta.contr = await api.contratos(); render(); }, { st: "#ctDadosMsg", ok: "Dados salvos. Agora baixe o PDF." });
@@ -3444,7 +3564,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const v = (id) => ($(id)?.value || "").trim();
     // "__outros"/"__outrasC" é só o botão que abre o grupo recolhido: vale o que estava escolhido antes.
     const val = (el) => { const x = (el?.value || "").trim(); return x.startsWith("__outr") ? (el.dataset.valor || "") : x; };
-    return { dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: val($("#dpCasa")), cidade: v("#dpCidade"), link_ingressos: v("#dpLink"), observacao: v("#dpObs"),
+    return { dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: val($("#dpCasa")), cidade: valorCidade($("#dpCidade")), link_ingressos: v("#dpLink"), observacao: v("#dpObs"),
       artistas: [0, 1, 2].map((i) => ({ nome: val($(`[data-dp-art="${i}"]`)), producao: !!$(`[data-dp-prod="${i}"]`)?.checked })).filter((a) => a.nome) };
   }
   function calendarioMes(mes, celula, attr) {
@@ -3735,9 +3855,17 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const okSalvo = await salvarPendente(); parte.disabled = false;
       if (okSalvo === false) { diz(m, "Não salvou agora. O que você digitou está guardado neste aparelho; tente de novo."); return; }
       atualizarPartes();
-      const completa = det.querySelector("[data-parte-n]").classList.contains("ok");
-      diz(m, `✓ Parte salva às ${new Date().toTimeString().slice(0, 5)}.${completa ? "" : " Ainda falta algo aqui para ela ficar completa (veja os campos com *)."}`);
-      if (!completa) return;
+      const completa = det.querySelector("[data-parte-n]").classList.contains("ok"), hora = new Date().toTimeString().slice(0, 5);
+      if (!completa) {
+        // Rascunho guardado, mas a parte não está completa: diz o que falta pelo nome e marca os campos em vermelho.
+        const raiz = $("#form"), dv = dadosVistos(def, { ...(def === F_CASA ? S.conta.casa?.dados : S.conta.insc?.dados) || {}, ...lerForm(raiz) });
+        const pend = pendenciasForm(def, dv).filter((x) => x.sec === i), frases = pend.map((x) => x.frase || x.txt);
+        diz(m, `⚠ Rascunho salvo às ${hora}. Para completar esta parte: ${frases.join("; ")}.`);
+        det.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
+        marcar(pend.map((x) => campoVisivel(det, x.k)));
+        return;
+      }
+      diz(m, `✓ Parte salva às ${hora}.`);
       // Completa: fecha esta parte e abre a próxima que ainda falta.
       const dets = [...$("#form").querySelectorAll("details[data-parte]")], prox = dets.slice(i + 1).concat(dets.slice(0, i)).find((x) => !x.querySelector("[data-parte-n]").classList.contains("ok"));
       det.open = false;
@@ -3775,6 +3903,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
       }, { st: "#ferr", espera: enviar ? "Enviando…" : "Salvando…", ok: enviar ? "Enviado." : "Rascunho salvo. Você pode continuar depois." });
       if (r.ok) limparLocal(enviar ? null : d);
+      if (r.ok && !enviar) {
+        // Rascunho guardado, mas sem enganar: se ainda falta algo para enviar, o aviso fica amarelo e diz o quê.
+        const falta = pendenciasForm(def, dadosVistos(def, d));
+        if (falta.length) diz($("#ferr"), `⚠ Rascunho salvo. Para enviar, ainda falta${falta.length > 1 ? "m" : ""} ${falta.length} ${falta.length > 1 ? "itens" : "item"}: ${falta.map((x) => x.txt).join("; ").replace(/\.+$/, "")}.`);
+      }
       if (!r.ok || !enviar) return;
       if (casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
       else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. A equipe confere e responde aqui." : "✓ Inscrição enviada para a curadoria. A resposta aparece aqui."); }
@@ -4027,7 +4160,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const x = ev.target, casa = x.id === "dpCasa", opc = x.selectedOptions?.[0];
       if (x.value === "__outros" || x.value === "__outrasC") { S.dpPre = lerFormDp(); if (casa) S.dpOutrasC = true; else S.dpOutros = true; render(); setTimeout(() => (casa ? $("#dpCasa") : $(`[data-dp-art="${x.dataset.dpArt}"]`))?.focus(), 30); return; }
       if (casa) { const c = (S.eq?.casas || []).find((y) => y.id === x.value), ci = $("#dpCidade"), ant = (S.eq?.casas || []).find((y) => y.id === x.dataset.valor);
-        const cidDe = (y) => y?.dados?.cidade_uf || y?.dados?.cidade || ""; if (c && ci && (!ci.value || ci.value === cidDe(ant))) ci.value = cidDe(c); }
+        const cidDe = (y) => y?.dados?.cidade_uf || y?.dados?.cidade || ""; if (c && ci && (!valorCidade(ci) || valorCidade(ci) === cidDe(ant) || !ci.value)) definirCidade(ci, cidDe(c)); }
       S.dpPre = lerFormDp();
       if (opc?.dataset.fora) { S.dpExc = true; S.dpExcAuto = [...(S.dpExcAuto || []).filter((y) => y.nome !== opc.value && y.nome !== opc.textContent.split(" · ")[0]), { nome: casa ? opc.textContent.split(" · ")[0] : opc.value, motivo: opc.dataset.fora }]; }
       render(); return;
@@ -4124,7 +4257,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (raiz.dataset.editavel === "1") guardarLocal({ ...((S.conta.perfil.tipo === "casa" ? S.conta.casa : S.conta.insc)?.dados || {}), ...lerForm(raiz) });
       atualizarPartes(); clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200);
     }
-    if (t.dataset?.ctDado != null && S.contrAberto) { const l = lerCtLocal(S.contrAberto); l[t.dataset.ctDado] = t.value; store.set("tq-rascunho-ct-" + S.contrAberto, JSON.stringify(l)); }
+    if (t.dataset?.ctDado != null && S.contrAberto) { const l = lerCtLocal(S.contrAberto); l[t.dataset.ctDado] = valorCidade(t); store.set("tq-rascunho-ct-" + S.contrAberto, JSON.stringify(l)); }
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
 
