@@ -35,7 +35,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await criar('casa', 'Casa Cruza', 'cruza@casa.com');
     await p.click('[data-aba="ficha"]').catch(() => {}); await p.waitForSelector('[data-k="nome"]');
     await p.fill('[data-k="nome"]', 'Casa Cruza'); await p.fill('[data-k="cidade_uf"]', 'Recife/PE'); await p.waitForTimeout(1700);
-    await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.vinculo_nome = 'Casa Cruza'; d.sem = [{ casa_ref: 'Casa Cruza', dias: [0, 1, 2, 3, 4, 5, 6] }]; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
+    await p.evaluate((dia) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.usuarios[d.sessao].perfil.vinculo_nome = 'Casa Cruza'; d.sem = [{ casa_ref: 'Casa Cruza', dias: [0, 1, 2, 3, 4, 5, 6] }]; d.casas[d.sessao].status = 'habilitada'; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia);
     await p.reload(); await p.waitForTimeout(700); await pular();
     await ir('agenda_casa');
     ok((await p.$$('[data-sem="casa"]:checked')).length === 7 && (await p.$$eval('.cal-dia', (xs) => xs.filter((x) => /toda semana/.test(x.textContent)).length)) > 0, 'casa: dias fixos da semana no checklist e verdes no calendário');
@@ -93,6 +93,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(sugA === 'liberar' && dA2.length === 2 && dA2.every((x) => x.situacao === 'disponivel') && dA2.find((x) => x.dia === dia2)?.nota === 'Show extra', 'artista: fora do padrão o formulário sugere Liberar, e grava os dias com motivo');
     ok((await p.$$('#excCaixa [data-exc-item]')).length === 2 && /todas as cidades/.test(await p.textContent('#excCaixa')), 'artista: as duas exceções na lista');
     await sair();
+    // Léo mora em outra cidade e não marcou o dia: não pode aparecer entre os livres (bug do 18/11).
+    await criar('artista', 'Leo Vento', 'leo@cruza.com');
+    // (e a Ana também fica livre em dia3, para a sugestão de outro dia mais abaixo)
+    await p.evaluate((d3) => { const d = JSON.parse(localStorage.getItem('tq-demo-v1')); d.dispA.push({ user_id: d.dispA[0].user_id, dia: d3, situacao: 'disponivel' }); d.insc = d.insc || {}; d.insc[d.sessao] = { id: 'i-leo', user_id: d.sessao, dados: { nome_artistico: 'Leo Vento', cidade_base: 'Belo Horizonte', estado: 'MG', cidades_interesse: ['Recife'] }, status: 'aprovada' }; localStorage.setItem('tq-demo-v1', JSON.stringify(d)); }, dia3);
+    await p.reload(); await p.waitForTimeout(700); await pular();
+    await sair();
     // Equipe cruza.
     await p.click('#entrar'); await p.click('[data-demo="equipe"]'); await pular(); await p.waitForTimeout(500);
     await ir('datas_portal'); await p.waitForSelector('#dpBusca');
@@ -103,10 +109,30 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife/PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);
     ok(await p.inputValue('[data-dp-art="0"]') === 'Ana Cruza' && await p.inputValue('#dpDia') === dia, 'tocar no artista coloca no line-up sem perder a casa');
-    ok(/Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
+    ok(/Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter((v) => v && !v.startsWith('__')))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
+    const rot = await p.$$eval('[data-dp-art="1"] optgroup option', (o) => o.map((x) => x.textContent));
+    ok(rot.length === 1 && /^Ana Cruza · mora em Recife\/PE · livre \S+ \d\d\/\d\d$/.test(rot[0]), 'rótulo diz onde mora e que está livre no dia: ' + rot[0]);
+    ok(!(await p.$$eval('[data-dp-art="1"] option', (o) => o.some((x) => /Leo Vento/.test(x.textContent)))) && /Não marcaram este dia \(precisa confirmar por fora\): ver 1/.test(await p.textContent('[data-dp-art="1"]')), 'quem não marcou o dia fica recolhido em "Não marcaram este dia"');
+    await p.selectOption('[data-dp-art="1"]', '__outros'); await p.waitForTimeout(400);
+    const fora = await p.$$eval('[data-dp-art="1"] optgroup[label^="Não marcaram"] option', (o) => o.map((x) => x.textContent));
+    ok(fora.length === 1 && /Leo Vento · mora em Belo Horizonte\/MG · não marcou este dia como livre para Recife/.test(fora[0]) && await p.inputValue('[data-dp-art="0"]') === 'Ana Cruza', 'abrir o grupo mostra quem não marcou, com o motivo, sem perder o 1º artista');
+    await p.selectOption('[data-dp-art="1"]', 'Leo Vento'); await p.waitForTimeout(400);
+    ok(await p.isChecked('[data-dp-exc]') && /Exceção marcada automaticamente/.test(await p.textContent('#dpAvisoExc')) && /Leo Vento: não marcou este dia/.test(await p.textContent('#dpAvisoExc')) && await p.inputValue('[data-dp-art="1"]') === 'Leo Vento', 'escolher quem não marcou liga a Exceção com aviso');
+    await p.uncheck('[data-dp-exc]'); await p.waitForTimeout(400);
+    ok(/Não está livre para Recife neste dia/.test(await p.textContent('#dpForm')), 'sem a Exceção, avisa que o escolhido não está livre');
+    await p.selectOption('[data-dp-art="1"]', ''); await p.waitForTimeout(400);
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/✓ Feito: Data criada/.test(await p.textContent('#dpErr')), 'a data criada pela busca salva');
-    ok(!/Casa Cruza/.test(await p.textContent('#dpBusca')), 'depois de criada, casa e artista saem dos livres desse dia');
+    ok(!(await p.textContent('#dpBusca')).includes(br(dia)) && (await p.textContent('#dpBusca')).includes(br(dia3)), 'depois de criada, casa e artista saem dos livres desse dia (e seguem livres em outro)');
+    // Ninguém livre (o dia que a casa bloqueou): diz isso e sugere outro dia com gente livre.
+    await p.fill('#dpDia', dia2); await p.dispatchEvent('#dpDia', 'change'); await p.waitForTimeout(500);
+    const semC = await p.textContent('#dpSemCasa').catch(() => '');
+    ok(/Nenhuma casa livre/.test(semC) && /Ver as outras casas \(1\)/.test(await p.textContent('#dpCasa')) && !!(await p.$('#dpSemCasa [data-dp-dia-sug]')), 'nenhuma casa livre: diz, recolhe a casa com o motivo e sugere outro dia');
+    await p.selectOption('#dpCasa', '__outrasC'); await p.waitForTimeout(400);
+    ok(/Casa Cruza · Recife\/PE · não marcou este dia como livre/.test(await p.textContent('#dpCasa')), 'a casa recolhida mostra o motivo');
+    const sd = await p.getAttribute('#dpSemCasa [data-dp-dia-sug]', 'data-dp-dia-sug');
+    await p.click('#dpSemCasa [data-dp-dia-sug]'); await p.waitForTimeout(400);
+    ok(sd === dia3 && await p.inputValue('#dpDia') === dia3 && /Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')), 'tocar na sugestão troca o dia para um com casa e artista livres');
     await p.selectOption('[data-dpb="cid"]', 'Recife/PE'); await p.waitForTimeout(400);
     ok(!!(await p.$('[data-dpb="cid"]')), 'filtro por cidade');
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }

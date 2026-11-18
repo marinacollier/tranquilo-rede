@@ -30,7 +30,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.check('[data-dp-exc]'); await p.waitForTimeout(400);
     ok(await p.inputValue('#dpDia') === dia, 'ligar a exceção não perde o dia');
     await p.fill('#dpAbre', '20:00'); await p.selectOption('#dpProd', 'Descubra');
-    await p.selectOption('#dpCasa', { label: 'Casa Agenda · Recife/PE' });
+    ok(/Casa Agenda · Recife\/PE · não marcou este dia como livre/.test(await p.textContent('#dpCasa')), 'com a Exceção, a casa aparece com o motivo de não estar livre');
+    await p.selectOption('#dpCasa', await p.$eval('#dpCasa', (s) => [...s.options].find((o) => o.textContent.startsWith('Casa Agenda · Recife/PE')).value)); await p.waitForTimeout(300);
     await p.fill('[data-dp-art="0"]', 'Ana Teste'); await p.fill('[data-dp-art="1"]', 'Banda Dois'); await p.check('[data-dp-prod="1"]');
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/^✓ Feito: Data criada/.test(await p.textContent('#dpErr')) && /Ana Teste, Banda Dois ainda não tem conta/.test(await p.textContent('#dpErr')), 'data criada; avisa quem ainda não tem conta');
