@@ -572,6 +572,9 @@ body:has(.tour) .consent{display:none}
   .hero-ofc{padding-top:22px}
   .cidade{min-height:128px}
 }
+/* Tudo clicável: linhas e cartões que abrem um detalhe só de leitura */
+[data-det]{cursor:pointer}[data-det]:hover{background:var(--raised)}[data-det]:focus-visible{outline:2px solid var(--violet);outline-offset:-2px}
+.det-corpo{color:var(--ink-2)}
 /* Pendências por ação ("Para você" e "Comece por aqui"): cada linha abre o item */
 .bloco-acao h3.acao{margin:0;font-family:var(--sans);font-size:16px;font-weight:700}
 .bloco-acao h3.acao .n{color:var(--ink-4);font-weight:600}
@@ -947,17 +950,47 @@ function evLinha(e, extra = "") {
   const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
   return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(nomeCasa(e.h))}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
 }
+// Detalhe de uma data (do Notion ou criada no portal), em qualquer acesso (Marina, 18/11/2026: tudo clicável).
+// Público, artista e casa veem o que é deles; números internos só para equipe e adm.
 function abrirEvento(id) {
-  const e = S.pac.eventos.find((x) => x.id === id); if (!e) return;
-  const interno = S.pac.perfil === "adm" || S.pac.perfil === "equipe";
-  const refC = S.pac.referencia.find((r) => r.cidade === e.c);
-  $("#dlgIn").innerHTML = `<div class="tag">${esc(e.m)} · ${esc(e.s)}</div><h2 style="margin-top:4px">${esc(e.c)} · ${dt(e.d)}</h2><p class="sub">${esc(e.n)}</p>
-  <dl class="kv"><dt>Casa</dt><dd>${esc(nomeCasa(e.h))}</dd><dt>Line-up</dt><dd>${e.a.length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "–"}</dd>
-  <dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>
+  const e = (S.pac?.eventos || []).find((x) => x.id === id) || (S.pub?.agenda || []).find((x) => x.id === id) || TQConta.eventoPorId?.(id); if (!e) return;
+  const interno = ["adm", "equipe"].includes(S.pac?.perfil) || ["adm", "equipe"].includes(S.conta?.perfil.tipo);
+  const refC = (S.pac?.referencia || []).find((r) => r.cidade === e.c), N = e.noite || S.pac?.noites?.[e.id];
+  const extra = interno ? TQConta.detalheEventoEquipe?.(e) || "" : "";
+  $("#dlgIn").innerHTML = `<div class="tag">${esc(e.m || "Data")} · ${esc(e.s || "")}</div><h2 style="margin-top:4px">${esc(e.c || "")} · ${dt(e.d)}</h2><p class="sub">${esc(e.n || e.t || "")}</p>
+  <dl class="kv"><dt>Dia</dt><dd>${esc(SEM_L[new Date(e.d + "T12:00:00").getDay()])}, ${dt(e.d)}${N?.inicio ? ` · abertura ${esc(N.inicio)}` : ""}</dd>
+  <dt>Casa</dt><dd>${esc(nomeCasa(e.h) || "a definir")}</dd><dt>Cidade</dt><dd>${esc(e.c || "–")}</dd>
+  <dt>Line-up</dt><dd>${(e.a || []).length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "a definir"}</dd>
+  ${e.s ? `<dt>Status</dt><dd>${esc(e.s)}</dd>` : ""}
+  <dt>Ingressos</dt><dd>${e.l ? `<a href="${esc(e.l)}" target="_blank" rel="noopener">${esc(e.l)}</a>` : "sem link ainda"}</dd>
+  ${interno || e.p != null ? `<dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>` : ""}
   ${e.v != null ? `<dt>Ingressos + porta + lista</dt><dd>${fmt(e.v)}</dd>` : ""}${e.x ? `<dt>Capacidade trabalhada</dt><dd>${fmt(e.x)}${e.p ? ` · ocupação ${Math.round(e.p / e.x * 100)}%` : ""}</dd>` : ""}
-  ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}</dl>
-  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${esc(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
-  $("#dlg").showModal();
+  ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}${e.portal?.observacao ? `<dt>Observação</dt><dd>${esc(e.portal.observacao)}</dd>` : ""}</dl>${extra}
+  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${esc(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno && !e.portal ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  if (!$("#dlg").open) $("#dlg").showModal();
+}
+// Tudo clicável (Marina, 18/11/2026): linha de tabela, item de lista ou cartão que ainda não abre nada ganha um detalhe
+// só de leitura com tudo o que a linha mostra (sem cortes). Quem tem ação continua usando os botões da própria linha.
+const INTERATIVO = "a,button,input,select,textarea,label,summary,details,[data-ev],[data-click],[data-abrir],[data-det]";
+function tornarClicaveis(raiz = $("#app")) {
+  if (!raiz) return;
+  const marcar = (el) => { if (el.closest(".tour-caixa,form,#form,.cal,.calendario") || !el.textContent.trim()) return; el.setAttribute("data-det", ""); el.tabIndex = 0; el.setAttribute("role", "button"); };
+  raiz.querySelectorAll("tbody tr:not([data-click])").forEach((tr) => { if (!tr.querySelector("td[colspan]")) marcar(tr); });
+  raiz.querySelectorAll("ul.passos > li, ul.pend > li.pend-txt, ol > li, .list > .card, .list > .alert, .list > .row").forEach((el) => {
+    if (el.matches("[data-det]") || el.querySelector(INTERATIVO) || el.closest(INTERATIVO)) return; marcar(el); });
+}
+function abrirDetalhe(el) {
+  let corpo;
+  if (el.matches("tr")) {
+    const ths = [...el.closest("table").querySelectorAll("thead th")].map((th) => th.textContent.replace(/[↑↓]/g, "").trim());
+    corpo = `<dl class="kv">${[...el.children].map((td, i) => `<dt>${esc(ths[i] || "")}</dt><dd>${td.innerHTML || "–"}</dd>`).join("")}</dl>`;
+  } else corpo = `<div class="det-corpo">${el.innerHTML}</div>`;
+  const titulo = (el.querySelector("b,strong,h3,td") || el).textContent.trim().slice(0, 120);
+  const secao = el.closest("section,.card:not([data-det])")?.querySelector("h2,h3")?.textContent || $("#app h1")?.textContent || "";
+  $("#dlgIn").innerHTML = `<div class="tag">${esc(secao.slice(0, 60) || "Detalhe")}</div><h2 style="margin-top:4px">${esc(titulo)}</h2>${corpo}
+  <p class="muted" style="font-size:12px;margin-top:14px">Só para consulta. Para mudar algo, use os botões da tela.</p><div style="margin-top:12px"><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  $("#dlgIn").querySelectorAll("[data-det]").forEach((x) => { x.removeAttribute("data-det"); x.removeAttribute("role"); x.removeAttribute("tabindex"); });
+  if (!$("#dlg").open) $("#dlg").showModal();
 }
 
 // ---------- página pública ----------
@@ -976,13 +1009,13 @@ function tituloOfc(e) {
 function cartaoEvento(e, primeiro) {
   const d = new Date(e.d + "T12:00:00"), dias = Math.round((d - new Date(S.pub.hoje + "T12:00:00")) / 864e5);
   const falta = dias <= 0 ? "<b>hoje</b>" : dias === 1 ? "<b>amanhã</b>" : `em <b>${dias} dias</b>`;
-  return `<div class="evo${primeiro ? " prox" : ""}" style="--cor:${corCidade(e.c)}">
+  return `<div class="evo${primeiro ? " prox" : ""}" style="--cor:${corCidade(e.c)};cursor:pointer"${e.id ? ` data-ev="${esc(e.id)}" tabindex="0" role="button"` : ""}>
     <div class="bloco" aria-hidden="true"><span>${SEM_C[d.getDay()]}</span><span class="m">${MESES[d.getMonth()].toUpperCase()}</span><b>${e.d.slice(8, 10)}</b><span class="a">${e.d.slice(0, 4)}</span></div>
     <div class="meio"><div class="longa">${SEM_L[d.getDay()]}, ${d.getDate()} de ${MESES_L[d.getMonth()]} de ${d.getFullYear()}</div>
       <div class="titulo">${esc(tituloOfc(e))}${e.m && !/^sem /i.test(e.m) ? `<span class="badge">${esc(e.m)}</span>` : ""}</div>
       <div class="longa" style="margin-top:2px">${esc(casaGenerica(e.h) ? "Local a confirmar" : e.h)}</div></div>
     <div class="lado"><div class="falta">${primeiro ? "Próximo evento · " : ""}${falta}</div>
-      ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
+      ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
 }
 function telaPublica() {
   const p = S.pub, cid = S.cidade ? cidadeOfc(S.cidade) : null;
@@ -1028,6 +1061,7 @@ function telaPublica() {
   <section class="secao" id="acesso"><div class="secao-topo"><div><div class="tag">Para artistas e casas</div><h2>Entrar ou se cadastrar</h2><p class="sub">Artistas se inscrevem na curadoria e acompanham cada etapa até o pós-show. Casas se cadastram para receber datas. Cada perfil vê só o que é dele.</p></div></div>
   ${TQConta.formEntrada()}</section>`;
   ligarLogin();
+  tornarClicaveis();
 }
 const formLogin = () => `<label class="fcampo"><b>Código de acesso</b><input id="cod" autocomplete="off" placeholder="XXXX-XXXX-XXXX" spellcheck="false"></label><div class="err" role="status" aria-live="polite" id="err"></div><label class="fcheck" style="margin-bottom:14px"><input type="checkbox" id="lembrar" checked> Lembrar neste aparelho</label><button class="btn" id="ok">Abrir com código</button>`;
 function ligarLogin() {
@@ -1318,7 +1352,7 @@ function fichaPor(tipo, nome) {
   $("#dlgIn").innerHTML = `<div class="tag">${tipo === "artista" ? "Artista" : "Casa"}</div><h2 style="margin-top:4px">${esc(nome)}</h2>
   <div class="stats" style="margin:14px 0">${kpi(fmt(m.noites), "noites")}${kpi(fmt(m.media), "público médio")}${kpi(fmt(m.futuras), "próximas")}${kpi(m.cancelados, "canceladas/adiadas")}</div>
   <h3>Por praça</h3><div class="list">${porC.map((x) => `<div class="row"><span><b>${esc(x.c)}</b> · ${x.noites} noites · ${fmt(x.media)} por noite</span><span class="muted">praça: ${ref[x.c]?.mediana ? fmt(ref[x.c].mediana) : "sem base"}</span></div>`).join("") || `<p class="muted">Sem noites realizadas.</p>`}</div>
-  <h3>Datas</h3><div class="list" style="max-height:300px;overflow:auto">${evs.slice().reverse().map((e) => `<div class="row" style="font-size:14px"><span>${dt(e.d)} · ${esc(e.c)} · ${esc(e.s)}</span><span>${e.p != null ? fmt(e.p) + " pessoas" : ""}</span></div>`).join("")}</div>
+  <h3>Datas</h3><div class="list" style="max-height:300px;overflow:auto">${evs.slice().reverse().map((e) => `<div class="row" style="font-size:14px;cursor:pointer" data-ev="${esc(e.id)}" tabindex="0" role="button"><span>${dt(e.d)} · ${esc(e.c)} · ${esc(e.s)}</span><span>${e.p != null ? fmt(e.p) + " pessoas" : ""}</span></div>`).join("")}</div>
   <div style="margin-top:16px"><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
   $("#dlg").showModal();
 }
@@ -1463,6 +1497,7 @@ function render() {
   if (S.lendo && (S.lendo.aba !== S.aba || S.lendo.sub !== S.sub?.[S.aba])) S.lendo = null;
   $("#app").innerHTML = (S.conta && TQConta.telaSenha?.()) || (S.lendo && TQConta.leitor()) || TQConta.telaTravada?.(S.aba) || (TQConta.telas[S.aba] || TELAS[S.aba])();
   marcarTestes();
+  tornarClicaveis();
   ligar();
 }
 // Dados de teste em destaque (pedido da Marina, 17/11/2026): o time testa sem confundir com casas e artistas reais.
@@ -1497,7 +1532,7 @@ document.addEventListener("keydown", (ev) => {
     if (S.cidMenu) { S.cidMenu = false; $("#cidSel").innerHTML = seletorCidade(); $("#cidBtn")?.focus(); return; }
     if (document.body.classList.contains("menu-aberto")) { menu(false); return; }
   }
-  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
+  if ((ev.key === "Enter" || ev.key === " ") && ev.target.matches?.("[data-click],[data-ev],[data-det],th[data-i]")) { ev.preventDefault(); ev.target.click(); }
   // Enter no e-mail ou na senha entra (ou cria a conta), como em qualquer site.
   if (ev.key === "Enter" && ev.target.matches?.("#email,#esenha,#enome")) { ev.preventDefault(); $("#eok")?.click(); }
   if (ev.key === "Enter" && ev.target.matches?.("#ns1,#ns2")) { ev.preventDefault(); $("#nsok")?.click(); }
@@ -1519,6 +1554,7 @@ document.addEventListener("click", (ev) => {
   if (t.closest("[data-agtudo]")) { S.agTudo = true; telaPublica(); return; }
   const rol = t.closest("[data-rolar]"); if (rol) { ev.preventDefault(); document.getElementById(rol.dataset.rolar)?.scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const evEl = t.closest("[data-ev]"); if (evEl) return abrirEvento(evEl.dataset.ev);
+  const det = t.closest("[data-det]"); if (det && !t.closest("a,button,input,select,textarea,label,summary")) return abrirDetalhe(det);
   const cl = t.closest("[data-click]"); if (cl) { const [k, ...r] = cl.dataset.click.split(":"), v = r.join(":"); if (k === "ev") abrirEvento(v); else fichaPor(k, v); }
 });
 const dlg = $("#dlg");

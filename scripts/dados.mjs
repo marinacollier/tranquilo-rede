@@ -7,6 +7,8 @@ import path from 'node:path';
 
 const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ref = JSON.parse(await readFile(path.join(RAIZ, 'data/referencias.json'), 'utf8'));
+// Nome real da casa pela base Casas do Notion (casas-ficha.json), quando o título do evento não traz o nome.
+const fichaCasas = await readFile(path.join(RAIZ, 'data/casas-ficha.json'), 'utf8').then((t) => JSON.parse(t).casas || {}).catch(() => ({}));
 
 // Dia do show no horário de Brasília: "2026-11-08T00:30Z" é 07/11 às 21h30, não 08/11.
 const diaSP = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -229,6 +231,8 @@ export function normalizar(eventosBrutos, titulos = {}, hoje = diaEmSP(new Date(
     if (ref.casas[id]) return ref.casas[id];
     const op = nomesCasa[id];
     if (op) return Object.entries(op).sort((a, b) => b[1] - a[1])[0][0];
+    const daFicha = fichaCasas[String(id).replace(/-/g, '')]?.nome;
+    if (daFicha) return daFicha;
     return `Casa em ${cidade || 'cidade a definir'} · ${id.slice(0, 4)}`;
   };
 

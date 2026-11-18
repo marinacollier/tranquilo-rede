@@ -2233,7 +2233,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Line-up", v: (e) => (e.a || []).join(", "), h: (e) => esc((e.a || []).join(", ") || "a definir") },
         { t: "Contrato", v: (e) => contrDe(e), h: (e) => contrDe(e) },
         { t: "Ficha da casa", v: (e) => fichaDe(e) ? etapaCasaEq(E, fichaDe(e))[1] : "", h: (e) => { const c = fichaDe(e); return c ? badgeEtapa(etapaCasaEq(E, c)) : '<span class="muted">sem Ficha</span>'; } },
-      ], lista, { i: 0, dir: 1 }, vazio("Nenhuma data por vir", "", "", "geral"))}`;
+      ], lista.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: 1 }, vazio("Nenhuma data por vir", "", "", "geral"))}`;
     },
     painel() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o painel"); }
@@ -2247,7 +2247,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const linhas = P.eventos.filter((e) => !e.z && e.d >= hoje).map((e) => { const c = casaDe(e), ct = contratoDe(e);
         const pend = [...(!e.l ? ["sem link de ingressos"] : []), ...(ct[0] === "b-crit" ? ["sem contrato"] : []), ...(!c ? ["casa sem ficha no site"] : c.status !== "habilitada" ? [`ficha: ${STATUS_CASA[c.status]?.[1] || c.status}`] : []),
           ...((E.sol || []).some((x) => c && x.casa_id === c.id && x.status === "pendente") ? ["pedido de atualização da ficha"] : [])];
-        return { e, c, ct, pend, atencao: e.d <= em14 && pend.length > 0 }; })
+        return { e, c, ct, pend, atencao: e.d <= em14 && pend.length > 0, _click: "ev:" + e.id }; })
         .filter((l) => (!f.cidade || l.e.c === f.cidade) && (!f.casa || l.e.h === f.casa) && (!f.status || l.e.s === f.status) && (!f.foco || (f.foco === "atencao" ? l.atencao : f.foco === "contrato" ? l.ct[0] !== "b-good" : l.pend.length)));
       const todas = P.eventos.filter((e) => !e.z && e.d >= hoje), uniq = (xs) => [...new Set(xs.filter(Boolean))].sort();
       const sel = (id, rot, val, ops) => `<select data-pf="${id}" aria-label="${rot}"><option value="">${rot}</option>${ops.map((o) => `<option${o === val ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
@@ -3247,7 +3247,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <p class="muted" id="excDica" style="font-size:13px;margin:4px 0">${esc(dicaExc(alvo, pre.dia))}</p>
         <div class="barra-acoes"><button class="btn pri" data-exc-ok="${alvo}">Salvar exceção</button><button class="btn" data-exc-fechar="">Cancelar</button></div></div>` : ""}
       <div class="err" role="status" aria-live="polite" id="excErr"></div>
-      ${exc.length ? `<div class="list" style="margin-top:10px">${exc.slice(0, MAX).map(item).join("")}</div>${exc.length > MAX ? `<p class="muted" style="font-size:13px">E mais ${exc.length - MAX} ${exc.length - MAX === 1 ? "exceção" : "exceções"} depois destas.</p>` : ""}`
+      ${exc.length ? `<div class="list" style="margin-top:10px">${exc.slice(0, MAX).map(item).join("")}</div>${exc.length > MAX ? `<details style="margin-top:8px"><summary class="muted" style="font-size:13px;cursor:pointer">E mais ${exc.length - MAX} ${exc.length - MAX === 1 ? "exceção" : "exceções"} (toque para ver)</summary><div class="list" style="margin-top:8px">${exc.slice(MAX).map(item).join("")}</div></details>` : ""}`
         : `<p class="muted" style="font-size:13px;margin:10px 0 0">Nenhuma exceção marcada. O calendário segue o padrão semanal.</p>`}</section>`;
   }
   function blocoSemana(dias, alvo) {
@@ -3336,14 +3336,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       bloco("Revisar pedido de atualização de Ficha", "A casa pediu para mudar dados que já tinha enviado.", "casas_cad",
         (E.sol || []).filter((x) => x.status === "pendente").map((x) => { const c = (E.casas || []).find((y) => y.id === x.casa_id), e = proxDaCasa(c); return { abrir: "casa:" + x.casa_id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null }; }), { prio: 4 });
       bloco("Chamar casa para completar a Ficha", "Data nos próximos 14 dias com casa sem Ficha habilitada: vale chamar a casa ou mandar um convite.", "casas_cad",
-        proximas(14).filter((e) => casaDoEv(e)?.status !== "habilitada").map((e) => { const c = casaDoEv(e); return { abrir: c ? "casa:" + c.id : null, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d, extra: c ? "" : "sem Ficha no portal" }; }), { prio: 5 });
+        proximas(14).filter((e) => casaDoEv(e)?.status !== "habilitada").map((e) => { const c = casaDoEv(e); return { abrir: c ? "casa:" + c.id : "ev:" + e.id, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d, extra: c ? "" : "sem Ficha no portal" }; }), { prio: 5 });
       // Criar datas é da Agenda: quem tem a área abre a Nova data já preenchida; quem não tem (o Gui) abre a Ficha e combina com a Isa.
       const criaDatas = areas.includes("agenda");
       bloco("Fechar data para casa habilitada sem data", criaDatas ? "Casas prontas sem nenhuma data nos próximos 30 dias. Abre a Nova data com a casa (e o dia livre) já escolhidos."
         : "Casas prontas sem nenhuma data nos próximos 30 dias. Abre a Ficha da casa; o dia livre com artista já vem indicado para combinar com a Agenda.", criaDatas ? "datas_portal" : "casas_cad",
         (E.casas || []).filter((c) => c.status === "habilitada" && semData(c)).map((c) => { const m = diasLivres(c); return { abrir: criaDatas ? `dpnova:${c.id}|${m?.d || ""}|` : "casa:" + c.id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: null, extra: quandoLivre(m) }; }), { prio: 7 });
       bloco("Reenviar convite de casa", "Convidada há mais de 3 dias e ainda não entrou: dá pra reenviar ou mandar o link pelo WhatsApp.", "convites",
-        (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3)).map((c) => ({ quem: c.vinculo_nome || c.nome || c.email, extra: c.criado_em ? "convidada em " + dm(c.criado_em.slice(0, 10)) : "" })), { prio: 9, info: true });
+        (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3)).map((c) => ({ abrir: "conv:" + (c.email || c.id), quem: c.vinculo_nome || c.nome || c.email, extra: c.criado_em ? "convidada em " + dm(c.criado_em.slice(0, 10)) : "" })), { prio: 9, info: true });
     }
     if (areas.includes("agenda")) {
       contratos("agenda");
@@ -3359,7 +3359,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           return (sem.length ? sem : arts.length ? [] : temCtEv(e) ? [] : [{}]).map((a) => ({ abrir: `ctpre:${e.id}|${a.user_id || ""}`, quem: a.nome || "line-up a definir", onde: e.h || "", quando: e.d, extra: a.nome && !a.user_id ? "artista sem conta no portal" : "" })); }), { prio: 3 });
       bloco("Completar line-up", "Data nos próximos 14 dias com menos de 2 artistas confirmados. Fechado o line-up, a casa recebe a mensagem de cronograma.", "datas_portal",
         proximas(14).filter((e) => ((noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length) < 2)
-          .map((e) => ({ abrir: e.portal ? "dp:" + e.portal.id : null, quem: (e.a || []).join(", ") || "line-up a definir", onde: e.h || e.c || "", quando: e.d, extra: e.portal ? "" : "data do Notion" })), { prio: 5 });
+          .map((e) => ({ abrir: e.portal && areas.includes("agenda") ? "dp:" + e.portal.id : "ev:" + e.id, quem: (e.a || []).join(", ") || "line-up a definir", onde: e.h || e.c || "", quando: e.d, extra: e.portal ? "" : "data do Notion" })), { prio: 5 });
       bloco("Fechar data / montar line-up", "Casa e artista livres no mesmo dia, com match de cidade, e a casa sem data nos próximos 30 dias. Abre a Nova data já preenchida.", "datas_portal",
         (E.casas || []).filter((c) => c.status !== "encerrada" && semData(c)).map((c) => ({ c, m: diasLivres(c) })).filter((x) => x.m).sort((a, b) => a.m.d.localeCompare(b.m.d))
           .map(({ c, m }) => ({ abrir: `dpnova:${c.id}|${m.d}|${m.as[0].nome}`, quem: `${nomeCasa(c)} ↔ ${m.as.slice(0, 3).map((a) => a.nome).join(", ")}${m.as.length > 3 ? ` e mais ${m.as.length - 3}` : ""}`, onde: cidadeCasa(c), quando: null, extra: quandoLivre(m) })), { prio: 7 });
@@ -3375,7 +3375,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           (H.andamento || []).filter((a) => a.proximo && String(a.proximo).slice(0, 10) === hoje).map((a) => { const it = (H.itens || []).find((i) => i.campanha_id === a.campanha_id && String(i.dia).slice(0, 10) === hoje);
             return { abrir: "camp:" + a.campanha_id, quem: a.casa_ref, onde: "", quando: proxRef(a.casa_ref)?.d || null, extra: "hoje" + (it?.titulo ? ": " + esc(it.titulo) : "") }; }), { prio: 3 });
         bloco("Carregar campanha para a data", "Data nos próximos 30 dias sem campanha carregada.", "campanhas",
-          proximas(30).filter((e) => !(H.campanhas || []).some((c) => k(c.casa_ref) === k(e.h))).map((e) => ({ quem: e.h || "casa a definir", onde: e.c || "", quando: e.d })), { prio: 9, info: true });
+          proximas(30).filter((e) => !(H.campanhas || []).some((c) => k(c.casa_ref) === k(e.h))).map((e) => ({ abrir: "ev:" + e.id, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d })), { prio: 9, info: true });
       }
     }
     const chave = (b) => b.itens.find((x) => x.quando)?.quando || "9999";
@@ -3673,6 +3673,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     } else if (tipo === "casa") { irPara("casas_cad"); render(); scrollTo(0, 0); fichaCasa(id); }
     else if (tipo === "insc") { irPara("curadoria"); render(); scrollTo(0, 0); fichaInscricao(id); }
     else if (tipo === "camp") { irPara("campanhas"); S.campAberta = id; render(); depois(() => $("#campDia")?.scrollIntoView({ block: "start" })); }
+    else if (tipo === "ev") abrirEvento(id);
+    else if (tipo === "conv") { irPara("convites"); render(); depois(() => { const tr = [...document.querySelectorAll('table[data-tbl="conv"] tbody tr')].find((x) => x.textContent.includes(id)); if (tr) { tr.classList.add("foco"); tr.scrollIntoView({ block: "center" }); abrirDetalhe(tr); } }); }
     else if (tipo === "dpnova") {
       // Nova data já preenchida: a casa, o dia livre com match e (se houver) o primeiro artista livre.
       const [cid, dia, art] = id.split("|"), c = (S.eq?.casas || []).find((x) => x.id === cid);
@@ -4188,5 +4190,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   async function sairDeTudo() { try { sessionStorage.removeItem("tq-veio-link"); sessionStorage.removeItem("tq-senha-depois"); } catch { /* segue */ } S.senhaDepois = false; S.partesAbertas = null; S.recuperado = null; S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   const noMenu = (k) => !menuAgrupado() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
-  return { bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
+  // Detalhe de data para a equipe (diálogo do index.html): contrato, Ficha da casa e o que falta.
+  function eventoPorId(id) {
+    const x = (S.eq?.datasP || []).find((d) => "p:" + d.id === id); if (x) return eventoDoPortal(x);
+    return (S.pac?.eventos || []).find((e) => e.id === id) || null;
+  }
+  function detalheEventoEquipe(e) {
+    const E = S.eq; if (!E) return "";
+    const k = (x) => String(x || "").trim().toLowerCase();
+    const c = (E.casas || []).find((x) => x.id === e.kc || (e.h && (k(x.dados?.nome) === k(e.h) || k(x.perfil?.vinculo_nome) === k(e.h))));
+    const cts = (E.contr || []).filter((x) => x.evento_id === e.id && x.status !== "cancelado");
+    return `<h3>Na rede</h3><dl class="kv"><dt>Ficha da casa</dt><dd>${c ? `${badgeEtapa(etapaCasaEq(E, c))} <button class="btn sm" data-click="casacad:${c.id}">Abrir a Ficha</button>` : '<span class="muted">sem Ficha no portal</span>'}</dd>
+      <dt>Contratos</dt><dd>${cts.length ? cts.map((x) => `<button class="btn sm" data-abrir="ct:${x.id}" onclick="dlg.close()">${esc(x.titulo)} · ${situacaoCt(x).rotulo}</button>`).join(" ") : '<span class="muted">nenhum contrato no portal</span>'}</dd>
+      ${e.portal ? `<dt>Origem</dt><dd>Data criada no portal</dd>` : `<dt>Origem</dt><dd>Notion</dd>`}</dl>`;
+  }
+  return { eventoPorId, detalheEventoEquipe, bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
 })();
