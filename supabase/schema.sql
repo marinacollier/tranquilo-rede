@@ -2911,3 +2911,311 @@ grant execute on function posso_casa(text) to authenticated;
 -- =====================================================================
 alter table datas_portal drop constraint if exists datas_portal_produto_check;
 alter table datas_portal add constraint datas_portal_produto_check check (produto in ('Apresenta', 'Descubra', 'Turnê', 'Noite Tranquilo'));
+
+-- =====================================================================
+-- v34: propostas de atualização a partir do histórico (pedido da Marina, 18/11/2026). Idempotente; vale para teste e produção.
+-- A equipe (Isa → artistas, área Agenda; Gui → casas, área Operações; administração e equipe sem área → todos) propõe
+-- campos da Ficha e a disponibilidade semanal por cidade, já preenchidos pelo histórico do Notion. A pessoa aceita tudo,
+-- ajusta ou recusa em "Próximos passos". Aceita, a Ficha e a disponibilidade mudam na hora, mesmo com a Ficha já enviada:
+-- a proposta aceita é a exceção autorizada às travas de ficha enviada (v25/v26). Quem ainda não tem conta recebe convite;
+-- ao aceitar o convite, a proposta passa a ser dela (convite_email). Tudo fica no histórico de alterações (auditoria).
+-- =====================================================================
+create table if not exists propostas_atualizacao (
+  id uuid primary key default gen_random_uuid(),
+  alvo_tipo text not null check (alvo_tipo in ('artista', 'casa')),
+  alvo_user uuid references perfis (id) on delete cascade,
+  alvo_ref text check (alvo_ref is null or length(alvo_ref) between 1 and 160),
+  convite_email text check (convite_email is null or (convite_email = lower(convite_email) and length(convite_email) <= 200)),
+  campos jsonb not null default '{}'::jsonb check (jsonb_typeof(campos) = 'object'),
+  disponibilidade jsonb check (disponibilidade is null or jsonb_typeof(disponibilidade) = 'array'),
+  antes jsonb not null default '{}'::jsonb,
+  aplicado jsonb,
+  motivo text check (motivo is null or length(motivo) <= 1000),
+  status text not null default 'pendente' check (status in ('pendente', 'aceita', 'recusada', 'ajustada')),
+  criado_por uuid default auth.uid() references perfis (id) on delete set null,
+  criado_em timestamptz not null default now(),
+  respondido_em timestamptz,
+  aplicando boolean not null default false,
+  check (alvo_user is not null or alvo_ref is not null),
+  check (campos <> '{}'::jsonb or coalesce(jsonb_array_length(disponibilidade), 0) > 0)
+);
+create index if not exists propostas_alvo on propostas_atualizacao (alvo_user, status);
+create index if not exists propostas_convite on propostas_atualizacao (convite_email) where convite_email is not null;
+
+-- Quem da equipe propõe para quem: artista → Agenda; casa → Operações; administração e equipe sem área → todos.
+create or replace function pode_propor(alvo text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from perfis where id = auth.uid() and (tipo = 'adm' or (tipo = 'equipe'
+    and (coalesce(cardinality(areas), 0) = 0 or (case when alvo = 'casa' then 'operacoes' else 'agenda' end) = any(areas)))))
+$$;
+revoke all on function pode_propor(text) from public, anon;
+grant execute on function pode_propor(text) to authenticated;
+
+alter table propostas_atualizacao enable row level security;
+drop policy if exists prop_ler on propostas_atualizacao;
+create policy prop_ler on propostas_atualizacao for select using (pode_propor(alvo_tipo) or alvo_user = auth.uid());
+drop policy if exists prop_criar on propostas_atualizacao;
+create policy prop_criar on propostas_atualizacao for insert with check (pode_propor(alvo_tipo));
+revoke all on propostas_atualizacao from anon, authenticated;
+grant select, insert on propostas_atualizacao to authenticated;
+
+-- Valida a disponibilidade proposta: [{ "cidade": "Campinas", "dias": [5, 6] }, …]; dias de 0 (domingo) a 6 (sábado).
+create or replace function proposta_disp_valida(d jsonb) returns boolean
+language sql immutable set search_path = public as $$
+  select d is null or (jsonb_typeof(d) = 'array' and jsonb_array_length(d) <= 30 and not exists (
+    select 1 from jsonb_array_elements(d) it
+    where jsonb_typeof(it) <> 'object' or jsonb_typeof(it -> 'dias') is distinct from 'array'
+      or jsonb_array_length(it -> 'dias') = 0
+      or exists (select 1 from jsonb_array_elements(it -> 'dias') x where jsonb_typeof(x) <> 'number' or (x #>> '{}') not in ('0', '1', '2', '3', '4', '5', '6'))
+      or length(coalesce(it ->> 'cidade', '')) > 120))
+$$;
+create or replace function proposta_campos_validos(c jsonb) returns void
+language plpgsql set search_path = public as $$
+declare k text; v jsonb;
+begin
+  if jsonb_typeof(c) <> 'object' then raise exception 'Proposta inválida.' using errcode = '22023'; end if;
+  for k, v in select * from jsonb_each(c) loop
+    if length(k) > 60 or k !~ '^[a-z_0-9]+$' then raise exception 'Campo inválido: %', left(k, 60) using errcode = '22023'; end if;
+    if length(v::text) > 4000 then raise exception 'Valor grande demais em %.', k using errcode = '22023'; end if;
+    if exists (select 1 from jsonb_path_query(v, 'lax $.** ? (@.type() == "string")') s
+               where (s #>> '{}') ~* '^[[:space:]]*(javascript|data|vbscript|file)[[:space:]]*:') then
+      raise exception 'Link inválido: use um endereço que comece com http:// ou https://.' using errcode = '22023';
+    end if;
+  end loop;
+end $$;
+
+create or replace function proposta_carimbo() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare pf perfis; d jsonb;
+begin
+  new.criado_por := auth.uid(); new.criado_em := now(); new.status := 'pendente'; new.respondido_em := null;
+  new.aplicado := null; new.aplicando := false;
+  new.motivo := left(nullif(btrim(new.motivo), ''), 1000); new.alvo_ref := left(nullif(btrim(new.alvo_ref), ''), 160);
+  new.convite_email := nullif(lower(btrim(new.convite_email)), '');
+  perform proposta_campos_validos(new.campos);
+  if not proposta_disp_valida(new.disponibilidade) then raise exception 'Disponibilidade inválida: escolha os dias da semana (domingo a sábado).' using errcode = '22023'; end if;
+  if new.alvo_user is null and new.convite_email is not null then
+    select p.id into new.alvo_user from perfis p where lower(p.email) = new.convite_email limit 1;
+  end if;
+  if new.alvo_user is not null then
+    select * into pf from perfis where id = new.alvo_user;
+    if not found or pf.tipo::text <> new.alvo_tipo or (new.alvo_tipo = 'casa' and pf.funcoes is not null) then
+      raise exception 'A conta escolhida não é % (ou é da equipe da casa, não o responsável).', new.alvo_tipo using errcode = '22023';
+    end if;
+    d := case when new.alvo_tipo = 'artista' then (select dados from inscricoes_artistas where user_id = new.alvo_user)
+              else (select dados from cadastros_casas where user_id = new.alvo_user) end;
+    select coalesce(jsonb_object_agg(k, coalesce(d -> k, 'null'::jsonb)), '{}'::jsonb) into new.antes from jsonb_object_keys(new.campos) k;
+  else new.antes := '{}'::jsonb;
+  end if;
+  return new;
+end $$;
+revoke all on function proposta_carimbo() from public, anon, authenticated;
+drop trigger if exists trg_proposta_carimbo on propostas_atualizacao;
+create trigger trg_proposta_carimbo before insert on propostas_atualizacao for each row execute function proposta_carimbo();
+drop trigger if exists trg_auditoria on propostas_atualizacao;
+create trigger trg_auditoria after insert or update or delete on propostas_atualizacao for each row execute function registrar_auditoria();
+
+-- Convite aceito: a proposta feita para quem ainda não tinha conta passa a ser da conta nova.
+create or replace function convite_propostas_na_conta() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.aceito_em is not null then
+    update propostas_atualizacao pa set alvo_user = p.id
+      from perfis p where lower(p.email) = new.email and pa.convite_email = new.email and pa.alvo_user is null
+        and p.tipo::text = pa.alvo_tipo;
+  end if;
+  return null;
+end $$;
+revoke all on function convite_propostas_na_conta() from public, anon, authenticated;
+drop trigger if exists trg_convite_propostas on convites;
+create trigger trg_convite_propostas after insert or update of aceito_em on convites for each row execute function convite_propostas_na_conta();
+
+-- A proposta que está sendo aplicada (só responder_proposta liga "aplicando", na mesma transação).
+create or replace function proposta_aplicando(tipo_ text, dono_ uuid, dados_antes jsonb, dados_depois jsonb) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from propostas_atualizacao p where p.aplicando and p.alvo_tipo = tipo_ and p.alvo_user = dono_
+    and dados_depois = coalesce(dados_antes, '{}'::jsonb) || coalesce(p.aplicado -> 'campos', '{}'::jsonb))
+$$;
+revoke all on function proposta_aplicando(text, uuid, jsonb, jsonb) from public, anon, authenticated;
+
+-- Travas da Ficha (v25/v26) com a exceção da proposta aceita: só "dados" muda; o resto fica como estava.
+create or replace function antes_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  new.atualizado_em := now();
+  if tg_op = 'UPDATE' and new.dados is distinct from old.dados and proposta_aplicando('artista', old.user_id, old.dados, new.dados) then
+    new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    r := pre_curadoria(new.dados);
+    new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    return new;
+  end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    new.user_id := old.user_id; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    if eh_adm() and new.dados is distinct from old.dados then
+      -- A administração corrige a inscrição direto; a pré-curadoria é recalculada.
+      r := pre_curadoria(new.dados);
+      new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    else
+      new.dados := old.dados;
+      new.score := old.score; new.faixa := old.faixa; new.score_detalhe := old.score_detalhe; new.alertas := old.alertas;
+    end if;
+    if new.status is distinct from old.status then new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if old.status not in ('rascunho', 'ajustes') then
+      -- v25: depois de enviada, a artista ainda preenche o que ficou vazio; o resto só muda se a curadoria pedir ajustes.
+      if new.dados is distinct from old.dados and old.status::text <> 'encerrada' and so_preenche_vazios(old.dados, new.dados) then
+        new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+        new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+        r := pre_curadoria(new.dados);
+        new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+        new.atualizado_em := now();
+        return new;
+      end if;
+      raise exception 'Inscrição em análise: aguarde o retorno da curadoria. O que já foi enviado só muda se a curadoria pedir ajustes; campos vazios você preenche direto.';
+    end if;
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+  else
+    new.parecer := null; new.nota_interna := null; new.avaliado_por := null; new.avaliado_em := null;
+    new.criado_em := now(); new.enviado_em := null;
+  end if;
+  if new.status not in ('rascunho', 'em_curadoria') then
+    new.status := coalesce(old.status, 'rascunho');
+  end if;
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
+  return new;
+end $$;
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  new.atualizado_em := now();
+  if tg_op = 'UPDATE' and new.dados is distinct from old.dados and proposta_aplicando('casa', old.user_id, old.dados, new.dados) then
+    new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.classificacao := old.classificacao; new.combinados := old.combinados; new.enviado_em := old.enviado_em;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- A administração e a Operações (v26) editam a Ficha direto; o resto da equipe só aplica pedido aprovado.
+    if not (eh_adm() or tem_area('operacoes')) and not exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto) then
+      new.dados := old.dados;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status::text in ('em_analise', 'habilitada', 'suspensa', 'encerrada') and new.dados is distinct from old.dados
+       and (old.status::text in ('suspensa', 'encerrada') or not so_preenche_vazios(old.dados, new.dados)) then
+      raise exception 'O que já foi enviado ao Tranquilo muda por "Solicitar atualização". Campos vazios você preenche direto.' using errcode = '42501';
+    end if;
+    if old.status::text in ('habilitada', 'suspensa', 'encerrada') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+
+-- Casa habilitada que aceita uma proposta continua habilitada (a proposta só acrescenta; v10 segue valendo no resto).
+create or replace function casa_rehabilitar() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  -- Só derruba a habilitação o que já era exigido antes; a capacidade sentada (v10) vira aviso para quem já estava habilitada.
+  if new.user_id = auth.uid() and new.status = 'habilitada'
+    and not exists (select 1 from propostas_atualizacao p where p.aplicando and p.alvo_tipo = 'casa' and p.alvo_user = new.user_id)
+    and exists (
+    select 1 from jsonb_array_elements_text(coalesce(new.pendencias -> 'habilitacao', '[]')) x where x <> 'Capacidade com público sentado no chão'
+  ) then
+    new.status := 'incompleto';
+  end if;
+  return new;
+end $$;
+
+-- A pessoa responde: recusa, aceita tudo ou aceita com ajustes ({"campos": {…}, "disponibilidade": […]}).
+-- Ajuste só mexe no que foi proposto; valor vazio tira o campo. Aceita → Ficha (dados) e disponibilidade semanal
+-- atualizadas na hora (os dias propostos somam aos que a pessoa já marcou).
+create or replace function responder_proposta(pid uuid, aceitar boolean, ajustes jsonb default null) returns propostas_atualizacao
+language plpgsql security definer set search_path = public as $$
+declare p propostas_atualizacao; c jsonb; disp jsonb; k text; v jsonb; it jsonb; ds smallint[]; cid text; ref text; ajustou boolean := false;
+begin
+  select * into p from propostas_atualizacao where id = pid for update;
+  if not found or p.alvo_user is null or not (p.alvo_user = auth.uid() or eh_adm()) then raise exception 'Proposta não encontrada.' using errcode = '42501'; end if;
+  if p.status <> 'pendente' then raise exception 'Esta proposta já foi respondida.' using errcode = '22023'; end if;
+  if not coalesce(aceitar, false) then
+    update propostas_atualizacao set status = 'recusada', respondido_em = now() where id = pid returning * into p;
+    return p;
+  end if;
+  c := p.campos; disp := p.disponibilidade;
+  if ajustes is not null and ajustes <> 'null'::jsonb then
+    if jsonb_typeof(ajustes) <> 'object' then raise exception 'Ajustes inválidos.' using errcode = '22023'; end if;
+    if jsonb_typeof(ajustes -> 'campos') = 'object' then
+      for k, v in select * from jsonb_each(ajustes -> 'campos') loop
+        if not (p.campos ? k) then raise exception 'Este campo não estava na proposta: %', left(k, 60) using errcode = '22023'; end if;
+        if v in ('null'::jsonb, '""'::jsonb, '[]'::jsonb) then c := c - k; else c := jsonb_set(c, array[k], v); end if;
+      end loop;
+    end if;
+    if ajustes ? 'disponibilidade' then
+      disp := case when ajustes -> 'disponibilidade' in ('null'::jsonb, '[]'::jsonb) then null else ajustes -> 'disponibilidade' end;
+    end if;
+    perform proposta_campos_validos(c);
+    if not proposta_disp_valida(disp) then raise exception 'Disponibilidade inválida: escolha os dias da semana (domingo a sábado).' using errcode = '22023'; end if;
+    ajustou := c is distinct from p.campos or disp is distinct from p.disponibilidade;
+  end if;
+  update propostas_atualizacao set aplicando = true, aplicado = jsonb_build_object('campos', c, 'disponibilidade', disp) where id = pid;
+  if c <> '{}'::jsonb then
+    if p.alvo_tipo = 'artista' then
+      update inscricoes_artistas set dados = coalesce(dados, '{}'::jsonb) || c where user_id = p.alvo_user;
+      if not found then insert into inscricoes_artistas (user_id, dados) values (p.alvo_user, c); end if;
+    else
+      update cadastros_casas set dados = coalesce(dados, '{}'::jsonb) || c where user_id = p.alvo_user;
+      if not found then insert into cadastros_casas (user_id, dados) values (p.alvo_user, c); end if;
+    end if;
+  end if;
+  if p.alvo_tipo = 'casa' then
+    ref := coalesce((select vinculo_nome from perfis where id = p.alvo_user),
+                    nullif(btrim((select dados ->> 'nome' from cadastros_casas where user_id = p.alvo_user)), ''), p.alvo_ref);
+  end if;
+  for it in select * from jsonb_array_elements(coalesce(disp, '[]'::jsonb)) loop
+    ds := array(select distinct (x #>> '{}')::smallint from jsonb_array_elements(it -> 'dias') x);
+    if p.alvo_tipo = 'artista' then
+      cid := left(nullif(btrim(it ->> 'cidade'), ''), 120);
+      update disponibilidade_semanal set dias = array(select distinct y from unnest(dias || ds) y order by y)
+        where user_id = p.alvo_user and lower(coalesce(cidade, '')) = lower(coalesce(cid, ''));
+      if not found then insert into disponibilidade_semanal (user_id, cidade, dias) values (p.alvo_user, cid, ds); end if;
+    elsif ref is not null then
+      update disponibilidade_semanal set dias = array(select distinct y from unnest(dias || ds) y order by y) where lower(casa_ref) = lower(ref);
+      if not found then insert into disponibilidade_semanal (casa_ref, dias) values (left(ref, 160), ds); end if;
+    end if;
+  end loop;
+  update propostas_atualizacao set status = case when ajustou then 'ajustada' else 'aceita' end, respondido_em = now(), aplicando = false
+    where id = pid returning * into p;
+  return p;
+end $$;
+revoke all on function responder_proposta(uuid, boolean, jsonb) from public, anon;
+grant execute on function responder_proposta(uuid, boolean, jsonb) to authenticated;

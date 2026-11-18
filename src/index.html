@@ -810,6 +810,22 @@ details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 .fsec-n.frac{font-size:11px;letter-spacing:-.02em}
 @media (max-width:600px){details.card.fsec>.fsec-corpo{padding:0 16px 16px}}
 .dp-fechado > *:not(h2){display:none!important}
+/* Propostas de atualização (v34): lista compacta da equipe e o antes → depois da pessoa */
+.pp-topo{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;width:100%;cursor:pointer}
+.pp-topo:focus-visible{outline:2px solid var(--violet);outline-offset:3px;border-radius:6px}
+.pp-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-weight:400}
+.pp-h{font-size:15px;margin:16px 0 6px}
+.pp-lista{list-style:none;margin:0;padding:0}
+.pp-linha{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.pp-linha.foco{outline:2px solid var(--violet);outline-offset:2px;border-radius:6px}
+.pp-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.pp-campo input,.pp-campo select{width:100%;margin-top:4px}
+.pp-disp{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:6px 0}
+.pp-dias{display:flex;gap:8px;flex-wrap:wrap}
+.pp-ad{list-style:none;margin:8px 0 0;padding:0}
+.pp-ad li{display:flex;flex-direction:column;padding:6px 0;border-top:1px solid var(--line)}
+.pp-antes{color:var(--ink-3, #777);text-decoration:line-through}
+.pp-depois{font-weight:600}
 </style>
 </head>
 <body>
@@ -846,6 +862,7 @@ details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 <script src="operacao.js?v=__V__"></script>
 <script src="historico.js?v=__V__"></script>
 <script src="contrato.js?v=__V__"></script>
+<script src="propostas.js?v=__V__"></script>
 <script src="conta.js?v=__V__"></script>
 <script>
 "use strict";
