@@ -207,7 +207,7 @@ const publico = {
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
 // Base de conhecimento (títulos) e Método para todo mundo: artista, casa e equipe (pedido da Marina, 17/11/2026).
 await writeFile(path.join(DIST, 'referencia.json'), JSON.stringify({ base: baseOk, metodo }));
-for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'campanha.js', 'equipe.js', 'operacao.js', 'contrato.js', 'conta.js', 'cidades.json', 'bases.json', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
+for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'campanha.js', 'equipe.js', 'operacao.js', 'historico.js', 'contrato.js', 'conta.js', 'cidades.json', 'bases.json', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
 // Versão nos scripts (?v=...): o navegador baixa de novo a cada publicação, em vez de usar o arquivo guardado.
 await writeFile(path.join(DIST, 'index.html'), (await readFile(path.join(DIST, 'index.html'), 'utf8')).replaceAll('__V__', Date.now().toString(36)));
 await writeFile(path.join(DIST, '.nojekyll'), '');

@@ -170,6 +170,15 @@ const TQConta = (() => {
       },
       async casas() { exigeEquipe(); return Object.values(db.casas).map((c) => ({ ...c, perfil: db.usuarios[c.user_id]?.perfil })); },
       async historico() { exigeEquipe(); return []; },
+      // "Seu histórico": o que não vem nas listas já carregadas (S.eq ou S.conta), com quem e quando, como no banco.
+      async meuHistorico(tipo) {
+        const h = hubDemo(), u = db.sessao, eqp = ["equipe", "adm"].includes(tipo), tri = Object.entries(db.tri || {});
+        const base = { campanhas: h.campanhas || [], campItens: h.itens || [], campHist: eqp ? db.campHist || [] : [], campFeitos: db.campFeitos || [], sem: (db.sem || []).filter((x) => x.atualizado_por === u), diario: [] };
+        if (eqp) return { ...base, versoes: h.versoes || [], materiais: h.materiais || [], trilhas: tri.map(([k, t]) => ({ casa_ref: k, criado_por: t.criado_por, criado_em: t.criado_em })),
+          marcos: tri.flatMap(([k, t]) => Object.entries(t.marcos || {}).map(([etapa, em]) => ({ casa_ref: k, etapa, feito_em: em, feito_por: t.por?.[etapa] || null }))) };
+        if (tipo === "casa") return { ...base, disp: (db.disp || []).filter((x) => x.atualizado_por === u), eqc: (db.eqc || []).filter((x) => x.criado_por === u) };
+        return { ...base, dispA: (db.dispA || []).filter((x) => x.user_id === u) };
+      },
       async editarFichaCasa(cid, dados) { exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid); if (c) { c.dados = dados; gravar(); } },
       async avaliarCasa(cid, campos) {
         exigeEquipe(); const c = Object.values(db.casas).find((x) => x.id === cid);
@@ -185,7 +194,7 @@ const TQConta = (() => {
       // convites, primeiro acesso e avisos
       async convidar(c) {
         exigeEquipe(); if (eu().tipo !== "adm" && !["artista", "casa"].includes(c.tipo)) throw new Error("Só a administração convida para equipe ou administração.");
-        const email = c.email.toLowerCase().trim(); db.conv[email] = { ...db.conv[email], ...c, email, criado_em: db.conv[email]?.criado_em || agora(), aceito_em: db.conv[email]?.aceito_em || null }; gravar();
+        const email = c.email.toLowerCase().trim(); db.conv[email] = { ...db.conv[email], ...c, email, criado_em: db.conv[email]?.criado_em || agora(), criado_por: db.conv[email]?.criado_por || db.sessao, aceito_em: db.conv[email]?.aceito_em || null }; gravar();
         return { enviado: false, demo: true };
       },
       async convites() { exigeEquipe(); return Object.values(db.conv); },
@@ -211,6 +220,7 @@ const TQConta = (() => {
       async marcarCampanha(itemId, feito, nota) {
         db.campFeitos = (db.campFeitos || []).filter((f) => f.item_id !== itemId);
         if (feito) db.campFeitos.push({ item_id: itemId, feito_por: db.sessao, feito_em: agora(), nota: nota || null });
+        (db.campHist ||= []).push({ item_id: itemId, acao: feito ? "feito" : "desfeito", por: db.sessao, em: agora() });
         gravar();
       },
       async ajustarDiaCampanha(itemId, mud) {
@@ -238,20 +248,20 @@ const TQConta = (() => {
         if (!m) { m = { id: id(), slug: d.slug, titulo: d.titulo, area: d.area, funcao: d.funcao || null, tipo_material: d.tipo, publico: d.publico, fonte_url: d.fonte_url, ativo: true }; (h.materiais ||= []).push(m); }
         else { m.ativo = true; m.titulo = d.titulo; }
         const versao = (h.versoes || []).some((x) => x.material_id === m.id && x.versao === d.versao) ? `${d.versao} (${new Date().toISOString().slice(11, 16)})` : d.versao;
-        (h.versoes ||= []).push({ id: id(), material_id: m.id, versao, resumo: d.resumo || null, url: null, exige_ciencia: false, conteudo_html: d.html, tem_conteudo: true, publicada_em: agora() });
+        (h.versoes ||= []).push({ id: id(), material_id: m.id, versao, resumo: d.resumo || null, url: null, exige_ciencia: false, conteudo_html: d.html, tem_conteudo: true, publicada_em: agora(), publicada_por: db.sessao });
         for (const r of d.aposentar || []) { const x = h.materiais.find((y) => y.slug === r); if (x) x.ativo = false; }
         localStorage.setItem("tq-demo-hub", JSON.stringify(h));
       },
       async publicarVersao(v) {
         exigeEquipe(); const h = hubDemo();
         if ((h.versoes || []).some((x) => x.material_id === v.material_id && x.versao === v.versao)) throw new Error("duplicate key value violates unique constraint");
-        (h.versoes ||= []).push({ ...v, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+        (h.versoes ||= []).push({ ...v, id: id(), publicada_em: agora(), publicada_por: db.sessao }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
       },
       async importarCampanha(dados) {
         exigeEquipe(); const h = hubDemo();
         let c = (h.campanhas ||= []).find((x) => x.slug === dados.slug);
         if (!c) { c = { id: id() }; h.campanhas.push(c); }
-        Object.assign(c, { slug: dados.slug, titulo: dados.titulo, casa_ref: dados.casa, fonte_url: dados.fonte_url });
+        Object.assign(c, { slug: dados.slug, titulo: dados.titulo, casa_ref: dados.casa, fonte_url: dados.fonte_url, importada_em: agora(), importada_por: db.sessao });
         const chaves = new Set(dados.itens.map((i) => i.chave));
         h.itens = (h.itens || []).filter((i) => i.campanha_id !== c.id || chaves.has(i.chave));
         for (const it of dados.itens) {
@@ -264,7 +274,7 @@ const TQConta = (() => {
         exigeEquipe(); const h = hubDemo();
         if ((h.materiais || []).some((x) => x.slug === m.slug)) throw new Error("duplicate key value violates unique constraint");
         const mid = id(); (h.materiais ||= []).push({ ...m, id: mid, ativo: true });
-        (h.versoes ||= []).push({ ...v, material_id: mid, id: id(), publicada_em: agora() }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
+        (h.versoes ||= []).push({ ...v, material_id: mid, id: id(), publicada_em: agora(), publicada_por: db.sessao }); localStorage.setItem("tq-demo-hub", JSON.stringify(h));
       },
       // Contrato automático (mesmas regras do banco, supabase/schema.sql v7).
       async modelosContrato() { exigeEquipe(); return db.modContr; },
@@ -296,7 +306,7 @@ const TQConta = (() => {
         const e = TQEquipe.funcoesErro(m.funcoes); if (e) throw new Error(e);
         const p = eu(); if (p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome) throw new Error("Só o responsável da casa mexe na equipe.");
         db.eqc ||= []; const linha = { nome: m.nome, whatsapp: m.whatsapp || null, email: m.email || null, instagram: m.instagram || null, observacao: m.observacao || null, funcoes: [...new Set(m.funcoes)].sort(), reserva: !!m.reserva };
-        if (m.id) Object.assign(db.eqc.find((x) => x.id === m.id), linha); else db.eqc.push({ ...linha, id: id(), casa_ref: p.vinculo_nome, criado_em: agora() });
+        if (m.id) Object.assign(db.eqc.find((x) => x.id === m.id), linha); else db.eqc.push({ ...linha, id: id(), casa_ref: p.vinculo_nome, criado_em: agora(), criado_por: db.sessao });
         gravar();
       },
       async removerMembro(mid) { db.eqc = (db.eqc || []).filter((x) => x.id !== mid); gravar(); },
@@ -313,15 +323,15 @@ const TQConta = (() => {
         const p = eu(), t = (db.tri || {})[p?.vinculo_nome]; if (!t) throw new Error("A sua casa ainda não tem trilha.");
         if (p.funcoes) throw new Error("Só o responsável da casa confirma as etapas da trilha.");
         if (!TQEquipe.ETAPAS_CASA.includes(etapa)) throw new Error("Esta etapa é da Central.");
-        t.marcos ||= {}; if (feito) t.marcos[etapa] = agora(); else delete t.marcos[etapa]; gravar();
+        t.marcos ||= {}; t.por ||= {}; if (feito) { t.marcos[etapa] = agora(); t.por[etapa] = db.sessao; } else delete t.marcos[etapa]; gravar();
       },
       async trilhas() {
         exigeEquipe(); const T = db.tri || {};
         return { trilhas: Object.entries(T).map(([k, t]) => ({ casa_ref: k, inicio: t.inicio, nota_passagem: t.nota || null })),
           marcos: Object.entries(T).flatMap(([k, t]) => Object.entries(t.marcos || {}).map(([etapa, em]) => ({ casa_ref: k, etapa, feito_em: em }))) };
       },
-      async salvarTrilha(t) { exigeEquipe(); db.tri ||= {}; db.tri[t.casa_ref] = { ...(db.tri[t.casa_ref] || {}), inicio: t.inicio, nota: t.nota || null }; gravar(); },
-      async marcarTrilha(ref, etapa, feito) { exigeEquipe(); const t = db.tri[ref]; t.marcos ||= {}; if (feito) t.marcos[etapa] = agora(); else delete t.marcos[etapa]; gravar(); },
+      async salvarTrilha(t) { exigeEquipe(); db.tri ||= {}; db.tri[t.casa_ref] = { criado_em: agora(), criado_por: db.sessao, ...(db.tri[t.casa_ref] || {}), inicio: t.inicio, nota: t.nota || null }; gravar(); },
+      async marcarTrilha(ref, etapa, feito) { exigeEquipe(); const t = db.tri[ref]; t.marcos ||= {}; t.por ||= {}; if (feito) { t.marcos[etapa] = agora(); t.por[etapa] = db.sessao; } else delete t.marcos[etapa]; gravar(); },
       async apagarTrilha(ref) { exigeEquipe(); delete db.tri[ref]; gravar(); },
       // Ficha da Casa: pedido de atualização (a Central aprova), combinados e disponibilidade de datas (schema v13).
       async minhasSolicitacoes() { return (db.sol || []).filter((x) => x.user_id === db.sessao).sort((a, b) => b.criado_em.localeCompare(a.criado_em)); },
@@ -337,7 +347,7 @@ const TQConta = (() => {
       async responderSolicitacao(sid, aprovar, resposta) {
         exigeEquipe(); const x = (db.sol || []).find((y) => y.id === sid && y.status === "pendente"); if (!x) throw new Error("Esta solicitação não está mais pendente.");
         if (aprovar) { const c = Object.values(db.casas).find((y) => y.id === x.casa_id); c.dados = { ...c.dados, ...x.proposto }; c.pendencias = R.pendenciasCasa(c.dados); }
-        Object.assign(x, { status: aprovar ? "aprovada" : "recusada", resposta: resposta || null, revisado_em: agora() }); gravar();
+        Object.assign(x, { status: aprovar ? "aprovada" : "recusada", resposta: resposta || null, revisado_em: agora(), revisado_por: db.sessao }); gravar();
       },
       async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
@@ -346,7 +356,7 @@ const TQConta = (() => {
         const p = eu(), casa = alvo === "casa", cid = casa ? null : (cidade || null);
         if (casa ? p?.tipo !== "casa" || p.funcoes || !p.vinculo_nome : p?.tipo !== "artista") throw new Error("Só a própria casa (responsável) ou a própria artista marca os dias da semana.");
         db.sem = (db.sem || []).filter((x) => !(casa ? x.casa_ref === p.vinculo_nome : x.user_id === p.id && (x.cidade || null) === cid));
-        if (casa || dias.length) db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id, cidade: cid }), dias: [...new Set(dias)].sort() }); gravar();
+        if (casa || dias.length) db.sem.push({ ...(casa ? { casa_ref: p.vinculo_nome } : { user_id: p.id, cidade: cid }), dias: [...new Set(dias)].sort(), atualizado_em: agora(), atualizado_por: db.sessao }); gravar();
       },
       async dispArtistas() { const p = eu(); return (db.dispA || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.user_id === p?.id); },
       async marcarDispArtista(dia, situacao, nota) {
@@ -364,14 +374,14 @@ const TQConta = (() => {
       async salvarDataPortal(d) {
         exigeEquipe(); db.datasP ||= [];
         const i = d.id ? db.datasP.findIndex((x) => x.id === d.id) : -1;
-        const n = { status: "confirmada", ...(i >= 0 ? db.datasP[i] : { id: id(), criado_em: agora() }), ...d, atualizado_em: agora() };
+        const n = { status: "confirmada", ...(i >= 0 ? db.datasP[i] : { id: id(), criado_em: agora(), criado_por: db.sessao }), ...d, atualizado_em: agora() };
         if (i >= 0) db.datasP[i] = n; else db.datasP.push(n); gravar(); return n;
       },
       async marcarDisponibilidade(casa_ref, dia, situacao, nota) {
         const p = eu(); if (p?.tipo !== "casa" || p.funcoes || p.vinculo_nome !== casa_ref) throw new Error("Só o responsável da casa informa a disponibilidade.");
         const antes = (db.disp || []).find((x) => x.casa_ref === casa_ref && x.dia === dia);
         db.disp = (db.disp || []).filter((x) => x !== antes);
-        if (situacao) db.disp.push({ casa_ref, dia, situacao, nota: nota === undefined ? antes?.nota || null : nota || null, atualizado_em: agora() }); gravar();
+        if (situacao) db.disp.push({ casa_ref, dia, situacao, nota: nota === undefined ? antes?.nota || null : nota || null, atualizado_em: agora(), atualizado_por: db.sessao }); gravar();
       },
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
@@ -536,6 +546,44 @@ const TQConta = (() => {
       async casas() { return comNotas("casa", await comPerfis(ok(await sb.from("cadastros_casas").select("*").order("atualizado_em", { ascending: false })))); },
       async avaliarCasa(cid, campos) { campos = await guardarNota("casa", cid, campos); ok(await sb.from("cadastros_casas").update(campos).eq("id", cid)); },
       // Administração edita a Ficha direto (Gui, 11/2026); o banco só deixa a adm.
+      // "Seu histórico": colunas de quem e quando (feito_por, publicada_por, importada_por, atualizado_por...) e, para a
+      // equipe, o diário de uso da própria pessoa. Cada leitura falha sozinha (banco antigo ou sem permissão) sem derrubar a tela.
+      async meuHistorico(tipo, desde) {
+        const u = await uid(), eqp = ["equipe", "adm"].includes(tipo);
+        const q = (pr) => Promise.resolve(pr).then((r) => (r?.error ? [] : r?.data || []), () => []);
+        const [campanhas, campHist, campFeitos, sem] = await Promise.all([
+          eqp ? q(sb.from("campanhas").select("id,titulo,casa_ref,importada_em,importada_por").eq("importada_por", u).gte("importada_em", desde)) : [],
+          eqp ? q(sb.from("campanha_historico").select("item_id,acao,por,em").eq("por", u).gte("em", desde).order("em", { ascending: false }).limit(500)) : [],
+          tipo === "artista" ? [] : q(sb.from("campanha_feitos").select("item_id,feito_por,feito_em").eq("feito_por", u).gte("feito_em", desde)),
+          q(sb.from("disponibilidade_semanal").select("casa_ref,user_id,cidade,dias,atualizado_em,atualizado_por").eq("atualizado_por", u).gte("atualizado_em", desde)),
+        ]);
+        // Qual campanha e qual dia de cada dia marcado.
+        const ids = [...new Set([...campHist, ...campFeitos].map((x) => x.item_id))].slice(0, 300);
+        const campItens = ids.length ? await q(sb.from("campanha_itens").select("id,campanha_id,dia").in("id", ids)) : [];
+        const faltam = [...new Set(campItens.map((i) => i.campanha_id))].filter((cid) => !campanhas.some((c) => c.id === cid));
+        if (faltam.length) campanhas.push(...(await q(sb.from("campanhas").select("id,titulo,casa_ref").in("id", faltam))));
+        const out = { campanhas, campHist, campFeitos, campItens, sem };
+        if (eqp) {
+          const dia = () => sb.from("diario").select("criado_em,acao,detalhe").eq("user_id", u).gte("criado_em", desde).order("criado_em", { ascending: false });
+          const [versoes, materiais, trilhas, marcos, diario, cliques] = await Promise.all([
+            q(sb.from("material_versoes").select("id,material_id,versao,publicada_em,publicada_por").eq("publicada_por", u).gte("publicada_em", desde)),
+            q(sb.from("materiais").select("id,titulo")),
+            q(sb.from("trilhas").select("casa_ref,criado_por,criado_em").eq("criado_por", u).gte("criado_em", desde)),
+            q(sb.from("trilha_marcos").select("casa_ref,etapa,feito_por,feito_em").eq("feito_por", u).gte("feito_em", desde)),
+            q(dia().in("acao", TQHistorico.ACOES_DIARIO).limit(1000)),
+            q(dia().eq("acao", "clique").eq("detalhe->>externo", "whatsapp").limit(300)),
+          ]);
+          return { ...out, versoes, materiais, trilhas, marcos, diario: [...diario, ...cliques] };
+        }
+        if (tipo === "casa") {
+          const [disp, eqc] = await Promise.all([
+            q(sb.from("disponibilidade_casa").select("casa_ref,dia,situacao,atualizado_em,atualizado_por").eq("atualizado_por", u).gte("atualizado_em", desde)),
+            q(sb.from("equipe_casa").select("id,nome,funcoes,casa_ref,criado_por,criado_em").eq("criado_por", u).gte("criado_em", desde)),
+          ]);
+          return { ...out, disp, eqc };
+        }
+        return { ...out, dispA: await q(sb.from("disponibilidade_artista").select("dia,situacao,atualizado_em").eq("user_id", u).gte("atualizado_em", desde)) };
+      },
       async historico() { return ok(await sb.from("auditoria").select("id,quando,quem_email,tabela,registro,operacao,antes,depois").order("id", { ascending: false }).limit(400)); },
       async editarFichaCasa(cid, dados) { const r = ok(await sb.from("cadastros_casas").update({ dados }).eq("id", cid).select("dados")); if (!r?.length || JSON.stringify(r[0].dados) !== JSON.stringify(dados)) throw new Error("Só a administração e a área de Operações editam a Ficha direto."); },
       async perfis() { return lerPerfis((x) => x.order("criado_em", { ascending: false })); },
@@ -821,7 +869,7 @@ const TQConta = (() => {
     const temBonif = S.conta.casa?.combinados?.bonificacao?.tem === "sim";
     if (area === "datas_casa") return [["passos", "Passo a passo"], ...(!fs || fs.includes("lider") ? [["cronograma", "Cronograma da noite"]] : []),
       ...(!fs || A.campanha ? [["campanha", "Divulgação"]] : []), ...(!fs && S.conta.trilha ? [["trilha", "Treinamento"]] : []),
-      ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : [])];
+      ...(pacAbas.includes("roteiro") && S.pac?.metodo ? [["roteiro", "Como é a noite"]] : []), ...(pacAbas.includes("minhas") && (!fs || A.metricas) ? [["minhas", "Público das noites"]] : []), ["meu_hist", "Seu histórico"]];
     if (area === "ficha") return fs ? [["minha_funcao", "Minha função"], ["guia", "Guia do franqueado"]] : [["cadastro_casa", "Ficha da casa"], ["guia", "Guia do franqueado"]];
     if (area === "equipe_g") return !fs || A.equipe ? [["equipe_casa", "Quem é quem"]] : [];
     if (area === "disp_g") return fs ? [] : [["agenda_casa", "Disponibilidade"]];
@@ -910,9 +958,9 @@ const TQConta = (() => {
   }
   function subsDoGrupo(g) {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
-    // "Comece por aqui" é da administração e da equipe sem área; "Para você" e "Seu histórico", de quem tem área (Gui, Isa, Bruno).
+    // "Comece por aqui" é da administração e da equipe sem área; "Para você", de quem tem área (Gui, Isa, Bruno). "Seu histórico", de todos.
     return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "base_casas", "base_artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
-      && (k !== "inicio" || !comAreas()) && (!["hoje", "feito"].includes(k) || comAreas()));
+      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
@@ -949,7 +997,7 @@ const TQConta = (() => {
     const t = S.conta.perfil.tipo, doPac = S.pac ? PERFIS[S.pac.perfil].abas : [];
     // Dúvidas frequentes valem para quem tem conta mesmo sem código vinculado (o pacote já traz a aba).
     const duv = doPac.some(([k]) => k === "duvidas") ? [] : [["duvidas", "Dúvidas frequentes"]];
-    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha ficha"], ["disp_artista", "Disponibilidade"], ["contratos_meus", "Contrato"], ["art_mkt", "Divulgação"], ...doPac, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
+    if (t === "artista") return [["passos", "Próximos passos"], ["inscricao", "Minha ficha"], ["disp_artista", "Disponibilidade"], ["contratos_meus", "Contrato"], ["art_mkt", "Divulgação"], ["meu_hist", "Seu histórico"], ...doPac, ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     // Portal da casa (alinhamento com o Gui, 11/2026): só quatro áreas no menu. As telas de antes viram partes delas.
     if (t === "casa") return [...AREAS_CASA.filter(([a]) => subsDaArea(a).length), ["duvidas", "Dúvidas"], ["conta", "Conta"]];
     const base = [["inicio", "Comece por aqui"], ["painel", "Painel da operação"], ["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["curadoria", "Curadoria"], ["casas_cad", "Cadastros de casas"], ["trilhas", "Treinamentos"], ["prontidao", "Prontidão"], ["convites", "Convites"], ["demanda", "Demanda"], ["documentos", "Contratos e documentos"], ["campanhas", "Campanhas"], ["materiais", "Materiais"], ["base", "Base de conhecimento"], ["metodo", "Método"], ["relatos", "Relatos"]];
@@ -2440,22 +2488,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}
       ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((b) => blocoAcao(b)).join("")}</div>` : ""}`;
     },
-    // "Feito": o que a própria pessoa fez nos últimos 30 dias (quem fez vem do banco: avaliado_por, criado_por, revisado_por).
-    feito() {
-      const E = S.eq; if (!E) { carregarEquipe(); return carregando("o que você fez"); }
-      const eu = S.conta.perfil.id, desde = new Date(Date.now() - 30 * 864e5).toISOString(), recente = (t) => String(t || "") >= desde;
-      const linhas = [
-        ...(E.insc || []).filter((i) => i.avaliado_por === eu && recente(i.avaliado_em)).map((i) => [i.avaliado_em, "Curadoria", `${esc(i.dados?.nome_artistico || "artista")}: ${esc(STATUS_INSC[i.status]?.[1] || i.status)}`]),
-        ...(E.casas || []).filter((c) => c.avaliado_por === eu && recente(c.avaliado_em)).map((c) => [c.avaliado_em, "Ficha da casa", `${esc(c.dados?.nome || "casa")}: ${esc(STATUS_CASA[c.status]?.[1] || c.status)}`]),
-        ...(E.sol || []).filter((x) => x.revisado_por === eu && recente(x.revisado_em)).map((x) => [x.revisado_em, "Pedido de atualização", `${esc(x.status)}`]),
-        ...(E.datasP || []).filter((x) => x.criado_por === eu && recente(x.criado_em)).map((x) => [x.criado_em, "Data criada", `${dt(String(x.dia).slice(0, 10))} · ${esc(x.casa_nome)}${x.cidade ? " (" + esc(x.cidade) + ")" : ""} · ${esc((x.artistas || []).map((a) => a.nome).join(", "))}${x.status === "cancelada" ? " · cancelada" : ""}`]),
-        ...(E.contr || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Contrato", `${esc(c.titulo)} · ${c.status === "assinado" ? "assinado" : c.status === "cancelado" ? "cancelado" : "aguardando assinatura"}`]),
-        ...(E.conv || []).filter((c) => c.criado_por === eu && recente(c.criado_em)).map((c) => [c.criado_em, "Convite", `${esc(c.vinculo_nome || c.nome || c.email)}${c.aceito_em ? " · já entrou" : ""}`]),
-      ].sort((a, b) => String(b[0]).localeCompare(String(a[0])));
-      return `<div class="tag">Feito</div><h1>Seu histórico</h1><p class="sub">O que você fez nos últimos 30 dias, pra ter tudo à mão.</p>
-      ${linhas.length ? `<div class="list">${linhas.map(([q, t, txt]) => `<div class="card" style="padding:10px 14px"><div class="row"><div><b>${t}</b><div class="muted" style="font-size:13px">${txt}</div></div><span class="muted" style="font-size:12px">${dt(String(q).slice(0, 10))}</span></div></div>`).join("")}</div>`
-        : vazio("Nada por aqui ainda", "Quando você aprovar, criar ou enviar algo, fica guardado aqui.", `<button class="btn" data-ir="hoje">Voltar ao início</button>`, "feito")}`;
-    },
+    // "Seu histórico": o que a própria pessoa fez nos últimos 30 dias (telaHistorico, para todo acesso).
+    feito() { return telaHistorico(); },
+    meu_hist() { return telaHistorico(); },
     // "Visão geral" (só leitura): todas as próximas datas da rede, com cidade, casa, line-up, contrato e Ficha da casa.
     geral() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("a visão geral"); }
@@ -3409,7 +3444,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const dpe = t.closest("[data-dp-editar]"); if (dpe) { S.dpEd = dpe.dataset.dpEditar; S.dpPre = null; S.dpN = null; S.dpConf = null; render(); $("#dpForm")?.scrollIntoView({ block: "start" }); return true; }
     const dpc = t.closest("[data-dp-cancelar]"); if (dpc) {
       if (!confirm("Cancelar esta data? Ela some das áreas da casa e das artistas. Contratos já gerados continuam na lista para você cancelar.")) return true;
-      await acao(dpc, async () => { await api.salvarDataPortal({ id: dpc.dataset.dpCancelar, status: "cancelada" }); S.eq = null; render(); }, { ok: "Data cancelada. Ela saiu das áreas da casa e das artistas." });
+      await acao(dpc, async () => { await api.salvarDataPortal({ id: dpc.dataset.dpCancelar, status: "cancelada" }); TQDiario.registrar("data_portal", { cancelou: true }); S.eq = null; render(); }, { ok: "Data cancelada. Ela saiu das áreas da casa e das artistas." });
       return true;
     }
     const dpk = t.closest("[data-dp-contrato]"); if (dpk) {
@@ -3769,6 +3804,64 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   const dm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
   // Um bloco de ação: título com verbo e quantos, a dica, o "Abrir" (a lista toda) e cada linha clicável.
+  // ---------- "Seu histórico" (pedido da Marina, 18/11/2026: "fiz coisa e meu histórico continuou sem nada") ----------
+  // Para todo acesso: equipe (Gui, Isa, Bruno, adm), casa e artista. As linhas vêm de src/historico.js (colunas de quem e
+  // quando do banco e, para a equipe, o diário de uso). Agrupado por dia, os últimos 7 dias abertos e o resto recolhido,
+  // filtro por tipo e cada linha abre o item.
+  const HIST_DIAS = 30;
+  function carregarHistorico() {
+    if (S.histCarregando || !S.conta) return; S.histCarregando = true;
+    const quem = S.conta.perfil.id;
+    Promise.resolve().then(() => api.meuHistorico(S.conta.perfil.tipo, new Date(Date.now() - HIST_DIAS * 864e5).toISOString())).catch(() => ({}))
+      .then((x) => { if (S.conta?.perfil.id === quem) S.histX = { ...(x || {}), t: Date.now(), quem }; })
+      .finally(() => { S.histCarregando = false; render(); });
+  }
+  function dadosHistorico() {
+    const c = S.conta, eu = c.perfil.id;
+    if (["equipe", "adm"].includes(c.perfil.tipo)) { const E = S.eq; return { insc: E.insc, casas: E.casas, sol: E.sol, datasP: E.datasP, contr: E.contr, conv: E.conv, docs: E.docs, arqs: E.arqs, eqc: E.eqc }; }
+    const arqs = Object.entries(c.arqs || {}).flatMap(([ev, fs]) => (fs || []).map((f) => ({ user_id: eu, evento_id: ev, ...f })));
+    const marcos = c.trilha && !funcoesDe() ? Object.entries(c.trilha.marcos || {}).filter(([k]) => TQEquipe.ETAPAS_CASA.includes(k)).map(([etapa, em]) => ({ etapa, feito_em: em })) : [];
+    return { insc: c.insc ? [c.insc] : [], casas: c.casa ? [c.casa] : [], sol: c.sol || [], contr: c.contr || [], chk: c.chk || [], arqs, marcos };
+  }
+  function nomePassoHist(k) {
+    if (!S.passosNomes) { S.passosNomes = {}; const d = "2030-01-01"; for (const m of ["artista", "casa"]) for (const pr of ["Descubra", "Apresenta"]) for (const x of R.passosDaData(m, d, {}, d, pr)) S.passosNomes[x.chave] ||= x.titulo; }
+    return k === "contrato" ? "Contrato" : S.passosNomes[k] || "";
+  }
+  function telaHistorico() {
+    const p = S.conta.perfil, eqp = ["equipe", "adm"].includes(p.tipo);
+    if (eqp && !S.eq) { carregarEquipe(); return carregando("o que você fez"); }
+    const X = S.histX && S.histX.quem === p.id ? S.histX : null;
+    if (!X || Date.now() - X.t > 15000) carregarHistorico();
+    if (!X) return carregando("o que você fez");
+    const k = (x) => String(x || "").trim().toLowerCase();
+    const evs = [...(S.pac?.eventos || []), ...[...(S.eq?.datasP || []), ...(S.conta.datasP || [])].map(eventoDoPortal)];
+    const nomeEvento = (id) => { const e = evs.find((x) => x.id === id); return e ? `data de ${dm(e.d)}${e.h ? " · " + e.h : ""}` : ""; };
+    const etapas = Object.fromEntries([...TQEquipe.TRILHA, ...TQEquipe.DEPOIS_TRILHA].map((e) => [e[0], e[3]]));
+    const linhas = TQHistorico.montar({ ...dadosHistorico(), ...X }, {
+      eu: p.id, papel: eqp ? "equipe" : p.tipo, desde: new Date(Date.now() - HIST_DIAS * 864e5).toISOString(),
+      nome: (uid) => { const x = (S.eq?.perfis || []).find((y) => y.id === uid); return x ? nomeDaConta(x) : ""; },
+      nomeCasa: (cid) => (S.eq?.casas || []).find((c) => c.id === cid)?.dados?.nome || "",
+      statusInsc: (st) => STATUS_INSC[st]?.[1] || st, statusCasa: (st) => STATUS_CASA[st]?.[1] || st,
+      nomePasso: nomePassoHist, nomeEtapa: (e) => etapas[e] || "", nomeEvento,
+    });
+    const tipos = TQHistorico.TIPOS.filter(([t]) => linhas.some((l) => l.tipo === t)), f = tipos.some(([t]) => t === S.histF) ? S.histF : "";
+    const vis = f ? linhas.filter((l) => l.tipo === f) : linhas;
+    const hoje = hojeIso(), diaMenos = (n) => new Date(Date.parse(hoje + "T12:00:00Z") - n * 864e5).toISOString().slice(0, 10);
+    const rotuloDia = (d) => d === hoje ? "Hoje" : d === diaMenos(1) ? "Ontem" : `${NOME_SEM[wdDe(d)]}, ${dt(d)}`;
+    const hora = (em) => { const t = new Date(em); return isNaN(t) ? "" : t.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); };
+    const linha = (l) => { const alvo = l.abrir ? ` data-abrir="${esc(l.abrir)}"` : l.ir ? ` data-ir="${esc(l.ir)}"` : "";
+      const txt = `<span class="pl-quem">${esc(l.titulo)}</span>${[l.detalhe && esc(l.detalhe), esc(TQHistorico.NOME_TIPO[l.tipo] || ""), hora(l.em)].filter(Boolean).map((t) => `<span class="pl-sep"> · </span><span class="muted">${t}</span>`).join("")}`;
+      return alvo ? `<li><button type="button" class="pend-linha" data-hist-linha="${esc(l.tipo)}"${alvo}>${txt}<span class="pl-ir" aria-hidden="true">→</span></button></li>` : `<li class="pend-txt" data-hist-linha="${esc(l.tipo)}">${txt}</li>`; };
+    const dias = TQHistorico.porDia(vis), recente = diaMenos(6);
+    const antigos = dias.filter(([d]) => d < recente).reduce((n, [, ls]) => n + ls.length, 0);
+    const grupo = ([d, ls]) => `<details class="card hist-dia" data-hist-dia="${d}"${d >= recente ? " open" : ""}><summary><b>${esc(rotuloDia(d))}</b> <span class="muted">· ${ls.length} ${ls.length === 1 ? "ação" : "ações"}</span></summary><ul class="pend">${ls.map(linha).join("")}</ul></details>`;
+    const onde = eqp ? "" : p.tipo === "casa" ? " Fica em Próximos passos." : "";
+    return `<div class="tag">Seu histórico</div><h1>Seu histórico</h1><p class="sub">O que você fez nos últimos ${HIST_DIAS} dias, organizado por dia.${onde} Toque numa linha para abrir aquele item.</p>
+      ${linhas.length ? `<div class="filters"><select data-hist-f aria-label="Filtrar por tipo"><option value="">Tudo (${linhas.length})</option>${tipos.map(([t, n]) => `<option value="${t}"${t === f ? " selected" : ""}>${esc(n)} (${linhas.filter((l) => l.tipo === t).length})</option>`).join("")}</select></div>
+      <div class="list hist">${dias.filter(([d]) => d >= recente).map(grupo).join("") || `<p class="muted">Nada nos últimos 7 dias${f ? " com esse filtro" : ""}.</p>`}</div>
+      ${antigos ? `<details class="hist-antes"><summary>Antes disso: ${antigos} ${antigos === 1 ? "ação" : "ações"} (até ${HIST_DIAS} dias)</summary><div class="list hist">${dias.filter(([d]) => d < recente).map(grupo).join("")}</div></details>` : ""}`
+        : vazio("Nada por aqui ainda", eqp ? "Quando você aprovar, criar, conferir, publicar ou marcar algo, fica guardado aqui." : "Quando você salvar a ficha, marcar um passo, a disponibilidade ou assinar um contrato, fica guardado aqui.", `<button class="btn" data-ir="${eqp ? (comAreas() ? "hoje" : "inicio") : "passos"}">Voltar ao início</button>`, "feito")}`;
+  }
   // Linhas do MESMO evento ficam juntas (Marina, 18/11/2026): um cabeçalho compacto da data ("Sex 19/11 · Sala Jabuticaba ·
   // Descubra · 3 artistas sem contrato"), que abre o quadro "Line-up e contratos" da data, e as linhas recuadas embaixo;
   // com mais de 3 linhas, o evento começa recolhido e expande.
@@ -4616,6 +4709,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   document.addEventListener("change", async (ev) => {
     if (ev.target.matches?.("[data-dp-todas]")) { S.dpVerTodas = ev.target.checked; render(); return; }
     if (ev.target.matches?.("[data-gf]")) { (S.gf ||= {})[ev.target.dataset.gf] = ev.target.value; render(); return; }
+    if (ev.target.matches?.("[data-hist-f]")) { S.histF = ev.target.value; render(); $("[data-hist-f]")?.focus(); return; }
     if (ev.target.id === "excDia") {
       const alvo = S.excAberto, dia = ev.target.value, c = alvo && contextoDisp(alvo); if (!c) return;
       const livre = dia && livreNo(situacaoDia(c.linhas.find((x) => x.dia === dia), c.sem, dia));

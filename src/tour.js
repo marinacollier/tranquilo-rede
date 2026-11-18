@@ -36,7 +36,7 @@ const TQTour = (() => {
   ];
   // Menu padrão do time (17/11/2026): as partes na lateral; dentro de cada uma, as abas em cima.
   EQUIPE.unshift({ titulo: "O menu do time", cobre: ["geral", "g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_adm", "painel", "demanda", "lado_a_lado"], texto: "Na lateral ficam as partes do trabalho: Início, Datas, Curadoria, Casas, Contratos, Campanhas e Convidar (a administração vê também Administração). Dentro de cada parte, as abas ficam em cima. Materiais, Base e Método ficam em Ajuda.", itens: ["Cada área vê só as partes dela."] });
-  const CONTA = (extra) => ({ titulo: "Sua conta", cobre: ["conta"], texto: "Na aba Conta ficam seus dados, o vínculo com a rede e o campo para colar um código de acesso." + (extra || ""), itens: ["Este tutorial pode ser revisto a qualquer momento por lá."], ir: ["conta", "Abrir conta"] });
+  const CONTA = (extra) => ({ titulo: "Sua conta", cobre: ["conta", "meu_hist"], texto: "Na aba Conta ficam seus dados, o vínculo com a rede e o campo para colar um código de acesso. Em Seu histórico fica o que você fez nos últimos 30 dias." + (extra || ""), itens: ["Este tutorial pode ser revisto a qualquer momento por lá."], ir: ["conta", "Abrir conta"] });
   const ROTEIROS = {
     artista: {
       rotulo: "Artista",

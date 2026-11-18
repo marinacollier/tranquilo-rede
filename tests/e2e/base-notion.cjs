@@ -62,12 +62,9 @@ const COD = {}; for (const [t, c] of fs.readFileSync(process.env.ACESSOS || '/tm
     await p.goto(B); await p.waitForTimeout(1200); try { await p.click('[data-tour="pular"]', { timeout: 2000 }); } catch {} await p.keyboard.press('Escape');
     await p.evaluate((pac) => { S.pac = pac; const a = TQConta.areaDe('datas_portal'); S.sub = S.sub || {}; S.sub[a] = 'datas_portal'; S.aba = a; render(); }, pacEq);
     await p.waitForSelector('#dpBusca', { timeout: 8000 });
-    const sug = await p.$('#dpbSug');
-    ok(!!sug && !(await p.$eval('#dpbSug', (d) => d.open)) && /Sugestão POR HISTÓRICO — confirmar com a casa\/artista/.test(await p.textContent('#dpbSug summary')), 'Criar datas: grupo "Sugestão POR HISTÓRICO" separado e recolhido');
-    await p.click('#dpbSug summary'); await p.waitForTimeout(200);
-    const tSug = await p.textContent('#dpbSug');
-    ok(/costuma receber/.test(tSug) && /já tocou/.test(tSug), 'sugestão lista casas (dias da semana) e artistas (cidades e formatos)');
-    ok(!/Sugestão POR HISTÓRICO/.test(await p.$eval('#dpBusca', (el) => { const c = el.cloneNode(true); c.querySelector('#dpbSug')?.remove(); return c.textContent; })), 'a sugestão não se mistura com a disponibilidade marcada no portal');
+    const sug = await p.$('#dpSugHist');
+    ok(!!sug && !(await p.$eval('#dpSugHist', (d) => d.open)) && /Sugestão POR HISTÓRICO/.test(await p.textContent('#dpSugHist summary')), 'Criar datas: grupo "Sugestão POR HISTÓRICO" separado e recolhido');
+    ok(!/Sugestão POR HISTÓRICO/.test(await p.$eval('#dpBusca', (el) => el.textContent)), 'a sugestão não se mistura com a busca de quem está livre');
     // 5. Vínculo com as contas do portal.
     await p.evaluate(() => { S.aba = 'base_artistas'; S.sub = {}; const a = TQConta.areaDe('base_artistas'); if (a) { S.sub[a] = 'base_artistas'; S.aba = a; } S.bn = { artistas: { q: 'YOÙN', cid: '', st: '', n: 30 } }; render(); });
     await p.waitForSelector('#bnLista [data-bn]'); await p.click('#bnLista [data-bn]'); await p.waitForTimeout(800);
