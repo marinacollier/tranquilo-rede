@@ -89,7 +89,7 @@ E por estarem de acordo, assinam.`;
     // "Para você" (Isa, Agenda): o contrato assinado aparece primeiro e o item abre direto a linha com "Conferir e confirmar".
     await p.evaluate(() => { S.conta.perfil.areas = ['agenda']; const a = TQConta.areaDe('hoje'); S.sub = S.sub || {}; S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForSelector('[data-abrir^="ct:"]');
     const vale = await p.textContent('#app');
-    ok(/Vale olhar primeiro/.test(vale) && /1 contrato assinado espera "Conferir e confirmar"/.test(vale) && (await p.$eval('h2 + .list .card', (x) => /Conferir e confirmar/.test(x.textContent))), 'Para você (Agenda): contrato assinado esperando "Conferir e confirmar" é o primeiro card');
+    ok(/Vale olhar primeiro/.test(vale) && /Conferir contrato assinado \(1\)/.test(vale) && /Ana Contrato/.test(await p.textContent(`[data-abrir="ct:${ctId}"]`)), 'Para você (Agenda): bloco "Conferir contrato assinado" com a linha de quem assinou');
     await p.click(`[data-abrir="ct:${ctId}"]`); await p.waitForSelector(`tr.foco [data-ct-conferir="${ctId}"]`);
     ok(true, 'o item abre Contratos com a linha do contrato em destaque e o botão "Conferir e confirmar"');
     const linhaCt = () => p.textContent(`tr:has([data-ct-ver="${ctId}"])`);
@@ -100,7 +100,7 @@ E por estarem de acordo, assinam.`;
     await p.fill('#ctMotivo', 'Faltou a assinatura na página 2.'); await p.click(`[data-ct-devolver-ok="${ctId}"]`); await p.waitForSelector('#ctConfMsg.feito');
     ok(/✓ Feito: Pedido enviado: Ana Contrato/.test(await p.textContent('#ctConfMsg')) && /Arquivo pedido de novo/.test(await linhaCt()) && /Faltou a assinatura na página 2/.test(await linhaCt()) && !(await p.$(`[data-ct-conferir="${ctId}"]`)), 'pedido de novo fica na tabela com o motivo e sem o botão de conferir');
     await p.evaluate(() => { const a = TQConta.areaDe('hoje'); S.sub[a] = 'hoje'; S.aba = a; render(); }); await p.waitForTimeout(200);
-    ok(/1 contrato devolvido aguarda o reenvio/.test(await p.textContent('#app')) && /Faltou a assinatura na página 2/.test(await p.textContent('#app')), 'Para você: contrato devolvido aguardando o reenvio, com o motivo');
+    ok(/Cobrar reenvio de contrato devolvido \(1\)/.test(await p.textContent('#app')) && /Faltou a assinatura na página 2/.test(await p.textContent('#app')), 'Para você: contrato devolvido aguardando o reenvio, com o motivo');
     await sair();
     await p.click('#entrar'); await p.waitForSelector('#esenha'); await p.waitForTimeout(400);
     await p.fill('#email', 'ana@contrato.com'); await p.fill('#esenha', 'segredo123'); await p.click('#eok'); await pular();

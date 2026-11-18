@@ -18,10 +18,16 @@ const ok = (c, m) => { console.log((c ? 'OK   ' : 'FALHA') + ' ' + m); if (!c) p
     ok(/de 50 datas este mês/.test(await p.textContent('#app')), nome + ': mostra datas do mês e alertas');
     await p.screenshot({ path: out + '/inicio-' + nome + '.png', fullPage: true });
     if (demo === 'adm') {
-      // A pendência mais importante primeiro: contrato assinado esperando "Conferir e confirmar" abre a fila.
-      await p.evaluate(() => { const ag = new Date().toISOString(); S.eq.contr = [{ id: 'ct-x', user_id: 'u-x', titulo: 'Contrato X', status: 'enviado', campos: [], dados: {} }]; S.eq.arqs = [{ evento_id: 'contrato_ct-x', nome: '1-a.pdf', caminho: 'a', em: ag }]; render(); });
-      const prim = await p.$$eval('#filaPrimeiro button', (xs) => xs.map((x) => x.textContent));
-      ok(/Conferir e confirmar/.test(prim[0] || ''), nome + ': "Vale olhar primeiro" começa pelo contrato assinado esperando conferência (' + prim.join(' | ') + ')');
+      // Por ação (Marina, 18/11/2026): o que trava o evento mais próximo vem primeiro; cada linha abre o item.
+      await p.evaluate(() => { const ag = new Date().toISOString(), h = ag.slice(0, 10), ev = [...(S.pac?.eventos || []).filter((e) => !e.z && e.d >= h), ...(S.eq.datasP || []).filter((x) => x.status !== 'cancelada' && String(x.dia).slice(0, 10) >= h).map((x) => ({ id: 'p:' + x.id, d: String(x.dia).slice(0, 10) }))].sort((a, b) => a.d.localeCompare(b.d))[0];
+        S.eq.contr = [{ id: 'ct-x', user_id: 'u-x', titulo: 'Contrato X', status: 'enviado', campos: [], dados: {}, evento_id: ev?.id || null }]; S.eq.arqs = [{ evento_id: 'contrato_ct-x', nome: '1-a.pdf', caminho: 'a', em: ag }]; render(); });
+      const prim = await p.$$eval('#filaPrimeiro .bloco-acao h3', (xs) => xs.map((x) => x.textContent));
+      ok(/Conferir contrato assinado \(1\)/.test(prim[0] || ''), nome + ': "Vale olhar primeiro" por ação, começando pelo que trava o evento mais próximo (' + prim.join(' | ') + ')');
+      const linha = await p.$('#filaPrimeiro button.pend-linha[data-abrir="ct:ct-x"]');
+      ok(!!linha && (await linha.evaluate((x) => getComputedStyle(x).cursor)) === 'pointer', nome + ': a linha do contrato é um botão com cursor de mão');
+      await linha.focus(); await p.keyboard.press('Enter'); await p.waitForTimeout(300);
+      ok(await p.evaluate(() => S.ctFoco === 'ct-x' && S.sub[S.aba] === 'documentos'), nome + ': Enter na linha abre Contratos com aquele contrato em foco');
+      await p.evaluate(() => { S.aba = 'inicio'; (S.sub ||= {})[TQConta.areaDe('inicio')] = 'inicio'; S.aba = TQConta.areaDe('inicio'); render(); });
       await p.evaluate(() => { S.eq.contr = []; S.eq.arqs = []; render(); });
     }
     await p.click('.atalho:nth-child(3)'); await p.waitForTimeout(300);

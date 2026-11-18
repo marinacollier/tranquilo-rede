@@ -2138,80 +2138,19 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           <div class="barra-acoes" style="margin:0">${x.status === "cancelada" ? "" : `<button class="btn sm pri" data-dp-contrato="${x.id}">Preparar contrato</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button>`}</div></div></div>`; }).join("")}</div>`
         : vazio("Nenhuma data criada no portal ainda", "Crie a primeira acima: ela aparece na hora para a casa e para as artistas.", "", "datas_portal")}`;
     },
-    // "Hoje" (pedido da Marina, 17/11/2026): para quem tem área (Gui, Isa, Bruno), só o que precisa de ação agora,
-    // do mais urgente para o resto, com um botão que leva direto para a tela certa.
+    // "Hoje" (pedido da Marina, 17/11/2026): para quem tem área (Gui, Isa, Bruno), só o que precisa de ação agora.
+    // Organizado por AÇÃO (18/11/2026): blocos com verbo e cada linha abre direto o item (pendenciasEquipe).
     hoje() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o seu dia"); }
       const areas = S.conta.perfil.tipo === "adm" || !S.conta.perfil.areas?.length ? ["operacoes", "agenda", "marketing"] : S.conta.perfil.areas;
       if (areas.includes("marketing") && !S.hub) carregarHub();
-      const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
       const nome = String(S.conta.perfil.nome || "").split(" ")[0];
-      // Cada card traz o que espera a pessoa e abre direto o item (data-abrir); com um item só, o botão já abre ele.
-      // prio: a pendência mais importante primeiro (1 = conferir contrato assinado, depois Fichas, contratos a preparar…).
-      const cards = [];
-      const card = (urg, titulo, txt, aba, lista = [], prio = 5) => {
-        const li = (l) => typeof l === "string" ? l : `<a href="#" data-abrir="${esc(l.abrir)}">${l.html}</a>`;
-        const um = lista.length === 1 && typeof lista[0] === "object" ? lista[0].abrir : null;
-        const botao = um ? `<button class="btn sm${urg ? " pri" : ""}" data-abrir="${esc(um)}">Abrir</button>` : aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : "";
-        const mais = lista.length > 6 ? `<li><details><summary>e mais ${lista.length - 6}</summary><ul class="passos" style="margin:6px 0 0">${lista.slice(6).map((l) => `<li>${li(l)}</li>`).join("")}</ul></details></li>` : "";
-        cards.push({ urg, prio, ord: cards.length, html: `<div class="card"><div class="row"><div><b>${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${botao}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${li(l)}</li>`).join("")}${mais}</ul>` : ""}</div>` });
-      };
-      const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
-      const evsNotion = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hoje), evsPortal = (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hoje).map(eventoDoPortal);
-      const proximas = (n) => [...evsNotion, ...evsPortal].filter((e) => e.d <= mais(n)).sort((a, b) => a.d.localeCompare(b.d));
-      const ondeDe = (e) => [e.h, e.c].filter(Boolean).join(" · ");
-      // Contratos por área: o da casa é da Operações (Gui); o da artista, da Agenda (Isa).
-      const perfilDe = (uid) => (E.perfis || []).find((p) => p.id === uid), nomeDe = (uid) => { const p = perfilDe(uid); return p ? nomeDaConta(p) : "conta"; };
-      const areaCt = (c) => (perfilDe(c.user_id)?.tipo === "casa" ? "operacoes" : "agenda");
-      const contratos = (area) => (E.contr || []).filter((c) => c.status !== "cancelado" && areaCt(c) === area);
-      const cardsContratos = (area) => {
-        const L = contratos(area), ct = (c) => ({ abrir: "ct:" + c.id, html: `${esc(c.titulo)} <span class="muted">· ${esc(nomeDe(c.user_id))}</span>` });
-        const conferir = L.filter((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length);
-        if (conferir.length) card(true, `${pl(conferir.length, "contrato assinado espera", "contratos assinados esperam")} "Conferir e confirmar"`, "O arquivo assinado já chegou. Abra, confira e confirme (ou peça de novo com o motivo).", "documentos", conferir.map(ct), 1);
-        const devolvidos = L.filter(ctPedidoDeNovo);
-        if (devolvidos.length) card(devolvidos.some((c) => String(c.devolvido_em || "") < mais(-3)), `${pl(devolvidos.length, "contrato devolvido aguarda", "contratos devolvidos aguardam")} o reenvio`, "Você pediu o arquivo de novo. Quando chegar, ele volta para \"Conferir e confirmar\"; se passar de 3 dias, vale um alô.", "documentos", devolvidos.map((c) => ({ abrir: "ct:" + c.id, html: `${esc(c.titulo)} <span class="muted">· ${esc(nomeDe(c.user_id))} · ${esc(c.devolvido_motivo || "")}</span>` })), 6);
-        const esperando = L.filter((c) => c.status === "enviado" && !ctRecebido(c) && !ctPedidoDeNovo(c));
-        if (esperando.length) card(false, `${pl(esperando.length, "contrato enviado espera", "contratos enviados esperam")} a assinatura`, "Já está com a pessoa: ela completa os dados, assina e envia de volta.", "documentos", esperando.map(ct), 8);
-      };
-      if (areas.includes("operacoes")) {
-        cardsContratos("operacoes");
-        const analise = (E.casas || []).filter((c) => c.status === "em_analise");
-        if (analise.length) card(true, `${pl(analise.length, "Ficha espera", "Fichas esperam")} a sua análise para habilitar`, "Abra a Ficha para habilitar ou pedir ajustes.", "casas_cad", analise.map((c) => ({ abrir: "casa:" + c.id, html: `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` <span class="muted">· ${esc(c.dados.cidade_uf)}</span>` : ""}` })), 2);
-        const semCt = (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato");
-        if (semCt.length && E.contr !== null) card(true, `${pl(semCt.length, "casa habilitada aguarda", "casas habilitadas aguardam")} o contrato da parceria`, "Prepare o contrato: a conta da casa já vem escolhida e a Ficha preenche o que já sabe.", "documentos", semCt.map((c) => ({ abrir: `ctpre:|${c.user_id}`, html: `Preparar o contrato de ${esc(c.dados?.nome || c.perfil?.vinculo_nome || "casa")}` })), 3);
-        const sol = (E.sol || []).filter((x) => x.status === "pendente");
-        if (sol.length) card(true, pl(sol.length, "pedido de atualização de Ficha", "pedidos de atualização de Ficha"), "A casa pediu para mudar dados que já tinha enviado.", "casas_cad", sol.map((x) => { const c = (E.casas || []).find((y) => y.id === x.casa_id); return { abrir: "casa:" + x.casa_id, html: esc(c?.dados?.nome || "Casa") }; }), 4);
-        const semFicha = proximas(14).filter((e) => !(E.casas || []).some((c) => (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h)) && c.status === "habilitada"));
-        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${pl(semFicha.length, "data nos próximos 14 dias", "datas nos próximos 14 dias")} com casa sem Ficha habilitada`, "Talvez valha chamar a casa para completar a Ficha ou mandar um convite.", "casas_cad", semFicha.map((e) => { const c = (E.casas || []).find((x) => k(x.dados?.nome) === k(e.h) || k(x.perfil?.vinculo_nome) === k(e.h)); return c ? { abrir: "casa:" + c.id, html: `${dt(e.d)} · ${esc(ondeDe(e))}` } : `${dt(e.d)} · ${esc(ondeDe(e))}`; }), 5);
-        const convAntigos = (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3));
-        if (convAntigos.length) card(false, `${pl(convAntigos.length, "casa convidada ainda não entrou", "casas convidadas ainda não entraram")} (mais de 3 dias)`, "Se ajudar, dá pra reenviar o convite ou mandar o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)), 9);
-      }
-      if (areas.includes("agenda")) {
-        cardsContratos("agenda");
-        const curad = (E.insc || []).filter((i) => i.status === "em_curadoria").sort((a, b) => String(a.enviado_em || "").localeCompare(String(b.enviado_em || "")));
-        if (curad.length) card(true, `${pl(curad.length, "inscrição espera", "inscrições esperam")} a curadoria`, "Abra a inscrição para aprovar, pedir ajustes ou não seguir. A mais antiga vem primeiro.", "curadoria", curad.map((i) => ({ abrir: "insc:" + i.id, html: esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` <span class="muted">· ${esc(i.dados.cidade_base)}</span>` : "") })), 2);
-        // Datas do portal sem contrato da artista (30 dias): "Preparar contrato" já escolhe a data e a artista.
-        const temCt = (e) => (E.contr || []).some((c) => c.evento_id === e.id && c.status !== "cancelado") || (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
-        const aPreparar = evsPortal.filter((e) => e.d <= mais(30) && !temCt(e)).sort((a, b) => a.d.localeCompare(b.d));
-        if (aPreparar.length && E.contr !== null) card(aPreparar.some((e) => e.d <= mais(10)), `${pl(aPreparar.length, "data do portal sem contrato", "datas do portal sem contrato")} (30 dias): contrato a preparar`, "Cada item abre \"Preparar contrato\" com a data e a artista já escolhidas.", "documentos", aPreparar.map((e) => ({ abrir: `ctpre:${e.id}|${e.au?.[0] || ""}`, html: `${dt(e.d)} · ${esc(ondeDe(e))}${e.a?.length ? ` <span class="muted">· ${esc(e.a.join(", "))}</span>` : ""}` })), 3);
-        const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
-        if (incompletas.length) card(true, `${pl(incompletas.length, "data nos próximos 14 dias", "datas nos próximos 14 dias")} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => e.portal ? { abrir: "dp:" + e.portal.id, html: `${dt(e.d)} · ${esc(ondeDe(e))}` } : `${dt(e.d)} · ${esc(ondeDe(e))}`), 5);
-        const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
-        const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
-        card(false, dias.length ? `${pl(dias.length, "dia", "dias")} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Em Criar datas dá para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`), 9);
-      }
-      if (areas.includes("marketing")) {
-        const H = S.hub, atras = (H?.andamento || []).filter((a) => a.atrasados > 0);
-        if (!H) card(false, "Carregando as campanhas…", "", null);
-        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que passaram sem \"Feito\" da casa; talvez valha um alô.", "campanhas", atras.map((a) => ({ abrir: "camp:" + a.campanha_id, html: `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}` })), 4);
-        const semCamp = proximas(30).filter((e) => !(H?.campanhas || []).some((c) => k(c.casa_ref) === k(e.h)));
-        if (H && semCamp.length) card(false, `${semCamp.length} ${semCamp.length === 1 ? "data nos próximos 30 dias" : "datas nos próximos 30 dias"} sem campanha carregada`, "Quando der, a campanha entra em Campanhas.", "campanhas", semCamp.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
-      }
-      const ordem = (a, b) => a.prio - b.prio || a.ord - b.ord, urg = cards.filter((c) => c.urg).sort(ordem), resto = cards.filter((c) => !c.urg).sort(ordem);
+      const blocos = pendenciasEquipe(E, areas), acoes = blocos.filter((b) => !b.info), resto = blocos.filter((b) => b.info);
+      const carregandoHub = areas.includes("marketing") && !S.hub ? `<p class="muted" style="font-size:13px">Carregando as campanhas…</p>` : "";
       return `<div class="tag">Para você</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
-      <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, pra você não precisar procurar. Vai no seu ritmo: o resto do portal está no menu.</p>
-      ${urg.length ? `<h2>Vale olhar primeiro</h2><div class="list">${urg.map((c) => c.html).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}
-      ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((c) => c.html).join("")}</div>` : ""}`;
+      <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, organizado pelo que fazer. Toque numa linha para abrir aquele item; "Abrir" mostra a lista toda.</p>
+      ${acoes.length ? `<h2>Vale olhar primeiro</h2><div class="list">${acoes.map((b) => blocoAcao(b)).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}${carregandoHub}
+      ${resto.length ? `<h2>Pode interessar</h2><div class="list">${resto.map((b) => blocoAcao(b)).join("")}</div>` : ""}`;
     },
     // "Feito": o que a própria pessoa fez nos últimos 30 dias (quem fez vem do banco: avaliado_por, criado_por, revisado_por).
     feito() {
@@ -2316,31 +2255,25 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const mes = P ? P.eventos.filter((e) => e.d.startsWith(P.hoje.slice(0, 7)) && !e.z).length : null;
       const alertas = P ? alertasOperacao(P).length : null;
       const conv = (E.conv || []).filter((c) => !c.aceito_em).length;
-      // Fila na ordem do que pesa mais (pedido da Marina, 18/11/2026): contrato assinado esperando conferência, Fichas,
-      // curadoria, contratos a preparar e devolvidos; o que tem pendência vem antes do que está zerado.
-      const ctAtivos = (E.contr || []).filter((c) => c.status !== "cancelado");
-      const temCt = (e) => ctAtivos.some((c) => c.evento_id === e.id) || (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
-      const em30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), hj = hojeIso();
-      const fila = [
-        ["documentos", ctAtivos.filter((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length).length, "contratos assinados esperando \u201cConferir e confirmar\u201d"],
-        ["casas_cad", (E.casas || []).filter((c) => c.status === "em_analise").length, "casas esperando análise"],
-        ["curadoria", (E.insc || []).filter((i) => i.status === "em_curadoria").length, "artistas esperando curadoria"],
-        ["documentos", (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato").length + (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hj && String(x.dia).slice(0, 10) <= em30 && !temCt(eventoDoPortal(x))).length, "contratos a preparar (casas habilitadas e datas do portal)"],
-        ["documentos", ctAtivos.filter(ctPedidoDeNovo).length, "contratos devolvidos aguardando reenvio"],
-        ["demanda", (E.avisos || []).length, "pedidos de show no \u201cme avise\u201d"],
-      ].map((x, i) => [...x, i]).sort((a, b) => (!a[1] - !b[1]) || a[3] - b[3]);
+      // "Vale olhar primeiro" por AÇÃO (pedido da Marina, 18/11/2026): os mesmos blocos do "Para você", de todas as áreas,
+      // com cada linha abrindo o item; o que está zerado aparece embaixo, em "Em dia".
+      if (!S.hub) carregarHub();
+      const blocos = pendenciasEquipe(E, ["operacoes", "agenda", "marketing"]).filter((b) => !b.info);
+      const avisos = (E.avisos || []).length;
+      const zerados = [["Conferir contrato assinado", "documentos"], ["Habilitar casas", "casas_cad"], ["Avaliar na curadoria", "curadoria"], ["Preparar contrato da casa", "documentos"], ["Preparar contrato de artista", "documentos"], ["Cobrar reenvio de contrato devolvido", "documentos"], ["Responder pedidos de show", "demanda", avisos]]
+        .filter(([t, , n]) => n == null ? !blocos.some((b) => b.acao === t) : !n);
       const atalho = (aba, cor, num, sufixo, titulo, texto, ir) => `<button class="atalho" data-ir="${aba}" style="--cor:${cor}">${num == null ? "" : `<div class="num">${num}<small>${sufixo}</small></div>`}<b>${titulo}</b><p>${texto}</p><span class="ir">${ir} →</span></button>`;
       return `<div class="tag">Comece por aqui</div><h1>${oi}${primeiro ? ", " + esc(primeiro) : ""}</h1>
       <p class="inicio-oi">Três coisas para olhar hoje. O menu completo continua à esquerda${matchMedia("(max-width:959px)").matches ? ", no botão ☰" : ""}.</p>
-      ${fila[0][1] ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:18px 0 0">Vale olhar primeiro</h2>
-      <div class="fila" id="filaPrimeiro">${fila.filter((x) => x[1]).map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q">${n}</span><span>${t}</span></button>`).join("")}</div>` : ""}
+      ${blocos.length || avisos ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:18px 0 0">Vale olhar primeiro</h2>
+      <div class="list" id="filaPrimeiro" style="margin-top:12px">${blocos.map((b) => blocoAcao(b, 3)).join("")}${avisos ? blocoAcao({ acao: "Responder pedidos de show", dica: "Pedidos no \u201cme avise\u201d esperando resposta.", aba: "demanda", itens: [], n: avisos }) : ""}</div>` : ""}
       <div class="atalhos">
         ${atalho(adm ? "estrategia" : "operacao", "#7c8ff3", mes, mes == null ? "" : "de 50 datas este mês", "Como a rede está indo", adm ? "Cidades, casas e artistas que estão acima ou abaixo da média, e onde abrir datas a seguir." : "Calendário do mês, meta de 50 datas e o que acontece nos próximos 14 dias.", adm ? "Ver o painel" : "Ver a operação")}
         ${atalho("operacao", "#f9b436", alertas, alertas == null ? "" : alertas === 1 ? "ponto" : "pontos", "O que precisa de atenção", "Datas sem link de ingressos, noites sem público lançado e status desatualizados no Notion.", "Ver os alertas")}
         ${atalho("convites", "#fcdbe5", conv, conv === 1 ? "convite esperando" : "convites esperando", "Chamar alguém para a rede", "Convide uma artista ou casa que já trabalha com o Tranquilo. Ela recebe o link e o tutorial.", "Fazer um convite")}
       </div>
-      ${fila.some((x) => !x[1]) ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">${fila[0][1] ? "Em dia" : "Fila de hoje"}</h2>
-      <div class="fila">${fila.filter((x) => !x[1]).map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q zero">${n}</span><span>${t}</span></button>`).join("")}</div>` : ""}
+      ${zerados.length ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">${blocos.length ? "Em dia" : "Fila de hoje"}</h2>
+      <div class="fila">${zerados.map(([t, aba]) => `<button data-ir="${aba}"><span class="q zero">0</span><span>${t}</span></button>`).join("")}</div>` : ""}
 `;
     },
     curadoria() {
@@ -3308,6 +3241,107 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   // Quem está livre num dia: casa que marcou "disponível" em Datas e artista que marcou em Disponibilidade, sem show
   // nesse dia (Notion ou datas do portal). ignorarId = a data do portal que está sendo editada (não conta contra ela mesma).
+  // Pendências da equipe organizadas por AÇÃO (pedido da Marina, 18/11/2026): cada bloco é um verbo ("Habilitar casas",
+  // "Conferir contrato assinado"…) e cada linha diz quem, onde e quando, e abre direto o item (data-abrir).
+  // Usado no "Para você" (Gui, Isa, Bruno) e no "Comece por aqui" da administração.
+  // Ordem: o que trava o evento mais próximo primeiro; o que não tem data vai depois, pela prioridade (prio).
+  function pendenciasEquipe(E, areas) {
+    const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
+    const evsNotion = (S.pac?.eventos || []).filter((e) => !e.z), evsPortal = (E.datasP || []).filter((x) => x.status !== "cancelada").map(eventoDoPortal);
+    const todos = [...evsNotion, ...evsPortal], futuros = todos.filter((e) => e.d >= hoje).sort((a, b) => a.d.localeCompare(b.d));
+    const proximas = (n) => futuros.filter((e) => e.d <= mais(n));
+    const evDe = (id) => id && todos.find((e) => e.id === id);
+    const casaDoEv = (e) => (E.casas || []).find((c) => c.id === e.kc || (e.h && (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h))));
+    const nomeCasa = (c) => c?.dados?.nome || c?.perfil?.vinculo_nome || "Casa";
+    const cidadeCasa = (c) => c?.dados?.cidade_uf || c?.dados?.cidade || "";
+    const proxDaCasa = (c) => c && futuros.find((e) => e.kc === c.id || [k(c.dados?.nome), k(c.perfil?.vinculo_nome)].filter(Boolean).includes(k(e.h)));
+    const perfilDe = (uid) => (E.perfis || []).find((p) => p.id === uid), nomeDe = (uid) => { const p = perfilDe(uid); return p ? nomeDaConta(p) : "conta"; };
+    const casaDoUser = (uid) => (E.casas || []).find((c) => c.user_id === uid);
+    const blocos = [];
+    // item: { abrir, quem, onde, quando (ISO do evento que ele trava), extra }; sem "abrir" vira linha só de leitura.
+    const bloco = (acao, dica, aba, itens, o = {}) => { if (itens.length) blocos.push({ acao, dica, aba, itens: itens.map((x, i) => ({ ...x, i })).sort((a, b) => (a.quando || "9999").localeCompare(b.quando || "9999") || a.i - b.i), prio: 5, info: false, ...o }); };
+    const areaCt = (c) => (perfilDe(c.user_id)?.tipo === "casa" ? "operacoes" : "agenda");
+    const itemCt = (c, extra) => { const e = evDe(c.evento_id) || proxDaCasa(casaDoUser(c.user_id));
+      return { abrir: "ct:" + c.id, quem: nomeDe(c.user_id), onde: e?.h || "", quando: e && e.d >= hoje ? e.d : null, extra: extra || (c.evento_id ? "" : esc(c.titulo)) }; };
+    const contratos = (area) => {
+      const L = (E.contr || []).filter((c) => c.status !== "cancelado" && areaCt(c) === area);
+      const chegou = (c) => arqsNovos(c).map((f) => String(f.em || "")).sort().pop();
+      bloco("Conferir contrato assinado", "O arquivo assinado já chegou: abra, confira e confirme (ou peça de novo com o motivo).", "documentos",
+        L.filter((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length).map((c) => itemCt(c, chegou(c) ? "chegou " + dm(chegou(c).slice(0, 10)) : "")), { prio: 1 });
+      bloco("Cobrar reenvio de contrato devolvido", "Você pediu o arquivo de novo. Se passar de 3 dias, vale um alô.", "documentos",
+        L.filter(ctPedidoDeNovo).map((c) => itemCt(c, `${c.devolvido_em ? "devolvido " + dm(c.devolvido_em.slice(0, 10)) + " · " : ""}${esc(c.devolvido_motivo || "")}`)), { prio: 6 });
+      bloco("Acompanhar a assinatura", "O contrato já está com a pessoa: ela completa os dados, assina e envia de volta.", "documentos",
+        L.filter((c) => c.status === "enviado" && !ctRecebido(c) && !ctPedidoDeNovo(c)).map((c) => itemCt(c)), { prio: 8, info: true });
+    };
+    // Casa (ou casa e artista) livre e com match: primeiro dia nos próximos 30 dias.
+    const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: nomeCasa(c), cidade: cidadeCasa(c) }));
+    let livres = null; const livresDe = () => (livres ||= livresNoDia(E, casasL, null));
+    const diasLivres = (c) => { const L = livresDe(); for (let i = 0; i <= 30; i++) { const d = mais(i); if (!L(d).cs.some((x) => x.id === c.id)) continue; const as = L(d, cidadeCasa(c), true).as; if (as.length) return { d, as }; } return null; };
+    const semData = (c) => !futuros.some((e) => e.d <= mais(30) && (e.kc === c.id || [k(c.dados?.nome), k(c.perfil?.vinculo_nome)].filter(Boolean).includes(k(e.h))));
+    const quandoLivre = (m) => m ? `livre ${NOME_SEM[wdDe(m.d)].slice(0, 3)}, ${dm(m.d)}` : "sem dia livre com artista nos próximos 30 dias";
+    if (areas.includes("operacoes")) {
+      contratos("operacoes");
+      bloco("Habilitar casas", "Abra a Ficha para habilitar ou pedir ajustes.", "casas_cad",
+        (E.casas || []).filter((c) => c.status === "em_analise").map((c) => { const e = proxDaCasa(c); return { abrir: "casa:" + c.id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null, extra: e ? "" : "sem data marcada" }; }), { prio: 2 });
+      if (E.contr !== null) bloco("Preparar contrato da casa", "Abre \"Preparar contrato\" com a casa já escolhida; a Ficha preenche o que já sabe.", "documentos",
+        (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato").map((c) => { const e = proxDaCasa(c); return { abrir: `ctpre:|${c.user_id}`, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null }; }), { prio: 3 });
+      bloco("Revisar pedido de atualização de Ficha", "A casa pediu para mudar dados que já tinha enviado.", "casas_cad",
+        (E.sol || []).filter((x) => x.status === "pendente").map((x) => { const c = (E.casas || []).find((y) => y.id === x.casa_id), e = proxDaCasa(c); return { abrir: "casa:" + x.casa_id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: e?.d || null }; }), { prio: 4 });
+      bloco("Chamar casa para completar a Ficha", "Data nos próximos 14 dias com casa sem Ficha habilitada: vale chamar a casa ou mandar um convite.", "casas_cad",
+        proximas(14).filter((e) => casaDoEv(e)?.status !== "habilitada").map((e) => { const c = casaDoEv(e); return { abrir: c ? "casa:" + c.id : null, quem: e.h || "casa a definir", onde: e.c || "", quando: e.d, extra: c ? "" : "sem Ficha no portal" }; }), { prio: 5 });
+      // Criar datas é da Agenda: quem tem a área abre a Nova data já preenchida; quem não tem (o Gui) abre a Ficha e combina com a Isa.
+      const criaDatas = areas.includes("agenda");
+      bloco("Fechar data para casa habilitada sem data", criaDatas ? "Casas prontas sem nenhuma data nos próximos 30 dias. Abre a Nova data com a casa (e o dia livre) já escolhidos."
+        : "Casas prontas sem nenhuma data nos próximos 30 dias. Abre a Ficha da casa; o dia livre com artista já vem indicado para combinar com a Agenda.", criaDatas ? "datas_portal" : "casas_cad",
+        (E.casas || []).filter((c) => c.status === "habilitada" && semData(c)).map((c) => { const m = diasLivres(c); return { abrir: criaDatas ? `dpnova:${c.id}|${m?.d || ""}|` : "casa:" + c.id, quem: nomeCasa(c), onde: cidadeCasa(c), quando: null, extra: quandoLivre(m) }; }), { prio: 7 });
+      bloco("Reenviar convite de casa", "Convidada há mais de 3 dias e ainda não entrou: dá pra reenviar ou mandar o link pelo WhatsApp.", "convites",
+        (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3)).map((c) => ({ quem: c.vinculo_nome || c.nome || c.email, extra: c.criado_em ? "convidada em " + dm(c.criado_em.slice(0, 10)) : "" })), { prio: 9, info: true });
+    }
+    if (areas.includes("agenda")) {
+      contratos("agenda");
+      bloco("Avaliar na curadoria", "Aprovar, pedir ajustes ou não seguir. A inscrição mais antiga vem primeiro.", "curadoria",
+        (E.insc || []).filter((i) => i.status === "em_curadoria").sort((a, b) => String(a.enviado_em || "").localeCompare(String(b.enviado_em || "")))
+          .map((i) => ({ abrir: "insc:" + i.id, quem: i.dados?.nome_artistico || "sem nome", onde: [i.dados?.cidade_base, i.dados?.estado].filter(Boolean).join("/"), quando: null, extra: i.enviado_em ? "enviada " + dm(i.enviado_em.slice(0, 10)) : "" })), { prio: 2 });
+      // Uma linha por artista da data do portal (30 dias) ainda sem contrato: "Preparar contrato" já escolhe a data e a conta.
+      const temCtEv = (e) => (E.contr || []).some((c) => c.evento_id === e.id && c.status !== "cancelado") || (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
+      const temCtArt = (e, uid) => (E.contr || []).some((c) => c.evento_id === e.id && c.status !== "cancelado" && c.user_id === uid);
+      if (E.contr !== null) bloco("Preparar contrato de artista", "Abre \"Preparar contrato\" com a data e a artista já escolhidas.", "documentos",
+        futuros.filter((e) => e.portal && e.d <= mais(30)).flatMap((e) => { const arts = [...(e.portal.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99));
+          const sem = arts.filter((a) => a.user_id ? !temCtArt(e, a.user_id) : !temCtEv(e));
+          return (sem.length ? sem : arts.length ? [] : temCtEv(e) ? [] : [{}]).map((a) => ({ abrir: `ctpre:${e.id}|${a.user_id || ""}`, quem: a.nome || "line-up a definir", onde: e.h || "", quando: e.d, extra: a.nome && !a.user_id ? "artista sem conta no portal" : "" })); }), { prio: 3 });
+      bloco("Completar line-up", "Data nos próximos 14 dias com menos de 2 artistas confirmados. Fechado o line-up, a casa recebe a mensagem de cronograma.", "datas_portal",
+        proximas(14).filter((e) => ((noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length) < 2)
+          .map((e) => ({ abrir: e.portal ? "dp:" + e.portal.id : null, quem: (e.a || []).join(", ") || "line-up a definir", onde: e.h || e.c || "", quando: e.d, extra: e.portal ? "" : "data do Notion" })), { prio: 5 });
+      bloco("Fechar data / montar line-up", "Casa e artista livres no mesmo dia, com match de cidade, e a casa sem data nos próximos 30 dias. Abre a Nova data já preenchida.", "datas_portal",
+        (E.casas || []).filter((c) => c.status !== "encerrada" && semData(c)).map((c) => ({ c, m: diasLivres(c) })).filter((x) => x.m).sort((a, b) => a.m.d.localeCompare(b.m.d))
+          .map(({ c, m }) => ({ abrir: `dpnova:${c.id}|${m.d}|${m.as[0].nome}`, quem: `${nomeCasa(c)} ↔ ${m.as.slice(0, 3).map((a) => a.nome).join(", ")}${m.as.length > 3 ? ` e mais ${m.as.length - 3}` : ""}`, onde: cidadeCasa(c), quando: null, extra: quandoLivre(m) })), { prio: 7 });
+    }
+    if (areas.includes("marketing")) {
+      const H = S.hub;
+      if (H && !H.erro) {
+        const casaRef = (ref) => (E.casas || []).find((c) => [k(c.dados?.nome), k(c.perfil?.vinculo_nome)].includes(k(ref)));
+        const proxRef = (ref) => proxDaCasa(casaRef(ref)) || futuros.find((e) => k(e.h) === k(ref));
+        bloco("Cobrar campanha atrasada", "Dias que passaram sem \"Feito\" da casa: talvez valha um alô.", "campanhas",
+          (H.andamento || []).filter((a) => a.atrasados > 0).map((a) => ({ abrir: "camp:" + a.campanha_id, quem: a.casa_ref, onde: "", quando: proxRef(a.casa_ref)?.d || null, extra: `${a.atrasados} ${a.atrasados === 1 ? "dia atrasado" : "dias atrasados"}` })), { prio: 2 });
+        bloco("Acompanhar campanha de hoje", "A casa tem um dia da campanha para hoje.", "campanhas",
+          (H.andamento || []).filter((a) => a.proximo && String(a.proximo).slice(0, 10) === hoje).map((a) => { const it = (H.itens || []).find((i) => i.campanha_id === a.campanha_id && String(i.dia).slice(0, 10) === hoje);
+            return { abrir: "camp:" + a.campanha_id, quem: a.casa_ref, onde: "", quando: proxRef(a.casa_ref)?.d || null, extra: "hoje" + (it?.titulo ? ": " + esc(it.titulo) : "") }; }), { prio: 3 });
+        bloco("Carregar campanha para a data", "Data nos próximos 30 dias sem campanha carregada.", "campanhas",
+          proximas(30).filter((e) => !(H.campanhas || []).some((c) => k(c.casa_ref) === k(e.h))).map((e) => ({ quem: e.h || "casa a definir", onde: e.c || "", quando: e.d })), { prio: 9, info: true });
+      }
+    }
+    const chave = (b) => b.itens.find((x) => x.quando)?.quando || "9999";
+    return blocos.sort((a, b) => chave(a).localeCompare(chave(b)) || a.prio - b.prio);
+  }
+  const dm = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  // Um bloco de ação: título com verbo e quantos, a dica, o "Abrir" (a lista toda) e cada linha clicável.
+  function blocoAcao(b, max = 6) {
+    const linha = (x) => { const txt = `<span class="pl-quem">${esc(x.quem)}</span>${[x.onde && esc(x.onde), x.quando && dm(x.quando), x.extra].filter(Boolean).map((t) => `<span class="pl-sep"> · </span><span class="muted">${t}</span>`).join("")}`;
+      return x.abrir ? `<li><button type="button" class="pend-linha" data-abrir="${esc(x.abrir)}">${txt}<span class="pl-ir" aria-hidden="true">→</span></button></li>` : `<li class="pend-txt">${txt}</li>`; };
+    const resto = b.itens.length > max ? `<details class="pend-mais"><summary>e mais ${b.itens.length - max}</summary><ul class="pend">${b.itens.slice(max).map(linha).join("")}</ul></details>` : "";
+    return `<div class="card bloco-acao"><div class="row"><div><h3 class="acao">${esc(b.acao)} <span class="n">(${b.n ?? b.itens.length})</span></h3><div class="muted" style="font-size:13px">${b.dica}</div></div>${b.aba ? `<button class="btn sm${b.info ? "" : " pri"}" data-ir="${b.aba}" title="Abrir a lista toda">Abrir</button>` : ""}</div>
+      ${b.itens.length ? `<ul class="pend">${b.itens.slice(0, max).map(linha).join("")}</ul>${resto}` : ""}</div>`;
+  }
   function livresNoDia(E, casas, ignorarId) {
     const k = (x) => String(x || "").trim().toLowerCase();
     const casaRef = (c) => [k(c.nome), ...(E.casas || []).filter((x) => x.id === c.id).map((x) => k(x.perfil?.vinculo_nome))].filter(Boolean);
@@ -3585,6 +3619,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     } else if (tipo === "casa") { irPara("casas_cad"); render(); scrollTo(0, 0); fichaCasa(id); }
     else if (tipo === "insc") { irPara("curadoria"); render(); scrollTo(0, 0); fichaInscricao(id); }
     else if (tipo === "camp") { irPara("campanhas"); S.campAberta = id; render(); depois(() => $("#campDia")?.scrollIntoView({ block: "start" })); }
+    else if (tipo === "dpnova") {
+      // Nova data já preenchida: a casa, o dia livre com match e (se houver) o primeiro artista livre.
+      const [cid, dia, art] = id.split("|"), c = (S.eq?.casas || []).find((x) => x.id === cid);
+      irPara("datas_portal"); S.dpEd = null; S.dpPre = { casa_id: cid, dia: dia || "", cidade: c?.dados?.cidade_uf || c?.dados?.cidade || "", artistas: art ? [{ nome: art }] : [] }; render();
+      depois(() => { $("#dpForm")?.scrollIntoView({ block: "start" }); (dia ? $("#dpCasa") : $("#dpDia"))?.focus({ preventScroll: true }); });
+    }
     else if (tipo === "dp") { irPara("datas_portal"); S.dpEd = id; S.dpPre = null; render(); depois(() => $("#dpForm")?.scrollIntoView({ block: "start" })); }
   }
   async function cliques(ev) {
