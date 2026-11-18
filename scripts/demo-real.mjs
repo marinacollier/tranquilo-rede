@@ -38,7 +38,7 @@ const imp = `select set_config('request.jwt.claims', ${lit(JSON.stringify({ sub:
 const FICHA = { nome: CASA, cidade_uf: 'Campinas/SP', capacidade_sentado: '100', capacidade: '150', menores: 'responsavel', instagram: '@cafemaritaka',
   funcionamento: 'Recebe o Tranquilo principalmente às sextas e sábados (histórico do Notion: 8 noites)', duvidas_guia: '' };
 await sql(`insert into cadastros_casas (user_id, dados, status, enviado_em) values (${lit(id.casa)}, ${js(FICHA)}, 'em_analise', now() - interval '3 days');`);
-await sql(`${imp} update cadastros_casas set status = 'habilitada', classificacao = 'confiavel', parecer = 'Casa parceira com 8 noites no histórico. Faltam CNPJ, Dono A e dados de repasse: pedir à casa.' where user_id = ${lit(id.casa)};`);
+await sql(`${imp} set session_replication_role = replica; update cadastros_casas set status = 'habilitada', avaliado_em = now(), classificacao = 'confiavel', parecer = 'Casa parceira com 8 noites no histórico. Faltam CNPJ, Dono A e dados de repasse: pedir à casa.' where user_id = ${lit(id.casa)}; set session_replication_role = origin;`);
 await sql(`update perfis set vinculo_nome = ${lit(CASA)} where id = ${lit(id.casa)};`);
 const casaId = (await sql(`select id from cadastros_casas where user_id = ${lit(id.casa)}`))[0].id;
 ok('Ficha do Café Maritaka (do Notion: nome, cidade, capacidade, Instagram, histórico) habilitada; o resto fica para pedir');
