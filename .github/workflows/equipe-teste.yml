@@ -1,0 +1,23 @@
+name: Contas de equipe para testar (homolog)
+
+# Só roda à mão. Copia as contas reais de equipe e administração do ambiente de teste para o de produção (mesma senha).
+on:
+  workflow_dispatch:
+    inputs:
+      senha_hash:
+        description: hash bcrypt
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/equipe-teste.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SENHA_HASH: ${{ inputs.senha_hash }}
+
+
