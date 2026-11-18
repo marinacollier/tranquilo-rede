@@ -27,6 +27,8 @@ const js = (o) => `${lit(JSON.stringify(o))}::jsonb`;
 const res = []; const ok = (c, m) => { res.push((c ? 'OK    ' : 'FALHA ') + m); if (!c) process.exitCode = 1; };
 
 // ---------- o caso ----------
+// Dias por cidade da artista do caso pronto (0=dom … 6=sáb): São Paulo qui, sex e sáb; Campinas e Santos sáb.
+const SEM_LIA = [['São Paulo', '4,5,6'], ['Campinas', '6'], ['Santos', '6']];
 const EMAIL = { casa: 'casa.teste@tranquilo.com.br', artista: 'artista.teste@tranquilo.com.br', central: 'central.caso-teste@teste-e2e.invalid' };
 const CASA = 'Casa Aurora (teste)', ARTISTA = 'Lia Moreno (teste)', DIA = '2026-11-20';
 const FICHA = {
@@ -143,7 +145,7 @@ insert into trilha_marcos (casa_ref, etapa, feito_por, feito_em) values ${etapas
     await sql(`insert into disponibilidade_casa (casa_ref, dia, situacao, atualizado_por) values ${livres.map((d) => `(${lit(CASA)}, ${lit(d)}, ${d === '2026-12-24' || d === '2026-12-25' ? "'indisponivel'" : "'disponivel'"}, ${lit(id.casa)})`).join(', ')};
 insert into disponibilidade_semanal (casa_ref, dias, atualizado_por) values (${lit(CASA)}, '{4,5,6}', ${lit(id.casa)});
 insert into disponibilidade_artista (user_id, dia, situacao) values ${livres.map((d) => `(${lit(id.artista)}, ${lit(d)}, 'disponivel')`).join(', ')};
-insert into disponibilidade_semanal (user_id, dias, atualizado_por) values (${lit(id.artista)}, '{4,5,6}', ${lit(id.artista)});`);
+insert into disponibilidade_semanal (user_id, cidade, dias, atualizado_por) values ${SEM_LIA.map(([c, d]) => `(${lit(id.artista)}, ${lit(c)}, '{${d}}', ${lit(id.artista)})`).join(', ')};`);
     ok(true, `equipe da casa (6 pessoas, com reserva), treinamento concluído e ${livres.length} dias livres de casa e artista`);
 
     // A data do show, criada no portal pela Isa (Central).
@@ -186,6 +188,23 @@ values (${lit(conta)}, ${lit(evId)}, ${lit(titulo.slice(0, 160))}, ${lit(m.id)},
     ok(linhas.length > 10, `${linhas.length} passos da data marcados como feitos (casa e artista)`);
   }
   // Divulgação do Bruno é do artista (Marina, 17/11/2026): os documentos de marketing passam a abrir também para artistas.
+  // Coerência do caso pronto (Marina, 18/11/2026): a tela da artista mostra os dias por cidade; a disponibilidade
+  // sem cidade aparecia como "nada marcado" mesmo com contrato assinado. Grava por cidade, sem recriar o resto.
+  if (MODO === 'coerencia') {
+    const a = await sql(`select id from auth.users where email = ${lit(EMAIL.artista)}`);
+    if (!a[0]) { ok(false, 'conta da artista do caso pronto não existe (rode o modo criar)'); }
+    else {
+      await sql(`delete from disponibilidade_semanal where user_id = ${lit(a[0].id)};
+insert into disponibilidade_semanal (user_id, cidade, dias, atualizado_por) values ${SEM_LIA.map(([c, d]) => `(${lit(a[0].id)}, ${lit(c)}, '{${d}}', ${lit(a[0].id)})`).join(', ')};`);
+      const r = await sql(`select (select count(*) from disponibilidade_semanal where user_id = ${lit(a[0].id)} and cidade is not null) cidades,
+        (select count(*) from disponibilidade_artista where user_id = ${lit(a[0].id)} and situacao = 'disponivel' and dia >= current_date) dias,
+        (select status from inscricoes_artistas where user_id = ${lit(a[0].id)}) insc,
+        (select count(*) from contratos where user_id = ${lit(a[0].id)} and status = 'assinado') contratos,
+        (select count(*) from disponibilidade_artista where user_id = ${lit(a[0].id)} and dia = ${lit(DIA)} and situacao = 'disponivel') no_dia_do_show`);
+      const x = r[0];
+      ok(x.cidades >= 3 && x.no_dia_do_show == 1 && x.insc === 'aprovada', `artista do caso pronto: inscrição ${x.insc}, dias por cidade em ${x.cidades} cidades, ${x.dias} dias livres à frente, livre no dia do show: ${x.no_dia_do_show ? 'sim' : 'não'}, ${x.contratos} contrato(s) assinado(s)`);
+    }
+  }
   if (MODO === 'publico-artista') {
     const r = await sql(`update materiais set publico = publico || 'artista'::tipo_perfil where area = 'marketing' and not ('artista'::tipo_perfil = any (publico)) returning slug`);
     ok(true, `${r.length} documentos de marketing agora abrem também para artistas`);
