@@ -705,6 +705,36 @@ details.card.fsec>.fgrid{padding:0 22px}
 .falta-enviar.ok{border-color:var(--good);color:var(--good-ink)}
 #enviar:disabled{opacity:.55;cursor:not-allowed}
 @media (max-width:600px){details.card.fsec>summary{padding:14px 16px;gap:10px}details.card.fsec>.fgrid{padding:0 16px}details.card.fsec>.fsec-desc{margin:0 16px 12px!important}.fsec-acoes{padding:14px 16px 16px}details.card.fsec>summary h3{font-size:18px}}
+/* "Não tem como errar" (Marina, 18/11/2026): todo botão diz o efeito; a linha embaixo diz o que acontece depois */
+.acao-exp{display:inline-flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:320px;min-width:0}
+.acao-exp>small{font-size:12.5px;line-height:1.4;color:var(--ink-3);font-weight:400}
+.barra-acoes:has(.acao-exp){align-items:flex-start;gap:14px 18px}
+@media (max-width:640px){.barra-acoes .acao-exp{max-width:none;flex:1 1 100%}.barra-acoes .acao-exp>.btn{width:100%;white-space:normal;text-align:center}}
+/* Celular: botão de rótulo longo quebra a linha em vez de passar da tela (#copiarFicha passava 2px) */
+@media (max-width:640px){main .btn{max-width:100%;white-space:normal;text-align:center}}
+/* Confirmação na própria página: aparece logo abaixo do botão */
+.conf-aqui{margin:10px 0;display:flex;flex-direction:column;gap:4px}
+.conf-aqui>span{font-size:14px;color:var(--ink-2)}
+.conf-aqui .barra-acoes{margin-top:8px}
+/* "Começa pequeno e expande": bloco recolhido com uma linha de resumo (o que é e o status) */
+details.dobra{border:1px solid var(--line);border-radius:16px;background:var(--surface);margin:12px 0}
+details.dobra>summary{list-style:none;display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:14px 44px 14px 18px;margin:0;color:var(--ink);font-size:15px;position:relative}
+details.dobra>summary::-webkit-details-marker{display:none}
+details.dobra>summary::before{content:none!important;display:none!important}
+details.dobra>summary::after{content:"";position:absolute;right:20px;top:50%;width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:translateY(-50%) rotate(-45deg);transition:transform .15s}
+details.dobra[open]>summary::after{transform:translateY(-70%) rotate(45deg)}
+details.dobra>summary:hover{background:var(--raised);border-radius:16px}
+details.dobra>summary:focus-visible{outline:2px solid var(--violet);outline-offset:-2px;border-radius:16px}
+.dobra-tit{font-weight:700}
+.dobra-st{font-size:13px;color:var(--ink-3);font-weight:400}
+.dobra-corpo{padding:0 18px 18px}
+.dobra-corpo>.card:first-child{margin-top:0}
+details.dobra.sem-borda{border:0;background:none}
+details.dobra.sem-borda>summary{padding-left:0}
+details.dobra.sem-borda>.dobra-corpo{padding:0}
+details.card.fsec>.fsec-corpo{padding:0 22px 22px}
+.fsec-n.frac{font-size:11px;letter-spacing:-.02em}
+@media (max-width:600px){details.card.fsec>.fsec-corpo{padding:0 16px 16px}}
 </style>
 </head>
 <body>
@@ -944,6 +974,8 @@ function tabela(id, colunas, linhas, ordem, semLinhas) {
   S.ord[id] = st;
   const col = colunas[st.i];
   const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
+  // Sem linhas: só o aviso, sem a tabela vazia (no celular, o cabeçalho largo cortava o aviso para fora da tela).
+  if (!ord.length) return `<div class="tbl-vazia" data-tbl-vazia="${id}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</div>`;
   return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
 }
 const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;

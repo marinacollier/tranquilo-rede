@@ -36,7 +36,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
       await p.evaluate(() => { const a = TQConta.areaDe('curadoria') || 'curadoria'; S.sub = S.sub || {}; S.sub[a] = 'curadoria'; S.aba = a; render(); }); await p.waitForTimeout(700);
       const linha = await p.$(`tr:has-text("${nome}")`); if (linha) await linha.click(); await p.waitForTimeout(600);
       const parecer = await p.$('#dlg textarea'); if (parecer) await parecer.fill(dec === 'aprovada' ? 'Bem-vinda à rede!' : 'Agora não é o momento, obrigado pela inscrição.');
-      await p.click(`#dlg [data-decisao="${dec}"]`).catch(() => {}); await p.waitForTimeout(800);
+      await p.click(`#dlg [data-decisao="${dec}"]`).catch(() => {}); if (dec === 'reprovada') await p.click('#dlg [data-conf-sim]').catch(() => {}); await p.waitForTimeout(800);
       ok(await statusDe(nome) === dec, `curadoria: ${nome} fica ${dec} (${await statusDe(nome)} · linha ${!!linha} · ${(await p.textContent('#dlgIn').catch(() => '')).slice(0, 80).replace(/\s+/g, ' ')})`);
       await p.evaluate(() => document.querySelector('#dlg')?.open && document.querySelector('#dlg').close());
     }

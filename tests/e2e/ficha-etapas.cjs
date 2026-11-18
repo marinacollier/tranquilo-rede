@@ -64,7 +64,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.waitForTimeout(1500);
     ok((Object.values((await db()).casas)[0]?.dados || {}).luz === 'Frontal quente', 'o recuperado é salvo no banco sozinho');
     ok(!(await p.evaluate(() => Object.keys(localStorage).some((k) => k.startsWith('tq-rascunho-casa-')))), 'depois de salvo, a cópia local sai');
-    await p.click('#enviar'); await p.waitForTimeout(700);
+    await p.click('#enviar'); await p.waitForTimeout(300);
+    // Enviar trava as respostas: pergunta na própria página antes (Marina, 18/11/2026) e nada sai até o "Sim".
+    ok(/Enviar a Ficha ao Tranquilo agora\?/.test(await p.textContent('.conf-aqui')) && Object.values((await db()).casas)[0]?.status !== 'em_analise', 'Enviar pergunta na própria página antes, dizendo o que acontece');
+    await p.click('[data-conf-sim]'); await p.waitForTimeout(700);
     ok(Object.values((await db()).casas)[0]?.status === 'em_analise', 'Ficha completa enviada vai para análise');
     await ir('conta'); await p.click('#sairConta'); await p.waitForTimeout(400);
     // ---------- Artista ----------

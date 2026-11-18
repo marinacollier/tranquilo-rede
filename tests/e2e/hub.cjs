@@ -70,12 +70,12 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/A campanha do Rooftap/.test(await p.innerText('#app')) && /Ciência da versão [0-9-]+ [0-9:]+: 0 pessoas/.test(await p.innerText('#app')), 'campanha atualizada pede "Li e estou ciente" em Materiais');
     // equipe publica nova versão pedindo ciência de novo, e cadastra material novo
     await p.click('details:has([data-mat-versao]) summary'); await p.selectOption('#mvMat', 'm1'); await p.fill('#mvVer', '2'); await p.fill('#mvRes', 'novo tripé');
-    await p.click('[data-mat-versao]'); await p.waitForTimeout(400);
+    await p.click('[data-mat-versao]'); await p.click('[data-conf-sim]'); await p.waitForTimeout(400);
     ok(/Já existe|Dê um nome/.test(await p.innerText('#materr')) === false && /versão 2 · novo tripé/.test(await p.innerText('#app')) && !/Ciência da versão 2:/.test(await p.innerText('#app')), 'versão sem pedir ciência não gera pendência');
     await p.click('details:has([data-mat-versao]) summary').catch(() => {}); if (!(await p.isVisible('#mvVer'))) await p.click('details:has([data-mat-versao]) summary');
-    await p.selectOption('#mvMat', 'm1'); await p.fill('#mvVer', '2'); await p.click('[data-mat-versao]'); await p.waitForTimeout(300);
+    await p.selectOption('#mvMat', 'm1'); await p.fill('#mvVer', '2'); await p.click('[data-mat-versao]'); await p.click('[data-conf-sim]'); await p.waitForTimeout(300);
     ok(/Já existe uma versão/.test(await p.innerText('#materr')), 'versão repetida é recusada com mensagem clara');
-    await p.fill('#mvVer', '3'); await p.check('#mvCie'); await p.click('[data-mat-versao]'); await p.waitForTimeout(400);
+    await p.fill('#mvVer', '3'); await p.check('#mvCie'); await p.click('[data-mat-versao]'); await p.click('[data-conf-sim]'); await p.waitForTimeout(400);
     ok(/Ciência da versão 3: 0 pessoas/.test(await p.innerText('#app')), 'versão que muda o que a casa faz pede ciência de novo');
     if (!(await p.isVisible('#mnTit'))) await p.click('details:has([data-mat-novo]) summary');
     await p.fill('#mnTit', 'Função da fotografia'); await p.fill('#mnUrl', 'http://inseguro'); await p.click('[data-mat-novo]'); await p.waitForTimeout(200);
