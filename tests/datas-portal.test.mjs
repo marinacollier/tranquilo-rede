@@ -106,3 +106,26 @@ await como(art2, async () => { ok(!!(await tenta(() => q(`insert into disponibil
 await como(casa2, async () => { ok((await q(`select * from disponibilidade_semanal`)).rows.length === 0, 'outra casa não vê'); });
 await como(eq, async () => { ok((await q(`select * from disponibilidade_semanal`)).rows.length === 2, 'equipe vê a semana de todos'); });
 ok(!!(await tenta(() => q(`insert into disponibilidade_semanal (user_id, dias) values ($1, '{7}')`, [art2]))), 'só dias de 0 a 6');
+// v31: line-up com vários artistas, sem repetir, mínimo 1; tirar artista cancela o contrato dele que espera assinatura.
+const art3 = await novo('art3@x.com', 'artista');
+let lid;
+await como(eq, async () => {
+  lid = (await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, artistas) values ('2026-12-27', 'Descubra', $1, 'Casa Um', $2) returning id`,
+    [cid, JSON.stringify([{ nome: 'Ana', user_id: art, ordem: 1 }, { nome: 'Bia', user_id: art2, ordem: 2 }, { nome: 'Caio', user_id: art3, ordem: 3 }])])).rows[0].id;
+  ok(!!lid, 'line-up com 3 artistas (padrão do Descubra)');
+  ok(/duas vezes/.test(await tenta(() => q(`update datas_portal set artistas = artistas || '[{"nome":" ana "}]' where id = $1`, [lid])) || ''), 'mesmo nome duas vezes no line-up não salva');
+  ok(/duas vezes/.test(await tenta(() => q(`update datas_portal set artistas = artistas || $2::jsonb where id = $1`, [lid, JSON.stringify([{ nome: 'Outro nome', user_id: art }])])) || ''), 'mesma conta duas vezes no line-up não salva');
+  ok(/pelo menos 1/.test(await tenta(() => q(`update datas_portal set artistas = '[]' where id = $1`, [lid])) || ''), 'data confirmada sem artista não salva');
+  ok(!(await tenta(() => q(`update datas_portal set artistas = artistas || '[{"nome":"Duda sem conta","ordem":4}]' where id = $1`, [lid]))), 'equipe adiciona um 4º artista');
+  for (const [u, n] of [[art, 'Ana'], [art2, 'Bia'], [art3, 'Caio']]) await q(`insert into contratos (user_id, evento_id, titulo, texto) values ($1, $2, $3, $4)`, [u, 'p:' + lid, 'Contrato ' + n, 'x'.repeat(60)]);
+  ok((await q(`select count(*)::int n from contratos where evento_id = $1`, ['p:' + lid])).rows[0].n === 3, 'um contrato para cada artista do line-up');
+});
+await como(art2, async () => { ok((await q(`select titulo from contratos where evento_id = $1`, ['p:' + lid])).rows.map((r) => r.titulo).join() === 'Contrato Bia', 'cada artista vê só o próprio contrato da data'); });
+await q(`update contratos set conferido_em = now() where user_id = $1 and evento_id = $2`, [art3, 'p:' + lid]);
+await como(eq, async () => {
+  await q(`update datas_portal set artistas = $2 where id = $1`, [lid, JSON.stringify([{ nome: 'Ana', user_id: art, ordem: 1 }])]);
+});
+const st = Object.fromEntries((await q(`select user_id::text u, status from contratos where evento_id = $1`, ['p:' + lid])).rows.map((r) => [r.u, r.status]));
+ok(st[art] === 'enviado' && st[art2] === 'cancelado', 'tirar a artista do line-up cancela o contrato dela que espera assinatura; quem fica não muda');
+ok(st[art3] === 'enviado', 'contrato já conferido não é cancelado ao tirar a artista');
+await como(art2, async () => { ok((await q(`select id from datas_portal where id = $1`, [lid])).rows.length === 0, 'quem saiu do line-up deixa de ver a data'); });

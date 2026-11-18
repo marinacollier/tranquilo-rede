@@ -2817,3 +2817,51 @@ begin
   return new;
 end $$;
 revoke all on function novo_usuario() from public, anon, authenticated;
+
+-- =====================================================================
+-- v31: line-up da data com vários artistas e um contrato para cada um (pedido da Marina, 18/11/2026). Idempotente.
+-- O line-up (datas_portal.artistas) é editável: a equipe adiciona ou remove artistas (o Descubra tem 3 por padrão).
+-- Regras no banco, iguais às do site (src/regras.js, normalizarLineup):
+--   · data confirmada tem pelo menos 1 artista, no máximo 12, cada um com nome; ninguém aparece duas vezes
+--     (mesmo nome, sem diferença de maiúsculas e espaços, ou mesma conta);
+--   · artista com conta tirado do line-up: o contrato dele desta data que ainda espera assinatura é cancelado
+--     (assinado ou já conferido não muda; a equipe resolve por fora). O site pede a confirmação antes de salvar.
+-- Contratos continuam um por pessoa (contratos.user_id), com evento_id = 'p:<id da data>'. Nada muda nas tabelas.
+-- =====================================================================
+create or replace function datas_portal_lineup() returns trigger
+language plpgsql set search_path = public as $$
+declare a jsonb; nomes text[] := '{}'; contas text[] := '{}'; n text; u text;
+begin
+  if tg_op = 'UPDATE' and new.artistas is not distinct from old.artistas and new.status is not distinct from old.status then return new; end if;
+  if jsonb_array_length(new.artistas) > 12 then raise exception 'O line-up tem no máximo 12 artistas.'; end if;
+  if new.status = 'confirmada' and jsonb_array_length(new.artistas) < 1 then raise exception 'A data precisa de pelo menos 1 artista no line-up.'; end if;
+  for a in select * from jsonb_array_elements(new.artistas) loop
+    if jsonb_typeof(a) <> 'object' then raise exception 'Artista do line-up inválido.'; end if;
+    n := lower(btrim(regexp_replace(coalesce(a ->> 'nome', ''), '\s+', ' ', 'g')));
+    if n = '' or length(n) > 160 then raise exception 'Cada artista do line-up precisa de um nome (até 160 letras).'; end if;
+    if n = any(nomes) then raise exception '% aparece duas vezes no line-up.', a ->> 'nome'; end if;
+    nomes := nomes || n;
+    u := nullif(a ->> 'user_id', '');
+    if u is not null then
+      if u = any(contas) then raise exception 'A mesma conta aparece duas vezes no line-up.'; end if;
+      contas := contas || u;
+    end if;
+  end loop;
+  return new;
+end $$;
+drop trigger if exists trg_datas_portal_lineup on datas_portal;
+create trigger trg_datas_portal_lineup before insert or update on datas_portal for each row execute function datas_portal_lineup();
+
+create or replace function datas_portal_tirou_artista() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  update contratos set status = 'cancelado'
+   where evento_id = 'p:' || new.id::text and status = 'enviado' and conferido_em is null
+     and user_id::text in (select x ->> 'user_id' from jsonb_array_elements(old.artistas) x where coalesce(x ->> 'user_id', '') <> ''
+                           except select y ->> 'user_id' from jsonb_array_elements(new.artistas) y where coalesce(y ->> 'user_id', '') <> '');
+  return new;
+end $$;
+revoke all on function datas_portal_lineup(), datas_portal_tirou_artista() from public, anon, authenticated;
+drop trigger if exists trg_datas_portal_tirou on datas_portal;
+create trigger trg_datas_portal_tirou after update of artistas on datas_portal for each row
+  when (old.artistas is distinct from new.artistas) execute function datas_portal_tirou_artista();

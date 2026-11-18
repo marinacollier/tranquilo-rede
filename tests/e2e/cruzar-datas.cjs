@@ -103,7 +103,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(await p.inputValue('#dpDia') === dia && (await p.$eval('#dpCasa', (s) => s.options[s.selectedIndex].text)).includes('Casa Cruza') && await p.inputValue('#dpCidade') === 'Recife/PE', 'tocar na casa preenche dia, casa e cidade da Nova data');
     await p.click('[data-dpb-art]'); await p.waitForTimeout(500);
     ok(await p.inputValue('[data-dp-art="0"]') === 'Ana Cruza' && await p.inputValue('#dpDia') === dia, 'tocar no artista coloca no line-up sem perder a casa');
-    ok(/Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza', 'Nova data: a lista de artistas é só de quem marcou o dia como livre');
+    ok(/Com match em .*: 1 casa e 1 artista/.test(await p.textContent('#dpForm')) && (await p.$$eval('[data-dp-art="0"] option', (o) => o.map((x) => x.value).filter(Boolean))).join() === 'Ana Cruza' && !(await p.$$eval('[data-dp-art="1"] option', (o) => o.map((x) => x.value).filter(Boolean))).length, 'Nova data: a lista de artistas é só de quem marcou o dia como livre, e quem já está no line-up não aparece nas outras linhas');
     await p.click('[data-dp-salvar]'); await p.waitForTimeout(800);
     ok(/✓ Feito: Data criada/.test(await p.textContent('#dpErr')), 'a data criada pela busca salva');
     ok(!/Casa Cruza/.test(await p.textContent('#dpBusca')), 'depois de criada, casa e artista saem dos livres desse dia');
