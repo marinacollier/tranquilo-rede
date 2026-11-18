@@ -172,11 +172,11 @@ for (const c of [...casas.values()].sort((x, y) => x.nome.localeCompare(y.nome))
     ficha_notion: { ...(/^Casa (em|da rede)\b/.test(c.nome) ? {} : { nome: c.nome }), ...(fichaNotion[String(c.id).replace(/-/g, '')] || {}) },
   }, { cidades: c.cidade });
 }
-await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.equipe } });
+await pacote('equipe', 'equipe', 'Equipe Tranquilo', { eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), fichas: fichaNotion, noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.equipe } });
 // O pacote de adm leva a lista de todos os códigos, para distribuir.
 const codAdm = await codigo('adm', 'adm');
 pacotes.push([codAdm, {
-  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.adm },
+  ...comum, perfil: 'adm', nome: 'Administração', eventos: todos, base: baseOk, metodo, enderecos: enderecosDe(eventos), fichas: fichaNotion, noites: noitesDe(eventos), notion: { fonte: fonteBases, ...bases.adm },
   acessos: [...acessos, { tipo: 'adm', nome: 'Administração', codigo: codAdm }],
 }]);
 acessos.push({ tipo: 'adm', nome: 'Administração', codigo: codAdm });
@@ -207,7 +207,7 @@ const publico = {
 await writeFile(path.join(DIST, 'public.json'), JSON.stringify(publico));
 // Base de conhecimento (títulos) e Método para todo mundo: artista, casa e equipe (pedido da Marina, 17/11/2026).
 await writeFile(path.join(DIST, 'referencia.json'), JSON.stringify({ base: baseOk, metodo }));
-for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'campanha.js', 'equipe.js', 'operacao.js', 'historico.js', 'propostas.js', 'contrato.js', 'conta.js', 'cidades.json', 'bases.json', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
+for (const arq of ['index.html', 'config.js', 'diario.js', 'regras.js', 'tour.js', 'campanha.js', 'equipe.js', 'operacao.js', 'historico.js', 'propostas.js', 'prefichas.js', 'contrato.js', 'conta.js', 'cidades.json', 'bases.json', 'img', 'vendor']) await cp(path.join(RAIZ, 'src', arq), path.join(DIST, arq), { recursive: true });
 // Versão nos scripts (?v=...): o navegador baixa de novo a cada publicação, em vez de usar o arquivo guardado.
 await writeFile(path.join(DIST, 'index.html'), (await readFile(path.join(DIST, 'index.html'), 'utf8')).replaceAll('__V__', Date.now().toString(36)));
 await writeFile(path.join(DIST, '.nojekyll'), '');
