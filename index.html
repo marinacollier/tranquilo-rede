@@ -752,6 +752,80 @@ details.card.fsec>.fgrid{padding:0 22px}
 .falta-enviar.ok{border-color:var(--good);color:var(--good-ink)}
 #enviar:disabled{opacity:.55;cursor:not-allowed}
 @media (max-width:600px){details.card.fsec>summary{padding:14px 16px;gap:10px}details.card.fsec>.fgrid{padding:0 16px}details.card.fsec>.fsec-desc{margin:0 16px 12px!important}.fsec-acoes{padding:14px 16px 16px}details.card.fsec>summary h3{font-size:18px}}
+/* "Não tem como errar" (Marina, 18/11/2026): todo botão diz o efeito; a linha embaixo diz o que acontece depois */
+.acao-exp{display:inline-flex;flex-direction:column;align-items:flex-start;gap:5px;max-width:320px;min-width:0}
+.acao-exp>small{font-size:12.5px;line-height:1.4;color:var(--ink-3);font-weight:400}
+.barra-acoes:has(.acao-exp){align-items:flex-start;gap:14px 18px}
+@media (max-width:640px){.barra-acoes .acao-exp{max-width:none;flex:1 1 100%}.barra-acoes .acao-exp>.btn{width:100%;white-space:normal;text-align:center}}
+/* Celular: botão de rótulo longo quebra a linha em vez de passar da tela (#copiarFicha passava 2px) */
+@media (max-width:640px){main .btn{max-width:100%;white-space:normal;text-align:center}}
+/* Confirmação na própria página: aparece logo abaixo do botão */
+.conf-aqui{margin:10px 0;display:flex;flex-direction:column;gap:4px}
+.conf-aqui>span{font-size:14px;color:var(--ink-2)}
+.conf-aqui .barra-acoes{margin-top:8px}
+/* "Começa pequeno e expande": bloco recolhido com uma linha de resumo (o que é e o status) */
+details.dobra{border:1px solid var(--line);border-radius:16px;background:var(--surface);margin:12px 0}
+details.dobra>summary{list-style:none;display:flex;align-items:center;gap:6px 12px;flex-wrap:wrap;padding:14px 44px 14px 18px;margin:0;color:var(--ink);font-size:15px;position:relative}
+details.dobra>summary::-webkit-details-marker{display:none}
+details.dobra>summary::before{content:none!important;display:none!important}
+details.dobra>summary::after{content:"";position:absolute;right:20px;top:50%;width:8px;height:8px;border-right:2px solid var(--ink-3);border-bottom:2px solid var(--ink-3);transform:translateY(-50%) rotate(-45deg);transition:transform .15s}
+details.dobra[open]>summary::after{transform:translateY(-70%) rotate(45deg)}
+details.dobra>summary:hover{background:var(--raised);border-radius:16px}
+details.dobra>summary:focus-visible{outline:2px solid var(--violet);outline-offset:-2px;border-radius:16px}
+.dobra-tit{font-weight:700}
+.dobra-st{font-size:13px;color:var(--ink-3);font-weight:400}
+.dobra-corpo{padding:0 18px 18px}
+.dobra-corpo>.card:first-child{margin-top:0}
+details.dobra.sem-borda{border:0;background:none}
+details.dobra.sem-borda>summary{padding-left:0}
+details.dobra.sem-borda>.dobra-corpo{padding:0}
+details.card.fsec>.fsec-corpo{padding:0 22px 22px}
+/* Filtros, seletores e abas "gritam" que são clicáveis (Marina, 18/11/2026): rótulo antes, cara de seletor
+   segmentado, estado ativo forte (preenchido, com ✓) e, quando dá, a contagem de cada opção */
+.subnav{align-items:center;gap:0;padding:0;border:0;margin:0 0 18px}
+.subnav::before{content:"Ver:";font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-right:10px}
+.subnav{display:flex;flex-wrap:wrap;row-gap:6px}
+.subnav button{border-radius:0;margin-left:-1px;border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink-2);font-weight:600;padding:8px 14px}
+.subnav button:first-of-type{border-radius:12px 0 0 12px;margin-left:0}
+.subnav button:last-of-type{border-radius:0 12px 12px 0}
+.subnav button:only-of-type{border-radius:12px}
+.subnav button:hover{border-color:var(--violet);color:var(--ink);background:var(--raised);position:relative;z-index:1}
+.subnav button.on{background:var(--violet);border-color:var(--violet);color:#0b0b0b;font-weight:700;position:relative;z-index:2}
+.subnav button.on::before{content:"✓ "}
+.subnav button:focus-visible{outline:2px solid var(--violet);outline-offset:2px;z-index:3;position:relative}
+.filters:has(>select)::before,.filters:has(>label.escolha)::before{content:"Filtrar:";font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.filters>select:has(option[value=""]):not(:has(option[value=""]:checked)),.filters>label>select:has(option[value=""]):not(:has(option[value=""]:checked)){border-color:var(--violet);background-color:var(--violet-soft);color:var(--ink);font-weight:600;box-shadow:0 0 0 1px var(--violet)}
+.filters>select:has(option[value=""]:checked){color:var(--ink-2)}
+/* Grupo de botões que escolhe uma opção (aria-pressed): segmentado, a escolhida preenchida com ✓ */
+.seg-opcoes{display:flex;flex-wrap:wrap;gap:6px}
+.seg-opcoes>button[aria-pressed]{border:1.5px solid var(--line-2);background:var(--surface);color:var(--ink-2);border-radius:12px;padding:9px 14px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left}
+.seg-opcoes>button[aria-pressed]:hover{border-color:var(--violet);color:var(--ink);background:var(--raised)}
+.seg-opcoes>button[aria-pressed="true"]{background:var(--violet);border-color:var(--violet);color:#0b0b0b}
+.seg-opcoes>button[aria-pressed="true"] .seg-n{color:#0b0b0b;opacity:.8}
+.seg-opcoes>button[aria-pressed="true"]>b::before{content:"✓ "}
+.seg-opcoes .seg-n{font-size:12px;font-weight:500;color:var(--ink-3)}
+.seg-opcoes>button:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.passo-rot{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700;letter-spacing:.04em;color:var(--ink-2);margin:14px 0 8px}
+.passo-rot>i{font-style:normal;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:var(--violet);color:#0b0b0b;font-size:12px;flex:none}
+.fsec-n.frac{font-size:11px;letter-spacing:-.02em}
+@media (max-width:600px){details.card.fsec>.fsec-corpo{padding:0 16px 16px}}
+.dp-fechado > *:not(h2){display:none!important}
+/* Propostas de atualização (v34): lista compacta da equipe e o antes → depois da pessoa */
+.pp-topo{all:unset;box-sizing:border-box;display:flex;gap:10px;align-items:flex-start;justify-content:space-between;width:100%;cursor:pointer}
+.pp-topo:focus-visible{outline:2px solid var(--violet);outline-offset:3px;border-radius:6px}
+.pp-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px;font-weight:400}
+.pp-h{font-size:15px;margin:16px 0 6px}
+.pp-lista{list-style:none;margin:0;padding:0}
+.pp-linha{display:flex;gap:10px;align-items:center;justify-content:space-between;padding:8px 0;border-top:1px solid var(--line)}
+.pp-linha.foco{outline:2px solid var(--violet);outline-offset:2px;border-radius:6px}
+.pp-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.pp-campo input,.pp-campo select{width:100%;margin-top:4px}
+.pp-disp{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;padding:6px 0}
+.pp-dias{display:flex;gap:8px;flex-wrap:wrap}
+.pp-ad{list-style:none;margin:8px 0 0;padding:0}
+.pp-ad li{display:flex;flex-direction:column;padding:6px 0;border-top:1px solid var(--line)}
+.pp-antes{color:var(--ink-3, #777);text-decoration:line-through}
+.pp-depois{font-weight:600}
 </style>
 </head>
 <body>
@@ -779,16 +853,17 @@ details.card.fsec>.fgrid{padding:0 22px}
 
 <dialog id="dlg"><div class="in" id="dlgIn"></div></dialog>
 
-<script src="config.js?v=1795004744"></script>
-<script src="diario.js?v=1795004744"></script>
-<script src="regras.js?v=1795004744"></script>
-<script src="tour.js?v=1795004744"></script>
-<script src="campanha.js?v=1795004744"></script>
-<script src="equipe.js?v=1795004744"></script>
-<script src="operacao.js?v=1795004744"></script>
-<script src="historico.js?v=1795004744"></script>
-<script src="contrato.js?v=1795004744"></script>
-<script src="conta.js?v=1795004744"></script>
+<script src="config.js?v=1795005549"></script>
+<script src="diario.js?v=1795005549"></script>
+<script src="regras.js?v=1795005549"></script>
+<script src="tour.js?v=1795005549"></script>
+<script src="campanha.js?v=1795005549"></script>
+<script src="equipe.js?v=1795005549"></script>
+<script src="operacao.js?v=1795005549"></script>
+<script src="historico.js?v=1795005549"></script>
+<script src="contrato.js?v=1795005549"></script>
+<script src="propostas.js?v=1795005549"></script>
+<script src="conta.js?v=1795005549"></script>
 <script>
 "use strict";
 // ---------- utilidades ----------
@@ -992,6 +1067,8 @@ function tabela(id, colunas, linhas, ordem, semLinhas) {
   S.ord[id] = st;
   const col = colunas[st.i];
   const ord = [...linhas].sort((a, b) => { const va = col.v(a), vb = col.v(b); if (va == null) return 1; if (vb == null) return -1; return (va > vb ? 1 : va < vb ? -1 : 0) * st.dir; });
+  // Sem linhas: só o aviso, sem a tabela vazia (no celular, o cabeçalho largo cortava o aviso para fora da tela).
+  if (!ord.length) return `<div class="tbl-vazia" data-tbl-vazia="${id}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</div>`;
   return `<div class="tbl" tabindex="0" role="region" aria-label="Tabela${colunas[0]?.t ? ": " + esc(colunas[0].t) : ""}"><table data-tbl="${id}"><thead><tr>${colunas.map((c, i) => `<th class="${c.n ? "n" : ""}" data-i="${i}" tabindex="0" title="Ordenar" aria-sort="${i === st.i ? (st.dir > 0 ? "ascending" : "descending") : "none"}">${esc(c.t) || '<span class="sr-only">Ações</span>'}${i === st.i ? (st.dir > 0 ? " ↑" : " ↓") : ""}</th>`).join("")}</tr></thead><tbody>${ord.map((l) => `<tr${l._click ? ` class="click" data-click="${esc(l._click)}" tabindex="0"` : ""}>${colunas.map((c) => `<td class="${c.n ? "n" : ""}">${c.h ? c.h(l) : esc(c.v(l) ?? "–")}</td>`).join("")}</tr>`).join("") || `<tr><td colspan="${colunas.length}">${semLinhas || vazio("Nada por aqui", "Nenhum item com estes filtros. Tente mudar o período ou limpar a busca.")}</td></tr>`}</tbody></table></div>`;
 }
 const quando = (iso) => `<div class="quando"><b>${iso.slice(8, 10)}</b><small>${MESES[+iso.slice(5, 7) - 1]}</small><small class="dia">${dia(iso)}</small></div>`;
@@ -1263,11 +1340,13 @@ const TELAS = {
     const P = S.pac, f = S.datas, opts = (k) => [...new Set(P.eventos.map((e) => e[k]))].sort();
     let evs = P.eventos;
     if (f.quando === "futuras") evs = evs.filter((e) => e.f); else if (f.quando === "passadas") evs = evs.filter((e) => e.d < P.hoje);
+    const evs0 = evs;   // contagem das opções dos filtros: dentro do período escolhido
     if (f.cidade) evs = evs.filter((e) => e.c === f.cidade);
     if (f.modelo) evs = evs.filter((e) => e.m === f.modelo);
     if (f.status) evs = evs.filter((e) => e.s === f.status);
     if (f.q) { const q = f.q.toLowerCase(); evs = evs.filter((e) => (e.n + " " + (e.h || "")).toLowerCase().includes(q)); }
-    const sel = (id, k, rot) => `<select id="${id}"><option value="">${rot}</option>${opts(k).map((o) => `<option${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)}</option>`).join("")}</select>`;
+    // Cada opção diz quantas datas tem (a pessoa vê que é um filtro e o que vai sobrar).
+    const sel = (id, k, rot) => `<select id="${id}" aria-label="${rot}"><option value="">${rot}</option>${opts(k).map((o) => `<option value="${esc(o)}"${f[id.slice(1).toLowerCase()] === o ? " selected" : ""}>${esc(o)} (${evs0.filter((e) => e[k] === o).length})</option>`).join("")}</select>`;
     return `<div class="tag">Datas</div><h1>${evs.length} datas</h1>
     <div class="filters"><select id="dQuando" aria-label="Quando">${[["futuras","Futuras"],["passadas","Passadas"],["todas","Todas"]].map(([v, t]) => `<option value="${v}"${f.quando === v ? " selected" : ""}>${t}</option>`).join("")}</select>${sel("dCidade", "c", "Todas as cidades")}${sel("dModelo", "m", "Todos os modelos")}${sel("dStatus", "s", "Todos os status")}<input id="dQ" placeholder="Buscar artista ou casa" value="${esc(f.q)}"></div>
     ${tabela("datas", [
