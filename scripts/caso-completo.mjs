@@ -69,7 +69,7 @@ const DADOS_ARTISTA_CONTRATO = { nome_completo: 'Lia Moreno Santos', cpf: '987.6
 // ---------- apagar (o caso anterior, se existir) ----------
 async function apagar() {
   await sql(`drop table if exists caso_ids;
-create temp table caso_ids as select id from auth.users where email in (${Object.values(EMAIL).map(lit).join(', ')});
+create temp table caso_ids as select id from auth.users where email in (${[EMAIL.casa, EMAIL.artista].map(lit).join(', ')});
 do $$ begin
   alter table contratos disable trigger trg_contrato_apagar;
   delete from contratos where user_id in (select id from caso_ids);
@@ -93,7 +93,7 @@ do $$ declare fk record; begin
   end loop;
 end $$;
 delete from auth.users where id in (select id from caso_ids);`);
-  const r = await sql(`select count(*)::int n from auth.users where email in (${Object.values(EMAIL).map(lit).join(', ')})`);
+  const r = await sql(`select count(*)::int n from auth.users where email in (${[EMAIL.casa, EMAIL.artista].map(lit).join(', ')})`);
   ok(r[0].n === 0, 'caso anterior apagado');
 }
 
@@ -107,6 +107,8 @@ try {
     const H = { apikey: serv, 'Content-Type': 'application/json', ...(serv.startsWith('eyJ') ? { Authorization: `Bearer ${serv}` } : {}) };
     const id = {};
     for (const [papel, nome, tipo] of [['central', 'Central (caso de teste)', 'artista'], ['casa', 'Helena Duarte Ribeiro', 'casa'], ['artista', ARTISTA, 'artista']]) {
+      // A conta da Central fica entre uma recriação e outra (apagá-la mexe nas avaliações já feitas por ela).
+      if (papel === 'central') { const ja = await sql(`select id from auth.users where email = ${lit(EMAIL.central)}`); if (ja[0]) { id.central = ja[0].id; continue; } }
       const r = await fetch(`${URL_SB}/auth/v1/admin/users`, { method: 'POST', headers: H, body: JSON.stringify({ email: EMAIL[papel], ...(papel === 'central' ? { password: createHash('sha256').update(String(Math.random()) + Date.now()).digest('hex') } : { password_hash: HASH }), email_confirm: true, user_metadata: { nome, tipo } }) });
       const j = await r.json();
       if (!r.ok) throw new Error(`criar conta ${papel}: HTTP ${r.status} ${j.msg || j.message || j.error_code || ''}`);
