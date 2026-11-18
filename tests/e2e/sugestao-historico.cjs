@@ -15,8 +15,11 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/Sugestão POR HISTÓRICO/.test(t) && /Confirme com a casa/.test(t), 'bloco "Sugestão POR HISTÓRICO" aparece com o aviso de confirmar');
     await p.evaluate(() => { S.dpb.de = '2026-11-18'; S.dpb.ate = '2026-12-31'; render(); });
     await p.click('#dpSugHist summary'); await p.waitForTimeout(300);
-    const n = await p.$$eval('#dpSugHist .card', (x) => x.length);
+    const n = await p.$$eval('#dpSugHist details[data-dobra^="dph:"]', (x) => x.length);
     ok(n > 0, `traz sugestões no período (${n})`);
+    // Fechadinho (Marina, 18/11/2026): cada sugestão é uma linha (dia · casa · cidade · nº de artistas); abrir mostra o resto.
+    ok(!(await p.$('#dpSugHist details[data-dobra^="dph:"][open]')) && /artistas? sugeridos?/.test(await p.textContent('#dpSugHist details[data-dobra^="dph:"] > summary')) && !(await p.isVisible('#dpSugHist [data-pp-novo^="casa|base:"]')), 'cada sugestão começa numa linha, fechadinha');
+    await p.click('#dpSugHist details[data-dobra^="dph:"] > summary .dobra-tit'); await p.waitForTimeout(200);
     ok((await p.$$('#dpSugHist [data-pp-novo^="casa|base:"]')).length > 0 && (await p.$$('#dpSugHist [data-pp-novo^="artista|base:"]')).length > 0, 'cada sugestão tem "Propor atualização" (casa e artistas)');
     await p.click('#dpSugHist [data-pp-novo^="casa|base:"]'); await p.waitForSelector('#ppForm', { timeout: 5000 });
     ok(/Pelo histórico do Tranquilo/.test(await p.inputValue('#ppMotivo')) && (await p.$$('[data-pp-dia]:checked')).length > 0, 'formulário vem preenchido pelo histórico (motivo e dias da semana)');

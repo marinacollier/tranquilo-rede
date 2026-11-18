@@ -43,6 +43,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('#entrar'); await p.fill('#email', 'agenda@teste.com'); await p.fill('#esenha', 'segredo123'); await p.press('#esenha', 'Enter'); await p.waitForSelector('#side:not([hidden])', { timeout: 10000 }).catch(() => {}); await p.waitForTimeout(600);
     await p.click('[data-tour="pular"]').catch(() => {});
     await ir('cronograma');
+    // Fechadinho (Marina, 18/11/2026): cada data é uma linha (dia · formato · line-up); abrir mostra o cronograma e a mensagem.
+    await p.click('[data-dobra^="crono:"] > summary').catch(() => {}); await p.waitForTimeout(200);
     const t = await p.innerText('#app');
     ok(/Ana Teste/.test(t) && /Banda Dois/.test(t), 'a casa vê a data nos Cronogramas, com o line-up ' + (/Ana Teste/.test(t) ? '' : JSON.stringify([await p.evaluate(() => [S.aba, S.sub, TQConta.areaDe('cronograma')]), t.slice(0, 300)])));
     ok(/20h/.test(t) && /Quem toca por último passa o som primeiro/.test(t), 'mensagem de cronograma sai com a abertura das 20h');

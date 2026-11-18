@@ -13,7 +13,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
   const ir = async (k) => { await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, k); await p.waitForTimeout(400); };
   const sair = async () => { await p.click('#sair'); await p.waitForTimeout(300); };
   const app = () => p.textContent('#app');
-  const historico = async (k) => { await ir(k); await p.waitForSelector('[data-hist-linha], .vazio', { timeout: 5000 }); };
+  const historico = async (k) => { await ir(k); await p.waitForSelector('[data-hist-linha], .vazio', { timeout: 5000, state: 'attached' }); };
+  // Fechadinho (Marina, 18/11/2026): os dias começam fechados; a pessoa abre (e fica aberto nos redesenhos).
+  const abreDias = async () => { await p.$$eval('details.hist-dia:not([open]) > summary', (ss) => ss.forEach((x) => x.click())); await p.waitForTimeout(150); };
   const criar = async (tipo, nome, email) => {
     await p.goto(B); await p.waitForSelector('.cidade');
     await p.click('#entrar'); await p.click('[data-entrada="criar"]'); await p.waitForSelector('#enome');
@@ -29,7 +31,8 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await historico('meu_hist');
     let t = await app();
     ok(/Seu histórico/.test(t) && /Hoje/.test(t) && /Começou a sua ficha de artista/.test(t), 'artista: salvar a ficha aparece no histórico, em "Hoje"');
-    ok(!!(await p.$('details.hist-dia[open]')) && !!(await p.$('select[data-hist-f]')), 'agrupado por dia (aberto) e com filtro por tipo');
+    ok(!!(await p.$('details.hist-dia')) && !(await p.$('details.hist-dia[open]')) && !!(await p.$('select[data-hist-f]')), 'agrupado por dia (começa fechadinho) e com filtro por tipo');
+    await abreDias();
     await p.click('[data-hist-linha="ficha"][data-ir="inscricao"]'); await p.waitForTimeout(400);
     ok(!!(await p.$('#form')) && await p.evaluate(() => S.aba) === 'inscricao', 'clicar na linha abre a ficha');
     await sair();
@@ -40,10 +43,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await p.click('[data-salvar-parte="0"]'); await p.waitForTimeout(800);
     await p.click('[data-aba="datas_casa"]'); await p.waitForTimeout(300);
     ok(!!(await p.$('[data-sub="datas_casa|meu_hist"]')), 'casa: "Seu histórico" dentro de Próximos passos');
-    await p.click('[data-sub="datas_casa|meu_hist"]'); await p.waitForSelector('[data-hist-linha], .vazio', { timeout: 5000 });
+    await p.click('[data-sub="datas_casa|meu_hist"]'); await p.waitForSelector('[data-hist-linha], .vazio', { timeout: 5000, state: 'attached' }); await abreDias();
     t = await app();
     ok(/Começou o cadastro da casa/.test(t), 'casa: salvar o cadastro aparece no histórico');
-    await p.selectOption('select[data-hist-f]', 'ficha'); await p.waitForTimeout(300);
+    await p.selectOption('select[data-hist-f]', 'ficha'); await p.waitForTimeout(300); await abreDias();
     ok((await p.$$('[data-hist-linha]')).length > 0 && (await p.$$eval('[data-hist-linha]', (xs) => xs.every((x) => x.dataset.histLinha === 'ficha'))), 'filtro por tipo mostra só aquele tipo');
     await p.click('[data-hist-linha="ficha"][data-ir="cadastro_casa"]'); await p.waitForTimeout(400);
     ok(!!(await p.$('#form')), 'clicar na linha abre o cadastro da casa');
@@ -58,7 +61,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     t = await app();
     ok(!!(await p.$('[data-sub="g_hoje|feito"]')), 'equipe sem área também vê "Seu histórico" em Início');
     ok(/Convidou Bia Convidada/.test(t) && /Convites e equipe/.test(t), 'equipe: o convite aparece no histórico, com o tipo');
-    await p.click('[data-hist-linha="convites"]'); await p.waitForTimeout(600);
+    await abreDias(); await p.click('[data-hist-linha="convites"]'); await p.waitForTimeout(600);
     ok(await p.evaluate(() => S.aba) === 'convites' && /bia\.convidada@teste\.com/.test(await app()), 'clicar na linha abre o convite');
     // Ação de outra conta não entra no histórico de quem está logado.
     ok(!/Começou o cadastro da casa/.test(t), 'o histórico é só de quem está logado');
