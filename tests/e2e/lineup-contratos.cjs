@@ -43,7 +43,7 @@ Casa: [PREENCHER RAZÃO SOCIAL], CNPJ [PREENCHER CNPJ]. Data {{data}}, cidade {{
     ok((await p.$$('[data-dp-art]')).length === 3, 'Nova data começa com 3 artistas no line-up (padrão do Descubra)');
     await p.fill('#dpDia', dia); await p.dispatchEvent('#dpDia', 'change'); await p.waitForTimeout(300);
     await p.check('[data-dp-exc]'); await p.waitForTimeout(300);
-    await p.selectOption('#dpCasa', { label: 'Casa Line · Recife/PE' });
+    await p.selectOption('#dpCasa', 'c1'); await p.waitForTimeout(300);
     await p.fill('[data-dp-art="0"]', 'Ana Line'); await p.fill('[data-dp-art="1"]', 'Bia Line'); await p.fill('[data-dp-art="2"]', 'Caio Line');
     await p.click('[data-dp-add]'); await p.waitForTimeout(200);
     ok((await p.$$('[data-dp-art]')).length === 4 && await p.inputValue('[data-dp-art="2"]') === 'Caio Line' && await p.inputValue('#dpDia') === dia, '"+ Adicionar artista" abre a 4ª linha sem perder o que já estava escrito');
