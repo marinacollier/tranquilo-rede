@@ -35,7 +35,7 @@ const TQTour = (() => {
     { titulo: "Base de conhecimento e método", cobre: ["base", "metodo"], texto: "Os artigos da Base de conhecimento do Notion e o método dos 50 eventos, para consultar sem sair do painel.", itens: [] },
   ];
   // Menu padrão do time (17/11/2026): as partes na lateral; dentro de cada uma, as abas em cima.
-  EQUIPE.unshift({ titulo: "O menu do time", cobre: ["g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_adm", "painel", "demanda", "lado_a_lado"], texto: "Na lateral ficam as partes do trabalho: Início, Datas, Curadoria, Casas, Contratos, Campanhas e Convidar (a administração vê também Administração). Dentro de cada parte, as abas ficam em cima. Materiais, Base e Método ficam em Ajuda.", itens: ["Cada área vê só as partes dela."] });
+  EQUIPE.unshift({ titulo: "O menu do time", cobre: ["geral", "g_hoje", "g_datas", "g_artistas", "g_casas", "g_contratos", "g_campanhas", "g_adm", "painel", "demanda", "lado_a_lado"], texto: "Na lateral ficam as partes do trabalho: Início, Datas, Curadoria, Casas, Contratos, Campanhas e Convidar (a administração vê também Administração). Dentro de cada parte, as abas ficam em cima. Materiais, Base e Método ficam em Ajuda.", itens: ["Cada área vê só as partes dela."] });
   const CONTA = (extra) => ({ titulo: "Sua conta", cobre: ["conta"], texto: "Na aba Conta ficam seus dados, o vínculo com a rede e o campo para colar um código de acesso." + (extra || ""), itens: ["Este tutorial pode ser revisto a qualquer momento por lá."], ir: ["conta", "Abrir conta"] });
   const ROTEIROS = {
     artista: {
@@ -243,7 +243,7 @@ const TQTour = (() => {
   function avisar(txt) {
     document.querySelector(".tour-aviso")?.remove();
     const a = document.createElement("div"); a.className = "tour-aviso"; a.setAttribute("role", "status"); a.textContent = txt;
-    document.body.appendChild(a); setTimeout(() => a.remove(), 7000);
+    a.title = "Toque para fechar"; a.addEventListener("click", () => a.remove()); document.body.appendChild(a); setTimeout(() => a.remove(), 4500);
   }
 
   function teclas(ev) {
