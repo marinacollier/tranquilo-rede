@@ -1024,6 +1024,7 @@ const TQConta = (() => {
   // Marca em vermelho os campos com formato errado (depois de conferirFormato).
   function marcarFormato(raiz, erros) {
     const els = (erros.chaves || []).map((k) => raiz?.querySelector(`[data-k="${k}"]`)).filter(Boolean);
+    els.forEach((el) => { const det = el.closest("details"); if (det) det.open = true; });
     if (els.length) marcar(els);
   }
   const F_ARTISTA = [
@@ -1055,7 +1056,8 @@ const TQConta = (() => {
     ["Circulação", [
       ["cidades_interesse", "Cidades da rede onde quer tocar", "cidades", null, 1],
       ["outras_cidades", "Outras cidades", "text"],
-      ["disponibilidade", "Observação sobre a disponibilidade (opcional)", "text", null, 0, "Ex.: só a partir de março; não toco em feriado."],
+      // "disponibilidade" (observação) saiu da ficha: a disponibilidade é marcada no calendário (pedido da Marina, 18/11/2026).
+      // O valor antigo continua guardado e aparece para a curadoria.
       ["equipe_viagem", "Quantas pessoas viajam no total", "number"],
     ]],
     ["Condições e contato", [
@@ -1072,7 +1074,7 @@ const TQConta = (() => {
   const SIM_NAO = [["sim", "Sim"], ["nao", "Não"]];
   const F_CASA = [
     ["A casa", "Dados da empresa e do espaço. Usamos para o contrato, a página do evento e a divulgação.", [
-      ["nome", "Nome da casa", "text", null, 1], ["cidade_uf", "Cidade/UF", "text", null, 1], ["razao_social", "Razão social", "text"], ["cnpj", "CNPJ", "text"],
+      ["nome", "Nome da casa", "text", null, 1], ["cidade_uf", "Cidade/UF", "text", null, 1], ["razao_social", "Razão social", "text", null, 1], ["cnpj", "CNPJ", "text", null, 1],
       ["inscricao", "Inscrição municipal ou estadual", "text"], ["emite_nf", "A casa emite nota fiscal?", "select", SIM_NAO],
       ["endereco", "Endereço completo", "text", null, 1, "Rua, número, bairro e CEP."], ["complemento", "Complemento e ponto de referência", "text"],
       ["instagram", "Instagram da casa", "text", null, 0, null, "@"], ["site", "Site", "text"], ["telefone", "Telefone da casa", "text"],
@@ -1080,11 +1082,11 @@ const TQConta = (() => {
       ["como_chegar", "Como chegar", "textarea", null, 0, "Estacionamento próximo, transporte público e cuidados na rua à noite. Vai na página de cada evento."],
     ]],
     ["Dono A (responsável legal)", "O franqueado: quem assina pela casa e responde pela unidade.", [
-      ["dono_nome", "Nome completo", "text", null, 1], ["dono_cpf", "CPF", "text"], ["dono_rg", "RG", "text"], ["dono_nascimento", "Data de nascimento", "text", null, 0, null, "dd/mm/aaaa"],
+      ["dono_nome", "Nome completo", "text", null, 1], ["dono_cpf", "CPF", "text", null, 1], ["dono_rg", "RG", "text"], ["dono_nascimento", "Data de nascimento", "text", null, 0, null, "dd/mm/aaaa"],
       ["dono_email", "E-mail", "text"], ["whatsapp", "WhatsApp", "text", null, 1], ["dono_endereco", "Endereço residencial", "text", null, 0, "Usado só no contrato."],
     ], "sensivel"],
     ["Dados para repasses", "A conta que recebe a parte da casa na bilheteria.", [
-      ["rep_titular", "Titular da conta", "text"], ["rep_documento", "CPF ou CNPJ do titular", "text"], ["rep_banco", "Banco", "text"],
+      ["rep_titular", "Titular da conta", "text", null, 1], ["rep_documento", "CPF ou CNPJ do titular", "text", null, 1], ["rep_banco", "Banco", "text"],
       ["rep_tipo", "Tipo de conta", "select", [["corrente", "Corrente"], ["poupanca", "Poupança"], ["pagamento", "Pagamento"]]],
       ["rep_agencia", "Agência", "text"], ["rep_conta", "Conta com dígito", "text"], ["rep_pix", "Chave Pix", "text"],
     ], "sensivel"],
@@ -1110,7 +1112,8 @@ const TQConta = (() => {
     ]],
     ["Ingressos e agenda", "", [
       ["ticketeira", "A casa usa alguma ticketeira? Tem exclusividade?", "text"],
-      ["dias_semana", "Dias da semana que podem receber o Tranquilo", "multi", [["segunda", "Segunda"], ["terca", "Terça"], ["quarta", "Quarta"], ["quinta", "Quinta"], ["sexta", "Sexta"], ["sabado", "Sábado"], ["domingo", "Domingo"]], 0, "As datas exatas são combinadas com a Isa."],
+      // "dias_semana" saiu da ficha (a disponibilidade é marcada no calendário, pedido da Marina, 18/11/2026). O valor
+      // antigo continua guardado e ainda pré-preenche a disponibilidade semanal (semanaDe, fichaDias).
     ]],
     ["Dúvidas sobre o Guia", "Leia o Guia do Franqueado e anote aqui o que ficou em dúvida ou o que você quer conversar com a gente. Ao mandar esta Ficha preenchida, você confirma que leu o Guia.", [
       ["duvidas_guia", "Suas dúvidas", "textarea"],
@@ -1121,8 +1124,10 @@ const TQConta = (() => {
   const valorCasa = (d, k) => { const v = d[k]; if (v != null && v !== "" && !(Array.isArray(v) && !v.length)) return v;
     if (k === "cidade_uf" && d.cidade) return d.estado ? `${d.cidade}/${d.estado}` : d.cidade;
     return F_CASA_ANTIGO[k] ? d[F_CASA_ANTIGO[k]] : v; };
+  // "Dias da semana" saiu da Ficha (vai no calendário): não aparece mais como pendência para a casa preencher.
+  const semDiasSemana = (p) => ({ ...p, enriquecimento: (p.enriquecimento || []).filter((x) => !/^Dias da semana/.test(x)) });
   const CHAVES_FICHA = new Set(F_CASA.flatMap(([, , cs]) => cs.map((c) => c[0])));
-  const ROTULO_ANTIGO = { responsavel: "Responsável local", email_contato: "E-mail de contato", cidade: "Cidade", estado: "Estado", dias: "Dias e horários", restricoes: "Restrições de horário e volume", backline: "Backline", aceite_responsabilidades: "Aceite da matriz de responsabilidades" };
+  const ROTULO_ANTIGO = { responsavel: "Responsável local", email_contato: "E-mail de contato", cidade: "Cidade", estado: "Estado", dias: "Dias e horários", restricoes: "Restrições de horário e volume", backline: "Backline", aceite_responsabilidades: "Aceite da matriz de responsabilidades", dias_semana: "Dias da semana que podem receber o Tranquilo" };
   const SOM_ANTIGO = { pa_proprio: "PA e mesa próprios", parceiro: "Parceiro técnico contratado", nao_tem: "Ainda não tenho" };
 
   // Botões de encerrar ficam escondidos até a regra do banco (v15b) estar aplicada em produção.
@@ -1152,9 +1157,89 @@ const TQConta = (() => {
   const vazioV = (v) => v == null || v === "" || v === false || v === "false" || (Array.isArray(v) && !v.length);
   // Mesma regra do banco (so_preenche_vazios): nada que já tinha resposta muda.
   const soPreencheVazios = (antes, depois) => Object.entries(antes || {}).every(([k, v]) => vazioV(v) || JSON.stringify(depois?.[k]) === JSON.stringify(v));
-  const formHtml = (def, d, travado) => def.map(([titulo, cs]) => `<section class="card fsec"><h3>${esc(titulo)}</h3><div class="fgrid">${cs.map((c) => campo(c, d, travado)).join("")}</div></section>`).join("");
+  // Formulários longos em partes (pedido da Marina, 18/11/2026): cada seção abre e fecha (abre a primeira incompleta),
+  // mostra ✓ quando está completa, tem "Salvar esta parte" e o progresso ("3 de 8 partes completas") fica no topo.
+  // "Enviar" só libera com todos os obrigatórios preenchidos e válidos; enquanto isso diz o que falta, com link para o campo.
+  const secoesDe = (def) => def.map((s) => typeof s[1] === "string" ? { titulo: s[0], desc: s[1], cs: s[2] } : { titulo: s[0], desc: "", cs: s[1] });
+  const PREFIXO_PARTE = { "Dono A (responsável legal)": "Dono A", "Dados para repasses": "Repasses" };
+  const REPASSE_BANCO = ["rep_banco", "rep_agencia", "rep_conta"];
+  // O que a tela mostra: na casa, fichas antigas aparecem nos campos novos (valorCasa).
+  const dadosVistos = (def, d) => def === F_CASA ? { ...d, ...Object.fromEntries(secoesDe(def).flatMap((s) => s.cs).map(([k]) => [k, valorCasa(d, k)])) } : d;
+  // Tudo o que falta para enviar: obrigatórios vazios, formato inválido e, na casa, a conta de repasse (banco, agência e
+  // conta, ou Pix). Obrigatórios = o que a habilitação, a curadoria e o contrato usam (src/contrato.js, doCadastro).
+  function pendenciasForm(def, d) {
+    const secs = secoesDe(def), lista = [], secDe = (k) => secs.findIndex((s) => s.cs.some((c) => c[0] === k));
+    const txt = (k, rot) => { const pre = PREFIXO_PARTE[secs[secDe(k)]?.titulo]; return pre ? `${pre}: ${rot}` : rot; };
+    for (const [k, rot] of camposFaltando(def, d)) lista.push({ k, sec: secDe(k), txt: txt(k, rot) });
+    if (def === F_CASA && !REPASSE_BANCO.every((k) => !vazioV(d[k])) && vazioV(d.rep_pix))
+      lista.push({ k: REPASSE_BANCO.find((k) => vazioV(d[k])), sec: secDe("rep_pix"), txt: "Repasses: banco, agência e conta, ou a chave Pix" });
+    const erros = conferirFormato(d);
+    erros.forEach((m, i) => { const k = erros.chaves[i], sec = secDe(k); if (sec >= 0 && !lista.some((x) => x.k === k)) lista.push({ k, sec, txt: m, formato: true }); });
+    return lista.sort((a, b) => a.sec - b.sec);
+  }
+  // Partes que a pessoa salvou com "Salvar esta parte" (contam como completas mesmo sem obrigatório): só neste navegador.
+  const chavePartes = () => S.conta ? `tq-partes-${S.conta.perfil.tipo === "casa" ? "casa" : "artista"}-${S.conta.perfil.id}` : "";
+  const partesSalvas = () => { try { return new Set(JSON.parse(store.get(chavePartes()) || "[]")); } catch { return new Set(); } };
+  function estadoPartes(def, d) {
+    const pend = pendenciasForm(def, d), salvas = partesSalvas();
+    return secoesDe(def).map((s, i) => {
+      const p = pend.filter((x) => x.sec === i), temObrig = s.cs.some((c) => c[4]) || (def === F_CASA && s.cs.some((c) => c[0] === "rep_pix"));
+      const respondida = s.cs.some(([k]) => !vazioV(d[k]));
+      return { pend: p, completa: !p.length && (temObrig || respondida || salvas.has(s.titulo)), obrig: temObrig };
+    });
+  }
+  const resumoParte = (e) => e.completa ? "Completa" : e.pend.length ? `Falta${e.pend.length > 1 ? "m" : ""} ${e.pend.length} ${e.pend.some((x) => !x.formato) ? (e.pend.length > 1 ? "itens" : "item") : (e.pend.length > 1 ? "correções" : "correção")}` : "Opcional: preencha o que souber";
+  const progressoPartes = (est, auto) => { const n = est.filter((e) => e.completa).length;
+    return `<div class="card fprog" data-progresso><div class="row"><b data-prog-txt>${n} de ${est.length} partes completas</b>${auto ? `<span class="muted" style="font-size:13px">Fica salvo sozinho enquanto você digita</span>` : ""}</div><div class="progress" style="margin-top:8px"><i data-prog-barra style="width:${Math.round((n / est.length) * 100)}%"></i></div></div>`; };
+  function formPartes(def, d, travado, { valor = (x, k) => x[k], antes = () => "", proprio = true } = {}) {
+    const secs = secoesDe(def), dv = { ...d, ...Object.fromEntries(secs.flatMap((s) => s.cs).map(([k]) => [k, valor(d, k)])) };
+    const est = estadoPartes(def, dv), abertas = S.partesAbertas?.[S.aba], primeira = est.findIndex((e) => !e.completa);
+    return progressoPartes(est, proprio && travado === false) + secs.map((s, i) => antes(s.titulo) + `<details class="card fsec" data-parte="${i}"${(abertas ? abertas.includes(i) : i === primeira) ? " open" : ""}>
+      <summary><span class="fsec-n${est[i].completa ? " ok" : ""}" data-parte-n aria-hidden="true">${est[i].completa ? "✓" : i + 1}</span><span class="fsec-tit"><h3>${esc(s.titulo)}</h3><span class="fsec-res" data-parte-res>${resumoParte(est[i])}</span></span></summary>
+      ${s.desc ? `<p class="muted fsec-desc">${esc(s.desc)}</p>` : ""}<div class="fgrid">${s.cs.map((c) => campo(c, { [c[0]]: dv[c[0]] }, travado)).join("")}</div>
+      ${proprio && travado === false ? `<div class="fsec-acoes"><button type="button" class="btn sm" data-salvar-parte="${i}">Salvar esta parte</button><span class="muted" data-parte-msg role="status" aria-live="polite"></span></div>` : ""}</details>`).join("");
+  }
+  const formHtml = (def, d, travado) => formPartes(def, d, travado);
   // Ficha da casa: seções com descrição; campo vazio continua visível (vazio).
-  const formCasa = (d, travado) => F_CASA.map(([titulo, desc, cs]) => (titulo === "Dúvidas sobre o Guia" && S.conta?.perfil.tipo === "casa" ? equipeNaFicha() : "") + `<section class="card fsec"><h3>${esc(titulo)}</h3>${desc ? `<p class="muted" style="margin:-4px 0 10px;font-size:14px">${esc(desc)}</p>` : ""}<div class="fgrid">${cs.map((c) => campo(c, Object.fromEntries([[c[0], valorCasa(d, c[0])]]), travado)).join("")}</div></section>`).join("");
+  const formCasa = (d, travado, proprio = true) => formPartes(F_CASA, d, travado, { proprio, valor: valorCasa, antes: (t) => t === "Dúvidas sobre o Guia" && S.conta?.perfil.tipo === "casa" ? equipeNaFicha() : "" });
+  // Bloco acima do botão Enviar: o que falta, cada item com link para o campo.
+  const faltaEnviarHtml = (lista) => lista.length ? `<b>Para enviar, falta${lista.length > 1 ? "m" : ""} ${lista.length} ${lista.length > 1 ? "itens" : "item"}:</b> ${lista.map((x) => `<a href="#" data-ir-campo="${esc(x.k)}">${esc(x.txt)}</a>`).join(" · ")}` : "✓ Tudo preenchido. Já dá para enviar.";
+  const botaoEnviar = (lista, rotulo) => `<div class="falta-enviar${lista.length ? "" : " ok"}" id="faltaEnviar" role="status" aria-live="polite">${faltaEnviarHtml(lista)}</div><button class="btn pri" id="enviar" aria-describedby="faltaEnviar"${lista.length ? " disabled" : ""}>${rotulo}</button>`;
+  // Atualiza ✓, resumo das partes, progresso e o botão Enviar enquanto a pessoa digita (sem redesenhar a tela).
+  function atualizarPartes() {
+    const raiz = $("#form"); if (!raiz || !S.conta || !raiz.querySelector("[data-parte]")) return;
+    const def = S.conta.perfil.tipo === "casa" ? F_CASA : F_ARTISTA, d = dadosVistos(def, { ...(def === F_CASA ? S.conta.casa?.dados : S.conta.insc?.dados) || {}, ...lerForm(raiz) });
+    const est = estadoPartes(def, d), n = est.filter((e) => e.completa).length;
+    raiz.querySelectorAll("details[data-parte]").forEach((det) => { const e = est[+det.dataset.parte]; if (!e) return;
+      const num = det.querySelector("[data-parte-n]"); num.textContent = e.completa ? "✓" : +det.dataset.parte + 1; num.classList.toggle("ok", e.completa);
+      det.querySelector("[data-parte-res]").textContent = resumoParte(e); });
+    const t = raiz.querySelector("[data-prog-txt]"); if (t) t.textContent = `${n} de ${est.length} partes completas`;
+    const bar = raiz.querySelector("[data-prog-barra]"); if (bar) bar.style.width = Math.round((n / est.length) * 100) + "%";
+    const f = $("#faltaEnviar"), b = $("#enviar"); if (f && b) { const lista = pendenciasForm(def, d); f.innerHTML = faltaEnviarHtml(lista); f.classList.toggle("ok", !lista.length); b.disabled = !!lista.length; }
+  }
+  // Leva até o campo (abre a parte, rola, foca e marca em vermelho).
+  function irParaCampo(k, marcarErro = true) {
+    const raiz = $("#form"); if (!raiz) return;
+    const el = raiz.querySelector(`[data-k="${k}"]`) || raiz.querySelector(`[data-multi="${k}"]`) || (k === "cidades_interesse" ? raiz.querySelector("[data-cidade]") : null);
+    if (!el) return;
+    const det = el.closest("details"); if (det && !det.open) det.open = true;
+    if (marcarErro && el.dataset.k) { el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); }
+    el.scrollIntoView({ block: "center" }); el.focus({ preventScroll: true });
+  }
+  // Cópia local do rascunho (neste navegador): o que foi digitado e ainda não chegou ao banco não se perde.
+  // Sai quando o banco confirma o mesmo conteúdo.
+  const chaveLocal = () => S.conta ? `tq-rascunho-${S.conta.perfil.tipo === "casa" ? "casa" : "artista"}-${S.conta.perfil.id}` : "";
+  const lerLocal = () => { try { return JSON.parse(store.get(chaveLocal()) || "null"); } catch { return null; } };
+  const guardarLocal = (d) => { if (chaveLocal()) store.set(chaveLocal(), JSON.stringify({ em: new Date().toISOString(), dados: d })); };
+  const limparLocal = (d) => { const l = lerLocal(); if (chaveLocal() && (!d || !l || JSON.stringify(l.dados) === JSON.stringify(d))) store.del(chaveLocal()); };
+  // Na hora de mostrar o formulário: se há cópia local diferente do banco, ela volta para os campos e é salva logo.
+  function recuperarLocal(d) {
+    const l = lerLocal(); if (!l?.dados) return null;
+    const junto = { ...d, ...l.dados }; if (JSON.stringify(junto) === JSON.stringify(d)) return null;
+    if (!S.tauto) S.tauto = setTimeout(salvarPendente, 400);
+    S.recuperado = S.conta.perfil.id; return junto;
+  }
+  const avisoRecuperado = `<div class="alert"><b>Recuperamos o que você tinha digitado</b>Estava guardado só neste aparelho e ainda não tinha chegado ao Tranquilo. Confira: salvamos de novo na sua ficha.</div>`;
   // Número como as pessoas escrevem no Brasil: "50.000" e "50 mil" são cinquenta mil; "1.200,5" é 1200.
   // Sinal de menos é mantido para o aviso de valor inválido aparecer. Corta em 999.999.999.
   function inteiroBR(v) {
@@ -1189,7 +1274,7 @@ const TQConta = (() => {
   function marcarFaltando(raiz, def, d) {
     raiz.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta"));
     const els = camposFaltando(def, d).map(([k]) => raiz.querySelector(`[data-k="${k}"]`)).filter(Boolean);
-    els.forEach((el) => { el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); });
+    els.forEach((el) => { const det = el.closest("details"); if (det) det.open = true; el.classList.add("campo-falta"); el.addEventListener("input", () => el.classList.remove("campo-falta"), { once: true }); });
     if (els[0]) { els[0].scrollIntoView({ block: "center" }); els[0].focus({ preventScroll: true }); }
   }
 
@@ -1373,7 +1458,8 @@ const TQConta = (() => {
         <div class="barra-acoes"><button class="btn" id="mcOk">${ed ? "Salvar alterações" : "Salvar modelo"}</button>${ed ? `<button class="btn" data-ct-mod-editar="">Cancelar edição</button>` : ""}</div><div class="err" role="status" aria-live="polite" id="mcErr"></div>
         <p class="muted" style="font-size:12px;margin:4px 0 0">Mudar o modelo não muda contratos já enviados.</p>
       </details></div>
-      ${semContrato.length ? `<h2>Datas dos próximos 60 dias sem contrato (${semContrato.length})</h2><p class="sub">Nenhum contrato gerado nem anexado para estas datas.</p><div class="list">${semContrato.slice(0, 30).map((e) => { const c = contaDe(e); return `<div class="row card" style="padding:10px 14px"><span><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc((e.a || []).join(", ") || e.m)}${e.h ? " · " + esc(e.h) : ""}</span>${c ? "" : ` <span class="muted" style="font-size:12px">· sem conta ligada no site</span>`}</span><button class="btn sm" data-ct-pre="${esc(e.id)}|${c ? c.id : ""}">Preparar contrato</button></div>`; }).join("")}</div>` : ""}
+      ${semContrato.length ? `<h2>Datas dos próximos 60 dias sem contrato (${semContrato.length})</h2><p class="sub">Nenhum contrato gerado nem anexado para estas datas.</p>${(() => { const linha = (e) => { const c = contaDe(e); return `<div class="row card" style="padding:10px 14px"><span><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc((e.a || []).join(", ") || e.m)}${e.h ? " · " + esc(e.h) : ""}</span>${c ? "" : ` <span class="muted" style="font-size:12px">· sem conta ligada no site</span>`}</span><button class="btn sm" data-ct-pre="${esc(e.id)}|${c ? c.id : ""}">Preparar contrato</button></div>`; }, L = semContrato.slice(0, 30);
+        return `<div class="list">${L.slice(0, 5).map(linha).join("")}</div>${L.length > 5 ? `<details style="margin-top:8px"><summary>Ver mais ${L.length - 5} ${L.length - 5 === 1 ? "data" : "datas"} sem contrato</summary><div class="list" style="margin-top:8px">${L.slice(5).map(linha).join("")}</div></details>` : ""}`; })()}` : ""}
       <h2>Contratos para assinar</h2><div class="err" role="status" aria-live="polite" id="ctConfMsg"></div>${tabela("contr", [
         { t: "Contrato", v: (c) => c.titulo, h: (c) => `<b>${esc(c.titulo)}</b>` },
         { t: "Conta", v: (c) => nomeConta[c.user_id] || "–" },
@@ -1392,7 +1478,8 @@ const TQConta = (() => {
   // Artista e casa: contratos pendentes no topo do passo a passo e a tela de leitura e assinatura.
   const meusContratos = () => (S.conta.contr || []).filter((c) => c.status !== "cancelado");
   function avisoContratos() {
-    const pend = meusContratos().filter((c) => c.status === "enviado" && !ctRecebido(c));
+    // Devolvido pela equipe primeiro: é a pendência mais urgente da pessoa.
+    const pend = meusContratos().filter((c) => c.status === "enviado" && !ctRecebido(c)).sort((a, b) => ctPedidoDeNovo(b) - ctPedidoDeNovo(a));
     return pend.map((c) => ctPedidoDeNovo(c) ? `<div class="alert crit" style="margin-bottom:12px"><b>Contrato: envie o arquivo assinado de novo · ${esc(c.titulo)}</b>A equipe do Tranquilo pediu outro arquivo. O motivo: <q>${esc(c.devolvido_motivo || "")}</q><div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>` : `<div class="alert warn" style="margin-bottom:12px"><b>Contrato para assinar: ${esc(c.titulo)}</b>O Tranquilo já assinou. Complete os seus dados, baixe o PDF, assine e envie de volta.<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${c.id}">Abrir o contrato →</button></div></div>`).join("");
   }
   // Dados que a pessoa já deu em outro contrato (mesma chave de campo), do mais recente para o mais antigo:
@@ -1417,13 +1504,53 @@ const TQConta = (() => {
     const si = TQContrato.situacao(c);
     return si.falta ? si : c.status === "enviado" ? { rotulo: "Aguardando assinatura", classe: "b-warn" } : si;
   }
+  // Etapa real da casa e da artista (pedido da Marina, 18/11/2026): além de "habilitada" ou "aprovada", onde está o
+  // contrato (conferido_*, devolvido_*, arquivo enviado) e, na casa, a equipe. Vale para a equipe e para a própria conta.
+  function etapaContratos(cts) {
+    cts = (cts || []).filter((c) => c.status !== "cancelado");
+    if (!cts.length) return "sem";
+    if (cts.some(ctPedidoDeNovo)) return "devolvido";
+    if (cts.some((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length)) return "conferencia";
+    if (cts.some((c) => c.status === "enviado" && !ctRecebido(c))) return "enviado";
+    return "assinado";
+  }
+  const ETAPA_CT = { enviado: ["b-warn", "Contrato enviado · esperando assinatura"], conferencia: ["b-warn", "Contrato assinado · em conferência"], devolvido: ["b-crit", "Contrato devolvido"] };
+  /** [classe, rótulo] da casa: status da Ficha e, depois de habilitada, contrato e equipe. equipe = lista da Equipe da casa (ou null se não carregou). */
+  function etapaCasa(c, cts, equipe) {
+    if (!c) return ["", "Ficha não enviada"];
+    if (c.status !== "habilitada") return STATUS_CASA[c.status] || ["", c.status];
+    const e = etapaContratos(cts);
+    if (e === "sem") return ["b-warn", "Habilitada · aguardando contrato"];
+    if (e !== "assinado") return ETAPA_CT[e];
+    if (!Array.isArray(equipe)) return ["b-good", "Habilitada · contrato assinado"];
+    return TQEquipe.cobertura(equipe).completa ? ["b-good", "Pronta"] : ["b-serious", "Equipe incompleta"];
+  }
+  /** [classe, rótulo] da artista: status da inscrição e, depois de aprovada, o contrato. */
+  function etapaArtista(i, cts) {
+    if (!i) return ["", "Inscrição não enviada"];
+    if (i.status !== "aprovada") return STATUS_INSC[i.status] || ["", i.status];
+    const e = etapaContratos(cts);
+    if (e === "sem") return ["b-good", "Aprovada · aguardando contrato"];
+    return e === "assinado" ? ["b-good", "Pronta"] : ETAPA_CT[e];
+  }
+  const badgeEtapa = ([cl, t]) => `<span class="badge ${cl}">${esc(t)}</span>`;
+  // Equipe do Tranquilo: contratos e equipe de uma casa ou artista a partir de S.eq.
+  const kref = (x) => String(x || "").trim().toLowerCase();
+  function contratosDaConta(E, userId, vinculo) {
+    const ids = new Set([userId, ...(vinculo ? (E.perfis || []).filter((p) => kref(p.vinculo_nome) === kref(vinculo)).map((p) => p.id) : [])].filter(Boolean));
+    return (E.contr || []).filter((c) => ids.has(c.user_id));
+  }
+  const etapaCasaEq = (E, c) => { const ref = c?.perfil?.vinculo_nome; return etapaCasa(c, contratosDaConta(E, c?.user_id, ref), E.eqc == null ? null : ref ? E.eqc.filter((m) => kref(m.casa_ref) === kref(ref)) : []); };
+  const etapaArtistaEq = (E, i) => etapaArtista(i, contratosDaConta(E, i?.user_id, i?.perfil?.vinculo_nome));
   const textoContrato = (c) => c.status === "assinado" ? c.texto_final : TQContrato.preencher(c.texto, c.campos, Object.fromEntries(c.campos.map((x) => [x.chave, String(c.dados?.[x.chave] ?? "").trim() || "________________"])));
+  // Cópia local dos dados do contrato que ainda não foram salvos (neste navegador), para não perder nada.
+  const lerCtLocal = (id) => { try { return JSON.parse(store.get("tq-rascunho-ct-" + id) || "{}") || {}; } catch { return {}; } };
   // Contrato (pedido da Marina, 17/11/2026): o Tranquilo já manda assinado; a pessoa completa os dados, baixa o PDF,
   // assina (à mão ou gov.br) e envia o arquivo de volta. O envio marca o passo "contrato" da data sozinho.
   function telaContrato(c) {
     const si = TQContrato.situacao(c), conferido = !!c.conferido_em, assinado = c.status === "assinado" || conferido, env = arqsNovos(c), deNovo = ctPedidoDeNovo(c);
     const ant = assinado ? {} : dadosAnteriores(c), trazidos = c.campos.filter((x) => !String(c.dados?.[x.chave] ?? "").trim() && ant[x.chave]);
-    const completo = !si.falta, n0 = c.campos.length ? 1 : 0;
+    const completo = !si.falta, n0 = c.campos.length ? 1 : 0, locCt = assinado ? {} : lerCtLocal(c.id);
     const passo = (n, titulo, corpo, feito) => `<div class="card"><h3 style="margin-top:0">${feito ? "✓ " : `${n}. `}${titulo}</h3>${corpo}</div>`;
     const arqTxt = (f) => `${esc(f.nome.replace(/^\d+-/, ""))}${f.em ? ` · ${dt(f.em.slice(0, 10))}` : ""}`;
     return `<button class="btn sm" data-ct-voltar>← Voltar</button><div class="tag" style="margin-top:12px">Contrato</div><h1>${esc(c.titulo)}</h1>
@@ -1432,14 +1559,15 @@ const TQConta = (() => {
         : deNovo ? `<div class="alert crit" id="ctDeNovo"><b>Envie o contrato assinado de novo</b>A equipe do Tranquilo conferiu o arquivo que você mandou e pediu outro. O motivo: <q>${esc(c.devolvido_motivo || "")}</q> Corrija, assine e envie o arquivo novo no passo ${n0 + 2} abaixo.</div>`
         : env.length ? `<div class="alert good"><b>Contrato assinado enviado</b>${arqTxt(env[0])}. Está tudo certo: a equipe do Tranquilo já recebeu e vai conferir.</div>`
         : `<p class="sub">O contrato já vai assinado pelo Tranquilo. ${c.campos.length ? "Complete os seus dados, baixe" : "Baixe"} o PDF, assine (à mão ou pelo gov.br) e envie o arquivo assinado aqui.</p>`}
-      ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(c.dados?.[x.chave] || ant[x.chave] || "")}"></label>`).join("")}</div>
+      ${!assinado && c.campos.length ? passo(1, "Seus dados", `<div class="grid g2">${c.campos.map((x) => `<label class="fcampo"><b>${esc(x.rotulo)} <span class="obrig">*</span></b><input data-ct-dado="${esc(x.chave)}" maxlength="300" value="${esc(locCt[x.chave] ?? (c.dados?.[x.chave] || ant[x.chave] || ""))}"></label>`).join("")}</div>
+        ${Object.keys(locCt).length ? `<div class="alert" style="margin:8px 0"><b>Recuperamos o que você tinha digitado</b>Estava guardado neste aparelho e ainda não foi salvo. Confira e toque em "Salvar dados".</div>` : ""}
         ${trazidos.length ? `<div class="alert" style="margin:8px 0"><b>Trouxemos o que você já informou em outro contrato</b>${esc(trazidos.map((x) => x.rotulo).join(", "))}. Confira e toque em "Salvar dados".</div>` : ""}
         <div class="barra-acoes"><button class="btn${completo && !trazidos.length ? "" : " pri"}" id="ctSalvarDados">Salvar dados</button></div><div class="err" role="status" aria-live="polite" id="ctDadosMsg">${completo ? "✓ Feito: dados salvos." : ""}</div>`, completo) : ""}
       ${assinado ? "" : passo(n0 + 1, "Baixe o contrato", `<p class="muted" style="font-size:14px;margin:0 0 10px">${completo ? "O PDF já sai com os seus dados e a assinatura do Tranquilo." : "Salve os seus dados primeiro: eles entram no PDF."}</p><div class="barra-acoes"><button class="btn${completo && !env.length ? " pri" : ""}" data-ct-ver="${c.id}"${completo ? "" : " disabled"}>Baixar PDF</button></div>`)}
       ${assinado ? "" : passo(n0 + 2, "Assine e envie de volta", `<p class="muted" style="font-size:14px;margin:0 0 10px">Assine no campo indicado no PDF (à mão e escaneie ou fotografe, ou pelo gov.br) e envie o arquivo aqui. Aceita PDF ou foto.</p>
         <label class="fcampo"><b>${env.length ? "Enviar outra versão" : deNovo ? "Arquivo assinado novo" : "Arquivo assinado"}</b><input type="file" data-enviar-arquivo="contrato_${esc(c.id)}" accept=".pdf,.jpg,.jpeg,.png"${completo ? "" : " disabled"}></label>
         <div class="err" role="status" aria-live="polite" id="arqErr-contrato_${esc(c.id)}">${env.length ? "✓ Feito: contrato assinado recebido." : ""}</div>`, !!env.length)}
-      <div class="card"><h3 style="margin-top:0">Texto do contrato</h3><div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato">${esc(textoContrato(c))}</div></div>
+      <details class="card" id="ctTextoBox"><summary><b>Ver o texto do contrato</b> <span class="muted" style="font-size:13px;font-weight:400">· o mesmo do PDF</span></summary><div id="ctTexto" class="contr-texto" tabindex="0" aria-label="Texto do contrato" style="margin-top:10px">${esc(textoContrato(c))}</div></details>
       <div class="err" role="status" aria-live="polite" id="ctErr"></div>`;
   }
   // Marca "leu até o fim" quando o texto chega ao fim da rolagem (ou cabe inteiro na tela).
@@ -1453,7 +1581,10 @@ const TQConta = (() => {
         const m = $("#ctLido"); if (m) diz(m, "✓ Você leu até o fim. Agora dá para assinar."); const b = $("#ctAssinar"); if (b) b.disabled = false; }
       catch (e) { delete el.dataset.lido; const m = $("#ctErr"); if (m) diz(m, traduz(e.message)); }
     };
-    el.addEventListener("scroll", fim, { passive: true }); fim();
+    el.addEventListener("scroll", fim, { passive: true });
+    // Texto recolhido (details): só conta a leitura depois de abrir.
+    const box = el.closest("details"); if (box && !box.open) { box.addEventListener("toggle", () => { if (box.open) fim(); }); return; }
+    fim();
   }
   function abrirImpressao(c) {
     const w = window.open(URL.createObjectURL(new Blob([TQContrato.paginaImpressao(c, esc)], { type: "text/html;charset=utf-8" })), "_blank");
@@ -1678,36 +1809,39 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const p = S.conta.perfil;
       const aberto = S.contrAberto && meusContratos().find((c) => c.id === S.contrAberto);
       if (aberto) return telaContrato(aberto);
-      return blocoTrilha() + avisoContratos() + (p.tipo === "casa" ? passosCasa() : passosArtista());
+      // A pendência mais importante primeiro (pedido da Marina, 18/11/2026): contrato para assinar ou devolvido, depois a trilha.
+      return avisoContratos() + blocoTrilha() + (p.tipo === "casa" ? passosCasa() : passosArtista());
     },
     inscricao() {
-      const i = S.conta.insc, d = i?.dados || {}, trav = i && !["rascunho", "ajustes"].includes(i.status);
+      const i = S.conta.insc, trav = i && !["rascunho", "ajustes"].includes(i.status), rec = trav ? null : recuperarLocal(i?.dados || {}), d = rec || i?.dados || {};
       return `<div class="tag">Inscrição de artista</div><h1>${trav ? "Sua inscrição" : "Inscreva-se na rede"}</h1>
       <p class="sub">${trav ? "Sua inscrição está com a equipe. Você pode consultar as respostas e preencher o que ficou vazio; o que já foi respondido só muda se a curadoria pedir ajustes." : "Leva uns 10 minutos. O rascunho fica salvo e você pode voltar depois. Ao enviar, a pré-curadoria é automática e o resultado aparece na hora."}</p>
       ${i?.parecer && i.status === "ajustes" ? `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer)}</div>` : ""}
+      ${rec || (!trav && S.recuperado === S.conta.perfil.id) ? avisoRecuperado : ""}
       <div id="medidor">${medidor(R.preCuradoria(d))}</div>
-      <div id="form" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav ? (i.status === "encerrada" ? true : "vazios") : false)}</div>
+      <div id="form" data-editavel="${trav ? "" : "1"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formHtml(F_ARTISTA, d, trav ? (i.status === "encerrada" ? true : "vazios") : false)}</div>
       <section class="card fsec" style="margin-top:12px" id="dispFicha"><h3>Disponibilidade: dias em que você pode tocar</h3>${calendarioArtista()}</section>
-      ${trav ? (i.status === "encerrada" ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. O que já foi respondido só muda se a curadoria pedir ajustes.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button></div>`) : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar para a curadoria</button></div>`}`;
+      ${trav ? (i.status === "encerrada" ? "" : `<div class="err" role="status" aria-live="polite" id="ferr"></div><p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. O que já foi respondido só muda se a curadoria pedir ajustes.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button></div>`) : `<div class="err" role="status" aria-live="polite" id="ferr"></div><div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button>${botaoEnviar(pendenciasForm(F_ARTISTA, d), "Enviar para a curadoria")}</div>`}`;
     },
     cadastro_casa() {
-      const c = S.conta.casa, d = c?.dados || {}, parceira = S.casaParceira ?? !!c?.ja_parceira;
+      const c = S.conta.casa, parceira = S.casaParceira ?? !!c?.ja_parceira;
       // Só casas com nome real; quem não se acha usa "Minha casa não aparece".
       const casasConhecidas = (S.pub.casas || []).filter((x) => !/^Casa (em|da rede)\b/.test(x.nome)).sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
       // Ficha enviada ao Tranquilo não muda em silêncio: a casa pede a atualização e a Central confere.
       const enviada = !!c && ["em_analise", "habilitada", "suspensa"].includes(c.status), pedindo = enviada && S.fichaPedido, travado = enviada && !pedindo;
+      const rec = enviada ? null : recuperarLocal(c?.dados || {}), d = rec || c?.dados || {};
       // "Já deixamos preenchido o que você nos contou" (Ficha v1): o que a base Casas do Notion tem e a ficha ainda não.
       const sug = enviada ? {} : Object.fromEntries(Object.entries(S.pac?.ficha_notion || {}).filter(([k, v]) => CHAVES_FICHA.has(k) && v != null && v !== "" && [null, undefined, ""].includes(valorCasa(d, k))));
       const sols = S.conta.sol || [], aberto = sols.find((x) => x.status === "pendente");
       const ultimaRecusa = [...sols].filter((x) => x.status !== "cancelada").sort((x, y) => String(y.criado_em).localeCompare(String(x.criado_em)))[0];
-      const pend = c?.pendencias || R.pendenciasCasa(d);
+      const pend = semDiasSemana(c?.pendencias || R.pendenciasCasa(d));
       const rotulo = (k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || ROTULO_ANTIGO[k] || k;
       const mostra = (k, v) => Array.isArray(v) ? v.join(", ") : k === "som" && SOM_ANTIGO[v] ? SOM_ANTIGO[v] : v === "true" ? "Sim" : v === "false" ? "Não" : String(v);
       const usadosNaFicha = new Set(Object.entries(F_CASA_ANTIGO).filter(([novo]) => !d[novo]).map(([, ant]) => ant).concat(d.cidade_uf ? [] : ["cidade", "estado"]));
       const extras = Object.entries(d).filter(([k, v]) => !CHAVES_FICHA.has(k) && !usadosNaFicha.has(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length));
       return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da unidade")}</h1>
       <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo: para mudar algo, toque em Solicitar atualização." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
-      <div class="row" style="margin-bottom:10px"><span>${c ? badge(STATUS_CASA, c.status) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ler="guia-do-franqueado">Ler o Guia do Franqueado</button></div>
+      <div class="row" style="margin-bottom:10px"><span>${c ? badgeEtapa(etapaCasa(c, meusContratos(), S.conta.equipe ?? null)) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ler="guia-do-franqueado">Ler o Guia do Franqueado</button></div>
       ${c?.status === "encerrada" ? `<div class="alert crit"><b>Parceria encerrada ${A_VALIDAR_HTML}</b>${esc(c.parecer || "")} A Ficha e o histórico ficam guardados. Dúvidas: fale com a Operações.</div>`
         : c?.parecer ? `<div class="alert ${c.status === "ajustes" ? "warn" : ""}"><b>Mensagem da equipe</b>${esc(c.parecer)}</div>` : ""}
       ${c?.status === "habilitada" && R.pendenciasCasa(d).habilitacao.includes(R.NOVA_EXIGENCIA) ? `<div class="alert warn"><b>Nova exigência: ${esc(R.NOVA_EXIGENCIA.toLowerCase())}</b>O público do Tranquilo assiste sentado no chão. A casa continua habilitada; informe a capacidade por Solicitar atualização.</div>` : ""}
@@ -1716,14 +1850,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ${pedindo ? `<div class="alert warn"><b>Você está pedindo uma atualização</b>Altere os campos abaixo e toque em "Enviar pedido de atualização", no fim da página. A ficha só muda quando a Central aprovar.${aberto ? " Este pedido substitui o que já está com a Central: as mudanças dele já estão nos campos." : ""}</div>` : ""}
       ${parteUmCasa(c)}
       <h2>Parte 2 · Para preencher</h2>
+      ${rec || (!enviada && S.recuperado === S.conta.perfil.id) ? avisoRecuperado : ""}
       ${Object.keys(sug).length ? `<div class="alert"><b>Já deixamos preenchido o que temos da sua casa</b>Confira e corrija se precisar: ${esc(Object.keys(sug).map((k) => F_CASA.flatMap(([, , cs]) => cs).find((x) => x[0] === k)?.[1] || k).join(", "))}. Só fica salvo na sua Ficha quando você salvar ou enviar.</div>` : ""}
       <div class="grid g3" style="margin:0 0 12px">${[["habilitacao", "Falta para habilitar", "b-crit"], ["match", "Falta para montar a noite", "b-warn"], ["enriquecimento", "Deixa a ficha completa", ""]].map(([k, t, cl]) => `<div class="card"><b>${t}</b>${k === "habilitacao" ? " " + A_VALIDAR_HTML : ""} <span class="badge ${cl}">${pend[k].length}</span><div class="muted" style="font-size:13px;margin-top:4px">${pend[k].map(esc).join(" · ") || "Nada pendente"}</div></div>`).join("")}</div>
       ${enviada ? "" : `<div class="card"><b>A casa já recebe o Tranquilo?</b><div class="filters" style="margin-bottom:0"><label class="fcheck"><input type="radio" name="parceira" value="nao"${!parceira ? " checked" : ""}> Casa nova na rede</label><label class="fcheck"><input type="radio" name="parceira" value="sim"${parceira ? " checked" : ""}> Já recebo datas do Tranquilo</label>
       ${parceira ? `<select id="casaNotion" aria-label="Escolha a sua casa"><option value="">Escolha a casa</option>${casasConhecidas.map((x) => `<option value="${x.id}"${c?.notion_casa_id === x.id ? " selected" : ""}>${esc(x.nome)} · ${esc(x.cidade)}</option>`).join("")}<option value="outra">Minha casa não aparece na lista</option></select>` : ""}</div></div>`}
-      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, ["suspensa", "encerrada"].includes(c?.status) ? true : travado ? "vazios" : false)}</div>
-      ${extras.length ? `<section class="card fsec" style="margin-top:12px"><h3>Outras informações já enviadas</h3><p class="muted" style="margin:-4px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></section>` : ""}
+      <div id="form" data-modo="${pedindo ? "pedido" : travado ? "leitura" : "edicao"}" data-editavel="${enviada ? "" : "1"}" style="display:flex;flex-direction:column;gap:12px;margin-top:12px">${formCasa(pedindo && aberto ? { ...d, ...aberto.proposto } : { ...d, ...sug }, ["suspensa", "encerrada"].includes(c?.status) ? true : travado ? "vazios" : false)}</div>
+      ${extras.length ? `<details class="card fsec" style="margin-top:12px"><summary><b>Outras informações já enviadas (${extras.length})</b></summary><p class="muted" style="margin:6px 0 10px;font-size:14px">Respostas de uma versão anterior da ficha. Ficam guardadas aqui.</p><dl class="kv">${extras.map(([k, v]) => `<dt>${esc(rotulo(k))}</dt><dd>${esc(mostra(k, v))}</dd>`).join("")}</dl></details>` : ""}
       <div class="err" role="status" aria-live="polite" id="ferr"></div>
-      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button><button class="btn pri" id="enviar">Enviar a Ficha ao Tranquilo</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
+      ${!enviada ? `<div class="barra-acoes"><button class="btn" id="salvar">Salvar rascunho</button>${botaoEnviar(pendenciasForm(F_CASA, dadosVistos(F_CASA, { ...d, ...sug })), "Enviar a Ficha ao Tranquilo")}<button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`
         : pedindo ? `<label class="fcampo" style="margin-top:12px"><b>O que mudou e por quê <span class="muted">*</span></b><textarea id="solMsg" rows="2" maxlength="1000"></textarea><div class="muted" style="font-size:12px;margin-top:3px">Pelo menos 10 caracteres. É o que a Central lê para aprovar.</div></label><div class="barra-acoes"><button class="btn pri" id="solEnviar">Enviar pedido de atualização</button><button class="btn" id="solVoltar">Cancelar</button></div>`
         : ["suspensa", "encerrada"].includes(c.status) ? "" : `<p class="muted" style="font-size:13px;margin:12px 0 0">Os campos que ficaram vazios você preenche direto e salva. Para mudar o que já foi respondido, use Solicitar atualização.</p><div class="barra-acoes"><button class="btn pri" id="salvarVazios">Salvar o que preenchi</button><button class="btn" id="solPedir">Solicitar atualização</button><button class="btn" id="copiarFicha">Enviar respostas (WhatsApp, e-mail ou copiar)</button></div>`}
       ${sols.length ? `<details style="margin-top:14px"><summary>Pedidos de atualização (${sols.length})</summary><ul class="passos">${sols.map((x) => `<li><b>${dt(x.criado_em.slice(0, 10))}</b> · ${esc({ pendente: "com a Central", aprovada: "aprovado", recusada: "recusado", cancelada: "cancelado" }[x.status])} · ${esc(Object.keys(x.proposto).map(rotulo).join(", "))}${x.resposta ? `<br><span class="muted" style="font-size:13px">Resposta: ${esc(x.resposta)}</span>` : ""}</li>`).join("")}</ul></details>` : ""}
@@ -1831,7 +1966,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         return `<div class="card"><div class="row"><b>${dt(e.d)} · ${esc(e.c)}</b><span class="muted">${esc(e.m || "")}</span></div>
         <div class="grid g2" style="margin-top:8px"><div><div class="tag" style="margin:0">Artista</div>${infoNoite(e, P.enderecos?.[e.k])}</div>
         <div><div class="tag" style="margin:0">Casa</div><dl class="kv" style="margin:10px 0 0"><dt>Casa</dt><dd>${esc(e.h || "a definir")}</dd>
-          <dt>Ficha</dt><dd>${c ? badge(STATUS_CASA, c.status) : '<span class="muted">sem cadastro no portal</span>'}</dd>
+          <dt>Ficha</dt><dd>${c ? badgeEtapa(etapaCasaEq(E, c)) : '<span class="muted">sem cadastro no portal</span>'}</dd>
           <dt>Disponibilidade</dt><dd>${di ? (di.situacao === "indisponivel" ? '<span class="badge b-crit">marcou indisponível</span>' : "marcou disponível") : '<span class="muted">sem marcação</span>'}</dd>
           <dt>Bonificação</dt><dd>${b?.tem === "sim" ? esc(b.marca || "sim") : b?.tem === "nao" ? "não" : '<span class="muted">a definir</span>'}</dd>
           ${c ? `<dt></dt><dd><button class="btn sm" data-click="casacad:${c.id}">Abrir a ficha</button></dd>` : ""}</dl></div></div>
@@ -2011,40 +2146,68 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (areas.includes("marketing") && !S.hub) carregarHub();
       const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
       const nome = String(S.conta.perfil.nome || "").split(" ")[0];
+      // Cada card traz o que espera a pessoa e abre direto o item (data-abrir); com um item só, o botão já abre ele.
+      // prio: a pendência mais importante primeiro (1 = conferir contrato assinado, depois Fichas, contratos a preparar…).
       const cards = [];
-      const card = (urg, titulo, txt, aba, lista = []) => cards.push({ urg, html: `<div class="card"><div class="row"><div><b>${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : ""}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${l}</li>`).join("")}${lista.length > 6 ? `<li class="muted">e mais ${lista.length - 6}</li>` : ""}</ul>` : ""}</div>` });
+      const card = (urg, titulo, txt, aba, lista = [], prio = 5) => {
+        const li = (l) => typeof l === "string" ? l : `<a href="#" data-abrir="${esc(l.abrir)}">${l.html}</a>`;
+        const um = lista.length === 1 && typeof lista[0] === "object" ? lista[0].abrir : null;
+        const botao = um ? `<button class="btn sm${urg ? " pri" : ""}" data-abrir="${esc(um)}">Abrir</button>` : aba ? `<button class="btn sm${urg ? " pri" : ""}" data-ir="${aba}">Abrir</button>` : "";
+        const mais = lista.length > 6 ? `<li><details><summary>e mais ${lista.length - 6}</summary><ul class="passos" style="margin:6px 0 0">${lista.slice(6).map((l) => `<li>${li(l)}</li>`).join("")}</ul></details></li>` : "";
+        cards.push({ urg, prio, ord: cards.length, html: `<div class="card"><div class="row"><div><b>${titulo}</b><div class="muted" style="font-size:13px">${txt}</div></div>${botao}</div>${lista.length ? `<ul class="passos" style="margin:8px 0 0">${lista.slice(0, 6).map((l) => `<li>${li(l)}</li>`).join("")}${mais}</ul>` : ""}</div>` });
+      };
+      const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
       const evsNotion = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hoje), evsPortal = (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hoje).map(eventoDoPortal);
       const proximas = (n) => [...evsNotion, ...evsPortal].filter((e) => e.d <= mais(n)).sort((a, b) => a.d.localeCompare(b.d));
       const ondeDe = (e) => [e.h, e.c].filter(Boolean).join(" · ");
+      // Contratos por área: o da casa é da Operações (Gui); o da artista, da Agenda (Isa).
+      const perfilDe = (uid) => (E.perfis || []).find((p) => p.id === uid), nomeDe = (uid) => { const p = perfilDe(uid); return p ? nomeDaConta(p) : "conta"; };
+      const areaCt = (c) => (perfilDe(c.user_id)?.tipo === "casa" ? "operacoes" : "agenda");
+      const contratos = (area) => (E.contr || []).filter((c) => c.status !== "cancelado" && areaCt(c) === area);
+      const cardsContratos = (area) => {
+        const L = contratos(area), ct = (c) => ({ abrir: "ct:" + c.id, html: `${esc(c.titulo)} <span class="muted">· ${esc(nomeDe(c.user_id))}</span>` });
+        const conferir = L.filter((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length);
+        if (conferir.length) card(true, `${pl(conferir.length, "contrato assinado espera", "contratos assinados esperam")} "Conferir e confirmar"`, "O arquivo assinado já chegou. Abra, confira e confirme (ou peça de novo com o motivo).", "documentos", conferir.map(ct), 1);
+        const devolvidos = L.filter(ctPedidoDeNovo);
+        if (devolvidos.length) card(devolvidos.some((c) => String(c.devolvido_em || "") < mais(-3)), `${pl(devolvidos.length, "contrato devolvido aguarda", "contratos devolvidos aguardam")} o reenvio`, "Você pediu o arquivo de novo. Quando chegar, ele volta para \"Conferir e confirmar\"; se passar de 3 dias, vale um alô.", "documentos", devolvidos.map((c) => ({ abrir: "ct:" + c.id, html: `${esc(c.titulo)} <span class="muted">· ${esc(nomeDe(c.user_id))} · ${esc(c.devolvido_motivo || "")}</span>` })), 6);
+        const esperando = L.filter((c) => c.status === "enviado" && !ctRecebido(c) && !ctPedidoDeNovo(c));
+        if (esperando.length) card(false, `${pl(esperando.length, "contrato enviado espera", "contratos enviados esperam")} a assinatura`, "Já está com a pessoa: ela completa os dados, assina e envia de volta.", "documentos", esperando.map(ct), 8);
+      };
+      if (areas.includes("operacoes")) {
+        cardsContratos("operacoes");
+        const analise = (E.casas || []).filter((c) => c.status === "em_analise");
+        if (analise.length) card(true, `${pl(analise.length, "Ficha espera", "Fichas esperam")} a sua análise para habilitar`, "Abra a Ficha para habilitar ou pedir ajustes.", "casas_cad", analise.map((c) => ({ abrir: "casa:" + c.id, html: `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` <span class="muted">· ${esc(c.dados.cidade_uf)}</span>` : ""}` })), 2);
+        const semCt = (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato");
+        if (semCt.length && E.contr !== null) card(true, `${pl(semCt.length, "casa habilitada aguarda", "casas habilitadas aguardam")} o contrato da parceria`, "Prepare o contrato: a conta da casa já vem escolhida e a Ficha preenche o que já sabe.", "documentos", semCt.map((c) => ({ abrir: `ctpre:|${c.user_id}`, html: `Preparar o contrato de ${esc(c.dados?.nome || c.perfil?.vinculo_nome || "casa")}` })), 3);
+        const sol = (E.sol || []).filter((x) => x.status === "pendente");
+        if (sol.length) card(true, pl(sol.length, "pedido de atualização de Ficha", "pedidos de atualização de Ficha"), "A casa pediu para mudar dados que já tinha enviado.", "casas_cad", sol.map((x) => { const c = (E.casas || []).find((y) => y.id === x.casa_id); return { abrir: "casa:" + x.casa_id, html: esc(c?.dados?.nome || "Casa") }; }), 4);
+        const semFicha = proximas(14).filter((e) => !(E.casas || []).some((c) => (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h)) && c.status === "habilitada"));
+        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${pl(semFicha.length, "data nos próximos 14 dias", "datas nos próximos 14 dias")} com casa sem Ficha habilitada`, "Talvez valha chamar a casa para completar a Ficha ou mandar um convite.", "casas_cad", semFicha.map((e) => { const c = (E.casas || []).find((x) => k(x.dados?.nome) === k(e.h) || k(x.perfil?.vinculo_nome) === k(e.h)); return c ? { abrir: "casa:" + c.id, html: `${dt(e.d)} · ${esc(ondeDe(e))}` } : `${dt(e.d)} · ${esc(ondeDe(e))}`; }), 5);
+        const convAntigos = (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3));
+        if (convAntigos.length) card(false, `${pl(convAntigos.length, "casa convidada ainda não entrou", "casas convidadas ainda não entraram")} (mais de 3 dias)`, "Se ajudar, dá pra reenviar o convite ou mandar o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)), 9);
+      }
       if (areas.includes("agenda")) {
-        const curad = (E.insc || []).filter((i) => i.status === "em_curadoria");
-        if (curad.length) card(curad.length >= 5, `${curad.length} ${curad.length === 1 ? "inscrição espera" : "inscrições esperam"} a curadoria`, "Quando quiser, dá pra aprovar, pedir ajustes ou não seguir por lá.", "curadoria", curad.map((i) => esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` · ${esc(i.dados.cidade_base)}` : "")));
+        cardsContratos("agenda");
+        const curad = (E.insc || []).filter((i) => i.status === "em_curadoria").sort((a, b) => String(a.enviado_em || "").localeCompare(String(b.enviado_em || "")));
+        if (curad.length) card(true, `${pl(curad.length, "inscrição espera", "inscrições esperam")} a curadoria`, "Abra a inscrição para aprovar, pedir ajustes ou não seguir. A mais antiga vem primeiro.", "curadoria", curad.map((i) => ({ abrir: "insc:" + i.id, html: esc(i.dados?.nome_artistico || "sem nome") + (i.dados?.cidade_base ? ` <span class="muted">· ${esc(i.dados.cidade_base)}</span>` : "") })), 2);
+        // Datas do portal sem contrato da artista (30 dias): "Preparar contrato" já escolhe a data e a artista.
+        const temCt = (e) => (E.contr || []).some((c) => c.evento_id === e.id && c.status !== "cancelado") || (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
+        const aPreparar = evsPortal.filter((e) => e.d <= mais(30) && !temCt(e)).sort((a, b) => a.d.localeCompare(b.d));
+        if (aPreparar.length && E.contr !== null) card(aPreparar.some((e) => e.d <= mais(10)), `${pl(aPreparar.length, "data do portal sem contrato", "datas do portal sem contrato")} (30 dias): contrato a preparar`, "Cada item abre \"Preparar contrato\" com a data e a artista já escolhidas.", "documentos", aPreparar.map((e) => ({ abrir: `ctpre:${e.id}|${e.au?.[0] || ""}`, html: `${dt(e.d)} · ${esc(ondeDe(e))}${e.a?.length ? ` <span class="muted">· ${esc(e.a.join(", "))}</span>` : ""}` })), 3);
         const incompletas = proximas(14).filter((e) => { const N = noiteDe(e), conf = (N?.artistas || []).filter((a) => a.status === "Confirmado").length || (e.a || []).length; return conf < 2; });
-        if (incompletas.length) card(true, `${incompletas.length} ${incompletas.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
-        const semContrato = evsPortal.filter((e) => e.d <= mais(30) && !(E.contr || []).some((c) => c.evento_id === e.id && ctAssinado(c)));
-        if (semContrato.length) card(semContrato.some((e) => e.d <= mais(10)), `${semContrato.length} ${semContrato.length === 1 ? "data do portal sem contrato assinado" : "datas do portal sem contrato assinado"} (30 dias)`, "Quando quiser adiantar, o contrato do artista fica em Contratos.", "documentos", semContrato.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
+        if (incompletas.length) card(true, `${pl(incompletas.length, "data nos próximos 14 dias", "datas nos próximos 14 dias")} com line-up incompleto`, "Assim que o line-up fechar, a casa já recebe a mensagem de cronograma.", "datas_portal", incompletas.map((e) => e.portal ? { abrir: "dp:" + e.portal.id, html: `${dt(e.d)} · ${esc(ondeDe(e))}` } : `${dt(e.d)} · ${esc(ondeDe(e))}`), 5);
         const casasL = (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || "Casa", cidade: c.dados?.cidade_uf || c.dados?.cidade || "" }));
         const livres = livresNoDia(E, casasL, null), dias = Array.from({ length: 21 }, (_, i) => mais(i)).map((d) => ({ d, ...livres(d) })).filter((x) => x.cs.length && x.as.length);
-        card(false, dias.length ? `${dias.length} ${dias.length === 1 ? "dia" : "dias"} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Em Criar datas dá para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`));
-      }
-      if (areas.includes("operacoes")) {
-        const analise = (E.casas || []).filter((c) => c.status === "em_analise");
-        if (analise.length) card(true, `${analise.length} ${analise.length === 1 ? "Ficha espera" : "Fichas esperam"} a sua análise`, "Dá pra habilitar ou pedir ajustes em Fichas das casas.", "casas_cad", analise.map((c) => `${esc(c.dados?.nome || "Casa")}${c.dados?.cidade_uf ? ` · ${esc(c.dados.cidade_uf)}` : ""}`));
-        const sol = (E.sol || []).filter((x) => x.status === "pendente");
-        if (sol.length) card(true, `${sol.length} ${sol.length === 1 ? "pedido de atualização de Ficha" : "pedidos de atualização de Ficha"}`, "A casa pediu para mudar dados que já tinha enviado.", "casas_cad");
-        const semFicha = proximas(14).filter((e) => !(E.casas || []).some((c) => (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h)) && c.status === "habilitada"));
-        if (semFicha.length) card(semFicha.some((e) => e.d <= mais(7)), `${semFicha.length} ${semFicha.length === 1 ? "data nos próximos 14 dias" : "datas nos próximos 14 dias"} com casa sem Ficha habilitada`, "Talvez valha chamar a casa para completar a Ficha ou mandar um convite.", "casas_cad", semFicha.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
-        const convAntigos = (E.conv || []).filter((c) => c.tipo === "casa" && !c.aceito_em && String(c.criado_em || "") < mais(-3));
-        if (convAntigos.length) card(false, `${convAntigos.length} ${convAntigos.length === 1 ? "casa convidada ainda não entrou" : "casas convidadas ainda não entraram"} (mais de 3 dias)`, "Se ajudar, dá pra reenviar o convite ou mandar o link pelo WhatsApp.", "convites", convAntigos.map((c) => esc(c.vinculo_nome || c.nome || c.email)));
+        card(false, dias.length ? `${pl(dias.length, "dia", "dias")} com casa e artista livres nas próximas 3 semanas` : "Nenhum dia com casa e artista livres nas próximas 3 semanas", dias.length ? "Em Criar datas dá para fechar com um toque." : "Quando casas e artistas marcarem os dias, os encontros aparecem aqui.", "datas_portal", dias.map((x) => `${esc(NOME_SEM[wdDe(x.d)])}, ${dt(x.d)}: ${x.cs.map((c) => `${esc(c.nome)} (${esc(c.cidade || "?")})`).join(", ")} ↔ ${x.as.map((a) => `${esc(a.nome)}${a.mora ? ` (${esc(a.mora)})` : ""}`).join(", ")}`), 9);
       }
       if (areas.includes("marketing")) {
         const H = S.hub, atras = (H?.andamento || []).filter((a) => a.atrasados > 0);
         if (!H) card(false, "Carregando as campanhas…", "", null);
-        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que passaram sem \"Feito\" da casa; talvez valha um alô.", "campanhas", atras.map((a) => `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}`));
+        else if (atras.length) card(true, `${atras.length} ${atras.length === 1 ? "campanha com dias atrasados" : "campanhas com dias atrasados"}`, "Dias que passaram sem \"Feito\" da casa; talvez valha um alô.", "campanhas", atras.map((a) => ({ abrir: "camp:" + a.campanha_id, html: `${esc(a.casa_ref)} · ${a.atrasados} ${a.atrasados === 1 ? "dia" : "dias"}` })), 4);
         const semCamp = proximas(30).filter((e) => !(H?.campanhas || []).some((c) => k(c.casa_ref) === k(e.h)));
         if (H && semCamp.length) card(false, `${semCamp.length} ${semCamp.length === 1 ? "data nos próximos 30 dias" : "datas nos próximos 30 dias"} sem campanha carregada`, "Quando der, a campanha entra em Campanhas.", "campanhas", semCamp.map((e) => `${dt(e.d)} · ${esc(ondeDe(e))}`));
       }
-      const urg = cards.filter((c) => c.urg), resto = cards.filter((c) => !c.urg);
+      const ordem = (a, b) => a.prio - b.prio || a.ord - b.ord, urg = cards.filter((c) => c.urg).sort(ordem), resto = cards.filter((c) => !c.urg).sort(ordem);
       return `<div class="tag">Para você</div><h1>Oi${nome ? ", " + esc(nome) : ""}! 🌿</h1>
       <p class="sub">Juntamos aqui o que chegou ${areas.length === 3 ? "nas suas áreas" : "em " + esc(nomesAreas(areas))}, pra você não precisar procurar. Vai no seu ritmo: o resto do portal está no menu.</p>
       ${urg.length ? `<h2>Vale olhar primeiro</h2><div class="list">${urg.map((c) => c.html).join("")}</div>` : `<div class="alert good"><b>Tudo tranquilo por aqui 🌿</b>Nada esperando por você agora.</div>`}
@@ -2083,7 +2246,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Casa", v: (e) => e.h || "", h: (e) => esc(e.h || "–") },
         { t: "Line-up", v: (e) => (e.a || []).join(", "), h: (e) => esc((e.a || []).join(", ") || "a definir") },
         { t: "Contrato", v: (e) => contrDe(e), h: (e) => contrDe(e) },
-        { t: "Ficha da casa", v: (e) => fichaDe(e)?.status || "", h: (e) => { const c = fichaDe(e); return c ? badge(STATUS_CASA, c.status) : '<span class="muted">sem Ficha</span>'; } },
+        { t: "Ficha da casa", v: (e) => fichaDe(e) ? etapaCasaEq(E, fichaDe(e))[1] : "", h: (e) => { const c = fichaDe(e); return c ? badgeEtapa(etapaCasaEq(E, c)) : '<span class="muted">sem Ficha</span>'; } },
       ], lista, { i: 0, dir: 1 }, vazio("Nenhuma data por vir", "", "", "geral"))}`;
     },
     painel() {
@@ -2094,7 +2257,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const f = S.pf ||= { cidade: "", casa: "", status: "", foco: "" };
       const casaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h));
       const contratoDe = (e) => { const cs = (E.contr || []).filter((c) => c.evento_id === e.id && c.status !== "cancelado"); const anexado = (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
-        return cs.length ? (cs.every((c) => c.status === "assinado") ? ["b-good", "assinado no site"] : ["b-warn", `${cs.filter((c) => c.status !== "assinado").length} para assinar`]) : anexado ? ["", "PDF anexado (assinatura não confirmada)"] : ["b-crit", "sem contrato"]; };
+        return cs.length ? (cs.every(ctAssinado) ? ["b-good", "assinado no site"] : ["b-warn", `${cs.filter((c) => !ctAssinado(c)).length} para assinar`]) : anexado ? ["", "PDF anexado (assinatura não confirmada)"] : ["b-crit", "sem contrato"]; };
       const linhas = P.eventos.filter((e) => !e.z && e.d >= hoje).map((e) => { const c = casaDe(e), ct = contratoDe(e);
         const pend = [...(!e.l ? ["sem link de ingressos"] : []), ...(ct[0] === "b-crit" ? ["sem contrato"] : []), ...(!c ? ["casa sem ficha no site"] : c.status !== "habilitada" ? [`ficha: ${STATUS_CASA[c.status]?.[1] || c.status}`] : []),
           ...((E.sol || []).some((x) => c && x.casa_id === c.id && x.status === "pendente") ? ["pedido de atualização da ficha"] : [])];
@@ -2115,7 +2278,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Status", v: (l) => l.e.s, h: (l) => esc(l.e.s || "–") },
         { t: "Vendas", n: 1, v: (l) => l.e.v ?? -1, h: (l) => l.e.v != null ? `${fmt(l.e.v)}${l.e.x ? ` de ${fmt(l.e.x)}` : ""}` : `<span class="muted">sem dado</span>` },
         { t: "Contrato", v: (l) => l.ct[1], h: (l) => `<span class="badge ${l.ct[0]}">${esc(l.ct[1])}</span>` },
-        { t: "Casa", v: (l) => l.c?.status || "", h: (l) => l.c ? badge(STATUS_CASA, l.c.status) : `<span class="muted">sem ficha no site</span>` },
+        { t: "Casa", v: (l) => l.c ? etapaCasaEq(E, l.c)[1] : "", h: (l) => l.c ? badgeEtapa(etapaCasaEq(E, l.c)) : `<span class="muted">sem ficha no site</span>` },
         { t: "Pendências", n: 1, v: (l) => l.pend.length, h: (l) => l.pend.length ? l.pend.map((x) => `<span class="pill">${esc(x)}</span>`).join("") : "–" },
       ], linhas, { i: 0, dir: 1 }, vazio("Nenhum evento com esses filtros", "Mude os filtros acima.", "", "painel"))}
       <p class="muted" style="font-size:12px">Bonificações (como Estrella Galicia) e o status jurídico dos contratos assinados fora do site ainda não têm fonte validada: não aparecem aqui até a regra ser confirmada.</p>`;
@@ -2153,21 +2316,31 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const mes = P ? P.eventos.filter((e) => e.d.startsWith(P.hoje.slice(0, 7)) && !e.z).length : null;
       const alertas = P ? alertasOperacao(P).length : null;
       const conv = (E.conv || []).filter((c) => !c.aceito_em).length;
+      // Fila na ordem do que pesa mais (pedido da Marina, 18/11/2026): contrato assinado esperando conferência, Fichas,
+      // curadoria, contratos a preparar e devolvidos; o que tem pendência vem antes do que está zerado.
+      const ctAtivos = (E.contr || []).filter((c) => c.status !== "cancelado");
+      const temCt = (e) => ctAtivos.some((c) => c.evento_id === e.id) || (E.docs || []).some((d) => d.evento_id === e.id && d.tipo === "contrato");
+      const em30 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), hj = hojeIso();
       const fila = [
-        ["curadoria", (E.insc || []).filter((i) => i.status === "em_curadoria").length, "artistas esperando curadoria"],
+        ["documentos", ctAtivos.filter((c) => c.status === "enviado" && !c.conferido_em && arqsNovos(c).length).length, "contratos assinados esperando \u201cConferir e confirmar\u201d"],
         ["casas_cad", (E.casas || []).filter((c) => c.status === "em_analise").length, "casas esperando análise"],
+        ["curadoria", (E.insc || []).filter((i) => i.status === "em_curadoria").length, "artistas esperando curadoria"],
+        ["documentos", (E.casas || []).filter((c) => c.status === "habilitada" && etapaCasaEq(E, c)[1] === "Habilitada · aguardando contrato").length + (E.datasP || []).filter((x) => x.status !== "cancelada" && String(x.dia).slice(0, 10) >= hj && String(x.dia).slice(0, 10) <= em30 && !temCt(eventoDoPortal(x))).length, "contratos a preparar (casas habilitadas e datas do portal)"],
+        ["documentos", ctAtivos.filter(ctPedidoDeNovo).length, "contratos devolvidos aguardando reenvio"],
         ["demanda", (E.avisos || []).length, "pedidos de show no \u201cme avise\u201d"],
-      ];
+      ].map((x, i) => [...x, i]).sort((a, b) => (!a[1] - !b[1]) || a[3] - b[3]);
       const atalho = (aba, cor, num, sufixo, titulo, texto, ir) => `<button class="atalho" data-ir="${aba}" style="--cor:${cor}">${num == null ? "" : `<div class="num">${num}<small>${sufixo}</small></div>`}<b>${titulo}</b><p>${texto}</p><span class="ir">${ir} →</span></button>`;
       return `<div class="tag">Comece por aqui</div><h1>${oi}${primeiro ? ", " + esc(primeiro) : ""}</h1>
       <p class="inicio-oi">Três coisas para olhar hoje. O menu completo continua à esquerda${matchMedia("(max-width:959px)").matches ? ", no botão ☰" : ""}.</p>
+      ${fila[0][1] ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:18px 0 0">Vale olhar primeiro</h2>
+      <div class="fila" id="filaPrimeiro">${fila.filter((x) => x[1]).map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q">${n}</span><span>${t}</span></button>`).join("")}</div>` : ""}
       <div class="atalhos">
         ${atalho(adm ? "estrategia" : "operacao", "#7c8ff3", mes, mes == null ? "" : "de 50 datas este mês", "Como a rede está indo", adm ? "Cidades, casas e artistas que estão acima ou abaixo da média, e onde abrir datas a seguir." : "Calendário do mês, meta de 50 datas e o que acontece nos próximos 14 dias.", adm ? "Ver o painel" : "Ver a operação")}
         ${atalho("operacao", "#f9b436", alertas, alertas == null ? "" : alertas === 1 ? "ponto" : "pontos", "O que precisa de atenção", "Datas sem link de ingressos, noites sem público lançado e status desatualizados no Notion.", "Ver os alertas")}
         ${atalho("convites", "#fcdbe5", conv, conv === 1 ? "convite esperando" : "convites esperando", "Chamar alguém para a rede", "Convide uma artista ou casa que já trabalha com o Tranquilo. Ela recebe o link e o tutorial.", "Fazer um convite")}
       </div>
-      <h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">Fila de hoje</h2>
-      <div class="fila">${fila.map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q${n ? "" : " zero"}">${n}</span><span>${t}</span></button>`).join("")}</div>
+      ${fila.some((x) => !x[1]) ? `<h2 style="font-family:var(--sans);font-weight:600;font-size:16px;margin:34px 0 0">${fila[0][1] ? "Em dia" : "Fila de hoje"}</h2>
+      <div class="fila">${fila.filter((x) => !x[1]).map(([aba, n, t]) => `<button data-ir="${aba}"><span class="q zero">${n}</span><span>${t}</span></button>`).join("")}</div>` : ""}
 `;
     },
     curadoria() {
@@ -2186,7 +2359,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Faixa", v: (i) => i.faixa, h: (i) => i.faixa ? `<span class="badge ${i.faixa === "Prioridade" ? "b-good" : i.faixa === "Avaliar" ? "b-warn" : "b-serious"}">${esc(i.faixa)}</span>` : "–" },
         { t: "Formato", v: (i) => i.dados.formato_interesse },
         { t: "Alertas", v: (i) => (i.alertas || []).length, h: (i) => (i.alertas || []).map((a) => `<span class="pill">${esc(a)}</span>`).join("") || "–" },
-        { t: "Status", v: (i) => i.status, h: (i) => badge(STATUS_INSC, i.status) },
+        { t: "Status", v: (i) => i.status, h: (i) => badgeEtapa(etapaArtistaEq(S.eq, i)) },
         { t: "Enviada", v: (i) => i.enviado_em || "", h: (i) => i.enviado_em ? dt(i.enviado_em.slice(0, 10)) : "–" },
       ], ls.map((i) => ({ ...i, _click: "insc:" + i.id })), { i: 1, dir: -1 }, L.length ? null : vazio("A fila está vazia", "Quando uma artista enviar a inscrição, ela chega aqui com a pré-curadoria pronta. Para chamar artistas que já estão na rede, use Convites.", `<button class="btn" data-ir="convites">Abrir convites</button>`, "curadoria"))}`;
     },
@@ -2201,7 +2374,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         { t: "Bloqueia habilitação", n: 1, v: (c) => c.pendencias?.habilitacao?.length ?? 0 },
         { t: "Bloqueia match", n: 1, v: (c) => c.pendencias?.match?.length ?? 0 },
         { t: "Pedidos de atualização", n: 1, v: (c) => (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente").length, h: (c) => { const n = (S.eq.sol || []).filter((x) => x.casa_id === c.id && x.status === "pendente").length; return n ? `<span class="badge b-warn">${n}</span>` : "0"; } },
-        { t: "Status", v: (c) => c.status, h: (c) => badge(STATUS_CASA, c.status) },
+        { t: "Situação", v: (c) => c.status + etapaCasaEq(S.eq, c)[1], h: (c) => badgeEtapa(etapaCasaEq(S.eq, c)) },
         { t: "Classificação", v: (c) => c.classificacao, h: (c) => CLASSE[c.classificacao] || "–" },
       ], L.map((c) => ({ ...c, _click: "casacad:" + c.id })), { i: 4, dir: 1 }, vazio("Nenhuma casa cadastrada ainda", "As casas que criarem conta e enviarem a ficha aparecem aqui para habilitação.", `<button class="btn" data-ir="convites">Convidar uma casa</button>`, "casas_cad"))}`;
     },
@@ -2342,26 +2515,26 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const dataTxt = (id) => { const e = datas.find((x) => x.id === id) || S.pac?.eventos?.find((x) => x.id === id); return e ? `${dt(e.d)} · ${e.c || e.h}` : id ? id.slice(0, 8) : "–"; };
       return `<div class="tag">Documentos</div><h1>Contratos e materiais</h1><p class="sub">Gere o contrato de cada data para a artista ou a casa (vai já assinado pelo Tranquilo; a pessoa assina e envia de volta), ou anexe um contrato pronto (link). Os dois aparecem no passo a passo dela, em "Contrato e materiais". Abaixo, os arquivos que artistas e casas enviaram.</p>
       ${secaoContratos(E, contas, datas, dataTxt, nomeConta)}
-      <div class="card"><h3 style="margin-top:0">Anexar documento pronto (link)</h3><div class="grid g2">
+      <details class="card"><summary><b>Anexar documento pronto (link)</b> <span class="muted" style="font-size:13px;font-weight:400">· contrato assinado fora do portal</span></summary><div class="grid g2" style="margin-top:10px">
         <label class="fcampo"><b>Tipo</b><select id="docTipo"><option value="contrato">Contrato de uma data</option><option value="modelo">Modelo de contrato (para todos)</option><option value="outro">Outro documento de uma data</option></select></label>
         <label class="fcampo"><b>Nome</b><input id="docTit" maxlength="120" placeholder="ex.: Contrato Joyce Alane · BH 05/11"></label>
         <label class="fcampo"><b>Conta</b><select id="docConta"><option value="">Escolha a artista ou casa</option>${contas.map((p) => `<option value="${p.id}">${esc(p.rotulo)} · ${p.tipo}</option>`).join("")}</select></label>
         <label class="fcampo"><b>Data</b><select id="docEv"><option value="">Escolha a data</option>${datas.map((e) => `<option value="${esc(e.id)}">${dt(e.d)} · ${esc(e.c)} · ${esc(e.a.join(", ") || e.m)}</option>`).join("")}</select></label>
         <label class="fcampo" style="grid-column:1/-1"><b>Link (Drive, Dropbox, DocuSign…)</b><input id="docUrl" maxlength="500" placeholder="https://"></label>
       </div><div class="barra-acoes"><button class="btn pri" id="docOk">Anexar</button></div><div class="err" role="status" aria-live="polite" id="docErr"></div>
-      <p class="muted" style="font-size:13px;margin:6px 0 0">Confira se o link está compartilhado com a pessoa (ou "qualquer pessoa com o link").</p></div>
-      <h2>Anexados</h2>${tabela("docs", [
+      <p class="muted" style="font-size:13px;margin:6px 0 0">Confira se o link está compartilhado com a pessoa (ou "qualquer pessoa com o link").</p></details>
+      <details style="margin-top:18px"><summary>Documentos anexados (${(E.docs || []).length})</summary>${tabela("docs", [
         { t: "Documento", v: (d) => d.titulo, h: (d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.titulo)}</a>` },
         { t: "Tipo", v: (d) => d.tipo }, { t: "Conta", v: (d) => nomeConta[d.user_id] || (d.tipo === "modelo" ? "todos" : "–") },
         { t: "Data", v: (d) => d.evento_id, h: (d) => d.tipo === "modelo" ? "–" : esc(dataTxt(d.evento_id)) },
         { t: "", v: () => 0, h: (d) => `<button class="btn sm" data-apagar-doc="${d.id}">Remover</button>` },
-      ], E.docs || [], { i: 0, dir: 1 }, vazio("Nenhum documento anexado", "Anexe o modelo de contrato e o contrato de cada data.", "", "convites"))}
-      <h2>Materiais recebidos</h2>${tabela("arqs", [
+      ], E.docs || [], { i: 0, dir: 1 }, vazio("Nenhum documento anexado", "Anexe o modelo de contrato e o contrato de cada data.", "", "convites"))}</details>
+      <details style="margin-top:10px"><summary>Arquivos recebidos de artistas e casas (${(E.arqs || []).length})</summary>${tabela("arqs", [
         { t: "Arquivo", v: (f) => f.nome, h: (f) => `<a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a>` },
         { t: "Quem enviou", v: (f) => nomeConta[f.user_id] || f.user_id.slice(0, 8) },
         { t: "Data", v: (f) => f.evento_id, h: (f) => esc(dataTxt(f.evento_id)) },
         { t: "Enviado em", v: (f) => f.em, h: (f) => f.em ? dt(String(f.em).slice(0, 10)) : "–" },
-      ], E.arqs || [], { i: 3, dir: -1 }, vazio("Nenhum material enviado ainda", "Riders, mapas de palco e fotos enviados pelas artistas e casas aparecem aqui.", "", "convites"))}`;
+      ], E.arqs || [], { i: 3, dir: -1 }, vazio("Nenhum material enviado ainda", "Riders, mapas de palco e fotos enviados pelas artistas e casas aparecem aqui.", "", "convites"))}</details>`;
     },
     relatos() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("relatos"); }
@@ -2428,8 +2601,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // Artista que já é da rede (vinculada, com datas) não precisa de inscrição: o aviso de inscrição sai.
     if (p.codigo_acesso && evs.length && (!i || ["rascunho", "aprovada"].includes(i.status))) { etapa = Math.max(etapa, 6); if (!i || i.status === "rascunho") agora = ""; }
     const comoFunciona = etapa < 2 ? `<h2>Como funciona</h2><div class="grid g3">${[["1", "Inscrição", "Release, links, rider e as cidades onde quer tocar. A pré-curadoria mostra na hora a força da inscrição."], ["2", "Curadoria", "A equipe do Tranquilo avalia e responde por aqui: aprovada, ajustes ou não seguiu desta vez."], ["3", "Datas", "Com a data confirmada, cada show ganha um passo a passo com prazos, do material de divulgação ao pós-show."]].map(([n, t, x]) => `<div class="card"><div class="kpi"><div class="v" style="color:var(--violet)">${n}</div></div><h3 style="margin-top:12px">${t}</h3><p class="muted" style="margin:0">${x}</p></div>`).join("")}</div>` : "";
+    const et = i?.status === "aprovada" ? etapaArtista(i, meusContratos()) : null;
     return `<div class="tag">Artista</div><h1>Olá, ${esc(p.nome || i?.dados?.nome_artistico || "")}</h1>
     <p class="sub">Aqui fica o que você precisa fazer em cada etapa, do cadastro ao pós-show.</p>
+    ${et ? `<div class="card row" style="margin-bottom:12px" id="etapaConta"><span><b>Sua situação</b> ${badgeEtapa(et)}</span>${/Contrato (enviado|devolvido)/.test(et[1]) ? `<button class="btn sm pri" data-ir="contratos_meus">Abrir o contrato</button>` : ""}</div>` : ""}
     ${linhaTempo(etapas, etapa)}${agora}${comoFunciona}
     ${evs.length ? `<h2>Suas datas</h2><p class="sub">Passo a passo de cada show, com prazo contado a partir da data. Marque o que já fez: a equipe acompanha por aqui.</p><div class="list">${evs.map((e) => blocoPassos(e, "artista")).join("")}</div>` : ""}`;
   }
@@ -2479,9 +2654,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       ${evs.length ? `<h2>Datas da casa</h2><div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, os passos da sua função aparecem aqui.", "", "passos")}`;
     // O status da habilitação e o que falta ficam na Ficha da Casa (uma fonte só); aqui, só o aviso com o atalho.
     const aviso = !c || c.status !== "habilitada" ? `<div class="alert ${c?.status === "suspensa" ? "crit" : "warn"}" style="margin-bottom:12px"><b>${!c ? "A Ficha da Casa ainda não foi enviada" : c.status === "suspensa" ? "Casa suspensa" : `Ficha: ${esc(STATUS_CASA[c.status]?.[1] || c.status)}`}</b>${c?.parecer ? esc(c.parecer) + " " : ""}<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="cadastro_casa">Abrir a Ficha da Casa</button></div></div>` : "";
+    if (S.conta.equipe === undefined && p.vinculo_nome) carregarEquipeCasa();
+    const et = etapaCasa(c, meusContratos(), p.vinculo_nome ? S.conta.equipe ?? null : []);
+    const etapaTxt = c?.status === "habilitada" ? `<div class="card row" style="margin-bottom:12px" id="etapaConta"><span><b>Situação da casa</b> ${badgeEtapa(et)}</span>${et[1] === "Equipe incompleta" ? `<button class="btn sm pri" data-ir="equipe_casa">Completar a equipe</button>` : /Contrato (enviado|devolvido)/.test(et[1]) ? `<button class="btn sm pri" data-ir="contratos_meus">Abrir o contrato</button>` : ""}</div>` : "";
     return `<div class="tag">Datas</div><h1>Datas confirmadas</h1>
     <p class="sub">Depois que o Tranquilo repassa a data, a casa produz o show e marca cada passo, com prazo. O Tranquilo acompanha por aqui, sem precisar perguntar.</p>
-    ${aviso}
+    ${aviso}${etapaTxt}
     ${evs.length ? `<div class="list">${evs.map((e) => blocoPassos(e, "casa")).join("")}</div>` : vazio("Nenhuma data confirmada ainda", "Quando o Tranquilo repassar uma data para a casa, o passo a passo aparece aqui. Para o Tranquilo saber quando a casa pode receber shows, preencha a Disponibilidade.", `<button class="btn" data-ir="agenda_casa">Abrir a disponibilidade</button>`, "passos")}
     ${S.conta.reg.length ? `<h2>Noites registradas</h2><div class="list">${S.conta.reg.map((r) => `<div class="card row"><span>${esc(S.pac?.eventos.find((e) => e.id === r.evento_id)?.n || r.evento_id)}</span><span>${r.publico != null ? fmt(r.publico) + " pessoas" : ""} ${r.gravidade === "excecao" ? '<span class="badge b-crit">exceção</span>' : ""}</span></div>`).join("")}</div>` : ""}`;
   }
@@ -2619,9 +2797,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       // Convites e avisos são da versão nova do banco: se o schema ainda não foi atualizado, o resto continua funcionando.
       const novo = (pr) => pr.catch(() => null);
       const [insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol, disp] = await Promise.all([api.inscricoes(), api.casas(), api.perfis(), api.checklistTodos(), api.registrosTodos(), novo(api.convites()), novo(api.avisos()), novo(api.relatos()), novo(api.documentos()), novo(api.arquivosTodos()), novo(api.contratos()), novo(api.modelosContrato()), novo(api.solicitacoesTodas()), novo(api.disponibilidade())]);
+      const eqc = await api.equipesTodas().catch(() => null);
       if (S.conta?.perfil.id !== quem) return;   // a conta mudou enquanto carregava
       const [datasP, dispA, sem] = await Promise.all([api.datasPortal().catch(() => null), api.dispArtistas().catch(() => null), api.semanal().catch(() => [])]);
-      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA, sem: sem || [] };
+      S.eq = { insc, casas, perfis, chk, reg, conv, avisos, relatos, docs, arqs, contr, modContr, sol: sol || [], disp: disp || [], datasP, dispA, sem: sem || [], eqc };
     } catch (e) {
       if (!S.conta) return;
       S.eq = { insc: [], casas: [], perfis: [], chk: [], reg: [], conv: [], avisos: [] }; alert("✕ Erro: não foi possível carregar os dados da equipe. " + e.message + " Recarregue a página.");
@@ -2645,11 +2824,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const i = S.eq.insc.find((x) => x.id === id); if (!i) return;
     const d = i.dados, adm = S.conta.perfil.tipo === "adm";
     const futurasArt = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hojeIso() && (e.a || []).some((n) => n.toLowerCase() === String(d.nome_artistico || "").toLowerCase()));
-    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("");
-    $("#dlgIn").innerHTML = `<div class="tag">Inscrição · ${badge(STATUS_INSC, i.status)}</div><h2 style="margin-top:4px">${esc(d.nome_artistico || "(sem nome)")}</h2><p class="muted">${esc(i.perfil?.email || "")}${i.enviado_em ? ` · enviada em ${dt(i.enviado_em.slice(0, 10))}` : ""}</p>
+    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("")
+      + (d.disponibilidade ? `<h3>Observação antiga sobre a disponibilidade</h3><p>${esc(d.disponibilidade)}</p>` : "");
+    $("#dlgIn").innerHTML = `<div class="tag">Inscrição · ${badgeEtapa(etapaArtistaEq(S.eq, i))}</div><h2 style="margin-top:4px">${esc(d.nome_artistico || "(sem nome)")}</h2><p class="muted">${esc(i.perfil?.email || "")}${i.enviado_em ? ` · enviada em ${dt(i.enviado_em.slice(0, 10))}` : ""}</p>
     ${medidor({ score: i.score ?? 0, faixa: i.faixa || "–", detalhe: i.score_detalhe || { completude: 0, tracao: 0, tecnica: 0, circulacao: 0, condicoes: 0 }, alertas: i.alertas || [] })}
     ${futurasArt.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasArt.length} data${futurasArt.length > 1 ? "s" : ""} futura${futurasArt.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasArt.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
-    ${resp}
+    <details style="margin:10px 0"><summary>Ver as respostas da inscrição</summary>${resp}</details>
     <h3>Decisão</h3><label class="fcampo"><b>Mensagem para a artista</b><textarea id="parecer" rows="3">${esc(i.parecer || "")}</textarea></label>
     <label class="fcampo"><b>Nota interna (só a equipe vê)</b><textarea id="nota" rows="2">${esc(i.nota_interna || "")}</textarea></label>
     ${adm && i.perfil ? `<label class="fcampo"><b>Vincular à artista da rede (libera métricas)</b>${seletorVinculo(i.perfil)}</label>` : ""}
@@ -2658,12 +2838,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   }
   function fichaCasa(id) {
     const c = S.eq.casas.find((x) => x.id === id); if (!c) return;
-    const d = c.dados, adm = S.conta.perfil.tipo === "adm", pend = c.pendencias || R.pendenciasCasa(d);
+    const d = c.dados, adm = S.conta.perfil.tipo === "adm", pend = semDiasSemana(c.pendencias || R.pendenciasCasa(d));
     // Dados pessoais do Dono A e dados bancários: só a administração vê (a equipe vê que existem).
     if (adm && S.fichaEdit === id) {
       $("#dlgIn").innerHTML = `<div class="tag">Editar a Ficha · administração</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2>
         <p class="muted" style="font-size:13px">A edição vale na hora e a casa vê a Ficha atualizada. Use para importar a Ficha que a casa mandou por outro canal.</p>
-        <div id="formCentral" style="display:flex;flex-direction:column;gap:12px">${formCasa(d, false)}</div>
+        <div id="formCentral" style="display:flex;flex-direction:column;gap:12px">${formCasa(d, false, false)}</div>
         <div class="barra-acoes" style="margin-top:12px"><button class="btn pri" data-salvar-ficha="${c.id}">Salvar a Ficha</button><button class="btn" data-editar-ficha="">Voltar</button></div><div class="err" role="status" aria-live="polite" id="derr"></div>`;
       $("#dlg").dataset.alvo = "casa:" + id; if (!$("#dlg").open) $("#dlg").showModal(); return;
     }
@@ -2675,7 +2855,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Campo</th><th>Antes</th><th>Proposto</th></tr></thead><tbody>${Object.keys(x.proposto).map((k) => `<tr><td>${esc(rotulo(k))}</td><td>${esc(JSON.stringify(x.antes?.[k] ?? "").replace(/^"|"$/g, ""))}</td><td><b>${esc(JSON.stringify(x.proposto[k] ?? "").replace(/^"|"$/g, ""))}</b></td></tr>`).join("")}</tbody></table></div>
       <label class="fcampo"><b>Resposta para a casa (opcional)</b><input data-sol-resp="${x.id}" maxlength="1000"></label>
       <div class="barra-acoes"><button class="btn pri sm" data-sol-responder="${x.id}|1">Aprovar e atualizar a ficha</button><button class="btn sm" data-sol-responder="${x.id}|0">Recusar</button></div></div>`).join("");
-    const combinados = `<h3>Combinados da parceria (Parte 1 da Ficha)</h3><p class="muted" style="font-size:13px">A casa vê estes valores na Ficha. Em branco, aparece "Ainda não registrado pela Operações".</p>
+    const combinados = `<details style="margin:10px 0"><summary>Combinados da parceria (Parte 1 da Ficha)</summary><p class="muted" style="font-size:13px">A casa vê estes valores na Ficha. Em branco, aparece "Ainda não registrado pela Operações".</p>
       <div class="grid g3"><label class="fcampo"><b>Bilheteria: artista %</b><input data-cb="bilheteria.artista" inputmode="numeric" value="${esc(cb.bilheteria?.artista ?? "")}"></label><label class="fcampo"><b>Bilheteria: casa %</b><input data-cb="bilheteria.casa" inputmode="numeric" value="${esc(cb.bilheteria?.casa ?? "")}"></label><label class="fcampo"><b>Bilheteria: Tranquilo %</b><input data-cb="bilheteria.tranquilo" inputmode="numeric" value="${esc(cb.bilheteria?.tranquilo ?? "")}"></label>
       <label class="fcampo"><b>Alimentos e bebidas: casa %</b><input data-cb="aeb.casa" inputmode="numeric" value="${esc(cb.aeb?.casa ?? "")}"></label><label class="fcampo"><b>Alimentos e bebidas: Tranquilo %</b><input data-cb="aeb.tranquilo" inputmode="numeric" value="${esc(cb.aeb?.tranquilo ?? "")}"></label></div>
       <div class="grid g2">${CONTATOS_FICHA.map(([k, , q]) => `<label class="fcampo"><b>WhatsApp de ${esc(q)}</b><input data-cb="contatos.${k}" maxlength="30" value="${esc(cb.contatos?.[k] ?? "")}"></label>`).join("")}</div>
@@ -2684,12 +2864,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <label class="fcampo"><b>Marca</b><input data-cb="bonificacao.marca" maxlength="80" placeholder="Ex.: Estrella Galicia" value="${esc(cb.bonificacao?.marca ?? "")}"></label>
       <label class="fcampo"><b>Por quanto tempo enviaremos</b><input data-cb="bonificacao.periodo" maxlength="80" placeholder="Ex.: até 31/03/2027" value="${esc(cb.bonificacao?.periodo ?? "")}"></label>
       <label class="fcampo"><b>Combinados</b><textarea data-cb="bonificacao.combinados" rows="2" maxlength="600">${esc(cb.bonificacao?.combinados ?? "")}</textarea></label></div>
-      <div class="barra-acoes"><button class="btn sm" data-cb-salvar="${c.id}">Salvar combinados</button></div>`;
-    $("#dlgIn").innerHTML = `<div class="tag">Casa · ${badge(STATUS_CASA, c.status)}</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2><p class="muted">${esc(c.perfil?.email || "")} · ${c.ja_parceira ? "já parceira" + (c.notion_casa_id && c.notion_casa_id !== "outra" ? ` · <a href="https://www.notion.so/${esc(c.notion_casa_id)}" target="_blank" rel="noopener">ficha no Notion</a>` : "") : "casa nova"}</p>
+      <div class="barra-acoes"><button class="btn sm" data-cb-salvar="${c.id}">Salvar combinados</button></div></details>`;
+    $("#dlgIn").innerHTML = `<div class="tag">Casa · ${badgeEtapa(etapaCasaEq(S.eq, c))}</div><h2 style="margin-top:4px">${esc(d.nome || "(sem nome)")}</h2><p class="muted">${esc(c.perfil?.email || "")} · ${c.ja_parceira ? "já parceira" + (c.notion_casa_id && c.notion_casa_id !== "outra" ? ` · <a href="https://www.notion.so/${esc(c.notion_casa_id)}" target="_blank" rel="noopener">ficha no Notion</a>` : "") : "casa nova"}</p>
     <div class="grid g3">${[["habilitacao", "Bloqueia habilitação"], ["match", "Bloqueia match"], ["enriquecimento", "Enriquecimento"]].map(([k, t]) => `<div class="card"><b>${t}</b> (${pend[k].length})<div style="font-size:13px">${pend[k].map(esc).join(" · ") || "ok"}</div></div>`).join("")}</div>
     ${pedidos}
     ${futurasCasa.length ? `<div class="alert warn" style="margin:8px 0"><b>${futurasCasa.length} data${futurasCasa.length > 1 ? "s" : ""} futura${futurasCasa.length > 1 ? "s" : ""} na agenda ${A_VALIDAR_HTML}</b>${futurasCasa.map((e) => `${dt(e.d)} · ${esc(e.c)}`).join("; ")}. Para encerrar, cancele essas datas no Notion (Eventos e Line-up): o portal não altera o Notion.</div>` : ""}
-    ${resp}
+    <details style="margin:10px 0"><summary>Ver as respostas da Ficha</summary>${resp}</details>
     <div class="barra-acoes" style="margin:8px 0">${(adm || S.conta.perfil.areas?.includes("operacoes")) && EDITAR_FICHA_ATIVO ? `<button class="btn sm" data-editar-ficha="${c.id}">Editar a Ficha</button>` : ""}<button class="btn sm" data-tranks="${c.id}" title="Copia todos os dados desta Ficha em formato de pergunta para a Tranks.">Copiar Ficha para a Tranks</button><span class="muted" style="font-size:12px" id="tranksOk"></span></div>
     ${combinados}
     <h3>Decisão</h3><label class="fcampo"><b>Classificação</b><select id="classe"><option value="">Sem classificação (antes da 1ª data)</option>${Object.entries(CLASSE).map(([k, t]) => `<option value="${k}"${c.classificacao === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
@@ -2995,7 +3175,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         i.classList.toggle("campo-falta", !!r.erro); if (r.erro) erros.push(r.erro); else { d[i.dataset.ctDado] = r.v; i.value = r.v; } });
       const msg = $("#ctDadosMsg");
       if (erros.length) { diz(msg, `✕ Não salvou. Corrija: ${erros.join("; ")}.`); marcar([...document.querySelectorAll("[data-ct-dado].campo-falta")]); return true; }
-      await acao(t, async () => { await api.contratoSalvarDados(c.id, d); S.conta.contr = await api.contratos(); render(); }, { st: "#ctDadosMsg", ok: "Dados salvos. Agora baixe o PDF." });
+      await acao(t, async () => { await api.contratoSalvarDados(c.id, d); store.del("tq-rascunho-ct-" + c.id); S.conta.contr = await api.contratos(); render(); }, { st: "#ctDadosMsg", ok: "Dados salvos. Agora baixe o PDF." });
       return true;
     }
     if (t.id === "ctAssinar") {
@@ -3392,12 +3572,28 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     return false;
   }
+  // "Para você" e "Comece por aqui": cada item abre direto o que espera a pessoa (contrato, Ficha, inscrição, campanha, data).
+  function abrirItem(alvo) {
+    const i = alvo.indexOf(":"), tipo = alvo.slice(0, i), id = alvo.slice(i + 1);
+    const depois = (fn) => setTimeout(fn, 60);
+    if (tipo === "ct") {
+      S.ctFoco = id; S.ctDevolver = null; irPara("documentos"); render(); scrollTo(0, 0);
+      depois(() => { const tr = $(`[data-ct-ver="${CSS.escape(id)}"]`)?.closest("tr"); if (tr) { tr.classList.add("foco"); tr.scrollIntoView({ block: "center" }); (tr.querySelector("[data-ct-conferir]") || tr.querySelector("button"))?.focus({ preventScroll: true }); } });
+    } else if (tipo === "ctpre") {
+      const [ev, conta] = id.split("|"); S.cPrep = null; S.cPre = { ev, conta: conta || "" }; irPara("documentos"); render();
+      depois(() => { $("#contrAuto")?.scrollIntoView({ block: "start" }); ($("#ctConta")?.value ? $("#ctMod") : $("#ctConta"))?.focus({ preventScroll: true }); });
+    } else if (tipo === "casa") { irPara("casas_cad"); render(); scrollTo(0, 0); fichaCasa(id); }
+    else if (tipo === "insc") { irPara("curadoria"); render(); scrollTo(0, 0); fichaInscricao(id); }
+    else if (tipo === "camp") { irPara("campanhas"); S.campAberta = id; render(); depois(() => $("#campDia")?.scrollIntoView({ block: "start" })); }
+    else if (tipo === "dp") { irPara("datas_portal"); S.dpEd = id; S.dpPre = null; render(); depois(() => $("#dpForm")?.scrollIntoView({ block: "start" })); }
+  }
   async function cliques(ev) {
     const t = ev.target;
     const ler = t.closest("[data-ler]"); if (ler) { ev.preventDefault(); abrirLeitor({ slug: ler.dataset.ler }); return; }
     const man = t.closest("[data-manual]"); if (man) { ev.preventDefault(); abrirLeitor({ manual: man.dataset.manual }); return; }
     if (t.closest("[data-ler-voltar]")) { fecharLeitor(); return; }
     const sb = t.closest("[data-sub]"); if (sb) { await salvarPendente(); const [a, k] = sb.dataset.sub.split("|"); (S.sub ||= {})[a] = k; S.aba = a; render(); scrollTo(0, 0); return; }
+    const ab = t.closest("[data-abrir]"); if (ab) { ev.preventDefault(); abrirItem(ab.dataset.abrir); return; }
     const ir = t.closest("[data-ir]"); if (ir) { ev.preventDefault(); irPara(ir.dataset.ir); render(); scrollTo(0, 0); return; }
     if (await cliquesEquipe(t)) return;
     if (await cliquesFicha(t)) return;
@@ -3436,6 +3632,24 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       catch (e) { diz($("#eerr"), traduz(e.message || "")); }
       return;
     }
+    const irCampo = t.closest("[data-ir-campo]"); if (irCampo) { ev.preventDefault(); irParaCampo(irCampo.dataset.irCampo); return; }
+    const parte = t.closest("[data-salvar-parte]");
+    if (parte) {
+      const det = parte.closest("details"), i = +parte.dataset.salvarParte, def = S.conta.perfil.tipo === "casa" ? F_CASA : F_ARTISTA, m = det.querySelector("[data-parte-msg]");
+      const salvas = partesSalvas(); salvas.add(secoesDe(def)[i].titulo); store.set(chavePartes(), JSON.stringify([...salvas]));
+      parte.disabled = true; diz(m, "Salvando…");
+      const okSalvo = await salvarPendente(); parte.disabled = false;
+      if (okSalvo === false) { diz(m, "Não salvou agora. O que você digitou está guardado neste aparelho; tente de novo."); return; }
+      atualizarPartes();
+      const completa = det.querySelector("[data-parte-n]").classList.contains("ok");
+      diz(m, `✓ Parte salva às ${new Date().toTimeString().slice(0, 5)}.${completa ? "" : " Ainda falta algo aqui para ela ficar completa (veja os campos com *)."}`);
+      if (!completa) return;
+      // Completa: fecha esta parte e abre a próxima que ainda falta.
+      const dets = [...$("#form").querySelectorAll("details[data-parte]")], prox = dets.slice(i + 1).concat(dets.slice(0, i)).find((x) => !x.querySelector("[data-parte-n]").classList.contains("ok"));
+      det.open = false;
+      if (prox) { prox.open = true; prox.scrollIntoView({ block: "start" }); }
+      return;
+    }
     if (t.id === "salvarVazios") {
       const casa = S.conta.perfil.tipo === "casa", atual = casa ? S.conta.casa : S.conta.insc, err = $("#ferr");
       const d = { ...(atual?.dados || {}), ...Object.fromEntries(Object.entries(lerForm($("#form"))).filter(([k, v]) => vazioV(atual?.dados?.[k]) && !vazioV(v))) };
@@ -3450,13 +3664,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     if (t.id === "salvar" || t.id === "enviar") {
       const casa = S.conta.perfil.tipo === "casa";
-      // Na casa, guarda também o que veio de versões anteriores da ficha (nenhum dado preenchido some).
-      const enviar = t.id === "enviar", raiz = $("#form"), d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) }, err = $("#ferr");
-      const falta = faltando(casa ? F_CASA : F_ARTISTA, d);
-      // Enviar exige os campos com * (casa e artista). O rascunho salva sem eles, para ninguém perder o que digitou.
-      if (enviar && falta.length) { marcarFaltando(raiz, casa ? F_CASA : F_ARTISTA, d); const rot = casa && R.pendenciasCasa(d).habilitacao.length ? R.pendenciasCasa(d).habilitacao : falta; diz(err, `Não enviado: falta preencher ${rot.join(", ").replace(/\.+$/, "")}. Os campos obrigatórios estão marcados em vermelho. O que você já digitou fica salvo como rascunho.`); return; }
-      const erros = enviar ? conferirFormato(d) : [];
-      if (erros.length) { document.querySelectorAll(".campo-falta").forEach((el) => el.classList.remove("campo-falta")); marcarFormato(raiz, erros); diz(err, `Não enviado. Confira antes de enviar: ${erros.join("; ")}. O que você já digitou fica salvo como rascunho.`); return; }
+      // Guarda também o que veio de versões anteriores da ficha e campos que saíram do formulário (nenhum dado some).
+      const enviar = t.id === "enviar", raiz = $("#form"), def = casa ? F_CASA : F_ARTISTA, d = { ...((casa ? S.conta.casa : S.conta.insc)?.dados || {}), ...lerForm(raiz) }, err = $("#ferr");
+      // Enviar exige todos os obrigatórios preenchidos e válidos (o botão fica desabilitado até lá). O rascunho salva sem eles.
+      const pend = enviar ? pendenciasForm(def, dadosVistos(def, d)) : [];
+      if (pend.length) {
+        marcarFaltando(raiz, def, d); const fmt = pend.filter((x) => x.formato).map((x) => x.k); if (fmt.length) marcarFormato(raiz, { chaves: fmt });
+        diz(err, `Não enviado: falta ${pend.map((x) => x.txt).join(", ").replace(/\.+$/, "")}. Os campos estão marcados em vermelho. O que você já digitou fica salvo como rascunho.`); return;
+      }
       if (casa && document.querySelector('input[name="parceira"]:checked')?.value === "sim" && !$("#casaNotion")?.value && enviar) { marcar($("#casaNotion")); diz(err, "Não enviado: escolha a sua casa na lista (ou \"Minha casa não aparece na lista\")."); return; }
       clearTimeout(S.tauto); S.tauto = null;
       const r = await acao(t, async () => {
@@ -3465,6 +3680,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           S.conta.casa = await api.salvarCasa(d, { enviar, ja_parceira: parceira, notion_casa_id: parceira ? $("#casaNotion")?.value : null });
         } else S.conta.insc = await api.salvarInscricao(d, enviar);
       }, { st: "#ferr", espera: enviar ? "Enviando…" : "Salvando…", ok: enviar ? "Enviado." : "Rascunho salvo. Você pode continuar depois." });
+      if (r.ok) limparLocal(enviar ? null : d);
       if (!r.ok || !enviar) return;
       if (casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
       else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. A equipe confere e responde aqui." : "✓ Inscrição enviada para a curadoria. A resposta aparece aqui."); }
@@ -3800,9 +4016,20 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   document.addEventListener("input", (ev) => {
     const t = ev.target;
     if (t.closest("#form") && S.aba === "inscricao") { const m = $("#medidor"); if (m) m.innerHTML = medidor(R.preCuradoria(lerForm($("#form")))); }
-    if (t.closest("#form") && (S.aba === "inscricao" || (S.aba === "ficha" && (S.sub?.ficha || "cadastro_casa") === "cadastro_casa"))) { clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200); }
+    if (t.closest("#form") && (S.aba === "inscricao" || (S.aba === "ficha" && (S.sub?.ficha || "cadastro_casa") === "cadastro_casa"))) {
+      const raiz = $("#form");
+      if (raiz.dataset.editavel === "1") guardarLocal({ ...((S.conta.perfil.tipo === "casa" ? S.conta.casa : S.conta.insc)?.dados || {}), ...lerForm(raiz) });
+      atualizarPartes(); clearTimeout(S.tauto); S.tauto = setTimeout(salvarPendente, 1200);
+    }
+    if (t.dataset?.ctDado != null && S.contrAberto) { const l = lerCtLocal(S.contrAberto); l[t.dataset.ctDado] = t.value; store.set("tq-rascunho-ct-" + S.contrAberto, JSON.stringify(l)); }
     if (t.id === "eqQ") { S.eqf.q = t.value; clearTimeout(S.tq); S.tq = setTimeout(() => { render(); const i = $("#eqQ"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }, 250); }
   });
+
+  // Lembra quais partes do formulário estão abertas, para um redesenho da tela não fechar o que a pessoa abriu.
+  document.addEventListener("toggle", (ev) => {
+    const det = ev.target; if (!det.matches?.("details[data-parte]") || !det.closest("#form")) return;
+    S.partesAbertas = { ...(S.partesAbertas || {}), [S.aba]: [...document.querySelectorAll("#form details[data-parte][open]")].map((x) => +x.dataset.parte) };
+  }, true);
 
   // Salvamento automático do rascunho (inscrição da artista e cadastro da casa), 1,2 s depois da última
   // alteração e também antes de trocar de aba. Atualiza o estado local na hora para a troca de aba não apagar nada.
@@ -3811,7 +4038,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const raiz = $("#form"); if (!raiz || !S.conta || !raiz.querySelector("[data-k]:not(:disabled)")) return Promise.resolve();
     const casa = S.conta.perfil.tipo === "casa";
     if (casa && raiz.dataset.modo !== "edicao") return Promise.resolve();   // ficha enviada: muda só por pedido
-    const d = { ...(casa ? S.conta.casa?.dados || {} : {}), ...lerForm(raiz) };
+    const d = { ...((casa ? S.conta.casa : S.conta.insc)?.dados || {}), ...lerForm(raiz) };
     const msg = (t) => { const e = $("#ferr"); if (e) diz(e, t); };
     let p;
     if (casa) {
@@ -3823,7 +4050,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       p = api.salvarInscricao(d, false).then((i) => { S.conta.insc = i; });
     }
     msg("Salvando…");
-    return p.then(() => msg(`✓ Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`)).catch((e) => msg(`Não salvou automaticamente: ${traduz(e.message || "")} Toque em "Salvar rascunho" para tentar de novo.`));
+    return p.then(() => { limparLocal(d); msg(`✓ Salvo automaticamente às ${new Date().toTimeString().slice(0, 5)}.`); return true; })
+      .catch((e) => { msg(`Não salvou automaticamente: ${traduz(e.message || "")} O que você digitou está guardado neste aparelho. Toque em "Salvar rascunho" para tentar de novo.`); return false; });
   }
 
   // ---------- público: "me avise de shows na minha cidade" ----------
@@ -3854,7 +4082,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       aoFechar: (visto) => { if (visto) store.set("tq-tutorial-publico", new Date().toISOString()); setTimeout(() => window.TQConsent?.(), 300); } });
   }
 
-  async function sairDeTudo() { try { sessionStorage.removeItem("tq-veio-link"); sessionStorage.removeItem("tq-senha-depois"); } catch { /* segue */ } S.senhaDepois = false; S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
+  async function sairDeTudo() { try { sessionStorage.removeItem("tq-veio-link"); sessionStorage.removeItem("tq-senha-depois"); } catch { /* segue */ } S.senhaDepois = false; S.partesAbertas = null; S.recuperado = null; S.conta = null; await api?.sair(); store.del("tq-codigo"); S.conta = null; S.pac = null; S.eq = null; S.hub = null; S.campAberta = null; render(); scrollTo(0, 0); }
 
   const noMenu = (k) => !menuAgrupado() || k === "conta" || k === "convites" || k in GRUPOS_EQ || REFERENCIA.some(([x]) => x === k);
   return { bloqueio, telaTravada, telaSenha, roteiroConta: () => roteiroConta(), get REAL() { return REAL; }, get FORA() { return FORA; }, avisoConta, iniciar, abas, areaDe, noMenu, subsDoGrupo, rotuloQuem, telas: TELAS, leitor: () => (S.lendo ? leitor() : null), formEntrada, sairDeTudo, formAviso, tutorialPublico, abrirTutorial, salvarPendente: () => { if (S.tauto) salvarPendente(); } };
