@@ -81,8 +81,10 @@ const TQContrato = (() => {
       [/titular/, () => d.rep_titular], [/^banco/, () => d.rep_banco], [/agencia/, () => d.rep_agencia], [/^conta/, () => d.rep_conta], [/pix/, () => d.rep_pix],
     ];
     const artista = [
-      [/nome artistico|nome do artista/, () => d.nome_artistico], [/whatsapp|telefone|celular/, () => d.whatsapp],
-      [/e-?mail/, () => extra.email], [/instagram/, () => d.instagram], [/^cidade/, () => [d.cidade_base, d.estado].filter(Boolean).join("/")],
+      // Sem o dado na inscrição, vale o da conta (nome, WhatsApp, cidade). Nome completo, CPF/CNPJ e Pix não estão na
+      // Ficha: ficam em branco e a artista preenche no contrato.
+      [/nome artistico|nome do artista/, () => d.nome_artistico || extra.nome], [/whatsapp|telefone|celular/, () => d.whatsapp || extra.whatsapp],
+      [/e-?mail/, () => extra.email], [/instagram/, () => d.instagram], [/^cidade/, () => [d.cidade_base, d.estado].filter(Boolean).join("/") || extra.cidade],
       [/integrantes|pessoas no palco|quantidade de pessoas/, () => d.equipe_viagem || d.integrantes],
       [/redes sociais|perfil principal/, () => d.instagram], [/restri/, () => d.restricoes || "Nenhuma informada"],
     ];
@@ -107,6 +109,36 @@ const TQContrato = (() => {
     const falta = (c.campos || []).filter((x) => !String(c.dados?.[x.chave] ?? "").trim());
     if (falta.length) return { rotulo: "Aguardando dados", classe: "b-warn", falta };
     return c.lido_fim_em ? { rotulo: "Lido, falta assinar", classe: "b-warn" } : { rotulo: "Aguardando leitura", classe: "b-warn" };
+  }
+
+  // Line-up da data (pedido da Marina, 18/11/2026): a situação do contrato de cada artista, para a Isa ver quem falta.
+  // arquivoNovo(c) = a pessoa enviou o arquivo assinado (depois do último "Pedir de novo").
+  const ETAPAS = {
+    sem_conta: ["", "Sem conta no portal"], sem: ["b-serious", "Sem contrato"], aguardando_dados: ["b-warn", "Aguardando dados"],
+    enviado: ["b-warn", "Enviado · falta o assinado"], devolvido: ["b-crit", "Devolvido · pedido de novo"],
+    recebido: ["b-good", "Assinado recebido · conferir"], conferido: ["b-good", "✓ Conferido"], assinado: ["b-good", "✓ Assinado no portal"],
+  };
+  function etapa(c, arquivoNovo) {
+    if (!c) return "sem";
+    if (c.status === "assinado") return "assinado";
+    if (c.conferido_em) return "conferido";
+    if (arquivoNovo && arquivoNovo(c)) return "recebido";
+    if (c.devolvido_em) return "devolvido";
+    return (c.campos || []).some((x) => !String(c.dados?.[x.chave] ?? "").trim()) ? "aguardando_dados" : "enviado";
+  }
+  /** Line-up de uma data do portal (datas_portal) com o contrato de cada artista e o da casa.
+   *  Devolve { artistas: [{ nome, user_id, ordem, whatsapp, contrato, etapa }], casa, faltam: [nomes], aPreparar: [linhas sem contrato com conta] }. */
+  function lineup(data, contratos, o = {}) {
+    const ev = "p:" + data.id, ativos = (contratos || []).filter((c) => c.evento_id === ev && c.status !== "cancelado")
+      .sort((a, b) => String(b.criado_em || "").localeCompare(String(a.criado_em || "")));
+    const linha = (x, i) => {
+      const contrato = x.user_id ? ativos.find((c) => c.user_id === x.user_id) || null : null;
+      return { nome: x.nome, user_id: x.user_id || null, ordem: x.ordem || i + 1, whatsapp: x.whatsapp || null, producao: !!x.producao, contrato, etapa: x.user_id ? etapa(contrato, o.arquivoNovo) : "sem_conta" };
+    };
+    const artistas = [...(data.artistas || [])].map((x, i) => ({ ...x, ordem: x.ordem || i + 1 })).sort((a, b) => a.ordem - b.ordem).map(linha);
+    const casa = o.casaUserId !== undefined ? linha({ nome: data.casa_nome, user_id: o.casaUserId, ordem: 0 }, 0) : null;
+    const todos = [...artistas, ...(casa ? [casa] : [])], pronto = (l) => l.etapa === "conferido" || l.etapa === "assinado";
+    return { artistas, casa, faltam: todos.filter((l) => !pronto(l)).map((l) => l.nome), aPreparar: todos.filter((l) => l.etapa === "sem") };
   }
 
   /** Página para imprimir ou salvar em PDF: o texto assinado e o registro da assinatura. */
@@ -166,6 +198,6 @@ ${assinado ? `<div class="registro"><div><b>Assinado por</b>${escapar(c.assinado
 </main></body></html>`;
   }
 
-  return { campos, doCadastro, preencher, sugestoes, hash, situacao, paginaImpressao, DA_EQUIPE };
+  return { campos, doCadastro, preencher, sugestoes, hash, situacao, paginaImpressao, DA_EQUIPE, ETAPAS, etapa, lineup };
 })();
 if (typeof module !== "undefined") module.exports = TQContrato;

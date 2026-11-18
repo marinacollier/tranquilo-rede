@@ -127,5 +127,38 @@
     });
   }
 
-  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData };
+  // Line-up da data (pedido da Marina, 18/11/2026): 3 artistas é o padrão do Descubra, mas a equipe adiciona ou remove.
+  // Mesmas regras do banco (supabase/schema.sql v31, datas_portal_lineup): pelo menos 1, no máximo 12, sem repetir
+  // (nome sem diferença de maiúsculas e espaços, ou a mesma conta). A ordem da noite é a da lista.
+  const LINEUP_PADRAO = 3, LINEUP_MAX = 12;
+  const chaveNome = (n) => String(n || "").replace(/\s+/g, " ").trim().toLowerCase();
+  function normalizarLineup(artistas) {
+    const lista = [], repetidos = [];
+    for (const a of artistas || []) {
+      const nome = String(a?.nome || "").replace(/\s+/g, " ").trim(); if (!nome) continue;
+      if (lista.some((x) => chaveNome(x.nome) === chaveNome(nome) || (a.user_id && x.user_id === a.user_id))) { repetidos.push(nome); continue; }
+      lista.push({ ...a, nome, ordem: lista.length + 1 });
+    }
+    const erro = !lista.length ? "pelo menos um artista" : lista.length > LINEUP_MAX ? `no máximo ${LINEUP_MAX} artistas` : repetidos.length ? `${repetidos.join(", ")} ${repetidos.length > 1 ? "aparecem" : "aparece"} duas vezes no line-up` : null;
+    return { lista, repetidos, erro };
+  }
+  /** Quem saiu do line-up (pela conta ou, sem conta, pelo nome). */
+  function lineupRemovidos(antes, depois) {
+    const fica = (a) => (depois || []).some((x) => (a.user_id && x.user_id === a.user_id) || (!a.user_id && chaveNome(x.nome) === chaveNome(a.nome)));
+    return (antes || []).filter((a) => !fica(a));
+  }
+  /** Passo a passo de cada artista do line-up: cada um com os seus passos (checklist dele, user_id + evento).
+   *  chk = linhas do checklist (user_id, evento_id, item, feito); contratoOk(user_id) = contrato assinado ou recebido. */
+  function passosDoLineup(data, chk, hoje, contratoOk) {
+    const ev = "p:" + data.id, dia = String(data.dia).slice(0, 10);
+    return [...(data.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99)).map((a) => {
+      if (!a.user_id) return { nome: a.nome, user_id: null, passos: [], feitos: 0, total: 0, atrasados: 0, proximo: null };
+      const feitos = Object.fromEntries((chk || []).filter((c) => c.user_id === a.user_id && c.evento_id === ev && c.feito !== false).map((c) => [c.item, true]));
+      if (contratoOk && contratoOk(a.user_id)) feitos.contrato = true;
+      const passos = passosDaData("artista", dia, feitos, hoje, data.produto);
+      return { nome: a.nome, user_id: a.user_id, passos, feitos: passos.filter((p) => p.feito).length, total: passos.length, atrasados: passos.filter((p) => p.atrasado).length, proximo: passos.find((p) => !p.feito && !p.passou) || null };
+    });
+  }
+
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, lineupRemovidos, passosDoLineup };
 })(typeof window !== "undefined" ? window : globalThis);
