@@ -15,7 +15,8 @@ const H = { apikey: sv, 'Content-Type': 'application/json', ...(sv.startsWith('e
 const adm = (await sql(PRD, `select id from perfis where tipo = 'adm' limit 1`))[0].id;
 for (const [trecho, email] of pares) {
   // Ficha vinda direto do Notion (FICHA_B64: JSON com os campos da Ficha) quando ela não está no teste.
-  const doNotion = process.env.FICHA_B64 ? { dados: JSON.parse(Buffer.from(process.env.FICHA_B64, 'base64').toString('utf8')), status: 'em_analise', vinculo_nome: null, equipe: [] } : null;
+  const fj = process.env.FICHA_B64 ? JSON.parse(Buffer.from(process.env.FICHA_B64, 'base64').toString('utf8')) : null;
+  const doNotion = fj ? { dados: fj.dados || fj, status: 'em_analise', vinculo_nome: null, equipe: fj.equipe || [] } : null;
   const f = doNotion || (await sql(TESTE, `select c.dados, c.status::text status, c.combinados, c.classificacao, c.parecer, p.vinculo_nome, (select json_agg(e) from equipe_casa e where lower(e.casa_ref) = lower(coalesce(p.vinculo_nome, c.dados->>'nome'))) equipe
     from cadastros_casas c join perfis p on p.id = c.user_id where c.dados->>'nome' ilike ${lit('%' + trecho + '%')} or p.vinculo_nome ilike ${lit('%' + trecho + '%')} order by c.atualizado_em desc limit 1`))[0];
   if (!f) { console.log(`FALHA nenhuma Ficha com "${trecho}" no teste`); continue; }
