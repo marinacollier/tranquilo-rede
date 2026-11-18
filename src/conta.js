@@ -1405,7 +1405,7 @@ const TQConta = (() => {
   // Data criada no portal pela Central (v21) no mesmo formato das datas do Notion; id "p:<uuid>".
   function eventoDoPortal(x) {
     const arts = [...(x.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99)), cidade = (x.cidade || "").replace(/\/.*$/, "").trim();
-    return { id: "p:" + x.id, d: String(x.dia).slice(0, 10), n: `Tranquilo ${x.produto} — ${cidade || x.casa_nome}${x.produto === "Apresenta" && arts.length ? " — " + arts[arts.length - 1].nome : ""}`,
+    return { id: "p:" + x.id, d: String(x.dia).slice(0, 10), n: `Tranquilo ${x.produto} — ${cidade || x.casa_nome}${R.produtoBase(x.produto) === "Apresenta" && arts.length ? " — " + arts[arts.length - 1].nome : ""}`,
       s: x.status === "cancelada" ? "Cancelado" : "Data confirmada", c: cidade, m: x.produto, h: x.casa_nome, a: arts.map((a) => a.nome), l: x.link_ingressos || null,
       f: true, z: x.status === "cancelada", portal: x, au: arts.map((a) => a.user_id).filter(Boolean), kc: x.casa_id,
       noite: { inicio: String(x.abertura || "19:00").slice(0, 5), artistas: arts.map((a, i) => ({ nome: a.nome, ordem: a.ordem || i + 1, status: "Confirmado", producao: !!a.producao, whatsapp: a.whatsapp || null })) } };
@@ -1446,7 +1446,7 @@ const TQConta = (() => {
     const conf = N.artistas.filter((a) => a.status === "Confirmado"), fora = N.artistas.filter((a) => a.status !== "Confirmado" && a.status !== "Cancelado");
     fora.forEach((a) => avisos.push(`${a.nome} está com status "${a.status}" e ficou fora da lista: avisar Operações antes de enviar.`));
     if (!conf.length || conf.some((a) => a.ordem == null)) return { bloqueada: true, avisos: [...avisos, "Ordem de apresentação não definida no line-up: pedir à Isa."], texto: "" };
-    const produto = /descubra/i.test(e.n || "") ? "Descubra" : /apresenta/i.test(e.n || "") ? "Apresenta" : e.m;
+    const produto = /descubra/i.test(e.n || "") ? "Descubra" : /apresenta/i.test(e.n || "") ? "Apresenta" : R.produtoBase(e.m) || e.m;
     const ord = [...conf].sort((a, b) => a.ordem - b.ordem), nomes = ord.map((a) => a.nome), apres = produto === "Apresenta";
     const tipo = apres ? (nomes.length === 2 ? "apresenta" : null) : nomes.length === 3 ? "descubra3" : nomes.length === 2 ? "descubra2" : null;
     if (!tipo) {
@@ -1642,7 +1642,7 @@ const TQConta = (() => {
   // fica para a pessoa preencher no contrato (nome completo, CPF/CNPJ, Pix).
   function modeloLineup(tipo, mods, x) {
     const esc_ = (S.lpMod || {})[tipo];
-    return mods.find((m) => m.id === esc_) || mods.find((m) => new RegExp(x.produto, "i").test(m.nome)) || mods[0] || null;
+    return mods.find((m) => m.id === esc_) || mods.find((m) => new RegExp(x.produto, "i").test(m.nome)) || mods.find((m) => new RegExp(R.produtoBase(x.produto) || "^$", "i").test(m.nome)) || mods[0] || null;
   }
   function painelPrepLineup(E, x, aPrep, modsArt, modsCasa) {
     const e = eventoDoPortal(x), temArt = aPrep.some((l) => l.user_id && (E.perfis || []).find((p) => p.id === l.user_id)?.tipo !== "casa"), temCasa = aPrep.some((l) => (E.perfis || []).find((p) => p.id === l.user_id)?.tipo === "casa");
@@ -2355,7 +2355,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const grupoFora = "Não marcaram este dia (precisa confirmar por fora)";
       // Line-up editável (pedido da Marina, 18/11/2026): 3 linhas é o padrão do Descubra; "+ Adicionar artista" e "Tirar"
       // (mínimo 1). Quem já está numa linha não aparece nas outras (sem repetir).
-      const nLin = Math.min(R.LINEUP_MAX, Math.max(1, S.dpN ?? Math.max(ed ? 1 : R.LINEUP_PADRAO, (f.artistas || []).length)));
+      const nLin = Math.min(R.LINEUP_MAX, Math.max(1, S.dpN ?? Math.max(ed ? 1 : R.vagasFormato(f.produto).sugerido, (f.artistas || []).map((a) => !!a.nome).lastIndexOf(true) + 1)));
       const linhaArt = (i) => { const a = (f.artistas || [])[i] || {}, outros = (f.artistas || []).filter((x, j) => j !== i && x.nome).map((x) => k(x.nome));
         const artLivres_ = artLivres.filter((x) => !outros.includes(k(x.nome))), artFora_ = artFora.filter((x) => !outros.includes(k(x.nome)));
         { const artLivres = artLivres_, artFora = artFora_;
@@ -2381,16 +2381,17 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <div class="fgrid">
           <label class="fcampo"><b>Dia *</b><input type="date" id="dpDia" value="${esc(String(f.dia || "").slice(0, 10))}"></label>
           <label class="fcampo"><b>Abertura da casa *</b><input type="time" id="dpAbre" value="${esc(String(f.abertura || "19:00").slice(0, 5))}"></label>
-          <label class="fcampo"><b>Formato *</b><select id="dpProd">${["Descubra", "Apresenta"].map((p) => `<option${f.produto === p ? " selected" : ""}>${p}</option>`).join("")}</select></label>
+          <label class="fcampo"><b>Formato *</b><select id="dpProd">${R.NOMES_FORMATO.map((p) => `<option${f.produto === p ? " selected" : ""}>${p}</option>`).join("")}</select></label>
           <label class="fcampo"><b>Casa *</b><select id="dpCasa" data-valor="${esc(f.casa_id || "")}"${!dia && !exc ? " disabled" : ""}>${selCasa}</select></label>
           <label class="fcampo"><b>Cidade</b>${cidadeUfHtml('id="dpCidade"', f.cidade || "")}<span class="muted" style="font-size:12px">Vem da Ficha da casa.</span></label>
           <label class="fcampo"><b>Link de ingressos</b><input id="dpLink" value="${esc(f.link_ingressos || "")}" placeholder="https://ingresse.com/..."></label>
         </div>
+        ${regraFormato(f.produto, "dpRegra")}
         ${avisoDia}
         <label class="fcheck" style="margin-bottom:8px"><input type="checkbox" data-dp-exc${exc ? " checked" : ""}> <span>Exceção: mostrar todas as casas e artistas (já confirmaram por fora)</span></label>
         <h3>Line-up, na ordem da noite</h3><p class="muted" style="font-size:13px;margin:0 0 8px">No Apresenta, o 1º é a abertura e o último é a atração. Quem toca por último passa o som primeiro.</p>
         ${Array.from({ length: nLin }, (_, i) => linhaArt(i)).join("")}
-        ${nLin < R.LINEUP_MAX ? `<div class="barra-acoes" style="margin:0 0 10px"><button type="button" class="btn sm" data-dp-add>+ Adicionar artista</button><span class="muted" style="font-size:13px">${nLin} ${nLin === 1 ? "artista" : "artistas"} no line-up · o Descubra tem 3 por padrão</span></div>` : ""}
+        ${nLin < R.LINEUP_MAX ? `<div class="barra-acoes" style="margin:0 0 10px"><button type="button" class="btn sm" data-dp-add>+ Adicionar artista</button><span class="muted" style="font-size:13px">${nLin} ${nLin === 1 ? "artista" : "artistas"} no line-up · ${esc(padraoLineup(f.produto))}</span></div>` : ""}
                 <datalist id="dpArtistas">${artsDatalist.map(([n, r]) => `<option value="${esc(n)}"${r !== n ? ` label="${esc(r)}"` : ""}>`).join("")}</datalist>
         <label class="fcampo"><b>Observação</b><textarea id="dpObs" rows="2">${esc(f.observacao || "")}</textarea></label>
         ${S.dpConf ? `<div class="alert crit" id="dpConf" style="margin:8px 0"><b>Tirar do line-up e cancelar o contrato?</b>${S.dpConf.cancelar.length ? `Ao salvar, o contrato desta data ${S.dpConf.cancelar.length === 1 ? "de" : "de cada um:"} <b>${esc(S.dpConf.cancelar.map((c) => c.nome).join(", "))}</b> é cancelado e some da área ${S.dpConf.cancelar.length === 1 ? "dele" : "deles"}.` : ""}${S.dpConf.travados.length ? ` O contrato de <b>${esc(S.dpConf.travados.join(", "))}</b> já foi assinado ou conferido e não muda: combine o distrato por fora.` : ""}
@@ -2398,11 +2399,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <div class="err" role="status" aria-live="polite" id="dpErr"></div>
         <div class="barra-acoes"><button class="btn pri" data-dp-salvar>${ed ? "Salvar alterações" : "Criar data"}</button>${ed ? '<button class="btn" data-dp-novo>Cancelar edição</button>' : ""}</div></div>
       <div class="row" style="margin-top:22px"><h2 style="margin:0">Datas criadas no portal</h2><label class="fcheck"><input type="checkbox" data-dp-todas${S.dpVerTodas ? " checked" : ""}> <span>mostrar as passadas</span></label></div>
-      ${lista.length ? `<div class="list" style="margin-top:10px">${lista.map((x) => { const e = eventoDoPortal(x), cs = contrDe(x);
-        return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(x.casa_nome)}</b> <span class="badge ${x.status === "cancelada" ? "b-crit" : "b-good"}">${x.status === "cancelada" ? "cancelada" : esc(x.produto)}</span>
-          <div class="muted" style="font-size:13px">Abertura ${esc(e.noite.inicio)} · ${esc(e.a.join(", ") || "line-up a definir")}${cs.length ? ` · ${cs.filter(ctAssinado).length} de ${cs.length} ${cs.length === 1 ? "contrato assinado" : "contratos assinados"}` : " · sem contrato"}</div></div>
-          <div class="barra-acoes" style="margin:0">${x.status === "cancelada" ? "" : `<button class="btn sm pri" data-dp-contrato="${x.id}">Contrato avulso</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button>`}</div></div>
-          ${x.status === "cancelada" || E.contr == null ? "" : `<details style="margin-top:8px" data-lp-det="${x.id}"${S.lpAberto === x.id ? " open" : ""}><summary><b>Line-up e contratos</b> <span class="muted" style="font-size:13px">· ${esc(resumoLineup(E, x))}</span></summary>${quadroLineup(E, x)}</details>`}</div>`; }).join("")}</div>`
+      ${lista.length ? `<div class="list" style="margin-top:10px">${lista.map((x) => { const e = eventoDoPortal(x), cs = contrDe(x), canc = x.status === "cancelada";
+        // Compacta (pedido da Marina, 18/11/2026): dia, casa, formato e "contratos 1/4"; abre para o line-up, os contratos e os botões.
+        const L = E.contr == null || canc ? null : lineupDe(E, x), linhasL = L ? [...(temArea("agenda") ? L.artistas : []), ...(L.casa ? [L.casa] : [])] : [];
+        const prontos = linhasL.filter((l) => l.etapa === "conferido" || l.etapa === "assinado").length;
+        const resumo = canc ? "cancelada" : [`${e.a.length} ${e.a.length === 1 ? "artista" : "artistas"}`, L ? (linhasL.length ? `contratos ${prontos}/${linhasL.length}` : "") : cs.length ? `contratos ${cs.filter(ctAssinado).length}/${cs.length}` : "sem contrato"].filter(Boolean).join(" · ");
+        return `<details class="card dp-item" data-lp-det="${x.id}"${S.lpAberto === x.id ? " open" : ""}><summary><span class="dp-sum-tit"><b>${esc(NOME_SEM[wdDe(e.d)].slice(0, 3))} ${dt(e.d)} · ${esc(x.casa_nome)}</b> <span class="badge ${canc ? "b-crit" : "b-good"}">${esc(x.produto)}</span></span><span class="dp-sum-res" data-dp-resumo>${esc(resumo)}</span></summary>
+          <div class="muted" style="font-size:13px;margin-top:8px">Abertura ${esc(e.noite.inicio)} · ${x.cidade ? esc(x.cidade) + " · " : ""}line-up: ${esc(e.a.join(", ") || "a definir")}${x.observacao ? ` · ${esc(x.observacao)}` : ""}</div>
+          ${canc || E.contr == null ? "" : quadroLineup(E, x)}
+          ${canc ? "" : `<div class="dp-acoes"><button class="btn sm pri" data-dp-contrato="${x.id}">Contrato avulso</button><button class="btn sm" data-dp-editar="${x.id}">Editar</button><button class="btn sm" data-dp-cancelar="${x.id}">Cancelar data</button></div>`}</details>`; }).join("")}</div>`
         : vazio("Nenhuma data criada no portal ainda", "Crie a primeira acima: ela aparece na hora para a casa e para as artistas.", "", "datas_portal")}`;
     },
     // "Hoje" (pedido da Marina, 17/11/2026): para quem tem área (Gui, Isa, Bruno), só o que precisa de ação agora.
@@ -3254,6 +3259,26 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (t.closest("[data-lp-fechar]")) { S.lpPrep = null; render(); return true; }
     const lpg = t.closest("[data-lp-gerar]"); if (lpg) { await gerarContratosLineup(lpg); return true; }
     const sug = t.closest("[data-dp-dia-sug]"); if (sug) { S.dpPre = { ...lerFormDp(), dia: sug.dataset.dpDiaSug }; render(); $("#dpForm")?.scrollIntoView({ block: "start" }); return true; }
+    // Busca rápida por modelo: formato, troca, "Criar este evento" (com confirmação na página) e Turnê.
+    const guarda = () => { if (!S.dpEd) S.dpPre = lerFormDp(); };
+    const bm = t.closest("[data-dpb-modo]"); if (bm) { guarda(); Object.assign(S.dpb ||= {}, { modo: bm.dataset.dpbModo, lim: 12 }); S.dpbConf = null; if (S.dpbTur) S.dpbTur.conf = false; render(); return true; }
+    if (t.closest("[data-dpb-mais]")) { guarda(); S.dpb.lim = (S.dpb.lim || 12) + 12; render(); return true; }
+    const bcr = t.closest("[data-dpb-criar]"); if (bcr) { guarda(); S.dpbConf = bcr.dataset.dpbCriar; render(); $(`[data-dpb-ok="${CSS.escape(S.dpbConf)}"]`)?.focus(); return true; }
+    if (t.closest("[data-dpb-nao]")) { guarda(); S.dpbConf = null; if (S.dpbTur) S.dpbTur.conf = false; render(); return true; }
+    if (t.closest("[data-dpb-tur-criar]")) { guarda(); S.dpbTur.conf = true; render(); $("[data-dpb-tur-ok]")?.focus(); return true; }
+    const bok = t.closest("[data-dpb-ok]"); if (bok) {
+      const k = cartoesModelo(S.eq, S.dpb).find((x) => x.key === bok.dataset.dpbOk);
+      if (!k) { S.dpbConf = null; render(); diz($("#dpbMsg"), "⚠ Esta combinação não está mais livre (alguém criou uma data agora). Confira os cartões de novo."); return true; }
+      await criarDatasRapidas(bok, [{ dia: k.dia, casa: k.casa, produto: k.F.nome, lineup: lineupDoCartao(k) }], `${k.F.nome} criado em ${dt(k.dia)} na ${k.casa.nome}. Já aparece para a casa e para os artistas; os contratos ficam em "Datas criadas no portal".`);
+      return true;
+    }
+    const btok = t.closest("[data-dpb-tur-ok]"); if (btok) {
+      const P = planoTurne(S.eq, S.dpb), esc_ = P.cidades.filter((c) => c.escolha), dias = esc_.map((c) => c.escolha.dia);
+      if (!P.art || !esc_.length || dias.some((d, i) => dias.indexOf(d) !== i)) { S.dpbTur.conf = false; render(); diz($("#dpbMsg"), "⚠ Confira as cidades: precisa de pelo menos uma, sem duas no mesmo dia."); return true; }
+      await criarDatasRapidas(btok, esc_.map((c, i) => ({ dia: c.escolha.dia, casa: c.escolha.casa, produto: "Turnê", lineup: [...(c.abertura ? [{ nome: c.abertura }] : []), { nome: P.art.nome }], observacao: `Turnê de ${P.art.nome}: data ${i + 1} de ${esc_.length}.` })),
+        `${esc_.length} ${esc_.length === 1 ? "data" : "datas"} da turnê de ${P.art.nome} ${esc_.length === 1 ? "criada" : "criadas"}. Já aparecem para as casas e para os artistas.`);
+      return true;
+    }
     const bc = t.closest("[data-dpb-casa]"), ba = t.closest("[data-dpb-art]"); if (bc || ba) {
       const f = S.dpEd ? {} : lerFormDp(); S.dpEd = null;
       if (bc) { const [cid, dia] = bc.dataset.dpbCasa.split("|"), c = (S.eq?.casas || []).find((x) => x.id === cid); Object.assign(f, { casa_id: cid, dia, cidade: c?.dados?.cidade_uf || c?.dados?.cidade || f.cidade || "" }); }
@@ -3336,11 +3361,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       S.dpConf = null;
       await acao(t.closest("[data-dp-salvar]") || t.closest("[data-dp-conf-ok]"), async () => {
         for (const { c } of cancelar) await api.cancelarContrato(c.id);
-        await api.salvarDataPortal({ ...(S.dpEd ? { id: S.dpEd } : {}), dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: casa.id,
+        const salvo = await api.salvarDataPortal({ ...(S.dpEd ? { id: S.dpEd } : {}), dia: v("#dpDia"), abertura: v("#dpAbre") || "19:00", produto: v("#dpProd") || "Descubra", casa_id: casa.id,
           casa_nome: casa.dados?.nome || casa.perfil?.vinculo_nome || casa.perfil?.nome || "Casa", cidade: valorCidade($("#dpCidade")) || casa.dados?.cidade_uf || null,
           artistas, link_ingressos: v("#dpLink") || null, observacao: v("#dpObs") || null });
         TQDiario.registrar("data_portal", { editou: !!S.dpEd, artistas: artistas.length });
-        S.dpEd = null; S.dpPre = null; S.dpN = null; S.dpExc = false; S.dpExcAuto = null; S.dpOutros = S.dpOutrasC = false; S.eq = null; if (era) S.lpAberto = era; await carregarEquipe(); render();
+        S.dpEd = null; S.dpPre = null; S.dpN = null; S.dpExc = false; S.dpExcAuto = null; S.dpOutros = S.dpOutrasC = false; S.eq = null; S.lpAberto = era || salvo?.id || S.lpAberto; await carregarEquipe(); render();
       }, { st: "#dpErr", ok: `Data ${era ? "atualizada" : "criada"}. Já aparece para a casa${artistas.some((a) => a.user_id) ? " e para as artistas com conta" : ""}.${cancelar.length ? ` Contrato cancelado: ${cancelar.map((x) => x.nome).join(", ")}.` : ""}${semConta.length ? ` ${semConta.join(", ")} ainda não tem conta no portal: convide em Convites para ver a data e assinar o contrato.` : ""}` });
       return true;
     }
@@ -3659,11 +3684,18 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return `<div class="card bloco-acao"><div class="row"><div><h3 class="acao">${esc(b.acao)} <span class="n">(${b.n ?? b.itens.length})</span></h3><div class="muted" style="font-size:13px">${b.dica}</div></div>${b.aba ? `<button class="btn sm${b.info ? "" : " pri"}" data-ir="${b.aba}" title="Abrir a lista toda">Abrir</button>` : ""}</div>
       ${b.itens.length ? `<ul class="pend">${b.itens.slice(0, max).map(linha).join("")}</ul>${resto}` : ""}</div>`;
   }
+  // Regra do formato numa linha (embaixo do seletor), com "a validar" quando o Método ainda não descreve tudo.
+  function regraFormato(produto, id) {
+    const F = R.formatoDe(produto) || R.FORMATOS.Descubra;
+    return `<p class="muted regra-formato" id="${id}" style="font-size:13px;margin:0 0 10px"><b>${esc(F.nome)}:</b> ${esc(F.regra)}${F.validar ? ` <span class="badge b-warn" title="Ainda não está claro no Método">a validar: ${esc(F.validar)}</span>` : ""}</p>`;
+  }
+  const padraoLineup = (produto) => { const F = R.formatoDe(produto) || R.FORMATOS.Descubra;
+    return F.abertura ? `o ${F.nome} tem ${F.artistas === 1 ? "1 artista principal" : F.artistas + " artistas principais"} e abertura opcional` : `o ${F.nome} tem ${F.artistas} artistas por padrão`; };
   function livresNoDia(E, casas, ignorarId) {
     const k = (x) => String(x || "").trim().toLowerCase();
     const casaRef = (c) => [k(c.nome), ...(E.casas || []).filter((x) => x.id === c.id).map((x) => k(x.perfil?.vinculo_nome))].filter(Boolean);
     const artistas = (E.perfis || []).filter((p) => p.tipo === "artista").map((p) => { const i = (E.insc || []).find((x) => x.user_id === p.id), d = i?.dados || {};
-      return { id: p.id, nome: p.vinculo_nome || d.nome_artistico || p.nome || p.email, status: i?.status, cidades: (d.cidades_interesse || []).map(k), querTocar: d.cidades_interesse || [],
+      return { id: p.id, nome: p.vinculo_nome || d.nome_artistico || p.nome || p.email, status: i?.status, interesse: d.formato_interesse || "", cidades: (d.cidades_interesse || []).map(k), querTocar: d.cidades_interesse || [],
         mora: [d.cidade_base, d.estado].filter(Boolean).join("/"), sem: semanaDe(E.sem, { userId: p.id }) }; });
     const semCasa = (c) => { const x = (E.casas || []).find((y) => y.id === c.id); return semanaDe(E.sem, { casaRef: x?.perfil?.vinculo_nome || c.nome, fichaDias: x?.dados?.dias_semana }); };
     const evs = [...(S.pac?.eventos || []).filter((e) => !e.z).map((e) => ({ d: e.d, casa: k(e.h), arts: (e.a || []).map(k) })),
@@ -3683,12 +3715,132 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return { cs, as, artistas, todasC, todosA, foraA: todosA.filter((a) => a.motivo).sort((x, y) => x.nome.localeCompare(y.nome, "pt-BR")) };
     };
   }
+  // ---------- Busca rápida por modelo (pedido da Marina, 18/11/2026) ----------
+  // Escolhido o formato, a busca devolve cartões "casa + dia com match": casa livre e com Ficha habilitada no dia, com
+  // artistas livres para a cidade dela que topam o formato (formato_interesse da inscrição) em número suficiente. O
+  // line-up já vem escolhido na quantidade do formato, com troca, e "Criar este evento" cria a data de uma vez.
+  // Turnê: escolhido o artista, a sequência de casas e dias livres em cidades diferentes, uma data por cidade.
+  const casasDp = (E) => (E.casas || []).filter((c) => c.status !== "encerrada").map((c) => ({ id: c.id, nome: c.dados?.nome || c.perfil?.vinculo_nome || c.perfil?.nome || "Casa sem nome", cidade: c.dados?.cidade_uf || c.dados?.cidade || "", status: c.status }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  function diasDaBusca(b) { const dias = []; for (let d = new Date(b.de + "T12:00:00Z"); d.toISOString().slice(0, 10) <= b.ate && dias.length < 62; d = new Date(d.getTime() + 864e5)) dias.push(d.toISOString().slice(0, 10)); return dias; }
+  /** Candidatos de um formato: livres para a cidade e que topam o formato (quem escolheu o formato primeiro). */
+  const quemTopa = (as, produto, tirar) => as.map((a) => ({ ...a, topa: R.topaFormato(a.interesse, produto) })).filter((a) => a.topa > 0 && !(tirar || []).includes(a.id)).sort((x, y) => y.topa - x.topa);
+  const rotTopa = (a, F) => a.topa === 2 ? `escolheu ${F.nome}` : !a.interesse || a.interesse === "nao_sei" ? "ainda não escolheu formato" : "topa o formato";
+  function cartoesModelo(E, b) {
+    const F = R.formatoDe(b.modo) || R.FORMATOS.Descubra, casas = casasDp(E), livres = livresNoDia(E, casas, null);
+    const cartoes = [];
+    for (const dia of diasDaBusca(b)) for (const c of livres(dia, b.cid).cs) {
+      if (c.status !== "habilitada") continue;
+      const cands = quemTopa(livres(dia, c.cidade || "", true).as, F.nome);
+      if (cands.length < F.artistas) continue;
+      const key = `${F.nome}|${c.id}|${dia}`, padrao = cands.slice(0, F.artistas + (F.abertura ? 1 : 0)).map((a) => a.nome);
+      // Escolha da equipe (troca) vale enquanto os escolhidos seguirem livres; senão volta ao sugerido.
+      const salvo = (S.dpbSel || {})[key], ok = salvo && salvo.every((n) => !n || cands.some((a) => a.nome === n));
+      const sel = ok ? salvo : F.abertura ? [padrao[0], padrao[1] || ""] : padrao;
+      cartoes.push({ key, dia, casa: c, F, cands, sel });
+    }
+    return cartoes;
+  }
+  // Line-up na ordem da noite: no Apresenta (e na Turnê) a abertura vem primeiro e a atração por último.
+  const lineupDoCartao = (k) => (k.F.abertura ? [k.sel[1], k.sel[0]] : k.sel).filter(Boolean).map((nome) => ({ nome }));
+  // WhatsApp e conta de cada artista vão junto (mesma regra da Nova data).
+  function artistasParaSalvar(E, lista) {
+    const contas = (E.perfis || []).filter((p) => p.tipo === "artista"), k = (x) => String(x || "").trim().toLowerCase();
+    return lista.map((a, i) => { const c = contas.find((p) => k(p.vinculo_nome || p.nome || p.email) === k(a.nome));
+      const w = c && ((E.insc || []).find((x) => x.user_id === c.id)?.dados?.whatsapp || c.whatsapp);
+      return { ...a, ordem: i + 1, ...(c ? { user_id: c.id } : {}), ...(w ? { whatsapp: VAL.tel(w) ? VAL.fTel(w) : w } : {}) }; });
+  }
+  async function criarDatasRapidas(btn, datas, okMsg) {
+    const E = S.eq, abre = ($("#dpbAbre")?.value || "19:00").trim() || "19:00";
+    if (!S.dpEd) S.dpPre = lerFormDp();
+    await acao(btn, async () => {
+      for (const d of datas) {
+        const casa = (E.casas || []).find((c) => c.id === d.casa.id), NL = R.normalizarLineup(d.lineup);
+        if (NL.erro) throw new Error(`Não criou: ${NL.erro}.`);
+        const r = await api.salvarDataPortal({ dia: d.dia, abertura: abre, produto: d.produto, casa_id: d.casa.id, casa_nome: casa?.dados?.nome || d.casa.nome, cidade: casa?.dados?.cidade_uf || d.casa.cidade || null,
+          artistas: artistasParaSalvar(E, NL.lista), link_ingressos: null, observacao: d.observacao || null });
+        if (datas.length === 1 && r?.id) S.lpAberto = r.id;
+      }
+      TQDiario.registrar("data_portal", { rapida: true, datas: datas.length, formato: datas[0]?.produto });
+      S.dpbConf = null; S.dpbTur = datas[0]?.produto === "Turnê" ? {} : S.dpbTur; S.eq = null; await carregarEquipe(); render();
+    }, { st: "#dpbMsg", espera: "Criando…", ok: okMsg });
+  }
+  function htmlCartoes(E, b) {
+    const F = R.formatoDe(b.modo) || R.FORMATOS.Descubra, todos = cartoesModelo(E, b), lim = b.lim || 12, cs = todos.slice(0, lim);
+    const vaga = (k, i) => { const outros = k.sel.filter((n, j) => j !== i && n), atual = k.sel[i] || "";
+      const rot = F.abertura ? (i === 0 ? "Atração" : "Abertura (opcional)") : `${i + 1}º artista`;
+      return `<label class="fcampo dpb-vaga"><b>${rot}</b><select data-dpb-troca="${esc(k.key)}|${i}">${F.abertura && i === 1 ? `<option value="">Sem abertura</option>` : ""}${k.cands.filter((a) => !outros.includes(a.nome)).map((a) => `<option value="${esc(a.nome)}"${a.nome === atual ? " selected" : ""}>${esc([a.nome, a.mora && "mora em " + a.mora, rotTopa(a, F)].filter(Boolean).join(" · "))}</option>`).join("")}</select></label>`; };
+    const conf = (k) => S.dpbConf !== k.key ? "" : `<div class="alert warn dpb-conf" style="margin:10px 0 0"><b>Criar ${esc(F.nome)} em ${esc(NOME_SEM[wdDe(k.dia)])}, ${dt(k.dia)}, na ${esc(k.casa.nome)}?</b>Line-up, na ordem da noite: ${esc(lineupDoCartao(k).map((a) => a.nome).join(", "))}. A data aparece na hora para a casa e para os artistas.
+      <div class="fgrid" style="margin-top:8px"><label class="fcampo"><b>Abertura da casa</b><input type="time" id="dpbAbre" value="19:00"></label></div>
+      <div class="barra-acoes"><button class="btn pri" data-dpb-ok="${esc(k.key)}">Sim, criar a data</button><button class="btn" data-dpb-nao>Voltar</button></div></div>`;
+    return `<div class="list dpb-cartoes">${cs.map((k) => `<div class="card dpb-card" data-dpb-card="${esc(k.key)}" style="margin:0"><div class="row"><div><b>${esc(NOME_SEM[wdDe(k.dia)])}, ${dt(k.dia)} · ${esc(k.casa.nome)}</b><div class="muted" style="font-size:13px">📍 ${esc(k.casa.cidade || "cidade não informada")} · ${k.cands.length} ${k.cands.length === 1 ? "artista livre topa" : "artistas livres topam"} o ${esc(F.nome)}</div></div>
+        ${S.dpbConf === k.key ? "" : `<button class="btn pri sm" data-dpb-criar="${esc(k.key)}">Criar este evento</button>`}</div>
+        <div class="fgrid" style="margin-top:8px">${k.sel.map((_, i) => vaga(k, i)).join("")}</div>${conf(k)}</div>`).join("")}</div>
+      ${todos.length > lim ? `<button class="btn sm" style="margin-top:8px" data-dpb-mais>Ver mais ${Math.min(12, todos.length - lim)} (de ${todos.length - lim})</button>` : ""}
+      ${todos.length ? "" : `<p class="muted" id="dpbVazio">Nenhuma casa livre com ${F.artistas} ${F.artistas === 1 ? "artista livre que topa" : "artistas livres que topam"} o ${esc(F.nome)} nesse período${b.cid ? " em " + esc(b.cid) : ""}. Em "Todos os dias" aparecem os dias com menos artistas.</p>`}`;
+  }
+  // Turnê: o artista e a sequência de casas e dias livres, uma cidade por data, sem dois shows no mesmo dia.
+  function planoTurne(E, b) {
+    const F = R.FORMATOS["Turnê"], casas = casasDp(E), livres = livresNoDia(E, casas, null), T = S.dpbTur ||= {};
+    const arts = quemTopa(livres(hojeIso()).artistas, F.nome).sort((x, y) => (y.topa - x.topa) || x.nome.localeCompare(y.nome, "pt-BR"));
+    const art = arts.find((a) => a.id === T.art) || null;
+    if (!art) return { F, arts, art: null, cidades: [] };
+    const k = (x) => String(x || "").split("/")[0].trim().toLowerCase(), porCid = new Map();
+    for (const dia of diasDaBusca(b)) for (const c of livres(dia, b.cid).cs) {
+      if (c.status !== "habilitada") continue;
+      const L = livres(dia, c.cidade || "", true).as; if (!L.some((a) => a.id === art.id)) continue;
+      const ck = k(c.cidade) || "?"; if (!porCid.has(ck)) porCid.set(ck, { ck, nome: String(c.cidade || "cidade não informada"), opcoes: [] });
+      porCid.get(ck).opcoes.push({ v: `${dia}|${c.id}`, dia, casa: c, ab: quemTopa(L, "Apresenta", [art.id]) });
+    }
+    const cidades = [...porCid.values()].sort((x, y) => x.opcoes[0].dia.localeCompare(y.opcoes[0].dia));
+    // Sugestão: em cada cidade, o primeiro dia livre que ainda não foi usado por outra cidade.
+    const usados = new Set(), sel = T.sel ||= {};
+    for (const c of cidades) {
+      if (sel[c.ck] !== undefined && (sel[c.ck] === "" || c.opcoes.some((o) => o.v === sel[c.ck]))) { if (sel[c.ck]) usados.add(sel[c.ck].split("|")[0]); continue; }
+      const o = c.opcoes.find((x) => !usados.has(x.dia)); sel[c.ck] = o ? o.v : ""; if (o) usados.add(o.dia);
+    }
+    cidades.forEach((c) => { c.escolha = c.opcoes.find((o) => o.v === sel[c.ck]) || null;
+      const ab = (T.ab ||= {})[c.ck]; c.abertura = c.escolha ? (ab === "" ? "" : c.escolha.ab.some((a) => a.nome === ab) ? ab : c.escolha.ab[0]?.nome || "") : ""; });
+    return { F, arts, art, cidades };
+  }
+  function htmlTurne(E, b) {
+    const P = planoTurne(E, b), F = P.F, T = S.dpbTur;
+    const selArt = `<label class="fcampo"><b>Artista da turnê</b><select data-dpb-tur-art><option value="">Escolha o artista</option>${P.arts.map((a) => `<option value="${esc(a.id)}"${P.art?.id === a.id ? " selected" : ""}>${esc([a.nome, a.mora && "mora em " + a.mora, rotTopa(a, F)].filter(Boolean).join(" · "))}</option>`).join("")}</select></label>`;
+    if (!P.art) return `<div class="fgrid">${selArt}</div><p class="muted" style="font-size:13px">${P.arts.length ? "Escolha o artista para ver as casas e os dias livres dele em cidades diferentes." : "Nenhum artista topa a Turnê ainda (\"Formato que mais te interessa\" na Ficha)."}</p>`;
+    const escolhidas = P.cidades.filter((c) => c.escolha), dias = escolhidas.map((c) => c.escolha.dia), repetido = dias.find((d, i) => dias.indexOf(d) !== i);
+    const linha = (c) => `<div class="card dpb-tur-cid" data-dpb-tur-cid="${esc(c.ck)}" style="margin:0"><b>${esc(c.nome)}</b>
+      <div class="fgrid" style="margin-top:6px"><label class="fcampo"><b>Casa e dia</b><select data-dpb-tur="${esc(c.ck)}"><option value="">Não incluir esta cidade</option>${c.opcoes.map((o) => `<option value="${o.v}"${c.escolha?.v === o.v ? " selected" : ""}>${esc(`${NOME_SEM[wdDe(o.dia)]}, ${dt(o.dia)} · ${o.casa.nome}`)}</option>`).join("")}</select></label>
+      ${c.escolha ? `<label class="fcampo"><b>Abertura local (opcional)</b><select data-dpb-tur-ab="${esc(c.ck)}"><option value="">Sem abertura</option>${c.escolha.ab.map((a) => `<option value="${esc(a.nome)}"${a.nome === c.abertura ? " selected" : ""}>${esc([a.nome, a.mora && "mora em " + a.mora].filter(Boolean).join(" · "))}</option>`).join("")}</select></label>` : ""}</div></div>`;
+    return `<div class="fgrid">${selArt}</div>
+      ${P.cidades.length ? `<p class="muted" style="font-size:13px;margin:0 0 8px">${esc(P.art.nome)} está livre em ${P.cidades.length} ${P.cidades.length === 1 ? "cidade" : "cidades"} com casa livre no período. Uma data por cidade; troque o dia ou tire a cidade.</p>
+        <div class="list">${P.cidades.map(linha).join("")}</div>
+        ${repetido ? `<div class="alert warn" style="margin:8px 0 0"><b>Dois shows no mesmo dia</b>${dt(repetido)} aparece em duas cidades. Troque o dia de uma delas.</div>` : ""}
+        ${T.conf ? `<div class="alert warn" id="dpbTurConf" style="margin:10px 0 0"><b>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê de ${esc(P.art.nome)}?</b>${escolhidas.map((c) => `${dt(c.escolha.dia)} · ${esc(c.escolha.casa.nome)} (${esc(c.nome.split("/")[0])})${c.abertura ? ", abertura " + esc(c.abertura) : ""}`).join("; ")}.
+          <div class="fgrid" style="margin-top:8px"><label class="fcampo"><b>Abertura da casa</b><input type="time" id="dpbAbre" value="19:00"></label></div>
+          <div class="barra-acoes"><button class="btn pri" data-dpb-tur-ok>Sim, criar as datas</button><button class="btn" data-dpb-nao>Voltar</button></div></div>`
+        : `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-dpb-tur-criar${!escolhidas.length || repetido ? " disabled" : ""}>Criar ${escolhidas.length} ${escolhidas.length === 1 ? "data" : "datas"} da turnê</button></div>`}`
+        : `<p class="muted" id="dpbVazio">${esc(P.art.nome)} não tem dia livre com casa livre (Ficha habilitada) nesse período${b.cid ? " em " + esc(b.cid) : ""}. Aumente o período ou peça para marcar a disponibilidade.</p>`}`;
+  }
   function buscaDatas(E, casas) {
     const hoje = hojeIso();
     const b = S.dpb ||= { de: hoje, ate: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), cid: "", ambos: true };
+    b.modo ||= "Descubra";
     const cidades = [...new Set(casas.map((c) => c.cidade).filter(Boolean))].sort((a, c) => a.localeCompare(c, "pt-BR"));
+    const modos = [...R.NOMES_FORMATO, "dia"], rotModo = (m) => m === "dia" ? "Todos os dias" : m;
+    const filtros = `<div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
+        <label class="fcampo"><b>Cidade</b><select data-dpb="cid"><option value="">Todas</option>${cidades.map((c) => `<option${c === b.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
+        ${b.modo === "dia" ? `<label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dpb="ambos"${b.ambos ? " checked" : ""}> <span>só dias com casa e artista livres</span></label>` : ""}</div>`;
+    const topo = `<div class="card" id="dpBusca"><h2 style="margin-top:0">Encontrar data</h2>
+      <div class="filters dpb-modos" role="group" aria-label="Formato da busca" style="margin:0 0 8px">${modos.map((m) => `<button type="button" class="btn sm${b.modo === m ? " pri" : ""}" data-dpb-modo="${esc(m)}" aria-pressed="${b.modo === m}">${esc(rotModo(m))}</button>`).join("")}</div>
+      ${b.modo === "dia" ? "" : regraFormato(b.modo, "dpbRegra")}`;
+    const msg = `<div class="err" role="status" aria-live="polite" id="dpbMsg"></div>`;
+    if (b.modo !== "dia") {
+      const F = R.formatoDe(b.modo);
+      return `${topo}<p class="muted" style="font-size:13px;margin-top:0">${F.mesmoArtista ? "Escolha o artista: aparecem as casas livres (Ficha habilitada) em cidades diferentes nos dias em que ele está livre." : `Casas livres (Ficha habilitada) em cada dia com ${F.artistas} ${F.artistas === 1 ? "artista livre que topa" : "artistas livres que topam"} o ${esc(F.nome)} na cidade delas. O line-up já vem escolhido; troque quem quiser e crie a data de uma vez.`}</p>
+        ${filtros}${msg}${F.mesmoArtista ? htmlTurne(E, b) : htmlCartoes(E, b)}</div>`;
+    }
     const livres = livresNoDia(E, casas, S.dpEd);
-    const dias = []; for (let d = new Date(b.de + "T12:00:00Z"); d.toISOString().slice(0, 10) <= b.ate && dias.length < 62; d = new Date(d.getTime() + 864e5)) dias.push(d.toISOString().slice(0, 10));
+    const dias = diasDaBusca(b);
     const linhas = dias.map((dia) => { const r = livres(dia, b.cid);
       // Match por cidade: a casa só conta se há artista livre que mora ou quer tocar na cidade dela, e vice-versa.
       const cs = r.cs.filter((c) => livres(dia, c.cidade || "", true).as.length);
@@ -3697,11 +3849,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const semDisp = !(E.dispA || []).length;
     const chipC = (c, dia) => `<button class="btn sm" data-dpb-casa="${c.id}|${dia}" title="Preencher a Nova data com esta casa e este dia" style="text-align:left;line-height:1.3"><b>${esc(c.nome)}</b>${c.status && c.status !== "habilitada" ? ` <span class="muted">(Ficha: ${esc(String(STATUS_CASA[c.status]?.[1] || c.status).toLowerCase())})</span>` : ""}<br><span class="muted" style="font-size:12px">📍 ${esc(c.cidade || "cidade não informada")}</span></button>`;
     const chipA = (a, dia) => `<button class="btn sm" data-dpb-art="${esc(a.nome)}|${dia}" title="Colocar no line-up da Nova data" style="text-align:left;line-height:1.3"><b>${esc(a.nome)}${a.quer ? " ★" : ""}</b>${a.status && a.status !== "aprovada" ? ` <span class="muted">(${esc(STATUS_INSC[a.status]?.[1] || a.status)})</span>` : ""}<br><span class="muted" style="font-size:12px">🏠 mora em ${esc(a.mora || "cidade não informada")}${a.querTocar.length ? ` · quer tocar em ${esc(a.querTocar.join(", "))}` : ""}</span></button>`;
-    return `<div class="card" id="dpBusca"><h2 style="margin-top:0">Encontrar data: casa e artista livres no mesmo dia</h2>
-      <p class="muted" style="font-size:13px;margin-top:0">Cruza o que as casas marcaram em Datas com o que os artistas marcaram em Disponibilidade, sem quem já tem show no dia. Toque numa casa ou num artista para já preencher a Nova data abaixo. ★ = o artista quer tocar nessa cidade.</p>
-      <div class="fgrid"><label class="fcampo"><b>De</b><input type="date" data-dpb="de" value="${esc(b.de)}"></label><label class="fcampo"><b>Até</b><input type="date" data-dpb="ate" value="${esc(b.ate)}"></label>
-        <label class="fcampo"><b>Cidade</b><select data-dpb="cid"><option value="">Todas</option>${cidades.map((c) => `<option${c === b.cid ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></label>
-        <label class="fcheck" style="align-self:end;margin-bottom:10px"><input type="checkbox" data-dpb="ambos"${b.ambos ? " checked" : ""}> <span>só dias com casa e artista livres</span></label></div>
+    return `${topo}<p class="muted" style="font-size:13px;margin-top:0">Casa e artista livres no mesmo dia: cruza o que as casas marcaram em Datas com o que os artistas marcaram em Disponibilidade, sem quem já tem show no dia. Toque numa casa ou num artista para já preencher a Nova data abaixo. ★ = o artista quer tocar nessa cidade.</p>
+      ${filtros}
       ${semDisp ? `<div class="alert warn" style="margin-bottom:10px"><b>⚠ Nenhum artista marcou a disponibilidade ainda</b>Os artistas marcam os dias na área deles, em Disponibilidade. Enquanto isso, desmarque "só dias com casa e artista livres" para ver as casas livres.</div>` : ""}
       ${linhas.length ? `<div class="list">${linhas.map((l) => `<div class="card" style="margin:0"><div class="row"><b>${esc(NOME_SEM[wdDe(l.dia)])}, ${dt(l.dia)}</b><span class="muted" style="font-size:13px">${l.cs.length} ${l.cs.length === 1 ? "casa livre" : "casas livres"} · ${l.as.length} ${l.as.length === 1 ? "artista livre" : "artistas livres"}</span></div>
         <div style="margin-top:6px"><span class="muted" style="font-size:12px">Casas:</span> <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${l.cs.map((c) => chipC(c, l.dia)).join("") || '<span class="muted">nenhuma</span>'}</span></div>
@@ -4311,6 +4460,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       if (!r.ok && caixa.isConnected) caixa.checked = !marcada;
       return;
     }
+    // Trocar o formato ajusta o line-up ao padrão dele (se ninguém mexeu nas linhas) e mostra a regra.
+    if (ev.target.id === "dpProd") { S.dpPre = lerFormDp(); if (!S.dpEd && !S.dpPre.artistas.some((a) => a.nome)) S.dpN = null; render(); return; }
     if (ev.target.id === "dpDia" || ev.target.matches?.("[data-dp-exc]")) { S.dpPre = lerFormDp(); if (ev.target.matches("[data-dp-exc]")) { S.dpExc = ev.target.checked; if (!S.dpExc) S.dpExcAuto = null; } render(); return; }
     // Criar datas: "▸ Não marcaram este dia" abre o grupo recolhido; escolher alguém de lá (ou casa fora) liga a Exceção, com aviso.
     if (ev.target.matches?.("select[data-dp-art]") || ev.target.id === "dpCasa") {
@@ -4324,6 +4475,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     // Modelo do "Preparar contratos do line-up".
     if (ev.target.matches?.("[data-lp-mod]")) { lerLpVal(); (S.lpMod ||= {})[ev.target.dataset.lpMod] = ev.target.value; render(); return; }
+    if (ev.target.matches?.("[data-dpb-troca]")) { const x = ev.target, i = x.dataset.dpbTroca.lastIndexOf("|"), key = x.dataset.dpbTroca.slice(0, i);
+      if (!S.dpEd) S.dpPre = lerFormDp();
+      (S.dpbSel ||= {})[key] = [...document.querySelectorAll(`[data-dpb-card="${CSS.escape(key)}"] [data-dpb-troca]`)].map((el) => el.value); S.dpbConf = null; render(); return; }
+    if (ev.target.matches?.("[data-dpb-tur-art], [data-dpb-tur], [data-dpb-tur-ab]")) { const x = ev.target; if (!S.dpEd) S.dpPre = lerFormDp();
+      if (x.matches("[data-dpb-tur-art]")) S.dpbTur = { art: x.value };
+      else { const T = S.dpbTur ||= {}; T.conf = false; if (x.dataset.dpbTur !== undefined) { (T.sel ||= {})[x.dataset.dpbTur] = x.value; } else (T.ab ||= {})[x.dataset.dpbTurAb] = x.value; }
+      render(); return; }
     if (ev.target.matches?.("[data-dpb]")) { const x = ev.target, b = S.dpb ||= {}; if (!S.dpEd) S.dpPre = lerFormDp(); b[x.dataset.dpb] = x.type === "checkbox" ? x.checked : x.value; render(); return; }
     if (ev.target.id === "dpArq" && ev.target.files?.length) { const fs = ev.target.files; await publicarDocsPagina(fs); return; }
     const t = ev.target;

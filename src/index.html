@@ -656,6 +656,16 @@ input[type=file]::file-selector-button:hover{border-color:var(--ink-4);backgroun
 /* Blocos que abrem e fecham (details) dentro de cartões: seta própria em vez do triângulo do navegador */
 .card details>summary,details.card>summary{list-style:none;display:flex;align-items:center;gap:8px}
 .card details>summary::-webkit-details-marker,details.card>summary::-webkit-details-marker{display:none}
+/* Criar datas: data compacta (dia, casa, formato, contratos) que abre para line-up, contratos e botões. */
+details.dp-item>summary{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;color:var(--ink);font-weight:400;margin:0}
+.dp-sum-tit{min-width:0}
+.dp-sum-res{font-size:13px;color:var(--ink-3);text-align:right;white-space:nowrap}
+.dp-acoes{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;margin-top:12px}
+.lineup [data-lp-linha]{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 12px;align-items:center}
+.dpb-modos .btn{min-width:0}
+.regra-formato .badge{white-space:normal;max-width:100%}
+.dpb-card .fgrid{margin-bottom:0}
+@media (max-width:640px){details.dp-item>summary{grid-template-columns:auto minmax(0,1fr)}.dp-sum-res{grid-column:2;text-align:left;white-space:normal}.lineup [data-lp-linha]{grid-template-columns:1fr}.lineup [data-lp-linha]>div:last-child{justify-content:flex-end}}
 .card details>summary::before,details.card>summary::before{content:"";width:7px;height:7px;border-right:1.6px solid currentColor;border-bottom:1.6px solid currentColor;transform:rotate(-45deg);transition:transform .15s;flex:none;margin-right:2px}
 .card details[open]>summary::before,details.card[open]>summary::before{transform:rotate(45deg)}
 /* Tabelas: um pouco menos de recuo lateral, para as colunas de texto não quebrarem em quatro linhas */

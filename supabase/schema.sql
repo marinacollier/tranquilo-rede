@@ -2870,3 +2870,11 @@ revoke all on function datas_portal_lineup(), datas_portal_tirou_artista() from 
 drop trigger if exists trg_datas_portal_tirou on datas_portal;
 create trigger trg_datas_portal_tirou after update of artistas on datas_portal for each row
   when (old.artistas is distinct from new.artistas) execute function datas_portal_tirou_artista();
+
+-- =====================================================================
+-- v32: todos os formatos do Notion em Criar datas (pedido da Marina, 18/11/2026). Idempotente.
+-- Além de Descubra e Apresenta, a data pode ser Turnê (o mesmo artista em várias cidades; cada data segue o Apresenta)
+-- e Noite Tranquilo (segue o Descubra; regra a validar). As regras de cada formato ficam em src/regras.js (FORMATOS).
+-- =====================================================================
+alter table datas_portal drop constraint if exists datas_portal_produto_check;
+alter table datas_portal add constraint datas_portal_produto_check check (produto in ('Apresenta', 'Descubra', 'Turnê', 'Noite Tranquilo'));
