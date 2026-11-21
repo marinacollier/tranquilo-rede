@@ -24,7 +24,7 @@
   /** Erro que impede a combinação (mesma regra do banco) ou null. */
   function funcoesErro(fs) {
     fs = [...new Set(fs || [])];
-    if (!fs.length) return "Escolha a função da pessoa.";
+    if (!fs.length) return "Escolha a função da pessoa. A reserva também precisa de uma função: é quem cobre essa função quando o titular faltar.";
     if (fs.some((f) => !CHAVES.includes(f))) return "Função desconhecida.";
     if (fs.length > 1) return "Cada função é de uma pessoa diferente (Guia do Franqueado). Só o dono pode ser também o Líder Local.";
     return null;

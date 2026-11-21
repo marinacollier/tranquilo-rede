@@ -666,11 +666,11 @@ tr.eh-teste td:first-child::before{content:"TESTE";display:inline-block;margin-r
 option.eh-teste{color:#f5b301}
 .aviso-teste{margin:0 0 14px;padding:10px 14px;border-radius:12px;border:1px solid #f5b301;background:rgba(245,179,1,.10);font-size:14px}
 /* Trilha da casa e do artista */
-.side button.trava{opacity:.55}.nav-trava{margin-left:auto;font-size:12px}
+.side button.trava{opacity:.75}.nav-trava{margin-left:auto;font-size:12px}
 .trilha-lista{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
 .trilha-lista li{display:flex;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid var(--line-2)}
 .trilha-lista li .trilha-marca{width:22px;text-align:center;flex:none}.trilha-lista li>span:nth-child(2){flex:1;min-width:0}
-.trilha-lista li.feito{opacity:.7}.trilha-lista li.feito .trilha-marca{color:#8fd19e}
+.trilha-lista li.feito{opacity:.85}.trilha-lista li.feito .trilha-marca{color:#8fd19e}
 .trilha-lista li.atual{border-color:var(--violet);background:var(--violet-soft)}.trilha-lista li.trava{opacity:.55}
 .dlg-x{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);color:var(--ink);font-size:16px;cursor:pointer;display:grid;place-items:center}.dlg-x:hover{border-color:var(--violet)}
 #dlg{position:fixed}
@@ -866,6 +866,14 @@ details.card.fsec>.fsec-corpo{padding:0 22px 22px}
 .pf-sec>summary{cursor:pointer;padding:4px 0}
 .pf-ev{list-style:none;margin:4px 0 0;padding:0;font-size:14px}
 .pf-ev li{padding:4px 0;border-top:1px solid var(--line)}
+/* Recado interno ("a validar") só para a equipe e a administração. */
+body:not([data-perfil="equipe"]):not([data-perfil="adm"]) .a-validar { display: none !important; }
+/* Rodada de testes de 21/11/2026: bordas dos campos com contraste de pelo menos 3:1 no fundo escuro e áreas de toque
+   de pelo menos 40 px no celular (cabeçalhos que abrem, caixas de marcar e setas do calendário). */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea { border-color: #5a6070 !important; }
+details > summary { min-height: 40px; padding-top: 8px; padding-bottom: 8px; box-sizing: border-box; cursor: pointer; }
+input[type="checkbox"], input[type="radio"] { width: 20px; height: 20px; }
+[data-cal-mes] { min-width: 40px; min-height: 40px; }
 </style>
 </head>
 <body>
@@ -913,6 +921,10 @@ const $ = (s, el = document) => el.querySelector(s);
 // Só links http(s) viram botão (um "javascript:" vindo de dado errado nunca chega ao href).
 const urlSegura = (u) => (/^https?:\/\//i.test(String(u || "").trim()) ? String(u).trim() : null);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+// Link vindo de dados (ficha, materiais, contratos, agenda): só http(s), e-mail, telefone ou caminho relativo.
+// Tira caracteres de controle e espaços antes de conferir, porque o navegador ignora "java\tscript:" e executaria
+// (rodada de segurança de 21/11/2026). Fora disso, o link vira "#".
+const escHref = (u) => { const t = String(u ?? "").replace(/[\u0000-\u0020\u007f-\u009f]+/g, ""); return /^(https?:|mailto:|tel:|#)/i.test(t) || (/^[\w.\/?=&%+-]*$/.test(t) && !t.includes(":")) ? esc(String(u ?? "").trim()) : "#"; };
 const fmt = (n) => n == null || Number.isNaN(n) ? "–" : Math.round(n).toLocaleString("pt-BR");
 const pct = (n) => n == null || !isFinite(n) ? "–" : `${n > 0 ? "+" : ""}${Math.round(n * 100)}%`;
 const MESES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
@@ -1004,7 +1016,7 @@ function consentimento() {
 }
 function rodape() {
   const L = (c, t) => `<a href="${OFICIAL}/${c}" target="_blank" rel="noopener">${t}</a>`;
-  $("#foot").dataset.curto = "Rede Tranquilo · agenda e números do Notion do Tranquilo, atualizados toda noite.";
+  $("#foot").dataset.curto = "Rede Tranquilo · agenda e números do Tranquilo, atualizados toda noite.";
   $("#foot").innerHTML = `<div class="rod">
   <h4>Cidades</h4><div class="lc">${CIDADES_OFC.map((c) => L(c.slug, esc(c.nome))).join("")}</div>
   <div class="cols"><div><h4>Tranquilo pra você</h4><nav>${L("descubra", "Tocar no Tranquilo")}${L("compartilhe-seu-lancamento", "Enviar meu single")}${L("recomende-uma-casa-de-shows", "Recomendar uma casa")}${L("oportunidades", "Trabalhar no Tranquilo")}${L("indicar-artista", "Indicar artista")}${L("artistas", "Artistas")}${L("contato", "Fale com a gente")}</nav></div>
@@ -1013,7 +1025,7 @@ function rodape() {
   <div class="legal"><div>${L("politica-de-privacidade", "Política de Privacidade")} · ${L("termos-de-uso", "Termos de Uso")} · ${L("politica-mensagens-whatsapp", "Política de mensagens")}</div>
   <div>© ${new Date().getFullYear()} Tranquilo. Eventos Ltda — <b>CNPJ 50.142.229/0001-39</b></div><div>Rua Castelo Évora, 90 — Castelo — Belo Horizonte/MG</div>
   <div>WhatsApp: <a href="https://wa.me/5531973434771" target="_blank" rel="noopener" style="text-decoration:none">(31) 97343-4771</a> · Email: <a href="mailto:contato@tranquilomusica.com.br" style="text-decoration:none">contato@tranquilomusica.com.br</a></div>
-  <p class="nota-dados">Agenda e números lidos do Notion do Tranquilo e atualizados toda noite. Ingressos e comunicação oficial sempre pelo site e pelos canais do Tranquilo.</p></div></div>`;
+  <p class="nota-dados">Agenda e números do Tranquilo, atualizados toda noite. Ingressos e comunicação oficial sempre pelo site e pelos canais do Tranquilo.</p></div></div>`;
 }
 
 // ---------- estado ----------
@@ -1123,7 +1135,7 @@ const casaGenerica = (h) => !h || /^Casa (em|da rede)\b/.test(h);
 const nomeCasa = (h) => (casaGenerica(h) && !["adm", "equipe"].includes(S.pac?.perfil) ? "local a confirmar" : h);
 function evLinha(e, extra = "") {
   const art = e.a?.length ? e.a.join(", ") : (e.m === "Descubra" ? "Line-up do Descubra" : "Line-up a definir");
-  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(nomeCasa(e.h))}${extra}</div></div>${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
+  return `<div class="ev" data-ev="${e.id}" tabindex="0">${quando(e.d)}<div class="oque"><b>${esc(e.c)}</b> <span class="art">· ${esc(art)}</span><div class="muted">${esc(e.m)} · ${esc(nomeCasa(e.h))}${extra}</div></div>${e.l ? `<a class="btn sm" href="${escHref(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ingressos</a>` : `<span class="badge b-warn">sem link</span>`}</div>`;
 }
 // Detalhe de uma data (do Notion ou criada no portal), em qualquer acesso (Marina, 18/11/2026: tudo clicável).
 // Público, artista e casa veem o que é deles; números internos só para equipe e adm.
@@ -1137,11 +1149,11 @@ function abrirEvento(id) {
   <dt>Casa</dt><dd>${esc(nomeCasa(e.h) || "a definir")}</dd><dt>Cidade</dt><dd>${esc(e.c || "–")}</dd>
   <dt>Line-up</dt><dd>${(e.a || []).length ? e.a.map((a) => `<span class="pill">${esc(a)}</span>`).join("") : "a definir"}</dd>
   ${e.s ? `<dt>Status</dt><dd>${esc(e.s)}</dd>` : ""}
-  <dt>Ingressos</dt><dd>${e.l ? `<a href="${esc(e.l)}" target="_blank" rel="noopener">${esc(e.l)}</a>` : "sem link ainda"}</dd>
+  <dt>Ingressos</dt><dd>${e.l ? `<a href="${escHref(e.l)}" target="_blank" rel="noopener">${esc(e.l)}</a>` : "sem link ainda"}</dd>
   ${interno || e.p != null ? `<dt>Público</dt><dd>${e.p != null ? `<b>${fmt(e.p)}</b> pessoas${refC?.mediana ? ` <span class="muted">(mediana de ${esc(e.c)}: ${fmt(refC.mediana)})</span>` : ""}` : "não lançado"}</dd>` : ""}
   ${e.v != null ? `<dt>Ingressos + porta + lista</dt><dd>${fmt(e.v)}</dd>` : ""}${e.x ? `<dt>Capacidade trabalhada</dt><dd>${fmt(e.x)}${e.p ? ` · ocupação ${Math.round(e.p / e.x * 100)}%` : ""}</dd>` : ""}
   ${e.cl ? `<dt>Observação</dt><dd>${esc(e.cl)}</dd>` : ""}${e.portal?.observacao ? `<dt>Observação</dt><dd>${esc(e.portal.observacao)}</dd>` : ""}</dl>${extra}
-  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${esc(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno && !e.portal ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+  <div style="display:flex;gap:8px;margin-top:18px;flex-wrap:wrap">${e.l ? `<a class="btn pri" href="${escHref(e.l)}" target="_blank" rel="noopener">Página de ingressos</a>` : ""}${interno && !e.portal ? `<a class="btn" href="${notion(e.id)}" target="_blank" rel="noopener">Abrir no Notion (checklist)</a>` : ""}<button class="btn" onclick="dlg.close()">Fechar</button></div>`;
   if (!$("#dlg").open) $("#dlg").showModal();
 }
 // Tudo clicável (Marina, 18/11/2026): linha de tabela, item de lista ou cartão que ainda não abre nada ganha um detalhe
@@ -1190,7 +1202,7 @@ function cartaoEvento(e, primeiro) {
       <div class="titulo">${esc(tituloOfc(e))}${e.m && !/^sem /i.test(e.m) ? `<span class="badge">${esc(e.m)}</span>` : ""}</div>
       <div class="longa" style="margin-top:2px">${esc(casaGenerica(e.h) ? "Local a confirmar" : e.h)}</div></div>
     <div class="lado"><div class="falta">${primeiro ? "Próximo evento · " : ""}${falta}</div>
-      ${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
+      ${e.l ? `<a class="btn sm" href="${escHref(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Ver ingressos</a>` : `<span class="badge">ingressos em breve</span>`}</div></div>`;
 }
 function telaPublica() {
   const p = S.pub, cid = S.cidade ? cidadeOfc(S.cidade) : null;
@@ -1400,7 +1412,7 @@ const TELAS = {
       { t: "Line-up", v: (e) => e.a.join(", "), h: (e) => esc(e.a.join(", ") || "–") },
       { t: "Casa", v: (e) => e.h }, { t: "Status", v: (e) => e.s, h: (e) => `<span class="badge ${/cancel|adiad/i.test(e.s) ? "b-crit" : /vend|confirm/i.test(e.s) ? "b-good" : /realiz/i.test(e.s) ? "" : "b-warn"}">${esc(e.s)}</span>` },
       { t: "Público", n: 1, v: (e) => e.p, h: (e) => fmt(e.p) },
-      { t: "Ingressos", v: (e) => e.l ? 1 : 0, h: (e) => e.l ? `<a href="${esc(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir</a>` : `<span class="muted">–</span>` },
+      { t: "Ingressos", v: (e) => e.l ? 1 : 0, h: (e) => e.l ? `<a href="${escHref(e.l)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">abrir</a>` : `<span class="muted">–</span>` },
     ], evs.map((e) => ({ ...e, _click: "ev:" + e.id })), { i: 0, dir: f.quando === "futuras" ? 1 : -1 })}`;
   },
   artistas() {
@@ -1538,7 +1550,7 @@ function bnValor(v) {
   if (typeof v === "boolean") return v ? "Sim" : "Não";
   if (typeof v === "number") return fmt(v);
   const s = String(v);
-  if (/^https?:\/\/\S+$/i.test(s)) return `<a href="${esc(s)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
+  if (/^https?:\/\/\S+$/i.test(s)) return `<a href="${escHref(s)}" target="_blank" rel="noopener">${esc(s.replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
   if (/^\d{4}-\d{2}-\d{2}(T|$)/.test(s)) return dt(s.slice(0, 10));
   return esc(s).replace(/\n/g, "<br>");
 }
@@ -1725,6 +1737,8 @@ function render() {
   if (logado) document.documentElement.style.setProperty("--city", "#7c8ff3"); else aplicarCidade();
   if (!logado) { if (/^#\//.test(location.hash)) history.replaceState(null, "", location.pathname); $("#topTit").textContent = ""; return telaPublica(); }
   $("#quem").innerHTML = quemHtml();
+  // Selo "a validar" é recado interno: casa e artista não veem (rodada de testes de 21/11/2026, regra no CSS).
+  document.body.dataset.perfil = S.conta?.perfil?.tipo || "";
   const abas = abasAtuais();
   // Link direto ou recarregar numa aba (#/curadoria) abre essa aba, se o perfil tiver acesso a ela.
   // Na casa, telas de antes (#/passos, #/campanha…) abrem dentro da área a que pertencem agora.
@@ -1862,14 +1876,14 @@ S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
   }
   catch { $("#app").innerHTML = `<p>Não foi possível carregar os dados agora. Tente de novo em instantes.</p>`; return; }
   const ger = new Date(S.pub.geradoEm), horas = (Date.now() - ger) / 36e5;
-  $("#atualizado").textContent = $("#atualizado2").textContent = `Notion · ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
+  $("#atualizado").textContent = $("#atualizado2").textContent = `Atualizado · ${ger.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}`;
   if (horas > 36) $("#stale").innerHTML = `<div class="stale">Atenção: dados com mais de ${Math.floor(horas)} horas. A atualização automática pode ter falhado.</div>`;
   S.cidade = store.get("tq-cidade") || ""; aplicarCidade(); rodape();
   const params = new URLSearchParams(location.hash.slice(1));
   const hash = params.get("c");
   // Links de tutorial (#tutorial-artista) e de convite (#criar&email=…&tipo=…) chegam por WhatsApp ou e-mail.
   const tutorialLink = (location.hash.match(/^#tutorial-(artista|casa|equipe|adm|publico)\b/) || [])[1];
-  const convite = params.has("criar") ? { email: params.get("email") || "", tipo: params.get("tipo") === "casa" ? "casa" : "artista" } : null;
+  const convite = params.has("criar") ? { email: params.get("email") || "", tipo: params.get("tipo") === "casa" ? "casa" : "artista", equipe: params.has("equipe") } : null;
   if (hash || tutorialLink || convite) history.replaceState(null, "", location.pathname);
   const cod = hash || store.get("tq-codigo");
   // A agenda pública não espera o banco de contas: se ele demorar mais de 4 s, a página segue e
@@ -1891,7 +1905,7 @@ S.abaDesejada = (location.hash.match(/^#\/(\w+)/) || [])[1] || null;
       if (hash) S.erroCodigo = e.message;
     }
   }
-  if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; }
+  if (convite) { S.entrada = "criar"; S.tipoNovo = convite.tipo; S.conviteEquipe = convite.equipe; }
   if (erroLink || vindoDoEmail) { S.entrada = "entrar"; history.replaceState(null, "", location.pathname); }
   render();
   if (erroLink || vindoDoEmail) {

@@ -438,8 +438,10 @@ const TQConta = (() => {
       },
       async disponibilidade() { const p = eu(); return (db.disp || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || x.casa_ref === p?.vinculo_nome); },
       async datasPortal() {
-        const p = eu(), minha = Object.values(db.casas).find((c) => c.user_id === db.sessao);
-        return (db.datasP || []).filter((d) => ["equipe", "adm"].includes(p?.tipo) || (minha && d.casa_id === minha.id) || (d.artistas || []).some((a) => a.user_id === db.sessao));
+        const p = eu(), minha = Object.values(db.casas).find((c) => c.user_id === db.sessao), k = (x) => String(x || "").trim().toLowerCase();
+        // Funcionário da casa (Líder Local, Anfitrião…) vê as datas da própria casa, como o dono (banco v35).
+        const daEquipeDaCasa = (d) => p?.tipo === "casa" && p.funcoes?.length && p.vinculo_nome && k(d.casa_nome) === k(p.vinculo_nome);
+        return (db.datasP || []).filter((d) => ["equipe", "adm"].includes(p?.tipo) || (minha && d.casa_id === minha.id) || daEquipeDaCasa(d) || (d.artistas || []).some((a) => a.user_id === db.sessao));
       },
       async salvarDataPortal(d) {
         exigeEquipe(); db.datasP ||= [];
@@ -930,7 +932,7 @@ const TQConta = (() => {
   // → cronograma → marketing → público. Artista: "Suas datas" e "Seu cadastro".
   // Menu simples (pedido da Marina, 17/11/2026), na ordem do fluxo: Próximos passos, Cadastro, Equipe, Disponibilidade
   // e Contrato. As partes que sobram ficam dentro de cada um; Bonificações só aparece para casa que tem.
-  const AREAS_CASA = [["datas_casa", "Próximos passos"], ["ficha", "Cadastro"], ["equipe_g", "Equipe"], ["disp_g", "Disponibilidade"], ["contr_g", "Contrato"]];
+  const AREAS_CASA = [["datas_casa", "Próximos passos"], ["ficha", "Ficha da casa"], ["equipe_g", "Equipe"], ["disp_g", "Disponibilidade"], ["contr_g", "Contrato"]];
   // Material de divulgação do Bruno (Produtor local, Anfitrião, Social media) é do artista (Marina, 17/11/2026).
   const AREAS_ART = [["art_mkt", "Divulgação"]];
   // Referência (Materiais, Base, Método): só para o time do Tranquilo; artista e casa veem só Dúvidas (pedido da Marina, 17/11/2026).
@@ -966,7 +968,7 @@ const TQConta = (() => {
         { k: "inscricao", titulo: "Preencher e enviar a sua ficha", feito: enviada, liberado: true },
         { titulo: "Curadoria do Tranquilo", feito: aprovada, liberado: enviada, motivo: "libera quando você envia a ficha", nota: st === "ajustes" ? "A curadoria pediu ajustes na sua ficha." : st === "em_curadoria" ? "A Isa está olhando a sua ficha." : "" },
         { k: "disp_artista", titulo: "Marcar onde e quando você pode tocar", feito: disp, liberado: aprovada, motivo: "libera quando a curadoria aprovar a sua ficha" },
-        { k: "contratos_meus", titulo: "Assinar o contrato da data", feito: !!ctOk, liberado: cts.length > 0, motivo: "libera quando a Isa fechar uma data com você" },
+        { k: "contratos_meus", titulo: "Assinar o contrato da data", feito: !!ctOk, liberado: cts.length > 0, motivo: eventosDaConta().some((e) => e.d >= hojeIso()) ? "a sua data já está marcada: libera quando a equipe enviar o contrato" : "libera quando a Isa fechar uma data com você" },
       ];
     }
     if (p.tipo === "casa") {
@@ -1086,7 +1088,9 @@ const TQConta = (() => {
       const POR_AREA = { agenda: ["datas_portal", "curadoria", "agenda_casas", "documentos", "convites"], operacoes: ["casas_cad", "convites", "documentos", "painel", "trilhas", "materiais"], marketing: ["campanhas", "materiais"] };
       const quer = new Set((S.conta.perfil.areas || []).flatMap((a) => POR_AREA[a] || []));
       const pac = doPac.filter(([k]) => k === "datas" && (quer.has("datas_portal") || quer.has("casas_cad")));
-      return [...gruposEquipe(), ["convites", "Convidar"], ...REFERENCIA.filter(([k]) => k !== "duvidas"), ["conta", "Conta"]];
+      // Convidar (rodada de testes de 21/11/2026): Agenda convida artista, Operações convida casa; Marketing não convida.
+      const convida = S.conta.perfil.tipo === "adm" || !(S.conta.perfil.areas || []).length || (S.conta.perfil.areas || []).some((a) => ["agenda", "operacoes"].includes(a));
+      return [...gruposEquipe(), ...(convida ? [["convites", "Convidar"]] : []), ...REFERENCIA.filter(([k]) => k !== "duvidas"), ["conta", "Conta"]];
     }
     const precisa = { datas_portal: ["agenda"], documentos: ["agenda", "operacoes"], campanhas: ["marketing"] }, soAdm = new Set(["prontidao", "relatos"]);
     const visivel = base.filter(([k]) => (!precisa[k] || precisa[k].some(temArea)) && (!soAdm.has(k) || !comAreas()));
@@ -1561,13 +1565,15 @@ const TQConta = (() => {
     const mats = slugs.map((sl) => (H?.materiais || []).find((m) => m.slug === sl)).filter(Boolean)
       .concat((H?.materiais || []).filter((m) => m.funcao === f && !slugs.includes(m.slug) && !DOCS_APOSENTADOS.includes(m.slug)));
     const nome = { lider: "Produtor local (Líder Local)", anfitriao: "Anfitrião(ã)", social_media: "Social media" }[f] || F[1];
-    return `<div class="tag">Marketing</div><h1>${esc(nome)}</h1>
-      <p class="sub">${esc(F[2])}</p>
+    // Artista (aba Divulgação): sem o texto escrito para a casa ("pode ser o próprio dono") e sem "a validar".
+    const artista = S.conta?.perfil.tipo === "artista";
+    return `<div class="tag">${artista ? "Divulgação" : "Marketing"}</div><h1>${esc(nome)}</h1>
+      <p class="sub">${artista ? "O que esta parte da divulgação do show pede e os materiais do Tranquilo para ajudar você." : esc(F[2])}</p>
       ${!H ? carregando("os documentos") : mats.length ? `<div class="list">${mats.map((m) => cartaoDoc(H, m)).join("")}</div>` : `<div class="alert warn"><b>⚠ Atenção: os documentos desta função ainda não foram publicados no portal.</b>A equipe do Tranquilo publica em Materiais.</div>`}
       <h2>O que a função faz</h2>
-      <div class="alert warn" style="margin-bottom:12px"><b>Obrigações de marketing ${A_VALIDAR_HTML}</b>A lista abaixo vem do que a Operações combinou para cada função. O texto final das obrigações de marketing vem do Gui e do Bruno.</div>
+      ${artista ? "" : `<div class="alert warn" style="margin-bottom:12px"><b>Obrigações de marketing ${A_VALIDAR_HTML}</b>A lista abaixo vem do que a Operações combinou para cada função. O texto final das obrigações de marketing vem do Gui e do Bruno.</div>`}
       ${[["A cada show", d.show], ["Você devolve", d.devolve]].map(([t, xs]) => dobra(`mkt:${f}:${t}`, t, `${(xs || []).length} ${(xs || []).length === 1 ? "item" : "itens"}`, `<ul class="passos">${(xs || []).map((x) => `<li>${esc(x)}</li>`).join("")}</ul>`)).join("")}
-      <div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`;
+      ${artista ? "" : `<div class="barra-acoes" style="margin-top:12px"><button class="btn sm" data-ir="campanha">Ver a campanha de divulgação</button></div>`}`;
   }
   // Mensagem de alinhamento de cronograma (modelo da Operações, 12/11/2026). Quem recebe: o contato da casa.
   // Regras: ordem do line-up ("Ordem de apresentação"); quem toca por último passa o som primeiro; olho no olho só no
@@ -1621,7 +1627,7 @@ const TQConta = (() => {
   const acoesEnvio = (texto, { whatsapp, email, assunto, idTexto }) => {
     const wa = `https://wa.me/${soDigitos(whatsapp || "")}?text=${encodeURIComponent(texto)}`;
     const mail = `mailto:${encodeURIComponent(email || "")}?subject=${encodeURIComponent(assunto || "Tranquilo")}&body=${encodeURIComponent(texto)}`;
-    return `<div class="barra-acoes"><a class="btn pri sm" href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn sm" href="${esc(mail)}">E-mail</a><button class="btn sm" data-copiar-msg="${esc(idTexto)}">Copiar</button><span class="muted" style="font-size:12px"></span></div>`;
+    return `<div class="barra-acoes"><a class="btn pri sm" href="${escHref(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn sm" href="${escHref(mail)}">E-mail</a><button class="btn sm" data-copiar-msg="${esc(idTexto)}">Copiar</button><span class="muted" style="font-size:12px"></span></div>`;
   };
   const blocoMensagem = (e, opts) => { const M = mensagemCronograma(e, opts), id = "crmsg-" + e.id;
     return `<div style="margin-top:10px"><b>Mensagem de alinhamento do cronograma</b> <span class="muted" style="font-size:12px">para o contato da casa criar o grupo com os artistas e o técnico de som</span>
@@ -1648,7 +1654,11 @@ const TQConta = (() => {
     if (ctData.some((c) => c.status === "assinado" || ctRecebido(c))) feitos.contrato ||= true;
     else if (ctData.some(ctPedidoDeNovo)) feitos.contrato = false;
     const fs = funcoesDe();
-    const ps = (window.TQModelos ? TQModelos.passos(modelo, e.d, feitos, hojeIso(), e.m) : R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m)).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave));
+    // Data marcada em cima da hora (rodada de testes de 21/11/2026): o passo cujo prazo já tinha passado quando a data foi
+    // criada não conta como atraso nem dispara SOS; vira "data curta: fazer o quanto antes".
+    const criada = e.portal?.criado_em ? String(e.portal.criado_em).slice(0, 10) : null;
+    const ps = (window.TQModelos ? TQModelos.passos(modelo, e.d, feitos, hojeIso(), e.m) : R.passosDaData(modelo, e.d, feitos, hojeIso(), e.m)).filter((p) => modelo !== "casa" || TQEquipe.vePasso(fs, p.chave))
+      .map((p) => (criada && !p.feito && !p.passou && p.prazo < criada ? { ...p, atrasado: false, agora: true, curto: true } : p));
     const d = Math.round((Date.parse(e.d + "T12:00:00Z") - Date.parse(hojeIso() + "T12:00:00Z")) / 864e5), sos = [];
     if (d >= 0) {
       const L = S.conta.equipe, cob = modelo === "casa" && Array.isArray(L) && TQEquipe.veTudo(fs) ? TQEquipe.cobertura(L) : null;
@@ -1672,13 +1682,13 @@ const TQConta = (() => {
     const registro = modelo === "casa" && e.d <= hojeIso() && TQEquipe.vePasso(fs, "publico") ? `<button class="btn sm" data-registrar="${e.id}">Registrar a noite</button>` : "";
     const local = modelo === "artista" ? `<details class="pp-det" style="margin-top:8px"><summary>Local, ordem da noite e contatos</summary>${infoNoite(e, S.pac?.enderecos?.[e.k])}</details>` : "";
     return `<div class="card"><div class="row"><div><b>${dt(e.d)} · ${esc(e.c)}</b> <span class="muted">${esc(e.h || "")}</span><div class="muted" style="font-size:13px">${esc(e.a.join(", ") || e.m)}</div></div>
-      <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${esc(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
+      <div style="text-align:right"><span class="badge ${atras ? "b-crit" : n === ps.length ? "b-good" : "b-warn"}">${n}/${ps.length} feitos${atras ? ` · ${atras} atrasado${atras > 1 ? "s" : ""}` : ""}</span><div style="margin-top:6px;display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap">${registro}${e.l ? `<a class="btn sm" href="${escHref(e.l)}" target="_blank" rel="noopener">Ingressos</a>` : ""}</div></div></div>
       ${local}
       ${sos.length ? `<div class="alert crit md-sos-conta" style="margin:10px 0"><b>🆘 SOS: algo está atrasado ou travado</b><ul class="passos md-lista">${sos.map((x) => `<li><b>${esc(x.titulo)}</b><br><span style="font-size:13px">${esc(x.texto)}</span>${x.botao ? `<div class="barra-acoes" style="margin-top:6px">${x.botao}</div>` : ""}</li>`).join("")}</ul></div>` : ""}
       ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Abrir o contrato". Você não precisa fazer nada agora.</div>`
         : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${window.TQModelos && proximo.metodo ? `<div style="margin-top:6px">${linkMetodo(proximo.metodo, e.m)}</div>` : ""}${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Abrir o contrato →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
       <details data-dobra="pp-todos:${esc(e.id)}"${S.dobras?.["pp-todos:" + e.id] ? " open" : ""}><summary>Ver todos os passos (quem faz, o que conta como feito e como fazer)</summary><ul class="passos">${ps.map((p) => window.TQModelos ? linhaModelo(p, { evId: e.id, produto: e.m, marcar: true, campo: "passo", soQuemMarcou: false, quemMarcou: (u) => u === S.conta.perfil.id ? "você" : modelo === "casa" ? "alguém da equipe da casa" : "você" }).replace("</b>", `</b>${p.validar ? " " + A_VALIDAR_HTML : ""}`)
-        : `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${dtc(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label>${anexoPasso(e.id, p.chave)}</li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
+        : `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${dtc(p.prazo)}${p.curto ? " · data curta: fazer o quanto antes" : ""}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label>${anexoPasso(e.id, p.chave)}</li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
@@ -1687,7 +1697,7 @@ const TQConta = (() => {
     const meus = (S.conta.arqs || {})[e.id] || [];
     const artista = S.conta.perfil.tipo === "artista";
     return `<details style="margin-top:6px"><summary>Contrato e materiais${docs.length + meus.length + digitais.length ? ` (${docs.length + meus.length + digitais.length})` : ""}</summary>
-      <div style="margin-top:10px">${digitais.map((c) => `<div class="row" style="margin-bottom:6px"><span>✍️ ${esc(c.titulo)} · <span class="badge ${situacaoCt(c).classe}">${situacaoCt(c).rotulo}</span></span><button class="btn sm" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Abrir e assinar"}</button></div>`).join("")}${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${esc(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
+      <div style="margin-top:10px">${digitais.map((c) => `<div class="row" style="margin-bottom:6px"><span>✍️ ${esc(c.titulo)} · <span class="badge ${situacaoCt(c).classe}">${situacaoCt(c).rotulo}</span></span><button class="btn sm" data-ct-abrir="${c.id}">${c.status === "assinado" ? "Ver" : "Abrir e assinar"}</button></div>`).join("")}${docs.length ? docs.map((d) => `<div class="row" style="margin-bottom:6px"><span>${d.tipo === "contrato" ? "📄 Contrato" : d.tipo === "modelo" ? "📝 Modelo" : "📎"} · ${esc(d.titulo)}</span><a class="btn sm" href="${escHref(d.url)}" target="_blank" rel="noopener">Abrir</a></div>`).join("") : `<p class="muted" style="font-size:13px;margin:0 0 8px">O contrato desta data aparece aqui quando a equipe anexar.</p>`}
       <b style="font-size:14px">Seus arquivos</b>
       ${meus.length ? `<ul class="passos" style="margin:6px 0">${meus.map((f) => `<li><a href="#" data-arquivo="${esc(f.caminho)}">${esc(f.nome.replace(/^\d+-/, ""))}</a> <span class="muted" style="font-size:12px">· ${f.em ? dt(f.em.slice(0, 10)) : ""}</span></li>`).join("")}</ul>` : `<p class="muted" style="font-size:13px;margin:4px 0">Nenhum arquivo enviado para esta data.</p>`}
       <label class="fcampo" style="margin-top:8px"><b>Enviar ${artista ? "rider, mapa de palco, fotos ou release" : "rider da casa, fotos do palco ou documentos"}</b><input type="file" data-enviar-arquivo="${esc(e.id)}" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip,.txt,.mp3"></label>
@@ -2041,7 +2051,7 @@ const TQConta = (() => {
     if (MANUAIS[m.slug]) return `<button class="btn pri sm" data-manual="${esc(MANUAIS[m.slug])}">${esc(rotulo)}</button>`;
     if (versaoComConteudo(H, m)) return `<button class="btn pri sm" data-ler="${esc(m.slug)}">${esc(rotulo)}</button>`;
     const v = (H?.versoes || []).find((x) => x.material_id === m.id), url = v?.url || m.fonte_url;
-    return url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>';
+    return url ? `<a class="btn sm" href="${escHref(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : '<span class="muted" style="font-size:13px">ainda não publicado</span>';
   }
   /** Cartão único de documento (Guia, manuais, documentos do marketing): título, descrição, versão e "Ler" na página. */
   function cartaoDoc(H, m, titulo, desc) {
@@ -2191,7 +2201,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const i = S.conta.insc, trav = i && !["rascunho", "ajustes"].includes(i.status), rec = trav ? null : recuperarLocal(i?.dados || {}), d0 = rec || i?.dados || {};
       // Inscrição nova já nasce com o que a equipe mandou junto com o convite (pré-ficha pelo Notion, proposta pendente).
       const sugConv = trav ? {} : Object.fromEntries(doConvitePP("artista").filter(([k, v]) => F_ARTISTA.some(([, cs]) => cs.some((c) => c[0] === k)) && PP()?.vazio(d0[k]) === true && !PP().vazio(v)));
-      const d = { ...d0, ...sugConv };
+      // O nome artístico digitado ao criar a conta já vem na inscrição (não pede duas vezes).
+      const d = { ...(trav || d0.nome_artistico ? {} : { nome_artistico: S.conta.perfil.nome || "" }), ...d0, ...sugConv };
       return `<div class="tag">Inscrição de artista</div><h1>${trav ? "Sua inscrição" : "Inscreva-se na rede"}</h1>
       <p class="sub">${trav ? "Sua inscrição está com a equipe. Você pode consultar as respostas e preencher o que ficou vazio; o que já foi respondido só muda se a curadoria pedir ajustes." : "Leva uns 10 minutos. O rascunho fica salvo e você pode voltar depois. Ao enviar, a pré-curadoria é automática e o resultado aparece na hora."}</p>
       ${i?.parecer && i.status === "ajustes" ? `<div class="alert warn"><b>A curadoria pediu ajustes</b>${esc(i.parecer)}</div>` : ""}
@@ -2219,7 +2230,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const mostra = (k, v) => Array.isArray(v) ? v.join(", ") : k === "som" && SOM_ANTIGO[v] ? SOM_ANTIGO[v] : v === "true" ? "Sim" : v === "false" ? "Não" : String(v);
       const usadosNaFicha = new Set(Object.entries(F_CASA_ANTIGO).filter(([novo]) => !d[novo]).map(([, ant]) => ant).concat(d.cidade_uf ? [] : ["cidade", "estado"]));
       const extras = Object.entries(d).filter(([k, v]) => !CHAVES_FICHA.has(k) && !usadosNaFicha.has(k) && v != null && v !== "" && !(Array.isArray(v) && !v.length));
-      return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da unidade")}</h1>
+      return `<div class="tag">Ficha da Casa</div><h1>${esc(d.nome || S.conta.perfil.vinculo_nome || "Ficha da casa")}</h1>
       <p class="sub">Esta Ficha é só da sua casa. Primeiro, um resumo de como a sua unidade vai funcionar. Depois, os dados da casa e da equipe, junto com as suas dúvidas sobre o Guia do Franqueado. ${enviada ? "A ficha já está com o Tranquilo. Campo em branco você preenche direto; para mudar uma resposta já enviada, use \"Pedir para mudar uma resposta já enviada\", no fim da página." : "O que você preenche fica salvo; pode parar e voltar depois."}</p>
       <div class="row" style="margin-bottom:10px"><span>${c ? badgeEtapa(etapaCasa(c, meusContratos(), S.conta.equipe ?? null)) : '<span class="badge">ainda não enviada</span>'}</span><button class="btn sm" data-ler="guia-do-franqueado">Ler o Guia do Franqueado</button></div>
       ${c?.status === "encerrada" ? `<div class="alert crit"><b>Parceria encerrada ${A_VALIDAR_HTML}</b>${esc(c.parecer || "")} A Ficha e o histórico ficam guardados. Dúvidas: fale com a Operações.</div>`
@@ -2340,7 +2351,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // ---------- equipe: artista e casa lado a lado ----------
     lado_a_lado() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("as datas"); }
-      const P = S.pac; if (!P) return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver as datas.</div>`;
+      const P = S.pac; if (!P) return `<div class="tag">Artista e casa</div><h1>Datas: artista e casa</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver as datas.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="conta">Abrir Minha conta</button></div></div>`;
       const hoje = hojeIso(), evs = P.eventos.filter((e) => !e.z && e.d >= hoje).sort((a, b) => a.d.localeCompare(b.d)).slice(0, 70);
       const k = (x) => String(x || "").toLowerCase();
       const cadDe = (e) => (E.casas || []).find((c) => (c.notion_casa_id && c.notion_casa_id === e.k) || (c.dados?.nome && k(c.dados.nome) === k(e.h)) || (c.perfil?.vinculo_nome && k(c.perfil.vinculo_nome) === k(e.h)));
@@ -2659,7 +2670,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     painel() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o painel"); }
       const P = S.pac, hoje = hojeIso(), em14 = new Date(Date.now() + 14 * 864e5).toISOString().slice(0, 10);
-      if (!P) return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver os eventos.</div>`;
+      if (!P) return `<div class="tag">Painel da operação</div><h1>Eventos por data</h1><div class="alert warn"><b>Falta o código interno</b>Cole o código interno da equipe na aba Conta para ver os eventos.<div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="conta">Abrir Minha conta</button></div></div>`;
       const k = (x) => String(x || "").trim().toLowerCase();
       const f = S.pf ||= { cidade: "", casa: "", status: "", foco: "" };
       const casaDe = (e) => (E.casas || []).find((c) => k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h));
@@ -2837,7 +2848,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="tag">Convites</div><h1>Chamar quem já está na rede</h1>
       <p class="sub">Para artistas e casas que já trabalham com o Tranquilo. A pessoa recebe um link por e-mail, entra, cria a senha e já cai na própria área, vinculada ao histórico dela. O tutorial abre sozinho no primeiro acesso.</p>
       <div class="card"><div class="fgrid">
-        <label class="fcampo"><b>Quem você está convidando?</b><select id="cvTipo" style="font-weight:600">${[["artista", "Artista"], ["casa", "Casa"], ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="fcampo"><b>Quem você está convidando?</b><select id="cvTipo" style="font-weight:600">${[...(adm || !ars.length || ars.includes("agenda") ? [["artista", "Artista"]] : []), ...(adm || !ars.length || ars.includes("operacoes") ? [["casa", "Casa"]] : []), ...(adm ? [["equipe", "Equipe"], ["adm", "Administração"]] : [])].map(([k, t]) => `<option value="${k}"${tipoSel === k ? " selected" : ""}>${t}</option>`).join("")}</select></label>
         ${["artista", "casa"].includes(tipoSel) && acessos.length ? `<label class="fcampo"><b>Já tem histórico no Tranquilo? (opcional)</b>${acessos.length ? `<select id="cvVinc"><option value="">Sem vínculo por enquanto</option>${acessos.map((a) => `<option value="${esc(a.codigo)}|${esc(a.nome)}"${pre.nome === a.nome ? " selected" : ""}>${esc(a.nome)}${a.cidades ? " · " + esc(a.cidades) : ""}</option>`).join("")}</select>` : `<span class="muted" style="font-size:13px">A lista de nomes vem com o código de administração. Sem ele, o convite sai sem vínculo e a administração liga depois em Pessoas.</span>`}</label>` : ""}
         ${tipoSel === "equipe" ? `<div class="fcampo"><b>Área (o que a pessoa vai fazer)</b>${caixasAreas(pre.areas, 'data-cv-area')}<span class="muted" style="font-size:12px">Sem área marcada, a pessoa vê tudo da equipe.</span></div>` : ""}
         <label class="fcampo"><b>Nome ${tipoSel === "casa" ? "da casa" : tipoSel === "artista" ? "da artista" : "da pessoa"}</b><input id="cvNome" value="${esc(pre.nome || S.convRasc?.nome || "")}" autocomplete="off"></label>
@@ -2896,7 +2907,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
           : minha[v.id] ? `<div class="muted" style="font-size:13px;margin-top:8px">✓ Você confirmou a leitura da versão ${esc(v.versao)} em ${dt(String(minha[v.id]).slice(0, 10))}.</div>` : "";
         const copia = url && urlCopia(url);
         const quem = equipe ? `<div class="muted" style="font-size:12px">Para ${(m.publico || []).join(" e ")}${m.casa_ref ? " · só " + esc(m.casa_ref) : ""}</div>` : "";
-        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div>${quem}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${versaoComConteudo(H, m) || MANUAIS[m.slug] ? botaoLer(H, m) : url ? `<a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : ""}${copia ? `<a class="btn sm" href="${esc(copia)}" target="_blank" rel="noopener" title="Cria uma cópia no seu Google Drive para você editar. O original não muda.">Fazer minha cópia</a>` : ""}</div></div>${ciencia}</div>`;
+        return `<div class="card"><div class="row"><div><b>${esc(m.titulo)}</b><div class="muted" style="font-size:13px">${esc(m.tipo_material)} · versão ${esc(v?.versao || "–")}${v?.resumo ? " · " + esc(v.resumo) : ""}</div>${quem}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${versaoComConteudo(H, m) || MANUAIS[m.slug] ? botaoLer(H, m) : url ? `<a class="btn sm" href="${escHref(url)}" target="_blank" rel="noopener">Abrir em outra aba ↗</a>` : ""}${copia ? `<a class="btn sm" href="${escHref(copia)}" target="_blank" rel="noopener" title="Cria uma cópia no seu Google Drive para você editar. O original não muda.">Fazer minha cópia</a>` : ""}</div></div>${ciencia}</div>`;
       });
       const nPend = H.pendentes?.length || 0;
       return `<div class="tag">Materiais</div><h1>Guias e materiais</h1><p class="sub">${equipe ? "Os materiais publicados para artistas e casas, com quem já confirmou a leitura da versão atual." : "Guias, playbooks e modelos do Tranquilo. Os modelos abrem só para leitura: para usar, toque em \"Fazer minha cópia\" (ou Arquivo › Fazer uma cópia)."}</p>
@@ -2908,7 +2919,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("documentos"); }
       if (E.docs === null) return faltaSchema("Documentos");
       // Casa ainda sem vínculo aparece pelo nome da Ficha (não pelo nome de quem criou a conta).
-      const contas = (E.perfis || []).filter((p) => ["artista", "casa"].includes(p.tipo)).map((p) => ({ ...p, rotulo: nomeDaConta(p) })).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
+      // Contrato da casa vai só para o dono: funcionários (Líder Local, Anfitrião…) ficam fora da lista.
+      const contas = (E.perfis || []).filter((p) => p.tipo === "artista" || (p.tipo === "casa" && !p.funcoes?.length)).map((p) => ({ ...p, rotulo: nomeDaConta(p) + (p.tipo === "casa" && p.nome && p.nome !== nomeDaConta(p) ? ` (${p.nome})` : "") })).sort((a, b) => a.rotulo.localeCompare(b.rotulo, "pt-BR"));
       const nomeConta = Object.fromEntries((E.perfis || []).map((p) => [p.id, nomeDaConta(p)]));
       // Datas do Notion (agenda) e as criadas no portal pela Central.
       const datasP = (E.datasP || []).map(eventoDoPortal).filter((e) => !e.z);
@@ -2925,7 +2937,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       </div><div class="barra-acoes">${comExplica(`<button class="btn pri" id="docOk">Anexar o documento</button>`, "A pessoa passa a ver o link no passo a passo dela.")}</div><div class="err" role="status" aria-live="polite" id="docErr"></div>
       <p class="muted" style="font-size:13px;margin:6px 0 0">Confira se o link está compartilhado com a pessoa (ou "qualquer pessoa com o link").</p></details>
       <details style="margin-top:18px"><summary>Documentos anexados (${(E.docs || []).length})</summary>${tabela("docs", [
-        { t: "Documento", v: (d) => d.titulo, h: (d) => `<a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.titulo)}</a>` },
+        { t: "Documento", v: (d) => d.titulo, h: (d) => `<a href="${escHref(d.url)}" target="_blank" rel="noopener">${esc(d.titulo)}</a>` },
         { t: "Tipo", v: (d) => d.tipo }, { t: "Conta", v: (d) => nomeConta[d.user_id] || (d.tipo === "modelo" ? "todos" : "–") },
         { t: "Data", v: (d) => d.evento_id, h: (d) => d.tipo === "modelo" ? "–" : esc(dataTxt(d.evento_id)) },
         { t: "", v: () => 0, h: (d) => `<button class="btn sm" data-apagar-doc="${d.id}">Remover</button>` },
@@ -2962,7 +2974,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const linhas = Object.entries(grupos).map(([k, g]) => ({ ...g, k, n: g.lista.length, datas: datasPor[k] || 0, ultimo: g.lista.map((a) => a.criado_em).sort().pop() }));
       const semData = linhas.filter((l) => !l.datas), maxN = Math.max(1, ...linhas.map((l) => l.n));
       const link = site() + "#avise";
-      const divulgar = `<button class="btn pri" data-copy="${esc(link)}">Copiar link do "me avise"</button><a class="btn" href="https://wa.me/?text=${encodeURIComponent("Quer saber quando tem show do Tranquilo na sua cidade? Deixa seu contato aqui: " + link)}" target="_blank" rel="noopener">Divulgar no WhatsApp</a><a class="btn ghost" href="${esc(link)}" target="_blank" rel="noopener">Ver como o público vê</a>`;
+      const divulgar = `<button class="btn pri" data-copy="${esc(link)}">Copiar link do "me avise"</button><a class="btn" href="https://wa.me/?text=${encodeURIComponent("Quer saber quando tem show do Tranquilo na sua cidade? Deixa seu contato aqui: " + link)}" target="_blank" rel="noopener">Divulgar no WhatsApp</a><a class="btn ghost" href="${escHref(link)}" target="_blank" rel="noopener">Ver como o público vê</a>`;
       if (!E.avisos.length) return `<div class="tag">Demanda</div><h1>Quem pediu show em cada cidade</h1>
       <p class="sub">Quem visita o site deixa o e-mail ou o WhatsApp pedindo aviso de show na própria cidade. Cidade com muitos pedidos e nenhuma data marcada é candidata a abrir praça.</p>
       ${vazio("Ainda ninguém pediu show", "Os pedidos chegam pelo formulário \u201cMe avise na minha cidade\u201d da página pública. Divulgue o link nas redes, na bio do Instagram e nos ingressos: cada pedido aparece aqui, somado por cidade.", divulgar, "demanda")}`;
@@ -2995,8 +3007,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       etapa = 2; agora = `<div class="alert crit"><b>Desta vez a inscrição não seguiu</b>${esc(i.parecer || "A curadoria não abriu datas para este momento.")}</div>`;
     } else if (i.status === "aprovada") {
       const futuras = evs.filter((e) => e.d >= hojeIso());
-      etapa = futuras.length ? 6 : evs.length ? 8 : 4;
-      if (!p.codigo_acesso) agora = `<div class="alert good"><b>Você foi aprovada na rede${i.parecer ? "" : "!"}</b>${esc(i.parecer || "")} Próximo passo: a equipe propõe datas e cidades. Quando a primeira data for confirmada, os passos de cada show aparecem aqui.</div>
+      // Com data marcada, "Contrato e repasse" só fica ✓ quando o contrato da data foi assinado (ou o arquivo assinado chegou).
+      const ctFeito = meusContratos().some((c) => c.status === "assinado" || arqsContrato(c).length);
+      etapa = futuras.length ? (ctFeito ? 6 : 5) : evs.length ? 8 : 4;
+      if (!p.codigo_acesso && !evs.length) agora = `<div class="alert good"><b>Você foi aprovada na rede${i.parecer ? "" : "!"}</b>${esc(i.parecer || "")} Próximo passo: a equipe propõe datas e cidades. Quando a primeira data for confirmada, os passos de cada show aparecem aqui.</div>
         <div class="card"><b>Enquanto isso</b><ul class="passos"><li>Confira se o release, a foto e os links estão atualizados: eles vão para a sua página no site do Tranquilo.</li><li>Mantenha a disponibilidade e as cidades de interesse em dia.</li><li>Se a equipe te mandou um código de acesso, vincule na aba Conta.</li></ul></div>`;
       else if (!evs.length) agora = `<div class="alert good"><b>Aprovada e vinculada como ${esc(p.vinculo_nome)}</b>Nenhuma data em andamento agora. Quando uma data for confirmada, os passos aparecem aqui.</div>`;
     }
@@ -3115,7 +3129,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     render();
   }
   const hojeSP = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
-  const linkAcao = (l) => /^https:\/\//i.test(l.url || "") ? `<a class="btn sm" href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.rotulo || "abrir")}</a>` : "";
+  const linkAcao = (l) => /^https:\/\//i.test(l.url || "") ? `<a class="btn sm" href="${escHref(l.url)}" target="_blank" rel="noopener">${esc(l.rotulo || "abrir")}</a>` : "";
   // Google Docs, Planilhas e Apresentações: o endereço /copy abre direto o "Fazer uma cópia" (o original fica protegido).
   function urlCopia(url) {
     const m = String(url).match(/^https:\/\/docs\.google\.com\/(document|spreadsheets|presentation)\/d\/([\w-]{20,})/);
@@ -3227,8 +3241,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const prox = r.deHoje ? "hoje" : r.prox ? dt(r.prox.dia) : "";
     const pend = [...r.atr, ...(r.deHoje ? [r.deHoje] : [])];
     const topo = equipe
-      ? `<div class="barra-acoes" style="margin:10px 0">${pend.length ? `${linkCobrar(c, pend, pend.length > 1 ? `Cobrar os ${pend.length} dias no WhatsApp` : "Cobrar a casa no WhatsApp")}` : ""}${c.fonte_url ? `<a class="btn sm" href="${esc(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>`
-      : `<div class="barra-acoes" style="margin:10px 0"><button class="btn sm" data-camp-ics="${c.id}" title="Baixa um arquivo .ics com os dias da campanha. No Google Agenda: Configurações › Importar.">Levar para o Google Agenda</button>${c.fonte_url ? `<a class="btn sm" href="${esc(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>`;
+      ? `<div class="barra-acoes" style="margin:10px 0">${pend.length ? `${linkCobrar(c, pend, pend.length > 1 ? `Cobrar os ${pend.length} dias no WhatsApp` : "Cobrar a casa no WhatsApp")}` : ""}${c.fonte_url ? `<a class="btn sm" href="${escHref(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>`
+      : `<div class="barra-acoes" style="margin:10px 0"><button class="btn sm" data-camp-ics="${c.id}" title="Baixa um arquivo .ics com os dias da campanha. No Google Agenda: Configurações › Importar.">Levar para o Google Agenda</button>${c.fonte_url ? `<a class="btn sm" href="${escHref(c.fonte_url)}" target="_blank" rel="noopener">Ver página da campanha</a>` : ""}</div>`;
     return `<details class="card camp-casa" data-camp="${esc(c.id)}"${aberto ? " open" : ""}><summary>
       <div class="row"><span><b>${equipe ? `${esc(c.casa_ref)} · ` : ""}${esc(c.titulo)}</b><br><span class="muted camp-resumo">${esc(r.texto)}${prox ? ` · próximo dia: ${prox}` : ""}</span></span><span>${badges}</span></div>
       <div class="progress" style="margin-top:8px"><i style="width:${r.its.length ? Math.round((r.nf / r.its.length) * 100) : 0}%"></i></div></summary>
@@ -3309,7 +3323,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const i = S.eq.insc.find((x) => x.id === id); if (!i) return;
     const d = i.dados, adm = S.conta.perfil.tipo === "adm";
     const futurasArt = (S.pac?.eventos || []).filter((e) => !e.z && e.d >= hojeIso() && (e.a || []).some((n) => n.toLowerCase() === String(d.nome_artistico || "").toLowerCase()));
-    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("")
+    const resp = F_ARTISTA.map(([t, cs]) => `<h3>${esc(t)}</h3><dl class="kv">${cs.map(([k, rot, tipo, opts]) => { let v = d[k]; if (tipo === "select") v = (opts.find(([o]) => o === v) || [, v])[1]; if (tipo === "cidades") v = (v || []).join(", "); if (tipo === "check") v = v === "true" ? "Sim" : "Não"; const link = tipo === "url" && v ? `<a href="${escHref(v)}" target="_blank" rel="noopener">${esc(v)}</a>` : esc(v || "–"); return `<dt>${esc(rot)}</dt><dd>${link}</dd>`; }).join("")}</dl>`).join("")
       + (d.disponibilidade ? `<h3>Observação antiga sobre a disponibilidade</h3><p>${esc(d.disponibilidade)}</p>` : "");
     $("#dlgIn").innerHTML = `<div class="tag">Inscrição · ${badgeEtapa(etapaArtistaEq(S.eq, i))}</div><h2 style="margin-top:4px">${esc(d.nome_artistico || "(sem nome)")}</h2><p class="muted">${esc(i.perfil?.email || "")}${i.enviado_em ? ` · enviada em ${dt(i.enviado_em.slice(0, 10))}` : ""}</p>
     ${medidor({ score: i.score ?? 0, faixa: i.faixa || "–", detalhe: i.score_detalhe || { completude: 0, tracao: 0, tecnica: 0, circulacao: 0, condicoes: 0 }, alertas: i.alertas || [] })}
@@ -3383,8 +3397,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const demo = avisoConta();
     const tipoSel = S.tipoNovo || "artista";
     const email = modo === "criar" ? `<h3>Criar conta</h3><p class="dica">Leva um minuto. Depois você completa a inscrição ou a ficha da casa no seu ritmo.</p>
-      <div class="seg" role="radiogroup" aria-label="Tipo de conta"><label><input type="radio" name="tipoNovo" value="artista"${tipoSel === "artista" ? " checked" : ""}> Sou artista</label><label><input type="radio" name="tipoNovo" value="casa"${tipoSel === "casa" ? " checked" : ""}> Tenho uma casa</label></div>
-      <label class="fcampo"><b>${tipoSel === "casa" ? "Seu nome (responsável)" : "Nome artístico"}</b><input id="enome" autocomplete="name"></label>
+      ${S.conviteEquipe ? "" : `<div class="seg" role="radiogroup" aria-label="Tipo de conta"><label><input type="radio" name="tipoNovo" value="artista"${tipoSel === "artista" ? " checked" : ""}> Sou artista</label><label><input type="radio" name="tipoNovo" value="casa"${tipoSel === "casa" ? " checked" : ""}> Tenho uma casa</label></div>`}
+      ${S.conviteEquipe ? `<div class="alert good" style="margin:8px 0"><b>Você foi convidada para a equipe de uma casa da Rede</b>Crie a sua senha: ao entrar, você vê só o que é da sua função.</div>` : ""}
+      <label class="fcampo"><b>${S.conviteEquipe ? "Seu nome" : tipoSel === "casa" ? "Seu nome (responsável pela casa)" : "Nome artístico"}</b><input id="enome" autocomplete="name"></label>
       <label class="fcampo"><b>E-mail</b><input id="email" type="email" autocomplete="email" placeholder="voce@email.com"></label>
       <label class="fcampo"><b>Senha</b><input id="esenha" type="password" autocomplete="new-password" minlength="8" placeholder="pelo menos 8 caracteres"></label>
       <div class="err" role="status" aria-live="polite" id="eerr"></div><button class="btn pri lg" id="eok" style="width:100%">Criar conta</button>
@@ -3470,7 +3485,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     ${aviso ? `<div class="alert ${/não saiu|demonstração/.test(aviso) ? "warn" : "good"}" style="margin-bottom:10px">${esc(aviso)}</div>` : ""}
     <textarea id="envTxt" aria-label="Mensagem a enviar" rows="7" style="width:100%;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(texto)}</textarea>
     <p class="muted" style="font-size:13px">O botão abre o WhatsApp ou o seu programa de e-mail com a mensagem pronta. Nada é enviado sem você confirmar lá.</p>
-    <div class="barra-acoes"><a class="btn pri" data-envio href="${esc(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn" data-envio href="${esc(mail)}">E-mail</a><button class="btn" data-copiar-envio>Copiar mensagem</button><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
+    <div class="barra-acoes"><a class="btn pri" data-envio href="${escHref(wa)}" target="_blank" rel="noopener">WhatsApp${whatsapp ? "" : " (escolher contato)"}</a><a class="btn" data-envio href="${escHref(mail)}">E-mail</a><button class="btn" data-copiar-envio>Copiar mensagem</button><button class="btn" onclick="dlg.close()">Fechar</button></div>`;
     $("#dlg").dataset.alvo = "envio"; S.aoEnviar = aoEnviar; $("#dlg").showModal();
   }
   function enviarTutorial(tipo, nome, email, whatsapp) {
@@ -3496,10 +3511,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     <p style="margin:0 0 4px"><b>O que a pessoa vai receber</b></p><p class="sub" style="margin-top:0">${esc(o.recebe)}</p>
     ${o.nota ? `<p class="muted" style="font-size:13px">${esc(o.nota)}</p>` : ""}
     <div class="err" role="status" aria-live="polite" id="envSt"></div>
-    <div class="barra-acoes" style="margin-top:6px">${o.reenviar ? `<button class="btn sm" id="envReenviar">Reenviar o e-mail</button>` : ""}<a class="btn sm" data-envio href="${esc(wa)}" target="_blank" rel="noopener" style="white-space:normal">Mandar também pelo WhatsApp</a><button class="btn sm" data-copiar-envio>Copiar mensagem</button><button class="btn sm pri" onclick="dlg.close()">Fechar</button></div>
+    <div class="barra-acoes" style="margin-top:6px">${o.reenviar ? `<button class="btn sm" id="envReenviar">Reenviar o e-mail</button>` : ""}<a class="btn sm" data-envio href="${escHref(wa)}" target="_blank" rel="noopener" style="white-space:normal">Mandar também pelo WhatsApp</a><button class="btn sm" data-copiar-envio>Copiar mensagem</button><button class="btn sm pri" onclick="dlg.close()">Fechar</button></div>
     <details style="margin-top:12px"><summary>Ver a mensagem</summary>
     <textarea id="envTxt" aria-label="Mensagem a enviar" rows="7" style="width:100%;margin-top:8px;border:1px solid var(--line);border-radius:9px;padding:10px;font:inherit;background:var(--surface)">${esc(o.texto)}</textarea>
-    <p class="muted" style="font-size:13px">O WhatsApp abre com a mensagem pronta; nada sai sem você confirmar lá. Prefere o seu e-mail? <a data-envio href="${esc(mail)}">Abrir no programa de e-mail</a>.</p></details>`;
+    <p class="muted" style="font-size:13px">O WhatsApp abre com a mensagem pronta; nada sai sem você confirmar lá. Prefere o seu e-mail? <a data-envio href="${escHref(mail)}">Abrir no programa de e-mail</a>.</p></details>`;
     $("#dlg").dataset.alvo = "envio"; S.aoEnviar = o.aoEnviar; if (!$("#dlg").open) $("#dlg").showModal();
   }
 
@@ -4114,7 +4129,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const marca = p.marca?.auto ? "✓ conferido pelo portal" : p.marca?.por ? `✓ feito por ${esc(quemMarcou(p.marca.por))}${quandoMarcou(p.marca.em)}` : p.feito ? "✓ feito" : "";
     const meu = !soQuemMarcou || !p.marca?.por || p.marca.por === S.conta?.perfil.id;
     const caixa = marcar && !p.marca?.auto ? `<input type="checkbox" data-${campo}="${esc(evId)}|${esc(p.chave)}"${p.feito ? " checked" : ""}${meu ? "" : ` disabled title="Marcado por ${esc(quemMarcou(p.marca.por))}: só quem marcou desmarca"`} aria-label="Feito: ${esc(p.titulo)}">` : `<span class="md-marca" aria-hidden="true">${p.feito ? "✓" : p.atrasado ? "!" : "○"}</span>`;
-    return `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label>${caixa} <span><b>${esc(p.titulo)}</b> <span class="muted">· ${MD().rotuloD(p.dias)} (${dtc(p.prazo)})${p.atrasado ? " · atrasado" : p.passou ? " · não registrado" : ""} · quem faz: ${esc(p.quem)}</span>
+    return `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label>${caixa} <span><b>${esc(p.titulo)}</b> <span class="muted">· ${MD().rotuloD(p.dias)} (${dtc(p.prazo)})${p.curto ? " · data curta: fazer o quanto antes" : ""}${p.atrasado ? " · atrasado" : p.passou ? " · não registrado" : ""} · quem faz: ${esc(p.quem)}</span>
       <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}${anexoPasso(evId, p.chave)}</li>`;
   }
   /** Botões do SOS: cobrar no WhatsApp (mensagem pronta), abrir, ir e escalar para a adm. */
@@ -4459,7 +4474,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const B = S.basesPub; if (!B?.fila?.length) return "";
     const grupos = (B.ordemFila || []).map((st) => [st, B.fila.filter((a) => a.status === st)]).filter(([, l]) => l.length);
     const linha = (a) => `<div class="row" style="padding:6px 0;border-top:1px solid var(--line)"><span><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc([a.mora, a.generos].filter(Boolean).join(" · "))}</span></span>
-      <span style="display:flex;gap:6px;flex-wrap:wrap">${a.instagram ? `<a class="btn sm" href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}${a.spotify ? `<a class="btn sm" href="${esc(a.spotify)}" target="_blank" rel="noopener">Spotify</a>` : ""}<a class="btn sm" href="https://www.notion.so/${esc(String(a.id).replace(/-/g, ""))}" target="_blank" rel="noopener">Abrir no Notion</a></span></div>`;
+      <span style="display:flex;gap:6px;flex-wrap:wrap">${a.instagram ? `<a class="btn sm" href="${escHref(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}${a.spotify ? `<a class="btn sm" href="${escHref(a.spotify)}" target="_blank" rel="noopener">Spotify</a>` : ""}<a class="btn sm" href="https://www.notion.so/${esc(String(a.id).replace(/-/g, ""))}" target="_blank" rel="noopener">Abrir no Notion</a></span></div>`;
     const MAX = 40;
     return `<div class="card" style="margin:0 0 16px;border-left:4px solid var(--accent, #7c8cff)"><b style="font-size:17px">No Notion: ${B.fila.length - (grupos.find(([s]) => /^Novo/.test(s))?.[1].length || 0)} esperando decisão da curadoria</b>
       <div class="muted" style="font-size:13px;margin:4px 0 8px">Da base Artistas e bandas (${esc(B.gerado || "")}). A decisão ainda é feita no Notion; quando a artista se inscrever pelo portal, ela entra na fila abaixo.</div>
@@ -4495,7 +4510,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const card = ({ c, dia, livres }) => dobra(`dph:${c.id}|${dia}`, `${esc(NS[new Date(dia + "T12:00:00Z").getUTCDay()])} ${dt(dia)} · ${esc(c.nome)}`,
       `${esc(c.cidade)}${c.uf ? "/" + esc(c.uf) : ""} · ${livres.length} ${livres.length === 1 ? "artista sugerido" : "artistas sugeridos"}`,
       `<div class="row"><div class="muted" style="font-size:13px">Costuma receber às ${c.dias.map((n, i) => [i, n]).filter(([, n]) => n >= 2).sort((x, y) => y[1] - x[1]).map(([i, n]) => `${NS[i]} (${n}x)`).join(", ")} · ${c.noites} noites no histórico${c.cap ? ` · ${c.cap} lugares` : ""}</div>${ppCasa ? `<button class="btn sm" data-pp-novo="casa|base:${esc(c.id)}" title="Mandar para a casa atualizar a ficha e os dias, pelo histórico">Propor atualização da casa</button>` : ""}</div>
-      <ul style="margin:8px 0 0;padding-left:18px">${livres.map(({ a }) => `<li><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc(motivo(a, c))}${a.formatos?.length ? " · " + esc(a.formatos.join(", ")) : ""}${a.instagram ? ` · <a href="${esc(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}</span>${ppArt ? ` <button class="btn sm" data-pp-novo="artista|base:${esc(a.id)}" title="Mandar para a artista atualizar a ficha e os dias, pelo histórico">Propor atualização</button>` : ""}</li>`).join("")}</ul>`,
+      <ul style="margin:8px 0 0;padding-left:18px">${livres.map(({ a }) => `<li><b>${esc(a.nome)}</b> <span class="muted" style="font-size:13px">${esc(motivo(a, c))}${a.formatos?.length ? " · " + esc(a.formatos.join(", ")) : ""}${a.instagram ? ` · <a href="${escHref(a.instagram)}" target="_blank" rel="noopener">Instagram</a>` : ""}</span>${ppArt ? ` <button class="btn sm" data-pp-novo="artista|base:${esc(a.id)}" title="Mandar para a artista atualizar a ficha e os dias, pelo histórico">Propor atualização</button>` : ""}</li>`).join("")}</ul>`,
       { classe: "dph-sug", extra: `<span class="badge b-warn">confirmar</span>` });
     return `<details class="dobra dp-bloco dp-sug-hist" id="dpSugHist"${S.dpSugAberta ? " open" : ""}><summary><span class="dobra-tit">💡 Sugestão POR HISTÓRICO</span><span class="dobra-st">${cards.length} ${cards.length === 1 ? "sugestão" : "sugestões"} no período${FL.ativo || b.cid ? " (com os filtros)" : ""} · Confirme com a casa e com o artista antes de criar a data.</span></summary><div class="dobra-corpo">
       <p class="muted" style="font-size:13px;margin:0 0 8px">Não é disponibilidade marcada: são as casas nos dias em que mais receberam o Tranquilo e os artistas ligados àquela cidade, pelo Notion. Abra uma linha para ver os artistas.</p>
@@ -4615,10 +4630,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const [, , tipo, opts] = c;
     if (Array.isArray(v)) return esc(v.join(", "));
     if ((tipo === "select" || tipo === "multi") && opts) return esc((opts.find(([o]) => o === v) || [, v])[1]);
-    if (/^https?:\/\//.test(String(v))) return `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(String(v).replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
+    if (/^https?:\/\//.test(String(v))) return `<a href="${escHref(v)}" target="_blank" rel="noopener">${esc(String(v).replace(/^https?:\/\/(www\.)?/, "").slice(0, 60))}</a>`;
     return esc(String(v).length > 160 ? String(v).slice(0, 160) + "…" : v);
   }
-  const linhaEvPF = (e, futuro) => `<li><b>${NOME_SEM[wdDe(e.d)].slice(0, 3)}, ${dt(e.d)}</b> · ${esc(e.c || "")}${futuro ? "" : e.h ? " · " + esc(e.h) : ""}${(e.a || []).length ? " · " + esc(e.a.join(", ")) : ""}${e.s ? ` <span class="muted">· ${esc(e.s)}</span>` : ""}${e.p != null ? ` <span class="muted">· ${fmt(e.p)} pessoas</span>` : ""}${futuro && e.l ? ` · <a href="${esc(e.l)}" target="_blank" rel="noopener">ingressos</a>` : ""}</li>`;
+  const linhaEvPF = (e, futuro) => `<li><b>${NOME_SEM[wdDe(e.d)].slice(0, 3)}, ${dt(e.d)}</b> · ${esc(e.c || "")}${futuro ? "" : e.h ? " · " + esc(e.h) : ""}${(e.a || []).length ? " · " + esc(e.a.join(", ")) : ""}${e.s ? ` <span class="muted">· ${esc(e.s)}</span>` : ""}${e.p != null ? ` <span class="muted">· ${fmt(e.p)} pessoas</span>` : ""}${futuro && e.l ? ` · <a href="${escHref(e.l)}" target="_blank" rel="noopener">ingressos</a>` : ""}</li>`;
   // A pré-ficha: situação, o que já sabemos e o que falta (por parte da Ficha), o histórico e o botão de solicitar.
   function htmlPreFicha(tipo, pf) {
     const E = S.eq || {}, sit = situacaoPF(tipo, pf, E), n = contagemPF(tipo, pf), quem = tipo === "casa" ? "à casa" : "à artista";
@@ -4957,7 +4972,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     }
     const cv = t.closest("[data-eqc-convidar]"); if (cv) {
       const m = (S.conta.equipe || []).find((x) => x.id === cv.dataset.eqcConvidar); if (!m) return true;
-      const site = location.origin + location.pathname, criar = `${site}#criar&email=${encodeURIComponent(m.email)}&tipo=casa`;
+      const site = location.origin + location.pathname, criar = `${site}#criar&email=${encodeURIComponent(m.email)}&tipo=casa&equipe=1`;
       const zap = `Oi, ${m.nome}! Você entrou na equipe de ${S.conta.perfil.vinculo_nome} na Rede Tranquilo (${nomesFuncoes(m.funcoes)}). Mandei um link de acesso para ${m.email}. Se não chegar, crie a sua senha com esse mesmo e-mail aqui: ${criar}\n\nNo primeiro acesso, um tutorial mostra o que é seu.`;
       const res = await acao(cv, async () => { const r = await api.convidarMembro(m.id, m.email, m.nome); TQDiario.registrar("equipe_convite", { funcoes: m.funcoes }); S.conta.equipe = undefined; await carregarEquipeCasa(); return r; },
         { espera: "Enviando…", ok: (r) => r.ja ? `${m.nome} já tem acesso.` : `Acesso de ${m.nome} criado.` });
@@ -5273,7 +5288,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       }
       if (!r.ok || !enviar) return;
       if (casa && S.conta.casa?.status === "incompleto") { render(); const f = R.pendenciasCasa(d).habilitacao; const e2 = $("#ferr"); if (e2) { diz(e2, `⚠ A Ficha foi salva, mas ainda não foi para análise. Falta preencher: ${f.join(", ")}.`); e2.scrollIntoView({ block: "center" }); } }
-      else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. Próximo passo: o Gui (Operações) confere e responde aqui na Ficha; enquanto isso, monte a sua equipe." : "✓ Inscrição enviada. Próximo passo: veja a pré-curadoria em Próximos passos; a resposta da equipe também aparece lá."); }
+      else { irPara(casa ? "cadastro_casa" : "passos"); render(); scrollTo(0, 0); avisoGeral(casa ? "✓ Ficha enviada ao Tranquilo. Próximo passo: o Gui (Operações) confere e responde aqui na Ficha; a equipe da casa e a disponibilidade liberam assim que a casa for habilitada." : "✓ Inscrição enviada. Próximo passo: veja a pré-curadoria em Próximos passos; a resposta da equipe também aparece lá."); }
       return;
     }
     if (t.id === "vok") {
