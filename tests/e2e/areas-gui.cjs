@@ -25,7 +25,7 @@ const linhas = require('fs').readFileSync(process.env.ACESSOS || '/tmp/tq-acesso
     const casa = linhas.find(([t, , n]) => t === 'casa' && !/^Casa (em|da rede)/.test(n));
     await conta('casa', 'Dono Áreas', 'dono@areas.com', casa[1], casa[2]);
     const menu = await p.$$eval('nav.tabs .nav-g:not(.nav-rodape) button[data-aba]', (xs) => xs.map((x) => x.textContent.trim()));
-    ok(menu.join('|') === 'Próximos passos|Cadastro|Equipe|Disponibilidade|Contrato|Dúvidas', `menu da casa: ${menu.join(' · ')}`);
+    ok(menu.join('|') === 'Próximos passos|Ficha da casa|Equipe|Disponibilidade|Contrato|Dúvidas', `menu da casa: ${menu.join(' · ')}`);
     ok(!!(await p.$('#form')), 'Ficha ainda não enviada: a casa entra pela Ficha (porta de entrada)');
     await p.evaluate((k) => { const a = TQConta.areaDe?.(k) || k; S.sub = S.sub || {}; if (a !== k) S.sub[a] = k; S.aba = a; render(); }, 'guia'); await p.waitForTimeout(400);
     ok(/Guia do franqueado/.test(await app()) && /Manual do Tranquilo Apresenta/.test(await app()) && /Manual do Tranquilo Descubra/.test(await app()), 'Operações abre no Guia do franqueado, com os manuais do Apresenta e do Descubra');

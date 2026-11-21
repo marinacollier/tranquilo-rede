@@ -85,7 +85,7 @@ if (tok && ref) {
     const v = await q(`select
       exists (select 1 from pg_proc where proname = 'aplicar_convite_interno' and prosrc like '%atual.tipo in (''equipe'', ''adm'') and c.tipo not in%') as v14,
       exists (select 1 from pg_trigger where tgname = 'trg_encerrar_casa') as v15,
-      exists (select 1 from pg_proc where proname = 'antes_casa' and prosrc like '%if not eh_adm() and not exists%') as v16,
+      exists (select 1 from pg_proc where proname = 'antes_casa' and (prosrc like '%if not eh_adm() and not exists%' or prosrc like '%eh_adm() or tem_area(''operacoes'')%')) as v16,   -- a v26 reescreveu o trecho da v16
       to_regclass('public.auditoria') is not null as v17`);
     let linha = {}; try { linha = JSON.parse(v.corpo)[0] || {}; } catch {}
     // Documentos que abrem dentro do portal (v18): quais já têm conteúdo publicado.

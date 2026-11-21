@@ -76,7 +76,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const abA = await abertas();
     ok(abA.length === 5 && abA[0] && abA.slice(1).every((x) => !x), `artista: 5 partes, só a primeira aberta (${abA.map(Number).join('')})`);
     ok(!(await p.$('#form [data-k="disponibilidade"]')) && !!(await p.$('#dispFicha')), 'artista: sem a observação de disponibilidade; o calendário continua');
-    ok(await p.isDisabled('#enviar') && /Nome artístico/.test(await p.textContent('#faltaEnviar')), 'artista: Enviar desabilitado dizendo o que falta');
+    ok(await p.isDisabled('#enviar') && /falta/i.test(await p.textContent('#faltaEnviar')) && !/Nome artístico/.test(await p.textContent('#faltaEnviar')), 'artista: Enviar desabilitado dizendo o que falta (o nome artístico já vem do cadastro)');
     await p.fill('#form [data-k="nome_artistico"]', 'Bia Etapas'); await p.waitForTimeout(1600);
     ok((Object.values((await db()).insc)[0]?.dados || {}).nome_artistico === 'Bia Etapas' && Object.values((await db()).insc)[0]?.status === 'rascunho', 'artista: rascunho salvo sozinho no banco, sem enviar');
     // "Salvar esta parte" incompleta: guarda o rascunho, mas avisa em amarelo o que falta pelo nome e marca em vermelho.
