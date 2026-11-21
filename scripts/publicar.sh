@@ -10,6 +10,12 @@ node scripts/build.mjs
 if [ -n "${SITE_DOMINIO:-}" ]; then echo "$SITE_DOMINIO" > dist/CNAME; fi
 # Produção (pedido da Marina, 18/11/2026): o mesmo site em /prd, apontando para o banco de produção (só contas reais).
 if [ -f src/config.prd.js ]; then mkdir -p dist/prd && (cd dist && find . -maxdepth 1 -mindepth 1 ! -name prd -exec cp -r {} prd/ \;) && cp src/config.prd.js dist/prd/config.js; fi
+# Com o domínio próprio (pedido da Marina, 21/11/2026), o endereço principal abre a PRODUÇÃO (só contas e dados reais)
+# e o site de teste passa para /teste. /prd continua funcionando para os links antigos.
+if [ -n "${SITE_DOMINIO:-}" ] && [ -f src/config.prd.js ]; then
+  mkdir -p dist/teste && (cd dist && find . -maxdepth 1 -mindepth 1 ! -name prd ! -name teste ! -name CNAME -exec cp -r {} teste/ \;)
+  cp src/config.prd.js dist/config.js
+fi
 REMOTO=$(git remote get-url origin)
 TMP=$(mktemp -d)
 cp -r dist/. "$TMP"
