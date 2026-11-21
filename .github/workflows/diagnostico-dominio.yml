@@ -1,0 +1,25 @@
+name: Diagnóstico do domínio
+
+# Só roda à mão. Lê informações públicas do domínio (DNS, registro.br e cabeçalhos do site) para saber onde
+# o DNS está e o que responde em rede.tranquilomusica.com.br. Não muda nada. Não imprime nomes nem documentos.
+on:
+  workflow_dispatch:
+
+jobs:
+  ver:
+    runs-on: ubuntu-latest
+    steps:
+      - name: DNS
+        run: |
+          for t in NS SOA TXT A; do echo "== $t tranquilomusica.com.br"; dig +short "$t" tranquilomusica.com.br; done
+          for t in CNAME A AAAA; do echo "== $t rede.tranquilomusica.com.br"; dig +short "$t" rede.tranquilomusica.com.br; done
+          echo "== TXT _vercel"; dig +short TXT _vercel.tranquilomusica.com.br
+      - name: Registro.br (só servidores de DNS, datas e papéis dos contatos)
+        run: |
+          curl -s https://rdap.registro.br/domain/tranquilomusica.com.br | jq '{nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}'
+      - name: Cabeçalhos dos sites
+        run: |
+          for u in https://tranquilomusica.com.br https://www.tranquilomusica.com.br https://rede.tranquilomusica.com.br; do
+            echo "== $u"; curl -sI -m 20 "$u" | grep -iE '^(HTTP|server|x-vercel|x-matched-path|location)' || true
+          done
+          echo "== referências a vercel.app na página"; curl -sL -m 20 https://tranquilomusica.com.br | grep -oE '[a-z0-9-]+\.vercel\.app' | sort -u | head || true
