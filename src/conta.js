@@ -456,10 +456,10 @@ const TQConta = (() => {
       async documentos() { return []; },
       async criarDocumento() { throw new Error("No modo demonstração os documentos não são guardados."); },
       async apagarDocumento() {},
-      // Arquivos: no modo demonstração só o contrato assinado "chega" (fica o nome, não o conteúdo), para testar a conferência.
+      // Arquivos: no modo demonstração só o contrato assinado e o comprovante de passo "chegam" (fica o nome, não o conteúdo).
       async meusArquivos() { const out = {}; for (const f of (db.arqs || []).filter((x) => x.user_id === db.sessao)) (out[f.evento_id] ||= []).unshift(f); return out; },
       async enviarArquivo(eventoId, arquivo) {
-        if (!/^contrato_/.test(eventoId)) throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração).");
+        if (!/^(contrato|passo)_/.test(eventoId)) throw new Error("O envio de arquivos funciona só com o banco ligado (fora do modo demonstração).");
         const nome = `${Date.now()}-${String(arquivo?.name || "contrato.pdf").replace(/[^\w.-]+/g, "_").slice(-80)}`;
         (db.arqs ||= []).push({ user_id: db.sessao, evento_id: eventoId, nome, caminho: `${db.sessao}/${eventoId}/${nome}`, em: agora() }); gravar();
       },
@@ -1678,7 +1678,7 @@ const TQConta = (() => {
       ${proximo?.chave === "contrato" && !ctPend ? `<div class="alert" style="margin:10px 0"><b>Contrato: a equipe está preparando</b>O contrato desta data ainda não chegou. Quando a equipe do Tranquilo enviar, ele aparece aqui com o botão "Abrir o contrato". Você não precisa fazer nada agora.</div>`
         : proximo ? `<div class="alert ${proximo.atrasado ? "crit" : "warn"}" style="margin:10px 0"><b>Agora: ${esc(proximo.titulo)}${proximo.validar ? " " + A_VALIDAR_HTML : ""}</b>${esc(proximo.texto)} <span class="muted">· prazo ${dt(proximo.prazo)}</span>${window.TQModelos && proximo.metodo ? `<div style="margin-top:6px">${linkMetodo(proximo.metodo, e.m)}</div>` : ""}${proximo.chave === "contrato" ? `<div class="barra-acoes" style="margin-top:10px"><button class="btn pri" data-ct-abrir="${ctPend.id}">Abrir o contrato →</button></div>` : ""}</div>` : `<div class="alert good" style="margin:10px 0"><b>Tudo feito para esta data.</b></div>`}
       <details data-dobra="pp-todos:${esc(e.id)}"${S.dobras?.["pp-todos:" + e.id] ? " open" : ""}><summary>Ver todos os passos (quem faz, o que conta como feito e como fazer)</summary><ul class="passos">${ps.map((p) => window.TQModelos ? linhaModelo(p, { evId: e.id, produto: e.m, marcar: true, campo: "passo", soQuemMarcou: false, quemMarcou: (u) => u === S.conta.perfil.id ? "você" : modelo === "casa" ? "alguém da equipe da casa" : "você" }).replace("</b>", `</b>${p.validar ? " " + A_VALIDAR_HTML : ""}`)
-        : `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${dtc(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label></li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
+        : `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label><input type="checkbox" data-passo="${e.id}|${p.chave}"${p.feito ? " checked" : ""}> <span><b>${esc(p.titulo)}</b> <span class="muted">· ${dtc(p.prazo)}</span><br><span class="muted" style="font-size:13px">${esc(p.texto)}</span></span></label>${anexoPasso(e.id, p.chave)}</li>`).join("")}</ul></details>${TQOperacao.bloco(e, modelo, fs ? TQEquipe.partesNoite(fs) : null)}${blocoMateriais(e)}</div>`;
   }
   // Contrato da data, modelo geral e arquivos enviados pela própria conta (rider, mapa de palco, fotos, release).
   function blocoMateriais(e) {
@@ -4095,12 +4095,27 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return "";
   }
   /** Uma ação do modelo: Feito (com quem e quando), prazo, quem faz, o que conta como feito e o método. */
+  // Tudo vira anexo (pedido da Marina, 17/11/2026): cada passo tem "Anexar comprovante". O arquivo vai para a pasta
+  // passo_<chave>_<data> da própria conta (mesmo armazenamento do contrato assinado); anexar marca o passo como feito,
+  // e a equipe vê o anexo no mesmo passo.
+  const pastaPasso = (evId, chave) => `passo_${String(chave).replace(/[^\w-]+/g, "_")}_${String(evId).replace(/[^\w-]+/g, "_")}`.slice(0, 120);
+  function anexoPasso(evId, chave) {
+    if (!evId || !chave || !S.conta) return "";
+    const pasta = pastaPasso(evId, chave), equipe = ["equipe", "adm"].includes(S.conta.perfil.tipo);
+    const fs = equipe ? (S.eq?.arqs || []).filter((f) => f.evento_id === pasta) : ((S.conta.arqs || {})[pasta] || []);
+    const lista = fs.length ? `<span class="md-anexos" style="display:block;font-size:13px;margin-top:4px">📎 ${fs.map((f) => `<a href="#" data-arquivo="${esc(f.caminho)}">${esc(String(f.nome).replace(/^\d+-/, ""))}</a>`).join(" · ")}</span>` : "";
+    if (equipe) return lista;
+    return `${lista}<details class="md-anexar" style="margin-top:4px"><summary style="font-size:13px">${fs.length ? "Anexar outro comprovante" : "Anexar comprovante"}</summary>
+      <input type="file" data-enviar-arquivo="${esc(pasta)}" data-anexo-passo="${esc(evId)}|${esc(chave)}" accept=".pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.zip,.mp3,.mp4,.mov" aria-label="Anexar comprovante: arquivo">
+      <span class="muted" style="font-size:12px;display:block">Print, foto, PDF ou vídeo curto. Ao anexar, o passo fica feito e a equipe do Tranquilo vê o arquivo.</span></details>
+      <div class="err" role="status" aria-live="polite" id="arqErr-${esc(pasta)}"></div>`;
+  }
   function linhaModelo(p, { evId, produto, marcar = false, quemMarcou = nomeMarcou, campo = "passo-eq", soQuemMarcou = true }) {
     const marca = p.marca?.auto ? "✓ conferido pelo portal" : p.marca?.por ? `✓ feito por ${esc(quemMarcou(p.marca.por))}${quandoMarcou(p.marca.em)}` : p.feito ? "✓ feito" : "";
     const meu = !soQuemMarcou || !p.marca?.por || p.marca.por === S.conta?.perfil.id;
     const caixa = marcar && !p.marca?.auto ? `<input type="checkbox" data-${campo}="${esc(evId)}|${esc(p.chave)}"${p.feito ? " checked" : ""}${meu ? "" : ` disabled title="Marcado por ${esc(quemMarcou(p.marca.por))}: só quem marcou desmarca"`} aria-label="Feito: ${esc(p.titulo)}">` : `<span class="md-marca" aria-hidden="true">${p.feito ? "✓" : p.atrasado ? "!" : "○"}</span>`;
     return `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label>${caixa} <span><b>${esc(p.titulo)}</b> <span class="muted">· ${MD().rotuloD(p.dias)} (${dtc(p.prazo)})${p.atrasado ? " · atrasado" : p.passou ? " · não registrado" : ""} · quem faz: ${esc(p.quem)}</span>
-      <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}</li>`;
+      <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}${anexoPasso(evId, p.chave)}</li>`;
   }
   /** Botões do SOS: cobrar no WhatsApp (mensagem pronta), abrir, ir e escalar para a adm. */
   function acoesSos(s) {
@@ -5594,6 +5609,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       t.disabled = true;
       try { await api.enviarArquivo(ev, t.files[0]); t.disabled = false; S.conta.arqs = await api.meusArquivos();
         // Contrato assinado enviado: o passo "contrato" da data fica feito sozinho.
+        if (t.dataset.anexoPasso) { const [pe, pc] = [t.dataset.anexoPasso.slice(0, t.dataset.anexoPasso.lastIndexOf("|")), t.dataset.anexoPasso.slice(t.dataset.anexoPasso.lastIndexOf("|") + 1)];
+          try { await api.marcar(pe, pc, true); S.conta.chk = await lerChecklist(); } catch { /* o arquivo já foi; a equipe vê o anexo */ } }
         const ctId = ev.startsWith("contrato_") && ev.slice(9), ct = ctId && meusContratos().find((x) => x.id === ctId);
         if (ct?.evento_id) { try { await api.marcar(ct.evento_id, "contrato", true); S.conta.chk = await lerChecklist(); } catch { /* o arquivo já foi; o passo aparece feito pelo arquivo */ } } TQDiario.registrar("enviou_arquivo", { evento: ev }); render(); document.querySelectorAll("details").forEach((d) => { if (d.querySelector(`[data-enviar-arquivo="${ev}"]`)) { d.open = true; d.closest(".card")?.querySelectorAll("details").forEach((x) => { if (x.contains(d)) x.open = true; }); } }); const m2 = $(`#arqErr-${CSS.escape(ev)}`); if (m2) diz(m2, "✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); else avisoGeral("✓ Arquivo enviado. A equipe do Tranquilo já consegue ver."); }
       catch (e) { t.disabled = false; const m = (msg?.isConnected && msg) || $(`#arqErr-${CSS.escape(ev)}`); const tx = traduz(e.message || "") + " O arquivo não foi enviado: escolha de novo."; if (m) diz(m, tx); else avisoGeral(tx); t.value = ""; }
