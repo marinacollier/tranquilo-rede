@@ -1,7 +1,8 @@
 // Lembretes de prazo por e-mail para artistas e casas (Supabase Edge Function, roda uma vez por dia pelo pg_cron).
 //
-// Para cada data futura da agenda (public.json do site), acha as contas vinculadas (artista pelo nome no line-up,
-// casa pelo nome da casa), calcula os passos do passo a passo e avisa:
+// Para cada data futura da agenda (public.json do site, vinda do Notion) e cada data criada no portal (datas_portal),
+// acha as contas vinculadas (artista pela conta ligada na data ou pelo nome no line-up; casa pela dona da Ficha ou pelo
+// nome da casa), calcula os passos do passo a passo e avisa:
 //   · 3 dias antes do prazo ("faltam 3 dias") e · no dia do prazo ("é hoje"),
 // só para passos ainda não marcados como feitos. Cada aviso é gravado em `lembretes` e nunca sai duas vezes.
 // Também avisa a casa no dia de cada ação da campanha dela que ainda não tem "Feito".
@@ -14,6 +15,7 @@
 //     SMTP_HOST, SMTP_PORT (465), SMTP_USER, SMTP_PASS, EMAIL_REMETENTE (ex.: o mesmo gmail do SMTP do Auth)
 //   SITE_URL          opcional (padrão: https://marinacollier.github.io/tranquilo-rede/)
 import { createClient } from "npm:@supabase/supabase-js@2.117.2";
+import { alvosDaData, chave, montarAgenda } from "./agenda.js";
 
 // Mesmos passos de src/regras.js (PASSOS_ARTISTA / PASSOS_CASA). Se mudar lá, mude aqui.
 const PASSOS: Record<string, [string, number, string][]> = {
@@ -37,7 +39,6 @@ const PASSOS: Record<string, [string, number, string][]> = {
 // O dono da casa (sem função) e o Líder Local recebem todos.
 const PASSO_FUNCOES: Record<string, string[]> = {"handoff":["lider"],"ficha":["lider"],"rider":["lider","som"],"tecnico":["som","lider"],"roteiro":["lider"],"escrito":["lider"],"travas":["lider","bar"],"equipe_reserva":["lider"],"porta_reserva":["porta","lider"],"briefing_anfitriao":["anfitriao"],"divulgacao_local":["social_media","lider"],"pacote_grupo":["lider"],"estoque":["bar","lider"],"prontidao":["lider","som","bar","porta","anfitriao","social_media"],"publico":["porta","lider"],"fechamento":["lider","bar"],"material_social":["social_media"]};
 const daFuncao = (fs: string[] | null, item: string) => !fs?.length || fs.includes("lider") || (PASSO_FUNCOES[item] || ["lider"]).some((f) => fs.includes(f));
-const chave = (s: string) => (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const diaSP = (d = new Date()) => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(d);
 const somar = (iso: string, dias: number) => new Date(new Date(iso + "T12:00:00Z").getTime() + dias * 864e5).toISOString().slice(0, 10);
 const br = (iso: string) => iso.split("-").reverse().join("/");
@@ -68,26 +69,27 @@ Deno.serve(async (req) => {
 
   const pub = await (await fetch(site + "public.json", { cache: "no-store" })).json();
   const hoje = diaSP(), em3 = somar(hoje, 3);
-  const { data: perfis } = await sb.from("perfis").select("id,email,tipo,nome,vinculo_nome,funcoes").in("tipo", ["artista", "casa"]).not("vinculo_nome", "is", null);
-  const { data: chk } = await sb.from("checklist").select("user_id,evento_id,item,feito").eq("feito", true);
+  const [{ data: perfis }, { data: chk }, { data: dps }, { data: fichas }] = await Promise.all([
+    sb.from("perfis").select("id,email,tipo,nome,vinculo_nome,funcoes").in("tipo", ["artista", "casa"]),
+    sb.from("checklist").select("user_id,evento_id,item,feito").eq("feito", true),
+    sb.from("datas_portal").select("id,dia,casa_id,casa_nome,cidade,artistas,status,criado_em").eq("status", "confirmada").gte("dia", somar(hoje, -5)),
+    sb.from("cadastros_casas").select("id,user_id"),
+  ]);
+  const donos: Record<string, string> = Object.fromEntries((fichas || []).filter((f) => f.user_id).map((f) => [f.id, f.user_id]));
   // Na casa, o passo marcado por qualquer pessoa (dono ou equipe) vale para todas.
-  const grupo: Record<string, string> = Object.fromEntries((perfis || []).map((p) => [p.id, p.tipo === "casa" ? `casa:${chave(p.vinculo_nome)}` : p.id]));
+  const grupo: Record<string, string> = Object.fromEntries((perfis || []).map((p) => [p.id, p.tipo === "casa" && p.vinculo_nome ? `casa:${chave(p.vinculo_nome)}` : p.id]));
   const feito = new Set((chk || []).map((c) => `${grupo[c.user_id] || c.user_id}|${c.evento_id}|${c.item}`));
-  const porNome: Record<string, typeof perfis> = {};
-  for (const p of perfis || []) (porNome[`${p.tipo}|${chave(p.vinculo_nome)}`] ||= []).push(p);
 
-  const resumo = { modo: ativo ? "envio" : "ensaio", hoje, avaliados: 0, enviados: 0, ensaio: 0, ja_avisados: 0, erros: [] as string[] };
-  for (const e of pub.agenda || []) {
+  const resumo = { modo: ativo ? "envio" : "ensaio", hoje, avaliados: 0, enviados: 0, ensaio: 0, ja_avisados: 0, datas_portal: (dps || []).length, erros: [] as string[] };
+  for (const e of montarAgenda(pub.agenda || [], dps || [])) {
     if (!e.id) continue;
-    const alvos = [
-      ...(e.a || []).flatMap((n: string) => porNome[`artista|${chave(n)}`] || []).map((p: any) => [p, "artista"] as const),
-      ...(porNome[`casa|${chave(e.h)}`] || []).map((p: any) => [p, "casa"] as const),
-    ];
+    const alvos = alvosDaData(e, perfis || [], donos);
+    const ids: string[] = e.ids || [e.id];
     for (const [p, tipo] of alvos) {
       for (const [item, dias, titulo] of PASSOS[tipo]) {
         const prazo = somar(e.d, dias);
         const momento = prazo === em3 ? "D-3" : prazo === hoje ? "hoje" : null;
-        if (!momento || feito.has(`${grupo[p.id] || p.id}|${e.id}|${item}`) || (tipo === "casa" && !daFuncao(p.funcoes, item))) continue;
+        if (!momento || ids.some((id) => feito.has(`${grupo[p.id] || p.id}|${id}|${item}`)) || (tipo === "casa" && !daFuncao(p.funcoes, item))) continue;
         resumo.avaliados++;
         const reg = { user_id: p.id, evento_id: e.id, item, momento: ativo ? momento : `${momento}:ensaio`, situacao: ativo ? "enviado" : "ensaio", detalhe: `${titulo} · ${br(e.d)} ${e.c}` };
         const { data: novo } = await sb.from("lembretes").upsert(reg, { onConflict: "user_id,evento_id,item,momento", ignoreDuplicates: true }).select();
