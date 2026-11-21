@@ -1,6 +1,8 @@
 // Datas criadas no portal (v21): só a equipe cria e muda; a casa e as artistas da data veem; outras contas não.
 import { PGlite } from '@electric-sql/pglite';
 import { readFileSync } from 'node:fs';
+// Datas sempre no futuro (os dias passados são recusados pelo banco): os testes não vencem com o calendário.
+const D1 = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), D2 = new Date(Date.now() + 31 * 864e5).toISOString().slice(0, 10);
 const db = new PGlite();
 const q = (s, p) => db.query(s, p);
 await db.exec(`
@@ -22,12 +24,12 @@ const cid = (await q(`insert into cadastros_casas (user_id, dados) values ($1, '
 
 let id;
 await como(eq, async () => {
-  id = (await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, cidade, artistas) values ('2026-12-20', 'Descubra', $1, 'Casa Um', 'Recife/PE', $2) returning id, criado_por`,
+  id = (await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, cidade, artistas) values ('${D1}', 'Descubra', $1, 'Casa Um', 'Recife/PE', $2) returning id, criado_por`,
     [cid, JSON.stringify([{ nome: 'Ana', user_id: art, ordem: 1 }, { nome: 'Banda sem conta', ordem: 2 }])])).rows[0].id;
   ok(!!id, 'equipe cria a data com casa e artistas');
   await q(`update datas_portal set abertura = '20:00' where id = $1`, [id]);
   ok((await q(`select abertura::text from datas_portal where id = $1`, [id])).rows[0].abertura === '20:00:00', 'equipe muda o horário');
-  const tur = await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, artistas) values ('2026-12-21', 'Turnê', null, 'Casa Dois', '[{"nome":"Ana"}]') returning id`);
+  const tur = await q(`insert into datas_portal (dia, produto, casa_id, casa_nome, artistas) values ('${D2}', 'Turnê', null, 'Casa Dois', '[{"nome":"Ana"}]') returning id`);
   ok(!!tur.rows[0]?.id && /check|violates/i.test(await tenta(() => q(`update datas_portal set produto = 'Raiz' where id = $1`, [tur.rows[0].id])) || ''), 'v32: Turnê e Noite Tranquilo são formatos válidos; formato desconhecido não entra');
 });
 await como(casa, async () => { ok((await q(`select id from datas_portal`)).rows.length === 1, 'a casa da data vê a data'); });
@@ -35,13 +37,13 @@ await como(art, async () => { ok((await q(`select id from datas_portal`)).rows.l
 await como(casa2, async () => { ok((await q(`select id from datas_portal`)).rows.length === 0, 'outra casa não vê'); });
 await como(art2, async () => { ok((await q(`select id from datas_portal`)).rows.length === 0, 'outra artista não vê'); });
 await como(art, async () => {
-  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome) values ('2026-12-21', 'Descubra', 'X')`))), 'artista não cria data');
+  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome) values ('${D2}', 'Descubra', 'X')`))), 'artista não cria data');
   await q(`update datas_portal set status = 'cancelada' where id = $1`, [id]);
 });
 ok((await q(`select status from datas_portal where id = $1`, [id])).rows[0].status === 'confirmada', 'artista não cancela a data');
 await como(eq, async () => {
-  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome) values ('2026-12-21', 'Show', 'X')`))), 'formato só Apresenta ou Descubra');
-  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome, link_ingressos) values ('2026-12-21', 'Descubra', 'X', 'javascript:alert(1)')`))), 'link de ingressos só https');
+  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome) values ('${D2}', 'Show', 'X')`))), 'formato só Apresenta ou Descubra');
+  ok(!!(await tenta(() => q(`insert into datas_portal (dia, produto, casa_nome, link_ingressos) values ('${D2}', 'Descubra', 'X', 'javascript:alert(1)')`))), 'link de ingressos só https');
   // contrato para a artista na data do portal
   await q(`insert into contratos (user_id, evento_id, titulo, texto) values ($1, $2, 'Contrato Ana', $3)`, [art, 'p:' + id, 'x'.repeat(60)]);
   ok((await q(`select count(*)::int n from contratos where evento_id = $1`, ['p:' + id])).rows[0].n === 1, 'equipe gera contrato ligado à data do portal');
@@ -63,13 +65,13 @@ await q(`insert into convites (email, tipo, nome, areas) values ('eq2@x.com', 'e
 await q(`update convites set aceito_em = now() where email = 'eq2@x.com'`);
 ok(JSON.stringify((await q(`select areas from perfis where id = $1`, [eq2])).rows[0].areas) === '["operacoes"]', 'convite aceito leva a área para a conta de equipe');
 // v24: disponibilidade do artista
-await como(art, async () => { await q(`insert into disponibilidade_artista (dia, situacao) values ('2026-12-20', 'disponivel')`); });
-await como(eq, async () => { ok((await q(`select user_id from disponibilidade_artista where dia = '2026-12-20'`)).rows.length === 1, 'equipe vê a disponibilidade da artista'); });
+await como(art, async () => { await q(`insert into disponibilidade_artista (dia, situacao) values ('${D1}', 'disponivel')`); });
+await como(eq, async () => { ok((await q(`select user_id from disponibilidade_artista where dia = '${D1}'`)).rows.length === 1, 'equipe vê a disponibilidade da artista'); });
 await como(art2, async () => {
   ok((await q(`select * from disponibilidade_artista`)).rows.length === 0, 'outra artista não vê a disponibilidade de ninguém');
-  ok(!!(await tenta(() => q(`insert into disponibilidade_artista (user_id, dia, situacao) values ($1, '2026-12-21', 'disponivel')`, [art]))), 'artista não marca dia por outra');
+  ok(!!(await tenta(() => q(`insert into disponibilidade_artista (user_id, dia, situacao) values ($1, '${D2}', 'disponivel')`, [art]))), 'artista não marca dia por outra');
 });
-await como(casa, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2026-12-21', 'disponivel')`))), 'casa não usa a disponibilidade de artista'); });
+await como(casa, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('${D2}', 'disponivel')`))), 'casa não usa a disponibilidade de artista'); });
 await como(art, async () => { ok(!!(await tenta(() => q(`insert into disponibilidade_artista (dia, situacao) values ('2020-01-01', 'disponivel')`))), 'artista não marca dia passado'); });
 // v25: depois de enviada, a casa e a artista preenchem campos vazios; o que já tinha resposta não muda direto.
 await db.exec(`set session_replication_role = replica`);   // só para montar o cenário: casa já habilitada
