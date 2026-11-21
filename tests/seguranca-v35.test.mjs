@@ -152,10 +152,10 @@ const artL = await novo('artl@x.com', 'artista');
 await como(artL, () => q(`insert into inscricoes_artistas (user_id, dados) values ($1, '{}')`, [artL]));
 const salvaLink = (v) => como(artL, () => tenta(() => q(`update inscricoes_artistas set dados = jsonb_build_object('site', $1::text) where user_id = $2`, [v, artL])));
 for (const [v, nome] of [['java\tscript:alert(1)', 'tab no meio'], ['\u0001javascript:alert(1)', 'controle no começo'], ['java\nscript:alert(1)', 'quebra de linha no meio'],
-  ['  JaVaScRiPt:alert(1)', 'maiúsculas e espaços'], ['vbscript:x', 'vbscript'], ['data:text/html,<b>', 'data:'], ['ms-msdt:/id x', 'esquema desconhecido'], ['https://ok.com/\u0007', 'controle no fim']]) {
+  ['  JaVaScRiPt:alert(1)', 'maiúsculas e espaços'], ['vbscript:x', 'vbscript'], ['data:text/html,<b>', 'data:'], ['https://ok.com/\u0007', 'controle no fim']]) {
   ok(/Link inválido/.test(await salvaLink(v) || ''), `4: recusa ${nome} (${JSON.stringify(v)})`);
 }
-for (const v of ['https://rooftap.com.br', 'http://x.com', 'mailto:casa@x.com', 'tel:+5511999990000', 'Sexta: 20h às 2h', 'Rua A, 1\nPerto da praça', '20:00']) {
+for (const v of ['https://rooftap.com.br', 'http://x.com', 'mailto:casa@x.com', 'tel:+5511999990000', 'Sexta: 20h às 2h', 'Rua A, 1\nPerto da praça', '20:00', 'Obs:texto', 'Sexta:20h']) {
   ok(!(await salvaLink(v)), `4: aceita ${JSON.stringify(v)}`);
 }
 

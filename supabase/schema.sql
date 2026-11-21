@@ -3568,8 +3568,9 @@ begin
   s := lower(regexp_replace(s, '^[[:space:]]+', ''));
   esquema := substring(s from '^([a-z][a-z0-9+.-]*):');
   if esquema is null or esquema in ('http', 'https', 'mailto', 'tel') then return false; end if;
-  if esquema in ('javascript', 'data', 'vbscript', 'file') then return true; end if;
-  return substring(s from length(esquema) + 2 for 1) !~ '^[[:space:]]?$';
+  -- Só os esquemas que executam ou leem coisas no navegador são recusados. Texto comum com dois-pontos
+  -- ("Obs:texto", "Sexta:20h") passa: a tela também só monta link com http(s), e-mail ou telefone.
+  return esquema in ('javascript', 'data', 'vbscript', 'file');
 end $$;
 grant execute on function link_perigoso(text) to authenticated;
 
