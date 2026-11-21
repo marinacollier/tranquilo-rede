@@ -4,3 +4,8 @@ data/delta.psv
 *.tsv
 .privado/
 .claude/
+
+# Cópia de segurança: chaves e cópias abertas nunca vão para o repositório
+*.pem
+copia*.cifrado
+copia*.json

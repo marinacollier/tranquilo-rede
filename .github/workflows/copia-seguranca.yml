@@ -1,0 +1,45 @@
+name: Cópia de segurança do banco
+
+# Toda semana (domingo, 03:23 em Brasília) e à mão. Exporta o banco CIFRADO com a chave pública da variável
+# COPIA_CHAVE_PUBLICA e guarda o arquivo como artefato do Actions por 90 dias. O log mostra só tabelas e contagens.
+# Sem a variável, termina sem exportar nada. Como abrir: docs/COPIA_SEGURANCA.md.
+on:
+  schedule:
+    - cron: '23 6 * * 0'
+  workflow_dispatch:
+    inputs:
+      ambiente:
+        description: prd ou teste
+        default: prd
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copia-seguranca
+  cancel-in-progress: false
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Exportar e cifrar
+        id: copia
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          COPIA_CHAVE_PUBLICA: ${{ vars.COPIA_CHAVE_PUBLICA }}
+          AMBIENTE: ${{ inputs.ambiente || 'prd' }}
+          SAIDA: copia-${{ inputs.ambiente || 'prd' }}.cifrado
+        run: node scripts/copia-seguranca.mjs
+      - name: Guardar o arquivo cifrado
+        if: hashFiles('copia-*.cifrado') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: copia-${{ inputs.ambiente || 'prd' }}-${{ github.run_number }}
+          path: copia-*.cifrado
+          retention-days: 90
+          if-no-files-found: ignore
