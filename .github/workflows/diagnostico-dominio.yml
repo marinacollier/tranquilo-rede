@@ -20,7 +20,7 @@ jobs:
         id: reg
         run: |
           curl -s https://rdap.registro.br/domain/tranquilomusica.com.br > rdap.json
-          jq '{status: .status, nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}' rdap.json
+          jq '{status: .status, nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], papeis_dos_contatos: [.entities[]?.roles[]]}' rdap.json
           vence=$(jq -r '.events[]? | select(.eventAction=="expiration") | .eventDate' rdap.json | cut -c1-10)
           dias=$(( ( $(date -d "$vence" +%s) - $(date +%s) ) / 86400 ))
           echo "Vence em $vence (faltam $dias dias)"
@@ -40,7 +40,8 @@ jobs:
         run: |
           for t in NS SOA MX TXT A AAAA CAA; do echo "== $t tranquilomusica.com.br"; dig +short "$t" tranquilomusica.com.br; done
           for s in www rede mail email app api portal central blog loja _dmarc google._domainkey; do
-            for t in CNAME A TXT MX; do r=$(dig +short "$t" "$s.tranquilomusica.com.br"); [ -n "$r" ] && echo "== $t $s: $r"; done
+            # E-mails dentro dos registros (ex.: relatórios DMARC) saem mascarados: o log é público.
+            for t in CNAME A TXT MX; do r=$(dig +short "$t" "$s.tranquilomusica.com.br" | sed -E 's/[A-Za-z0-9._%+-]+@/***@/g'); [ -n "$r" ] && echo "== $t $s: $r"; done
           done
           echo "== TXT _vercel"; dig +short TXT _vercel.tranquilomusica.com.br
       - name: Cabeçalhos dos sites
