@@ -16,7 +16,7 @@ jobs:
           echo "== TXT _vercel"; dig +short TXT _vercel.tranquilomusica.com.br
       - name: Registro.br (só servidores de DNS, datas e papéis dos contatos)
         run: |
-          curl -s https://rdap.registro.br/domain/tranquilomusica.com.br | jq '{nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}'
+          curl -s https://rdap.registro.br/domain/tranquilomusica.com.br | jq '{status: .status, nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}'
       - name: Cabeçalhos dos sites
         run: |
           for u in https://tranquilomusica.com.br https://www.tranquilomusica.com.br https://rede.tranquilomusica.com.br; do
