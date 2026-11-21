@@ -20,7 +20,9 @@ corpo.rate_limit_email_sent = Number(process.env.LIMITE_EMAILS_HORA || 500);
 // Endereços para onde os links dos e-mails (troca de senha, convite, confirmação) podem voltar. Sem esta lista, o Supabase
 // ignora o endereço pedido pelo site e manda sempre para o site_url (o portal dentro de tranquilomusica.com.br/rede ficava de fora).
 corpo.uri_allow_list = ['https://marinacollier.github.io/tranquilo-rede/**', 'https://tranquilomusica.com.br/rede', 'https://tranquilomusica.com.br/rede/**',
-  'https://www.tranquilomusica.com.br/rede', 'https://www.tranquilomusica.com.br/rede/**'].join(',');
+  'https://www.tranquilomusica.com.br/rede', 'https://www.tranquilomusica.com.br/rede/**',
+  // Subdomínio do portal (pedido da Marina, 21/11/2026): rede.tranquilomusica.com.br no GitHub Pages.
+  'https://rede.tranquilomusica.com.br', 'https://rede.tranquilomusica.com.br/**'].join(',');
 if (process.env.ALVO === 'prd') corpo.site_url = 'https://marinacollier.github.io/tranquilo-rede/prd/';
 const enviar = () => fetch(`https://api.supabase.com/v1/projects/${ref}/config/auth`, {
   method: 'PATCH', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(corpo),

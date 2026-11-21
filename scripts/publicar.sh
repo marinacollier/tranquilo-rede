@@ -4,6 +4,10 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 node scripts/build.mjs
+# Domínio próprio (pedido da Marina, 21/11/2026): com SITE_DOMINIO (variável do repositório, ex. rede.tranquilomusica.com.br),
+# o GitHub Pages serve o portal nesse endereço. Só ligar depois que o DNS (CNAME → marinacollier.github.io) estiver no ar:
+# com o domínio ligado, o endereço github.io passa a redirecionar para ele.
+if [ -n "${SITE_DOMINIO:-}" ]; then echo "$SITE_DOMINIO" > dist/CNAME; fi
 # Produção (pedido da Marina, 18/11/2026): o mesmo site em /prd, apontando para o banco de produção (só contas reais).
 if [ -f src/config.prd.js ]; then mkdir -p dist/prd && (cd dist && find . -maxdepth 1 -mindepth 1 ! -name prd -exec cp -r {} prd/ \;) && cp src/config.prd.js dist/prd/config.js; fi
 REMOTO=$(git remote get-url origin)
