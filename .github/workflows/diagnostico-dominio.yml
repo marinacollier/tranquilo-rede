@@ -1,25 +1,50 @@
 name: Diagnóstico do domínio
 
-# Só roda à mão. Lê informações públicas do domínio (DNS, registro.br e cabeçalhos do site) para saber onde
-# o DNS está e o que responde em rede.tranquilomusica.com.br. Não muda nada. Não imprime nomes nem documentos.
+# Roda todo dia e à mão. Lê só informações públicas do domínio (registro.br, DNS e cabeçalhos do site).
+# Abre um aviso (issue) se o domínio estiver vencido ou a menos de 30 dias de vencer. Não muda nada no domínio.
+# Não imprime nomes nem documentos de pessoas.
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '17 11 * * *'   # 08:17 em Brasília
+
+permissions:
+  contents: read
+  issues: write
 
 jobs:
   ver:
     runs-on: ubuntu-latest
     steps:
-      - name: DNS
+      - name: Registro.br (situação, vencimento e servidores de DNS)
+        id: reg
         run: |
-          for t in NS SOA TXT A; do echo "== $t tranquilomusica.com.br"; dig +short "$t" tranquilomusica.com.br; done
-          for t in CNAME A AAAA; do echo "== $t rede.tranquilomusica.com.br"; dig +short "$t" rede.tranquilomusica.com.br; done
+          curl -s https://rdap.registro.br/domain/tranquilomusica.com.br > rdap.json
+          jq '{status: .status, nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}' rdap.json
+          vence=$(jq -r '.events[]? | select(.eventAction=="expiration") | .eventDate' rdap.json | cut -c1-10)
+          dias=$(( ( $(date -d "$vence" +%s) - $(date +%s) ) / 86400 ))
+          echo "Vence em $vence (faltam $dias dias)"
+          echo "vence=$vence" >> "$GITHUB_OUTPUT"; echo "dias=$dias" >> "$GITHUB_OUTPUT"
+      - name: Avisar se estiver vencido ou perto de vencer
+        if: ${{ fromJSON(steps.reg.outputs.dias) < 30 }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VENCE: ${{ steps.reg.outputs.vence }}
+          DIAS: ${{ steps.reg.outputs.dias }}
+        run: |
+          titulo="Domínio tranquilomusica.com.br: renovar no registro.br"
+          if gh issue list -R "$GITHUB_REPOSITORY" --state open --search "$titulo in:title" --json number --jq 'length' | grep -q '^0$'; then
+            gh issue create -R "$GITHUB_REPOSITORY" --title "$titulo" --body "O registro.br informa vencimento em $VENCE ($DIAS dias). Se vencer e passar a tolerância, o site e os e-mails @tranquilomusica.com.br saem do ar. Renovar em registro.br com o login da empresa (titular: CNPJ da Tranquilo). Este aviso é da verificação diária (.github/workflows/diagnostico-dominio.yml)."
+          fi
+      - name: DNS (foto dos registros públicos)
+        run: |
+          for t in NS SOA MX TXT A AAAA CAA; do echo "== $t tranquilomusica.com.br"; dig +short "$t" tranquilomusica.com.br; done
+          for s in www rede mail email app api portal central blog loja _dmarc google._domainkey; do
+            for t in CNAME A TXT MX; do r=$(dig +short "$t" "$s.tranquilomusica.com.br"); [ -n "$r" ] && echo "== $t $s: $r"; done
+          done
           echo "== TXT _vercel"; dig +short TXT _vercel.tranquilomusica.com.br
-      - name: Registro.br (só servidores de DNS, datas e papéis dos contatos)
-        run: |
-          curl -s https://rdap.registro.br/domain/tranquilomusica.com.br | jq '{status: .status, nameservers: [.nameservers[]?.ldhName], eventos: [.events[]? | {(.eventAction): .eventDate}], contatos: [.entities[]? | {papel: .roles, handle: .handle}]}'
       - name: Cabeçalhos dos sites
         run: |
           for u in https://tranquilomusica.com.br https://www.tranquilomusica.com.br https://rede.tranquilomusica.com.br; do
-            echo "== $u"; curl -sI -m 20 "$u" | grep -iE '^(HTTP|server|x-vercel|x-matched-path|location)' || true
+            echo "== $u"; curl -sI -m 20 "$u" | grep -iE '^(HTTP|server|x-vercel-error|location)' || true
           done
-          echo "== referências a vercel.app na página"; curl -sL -m 20 https://tranquilomusica.com.br | grep -oE '[a-z0-9-]+\.vercel\.app' | sort -u | head || true
