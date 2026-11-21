@@ -3219,3 +3219,412 @@ begin
 end $$;
 revoke all on function responder_proposta(uuid, boolean, jsonb) from public, anon;
 grant execute on function responder_proposta(uuid, boolean, jsonb) to authenticated;
+
+-- =====================================================================
+-- v35: correções de segurança da rodada de testes de 21/11/2026 (pedido da Marina). Idempotente.
+-- Testes em tests/seguranca-v35.test.mjs. Nenhum dado é apagado.
+-- 1. Casa que dá à Ficha o nome de outra casa ("Rooftap", "Rooftap (teste)") não é habilitada: a conta só se liga
+--    pelo nome se ninguém mais é dono dele (outra conta de casa ligada, ou rastro de outra conta de casa na equipe,
+--    na disponibilidade, na trilha ou na campanha com o mesmo nome). Conta já ligada nunca muda de casa ao renomear.
+-- 2. Proposta aceita só mexe na disponibilidade da casa ligada à conta (perfis.vinculo_nome), nunca pelo nome da Ficha.
+-- 3. Áreas da equipe valem no banco, não só na tela: Operações decide as casas (status, classificação, parecer,
+--    combinados, pedidos de atualização) e gera/cancela contrato de casa; Agenda decide as artistas, cria e muda as
+--    datas do portal e gera/cancela contrato de artista. Administração sempre; equipe sem área marcada faz tudo (como antes).
+--    Ver continua igual para toda a equipe. Os dados de repasse da casa (rep_*) só mudam pela própria casa (pedido de
+--    atualização aprovado ou proposta aceita) ou pela administração.
+-- 4. Filtro de links: recusa caracteres de controle e esquemas fora de http, https, mailto e tel (inclusive
+--    "java<tab>script:" e "java<quebra de linha>script:", que o navegador junta).
+-- 5. Assinatura do contrato guarda o X-Forwarded-For inteiro (o primeiro item a própria pessoa consegue inventar).
+-- 6. Funcionário da casa (conta de casa com função) vê as datas do portal da própria casa.
+-- Encerrar uma Ficha desliga a equipe da casa pelo vínculo da conta, não pelo nome escrito na Ficha (mesmo problema do item 1).
+-- =====================================================================
+
+-- ---------- 3. áreas ----------
+-- true para a administração; para a equipe, se a área é dela ou se ela não tem área marcada (vê e faz tudo, como antes).
+create or replace function area_ok(a text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select eh_adm() or exists (select 1 from perfis where id = auth.uid() and tipo = 'equipe'
+    and (coalesce(cardinality(areas), 0) = 0 or a = any(areas)))
+$$;
+revoke all on function area_ok(text) from public, anon;
+grant execute on function area_ok(text) to authenticated;
+
+-- Contrato de casa é da Operações; de artista (ou qualquer outra conta), da Agenda. Mesma regra de conferir_contrato (v28).
+create or replace function area_ok_contrato(conta uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select area_ok(case when (select tipo::text from perfis where id = conta) = 'casa' then 'operacoes' else 'agenda' end)
+$$;
+revoke all on function area_ok_contrato(uuid) from public, anon;
+grant execute on function area_ok_contrato(uuid) to authenticated;
+
+drop policy if exists contratos_criar on contratos;
+create policy contratos_criar on contratos for insert with check (eh_equipe() and area_ok_contrato(user_id) and criado_por = auth.uid() and status = 'enviado'
+  and assinado_em is null and texto_final is null and lido_fim_em is null and dados = '{}'::jsonb
+  and conferido_em is null and conferido_por is null and devolvido_em is null and devolvido_por is null and devolvido_motivo is null);
+drop policy if exists contratos_cancelar on contratos;
+create policy contratos_cancelar on contratos for update using (eh_equipe() and area_ok_contrato(user_id) and status = 'enviado')
+  with check (eh_equipe() and area_ok_contrato(user_id) and status = 'cancelado');
+
+-- Datas do portal: só a Agenda (ou adm, ou equipe sem área) cria e muda.
+drop policy if exists dp_criar on datas_portal;
+create policy dp_criar on datas_portal for insert with check (eh_equipe() and area_ok('agenda'));
+drop policy if exists dp_editar on datas_portal;
+create policy dp_editar on datas_portal for update using (eh_equipe() and area_ok('agenda')) with check (eh_equipe() and area_ok('agenda'));
+
+-- Dados de repasse da casa (src/conta.js, F_CASA, "Dados para repasses"): ficam como estavam.
+create or replace function manter_repasse(antes jsonb, depois jsonb) returns jsonb
+language sql immutable set search_path = public as $$
+  select (coalesce(depois, '{}'::jsonb) - array['rep_titular', 'rep_documento', 'rep_banco', 'rep_tipo', 'rep_agencia', 'rep_conta', 'rep_pix'])
+    || coalesce((select jsonb_object_agg(k, antes -> k) from unnest(array['rep_titular', 'rep_documento', 'rep_banco', 'rep_tipo', 'rep_agencia', 'rep_conta', 'rep_pix']) k
+                 where antes ? k), '{}'::jsonb)
+$$;
+revoke all on function manter_repasse(jsonb, jsonb) from public, anon, authenticated;
+
+-- antes_casa (última versão, v34) com as áreas e os dados de repasse.
+create or replace function antes_casa() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare aplicando_pedido boolean;
+begin
+  new.atualizado_em := now();
+  if tg_op = 'UPDATE' and new.dados is distinct from old.dados and proposta_aplicando('casa', old.user_id, old.dados, new.dados) then
+    new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.classificacao := old.classificacao; new.combinados := old.combinados; new.enviado_em := old.enviado_em;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  -- Sem conta logada: o próprio sistema (chave de serviço, migração).
+  if auth.uid() is null then new.pendencias := pendencias_casa(new.dados); return new; end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    -- v35: decidir a casa é da Operações (ou da administração, ou da equipe sem área marcada).
+    if (new.status is distinct from old.status or new.classificacao is distinct from old.classificacao or new.parecer is distinct from old.parecer)
+       and not area_ok('operacoes') then
+      raise exception 'Habilitar, pedir ajustes, suspender, encerrar, classificar e escrever o parecer da casa é da área de Operações (ou da administração).' using errcode = '42501';
+    end if;
+    aplicando_pedido := exists (select 1 from solicitacoes_ficha s where s.casa_id = new.id and s.aplicando and new.dados = coalesce(old.dados, '{}'::jsonb) || s.proposto);
+    -- A administração e a Operações (v26) editam a Ficha direto; o resto da equipe só aplica pedido aprovado.
+    -- v35: a Operações não muda os dados de repasse (só a casa, por pedido aprovado, ou a administração).
+    if not eh_adm() and not aplicando_pedido then
+      if tem_area('operacoes') then new.dados := manter_repasse(old.dados, new.dados);
+      else new.dados := old.dados; end if;
+    end if;
+    new.user_id := old.user_id; new.enviado_em := old.enviado_em;
+    if new.status is distinct from old.status or new.classificacao is distinct from old.classificacao then
+      new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    new.pendencias := pendencias_casa(new.dados);
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna; new.classificacao := old.classificacao;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.enviado_em := old.enviado_em;
+    new.combinados := old.combinados;
+    if old.status::text in ('em_analise', 'habilitada', 'suspensa', 'encerrada') and new.dados is distinct from old.dados
+       and (old.status::text in ('suspensa', 'encerrada') or not so_preenche_vazios(old.dados, new.dados)) then
+      raise exception 'O que já foi enviado ao Tranquilo muda por "Solicitar atualização". Campos vazios você preenche direto.' using errcode = '42501';
+    end if;
+    if old.status::text in ('habilitada', 'suspensa', 'encerrada') then new.status := old.status;
+    elsif new.status not in ('rascunho', 'em_analise') then new.status := old.status; end if;
+  else
+    new.parecer := null; new.nota_interna := null; new.classificacao := null; new.combinados := null;
+    new.avaliado_por := null; new.avaliado_em := null; new.enviado_em := null;
+    if new.status not in ('rascunho', 'em_analise') then new.status := 'rascunho'; end if;
+  end if;
+  new.pendencias := pendencias_casa(new.dados);
+  if new.status = 'em_analise' then
+    if jsonb_array_length(new.pendencias -> 'habilitacao') > 0 then new.status := 'incompleto';
+    else new.enviado_em := now(); end if;
+  end if;
+  return new;
+end $$;
+
+-- antes_inscricao (última versão, v34): aprovar, reprovar, pedir ajustes, encerrar e o parecer da artista são da Agenda.
+create or replace function antes_inscricao() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare r jsonb;
+begin
+  new.atualizado_em := now();
+  if tg_op = 'UPDATE' and new.dados is distinct from old.dados and proposta_aplicando('artista', old.user_id, old.dados, new.dados) then
+    new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    r := pre_curadoria(new.dados);
+    new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    return new;
+  end if;
+  if eh_equipe() and tg_op = 'UPDATE' and new.user_id <> auth.uid() then
+    if (new.status is distinct from old.status or new.parecer is distinct from old.parecer) and not area_ok('agenda') then
+      raise exception 'Aprovar, reprovar, pedir ajustes, encerrar e escrever o parecer da artista é da área de Agenda (ou da administração).' using errcode = '42501';
+    end if;
+    new.user_id := old.user_id; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+    if eh_adm() and new.dados is distinct from old.dados then
+      -- A administração corrige a inscrição direto; a pré-curadoria é recalculada.
+      r := pre_curadoria(new.dados);
+      new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+    else
+      new.dados := old.dados;
+      new.score := old.score; new.faixa := old.faixa; new.score_detalhe := old.score_detalhe; new.alertas := old.alertas;
+    end if;
+    if new.status is distinct from old.status then new.avaliado_por := auth.uid(); new.avaliado_em := now();
+    else new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; end if;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' then
+    if old.status not in ('rascunho', 'ajustes') then
+      -- v25: depois de enviada, a artista ainda preenche o que ficou vazio; o resto só muda se a curadoria pedir ajustes.
+      if new.dados is distinct from old.dados and old.status::text <> 'encerrada' and so_preenche_vazios(old.dados, new.dados) then
+        new.user_id := old.user_id; new.status := old.status; new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+        new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em; new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+        r := pre_curadoria(new.dados);
+        new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa'; new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+        new.atualizado_em := now();
+        return new;
+      end if;
+      raise exception 'Inscrição em análise: aguarde o retorno da curadoria. O que já foi enviado só muda se a curadoria pedir ajustes; campos vazios você preenche direto.';
+    end if;
+    new.parecer := old.parecer; new.nota_interna := old.nota_interna;
+    new.avaliado_por := old.avaliado_por; new.avaliado_em := old.avaliado_em;
+    new.criado_em := old.criado_em; new.enviado_em := old.enviado_em;
+  else
+    new.parecer := null; new.nota_interna := null; new.avaliado_por := null; new.avaliado_em := null;
+    new.criado_em := now(); new.enviado_em := null;
+  end if;
+  if new.status not in ('rascunho', 'em_curadoria') then
+    new.status := coalesce(old.status, 'rascunho');
+  end if;
+  r := pre_curadoria(new.dados);
+  new.score := (r ->> 'score')::int; new.faixa := r ->> 'faixa';
+  new.score_detalhe := r -> 'detalhe'; new.alertas := r -> 'alertas';
+  if new.status = 'em_curadoria' then new.enviado_em := now(); end if;
+  return new;
+end $$;
+
+-- Pedidos de atualização da Ficha e combinados: Operações (ou adm, ou equipe sem área).
+create or replace function responder_solicitacao_ficha(sid uuid, aprovar boolean, resposta_ text default null) returns void
+language plpgsql security definer set search_path = public as $$
+declare s solicitacoes_ficha;
+begin
+  if not eh_equipe() then raise exception 'Só a equipe do Tranquilo responde as solicitações.'; end if;
+  if not area_ok('operacoes') then raise exception 'Os pedidos de atualização da Ficha são respondidos pela área de Operações (ou pela administração).' using errcode = '42501'; end if;
+  select * into s from solicitacoes_ficha where id = sid for update;
+  if not found or s.status <> 'pendente' then raise exception 'Esta solicitação não está mais pendente.'; end if;
+  if aprovar then
+    update solicitacoes_ficha set aplicando = true where id = sid;
+    update cadastros_casas set dados = coalesce(dados, '{}'::jsonb) || s.proposto where id = s.casa_id;
+  end if;
+  update solicitacoes_ficha set status = case when aprovar then 'aprovada' else 'recusada' end,
+    revisado_por = auth.uid(), revisado_em = now(), resposta = left(nullif(btrim(resposta_), ''), 1000), aplicando = false
+  where id = sid;
+end $$;
+
+create or replace function definir_combinados(cid uuid, c jsonb) returns void
+language plpgsql security definer set search_path = public as $$
+begin
+  if not eh_equipe() then raise exception 'Só a equipe do Tranquilo registra os combinados.'; end if;
+  if not area_ok('operacoes') then raise exception 'Os combinados da parceria são registrados pela área de Operações (ou pela administração).' using errcode = '42501'; end if;
+  if jsonb_typeof(c) <> 'object' then raise exception 'Combinados inválidos.'; end if;
+  update cadastros_casas set combinados = c where id = cid;
+end $$;
+
+-- ---------- 1. nome de casa que já tem dona ----------
+-- true quando o nome (pela chave_casa: sem acento, maiúsculas, "TESTE · " e "(teste)") já é de outra conta de casa:
+-- outra conta dona ligada a ele, ou equipe, disponibilidade, trilha ou campanha marcadas por outra conta de casa.
+-- Trilha e campanha criadas só pela Central (nada marcado pela casa ainda) não contam: são da casa nova que vai entrar.
+create or replace function casa_nome_ocupado(nome_casa text, conta uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  with k as (select chave_casa(nome_casa) c), outras as (select id from perfis where tipo = 'casa' and id <> conta)
+  select (select c from k) is not null and (
+    exists (select 1 from perfis p where p.tipo = 'casa' and p.id <> conta and p.funcoes is null and chave_casa(p.vinculo_nome) = (select c from k))
+    or exists (select 1 from equipe_casa e where e.criado_por in (select id from outras) and chave_casa(e.casa_ref) = (select c from k))
+    or exists (select 1 from disponibilidade_casa d where d.atualizado_por in (select id from outras) and chave_casa(d.casa_ref) = (select c from k))
+    or exists (select 1 from disponibilidade_semanal d where d.casa_ref is not null and d.atualizado_por in (select id from outras) and chave_casa(d.casa_ref) = (select c from k))
+    or exists (select 1 from trilha_marcos m where m.feito_por in (select id from outras) and chave_casa(m.casa_ref) = (select c from k))
+    or exists (select 1 from campanhas ca join campanha_itens i on i.campanha_id = ca.id join campanha_feitos f on f.item_id = i.id
+               where f.feito_por in (select id from outras) and chave_casa(ca.casa_ref) = (select c from k)))
+$$;
+revoke all on function casa_nome_ocupado(text, uuid) from public, anon, authenticated;
+
+-- Ao habilitar: liga a conta dona da Ficha (sem vínculo ainda) ao nome da casa, se o nome não é de outra conta.
+-- Conta que já tem vínculo continua com ele (renomear a Ficha não muda a casa da conta).
+create or replace function casa_ligar_conta() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare nome_casa text := left(nullif(trim(new.dados ->> 'nome'), ''), 160);
+begin
+  if new.status = 'habilitada' and (tg_op = 'INSERT' or old.status is distinct from 'habilitada') and nome_casa is not null
+     and exists (select 1 from perfis where id = new.user_id and tipo = 'casa' and funcoes is null and vinculo_nome is null) then
+    if casa_nome_ocupado(nome_casa, new.user_id) then
+      raise exception 'Já existe uma casa com esse nome na rede: confira com a casa antes de habilitar.' using errcode = 'check_violation';
+    end if;
+    update perfis set vinculo_nome = nome_casa
+      where id = new.user_id and tipo = 'casa' and funcoes is null and vinculo_nome is null;
+  end if;
+  return null;
+end $$;
+revoke all on function casa_ligar_conta() from public, anon, authenticated;
+drop trigger if exists trg_casa_ligar_conta on cadastros_casas;
+create trigger trg_casa_ligar_conta after insert or update of status on cadastros_casas for each row execute function casa_ligar_conta();
+
+-- Encerrar a casa desliga a equipe dela pelo vínculo da conta, nunca pelo nome escrito na Ficha
+-- (uma Ficha sem vínculo com o nome de outra casa desligaria a equipe da outra).
+create or replace function apos_encerrar() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare ref text;
+begin
+  if new.status::text <> 'encerrada' or old.status::text = 'encerrada' then return new; end if;
+  if tg_table_name = 'cadastros_casas' then
+    select nullif(vinculo_nome, '') into ref from perfis where id = new.user_id and tipo = 'casa' and funcoes is null;
+    if ref is not null then
+      update perfis set codigo_acesso = null, vinculo_nome = null, funcoes = null
+        where funcoes is not null and lower(vinculo_nome) = lower(ref) and id <> new.user_id;
+      update convites set aceito_em = now() where aceito_em is null and lower(vinculo_nome) = lower(ref);
+    end if;
+  else
+    update perfis set codigo_acesso = null, vinculo_nome = null where id = new.user_id;
+  end if;
+  return new;
+end $$;
+revoke all on function apos_encerrar() from public, anon, authenticated;
+
+-- ---------- 2. proposta aceita: disponibilidade só da casa ligada à conta ----------
+-- Conta de casa sem vínculo: os campos da Ficha são aplicados, a disponibilidade não (fica o aviso em "aplicado").
+create or replace function responder_proposta(pid uuid, aceitar boolean, ajustes jsonb default null) returns propostas_atualizacao
+language plpgsql security definer set search_path = public as $$
+declare p propostas_atualizacao; c jsonb; disp jsonb; k text; v jsonb; it jsonb; ds smallint[]; cid text; ref text; ajustou boolean := false; aviso text;
+begin
+  select * into p from propostas_atualizacao where id = pid for update;
+  if not found or p.alvo_user is null or not (p.alvo_user = auth.uid() or eh_adm()) then raise exception 'Proposta não encontrada.' using errcode = '42501'; end if;
+  if p.status <> 'pendente' then raise exception 'Esta proposta já foi respondida.' using errcode = '22023'; end if;
+  if not coalesce(aceitar, false) then
+    update propostas_atualizacao set status = 'recusada', respondido_em = now() where id = pid returning * into p;
+    return p;
+  end if;
+  c := p.campos; disp := p.disponibilidade;
+  if ajustes is not null and ajustes <> 'null'::jsonb then
+    if jsonb_typeof(ajustes) <> 'object' then raise exception 'Ajustes inválidos.' using errcode = '22023'; end if;
+    if jsonb_typeof(ajustes -> 'campos') = 'object' then
+      for k, v in select * from jsonb_each(ajustes -> 'campos') loop
+        if not (p.campos ? k) then raise exception 'Este campo não estava na proposta: %', left(k, 60) using errcode = '22023'; end if;
+        if v in ('null'::jsonb, '""'::jsonb, '[]'::jsonb) then c := c - k; else c := jsonb_set(c, array[k], v); end if;
+      end loop;
+    end if;
+    if ajustes ? 'disponibilidade' then
+      disp := case when ajustes -> 'disponibilidade' in ('null'::jsonb, '[]'::jsonb) then null else ajustes -> 'disponibilidade' end;
+    end if;
+    perform proposta_campos_validos(c);
+    if not proposta_disp_valida(disp) then raise exception 'Disponibilidade inválida: escolha os dias da semana (domingo a sábado).' using errcode = '22023'; end if;
+    ajustou := c is distinct from p.campos or disp is distinct from p.disponibilidade;
+  end if;
+  -- v35: a casa é só a do vínculo da conta (nunca o nome escrito na Ficha nem o da proposta).
+  if p.alvo_tipo = 'casa' then
+    ref := (select vinculo_nome from perfis where id = p.alvo_user and tipo = 'casa' and funcoes is null);
+    if ref is null and coalesce(jsonb_array_length(disp), 0) > 0 then
+      aviso := 'Disponibilidade não aplicada: a conta ainda não está ligada à casa (a Central liga ao habilitar a Ficha).';
+      raise notice '%', aviso;
+      disp := null;
+    end if;
+  end if;
+  update propostas_atualizacao set aplicando = true,
+    aplicado = jsonb_build_object('campos', c, 'disponibilidade', disp) || case when aviso is null then '{}'::jsonb else jsonb_build_object('aviso', aviso) end
+    where id = pid;
+  if c <> '{}'::jsonb then
+    if p.alvo_tipo = 'artista' then
+      update inscricoes_artistas set dados = coalesce(dados, '{}'::jsonb) || c where user_id = p.alvo_user;
+      if not found then insert into inscricoes_artistas (user_id, dados) values (p.alvo_user, c); end if;
+    else
+      update cadastros_casas set dados = coalesce(dados, '{}'::jsonb) || c where user_id = p.alvo_user;
+      if not found then insert into cadastros_casas (user_id, dados) values (p.alvo_user, c); end if;
+    end if;
+  end if;
+  for it in select * from jsonb_array_elements(coalesce(disp, '[]'::jsonb)) loop
+    ds := array(select distinct (x #>> '{}')::smallint from jsonb_array_elements(it -> 'dias') x);
+    if p.alvo_tipo = 'artista' then
+      cid := left(nullif(btrim(it ->> 'cidade'), ''), 120);
+      update disponibilidade_semanal set dias = array(select distinct y from unnest(dias || ds) y order by y)
+        where user_id = p.alvo_user and lower(coalesce(cidade, '')) = lower(coalesce(cid, ''));
+      if not found then insert into disponibilidade_semanal (user_id, cidade, dias) values (p.alvo_user, cid, ds); end if;
+    elsif ref is not null then
+      update disponibilidade_semanal set dias = array(select distinct y from unnest(dias || ds) y order by y) where lower(casa_ref) = lower(ref);
+      if not found then insert into disponibilidade_semanal (casa_ref, dias) values (left(ref, 160), ds); end if;
+    end if;
+  end loop;
+  update propostas_atualizacao set status = case when ajustou then 'ajustada' else 'aceita' end, respondido_em = now(), aplicando = false
+    where id = pid returning * into p;
+  return p;
+end $$;
+revoke all on function responder_proposta(uuid, boolean, jsonb) from public, anon;
+grant execute on function responder_proposta(uuid, boolean, jsonb) to authenticated;
+
+-- ---------- 4. links ----------
+-- O navegador apaga tab e quebra de linha dentro do link e espaços no começo: "java<tab>script:" vira "javascript:".
+-- Recusa: caractere de controle (menos tab e quebra de linha, que aparecem em texto longo); javascript:, data:,
+-- vbscript: e file: de qualquer jeito; e outro esquema (fora http, https, mailto e tel) colado no resto, como
+-- "intent:..." ou "ms-msdt:...". "Sexta: 20h" (com espaço depois dos dois-pontos) é texto e passa.
+create or replace function link_perigoso(t text) returns boolean
+language plpgsql immutable set search_path = public as $$
+declare s text; esquema text;
+begin
+  if t is null then return false; end if;
+  s := regexp_replace(t, '[\t\n\r]', '', 'g');
+  if s ~ '[[:cntrl:]]' then return true; end if;
+  s := lower(regexp_replace(s, '^[[:space:]]+', ''));
+  esquema := substring(s from '^([a-z][a-z0-9+.-]*):');
+  if esquema is null or esquema in ('http', 'https', 'mailto', 'tel') then return false; end if;
+  if esquema in ('javascript', 'data', 'vbscript', 'file') then return true; end if;
+  return substring(s from length(esquema) + 2 for 1) !~ '^[[:space:]]?$';
+end $$;
+grant execute on function link_perigoso(text) to authenticated;
+
+create or replace function sem_link_perigoso() returns trigger
+language plpgsql set search_path = public as $$
+begin
+  if new.dados is not null and exists (
+    select 1 from jsonb_path_query(new.dados, 'lax $.** ? (@.type() == "string")') v
+    where link_perigoso(v #>> '{}')
+  ) then
+    raise exception 'Link inválido: use um endereço que comece com http:// ou https://.' using errcode = '22023';
+  end if;
+  return new;
+end $$;
+revoke all on function sem_link_perigoso() from public, anon, authenticated;
+
+-- ---------- 5. IP da assinatura ----------
+-- Guarda o X-Forwarded-For inteiro (até 300 letras): o primeiro item quem assina consegue inventar; os seguintes são
+-- os que os servidores do caminho acrescentaram. O resto da função é igual à v7.
+create or replace function assinar_contrato(cid uuid, nome text, h text) returns contratos language plpgsql security definer set search_path = public as $$
+declare c contratos; t text; hd json; falta text;
+begin
+  select * into c from contratos where id = cid and user_id = auth.uid() and status = 'enviado' for update;
+  if not found then raise exception 'Contrato não encontrado ou já assinado.'; end if;
+  select string_agg(x->>'rotulo', ', ') into falta from jsonb_array_elements(c.campos) x where coalesce(btrim(c.dados->>(x->>'chave')), '') = '';
+  if falta is not null then raise exception 'Faltam dados — preencha antes de assinar: %.', falta; end if;
+  if c.lido_fim_em is null then raise exception 'Leia o contrato até o fim antes de assinar.'; end if;
+  nome := btrim(regexp_replace(coalesce(nome, ''), '\s+', ' ', 'g'));
+  if length(nome) < 5 or nome !~ '\s' then raise exception 'Digite o seu nome completo para assinar (é a sua assinatura).'; end if;
+  t := contrato_texto(c.texto, c.campos, c.dados);
+  if encode(sha256(convert_to(t, 'UTF8')), 'hex') <> lower(coalesce(h, '')) then raise exception 'O contrato mudou enquanto você lia. Recarregue a página e leia de novo.'; end if;
+  begin hd := current_setting('request.headers', true)::json; exception when others then hd := null; end;
+  update contratos set status = 'assinado', texto_final = t, hash = lower(h), assinado_nome = left(nome, 160), assinado_em = now(),
+    ip = left(btrim(coalesce(hd->>'x-forwarded-for', hd->>'x-real-ip', '')), 300), navegador = left(hd->>'user-agent', 300)
+  where id = cid returning * into c;
+  return c;
+end $$;
+revoke all on function assinar_contrato(uuid, text, text) from public, anon;
+grant execute on function assinar_contrato(uuid, text, text) to authenticated;
+
+-- ---------- 6. funcionário da casa vê as datas da casa ----------
+-- Data da casa da conta logada (dona ou funcionário): pelo nome da casa na data ou pela Ficha cuja dona tem o mesmo vínculo.
+create or replace function data_da_minha_casa(cid uuid, nome_data text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select minha_casa_ref() is not null and (
+    lower(nome_data) = lower(minha_casa_ref())
+    or exists (select 1 from cadastros_casas c join perfis p on p.id = c.user_id
+               where c.id = cid and p.tipo = 'casa' and p.funcoes is null and lower(p.vinculo_nome) = lower(minha_casa_ref())))
+$$;
+revoke all on function data_da_minha_casa(uuid, text) from public, anon;
+grant execute on function data_da_minha_casa(uuid, text) to authenticated;
+drop policy if exists dp_ler on datas_portal;
+create policy dp_ler on datas_portal for select using (
+  eh_equipe()
+  or exists (select 1 from cadastros_casas c where c.id = casa_id and c.user_id = auth.uid())
+  or exists (select 1 from jsonb_array_elements(artistas) a where a ->> 'user_id' = auth.uid()::text)
+  or data_da_minha_casa(casa_id, casa_nome)
+);
