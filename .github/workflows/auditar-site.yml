@@ -1,0 +1,56 @@
+name: Auditar site do Tranquilo
+
+# Só roda à mão. Só LÊ o site público e o DNS (nada é alterado): tecnologia, hospedagem, DNS, e-mail, páginas e cabeçalhos.
+on:
+  workflow_dispatch:
+
+jobs:
+  auditar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: DNS e e-mail
+        run: |
+          sudo apt-get install -y dnsutils whois >/dev/null 2>&1 || true
+          for d in tranquilomusica.com.br www.tranquilomusica.com.br rede.tranquilomusica.com.br app.tranquilomusica.com.br api.tranquilomusica.com.br; do
+            echo "== $d"; for t in A AAAA CNAME NS MX TXT CAA; do echo "-- $t"; dig +short $t $d; done; done
+          echo "== DMARC"; dig +short TXT _dmarc.tranquilomusica.com.br
+          echo "== DKIM google"; dig +short TXT google._domainkey.tranquilomusica.com.br
+          echo "== whois"; whois tranquilomusica.com.br 2>/dev/null | grep -iE "owner|ownerid|responsible|nserver|created|changed|expires|status|provider|country" | sed -E 's/(e-mail|phone).*//I' | head -30
+      - name: HTTP, TLS e cabeçalhos
+        run: |
+          for u in https://tranquilomusica.com.br https://www.tranquilomusica.com.br http://tranquilomusica.com.br; do
+            echo "== $u"; curl -sSIL --max-time 20 "$u" | grep -iE "^HTTP|^server|^x-|^via|^cf-|^location|^strict|^content-security|^cache|^age|^set-cookie|^permissions|^referrer|^x-frame" | sed -E 's/(set-cookie: [^=]+)=[^;]*/\1=…/I'; done
+          echo "== TLS"; echo | openssl s_client -servername tranquilomusica.com.br -connect tranquilomusica.com.br:443 2>/dev/null | openssl x509 -noout -issuer -subject -dates -ext subjectAltName 2>/dev/null
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Páginas e tecnologia
+        run: |
+          cat > a.mjs <<'JS'
+          const B = 'https://tranquilomusica.com.br';
+          const get = async (p) => { try { const r = await fetch(B + p, { redirect: 'follow' }); return { st: r.status, url: r.url, h: Object.fromEntries(r.headers), t: await r.text() }; } catch (e) { return { st: 'erro ' + e.message }; } };
+          const home = await get('/');
+          console.log('HOME', home.st, home.url);
+          const t = home.t || '';
+          console.log('next:', /\/_next\//.test(t), '__NEXT_DATA__:', t.includes('__NEXT_DATA__'), 'app-router(RSC):', t.includes('self.__next_f'), 'buildId:', (t.match(/"buildId":"([^"]+)"/) || [])[1] || '-');
+          console.log('generator:', (t.match(/<meta[^>]+name="generator"[^>]+content="([^"]+)"/i) || [])[1] || '-');
+          const dominios = [...new Set([...t.matchAll(/(?:src|href)="(https?:\/\/[^"/]+)/g)].map((m) => m[1]))];
+          console.log('domínios em src/href:', dominios.join(' '));
+          const marcas = { 'Google Tag Manager': /googletagmanager/, 'GA4': /gtag\(|G-[A-Z0-9]{6,}/, 'Meta Pixel': /fbq\(|connect\.facebook\.net/, 'Hotjar': /hotjar/, 'Vercel Analytics': /_vercel\/insights|va\.vercel-scripts/, 'Notion': /notion\.(so|site)|prod-files-secure|secure\.notion-static/, 'Ingresse': /ingresse/, 'Shotgun': /shotgun/, 'WhatsApp': /wa\.me|whatsapp/, 'Supabase': /supabase\.co/, 'Firebase': /firebase/, 'Typeform': /typeform/, 'RD Station': /rdstation/, 'Spotify': /spotify/, 'Cloudflare': /cloudflare/, 'Clarity': /clarity\.ms/ };
+          console.log('sinais:', Object.entries(marcas).filter(([, r]) => r.test(t)).map(([k]) => k).join(', ') || '-');
+          console.log('title:', (t.match(/<title>([^<]*)/) || [])[1], '| description:', ((t.match(/name="description" content="([^"]*)/) || [])[1] || '-').slice(0, 120), '| og:image:', !!t.match(/og:image/));
+          for (const p of ['/robots.txt', '/sitemap.xml', '/manifest.json', '/api', '/api/health', '/central-de-artistas', '/artistas', '/artistas/joycealane', '/termos-de-uso', '/politica-de-privacidade', '/privacidade', '/descubra', '/apresenta', '/saopaulo', '/kit-de-marca', '/login', '/admin', '/rede', '/_next/static/']) {
+            const r = await get(p); const tt = r.t || '';
+            console.log(`PAG ${p} → ${r.st} ${r.url && r.url !== B + p ? '(→ ' + r.url + ')' : ''} | ${(tt.match(/<title>([^<]*)/) || [])[1] || (p.endsWith('.txt') || p.endsWith('.xml') || p.endsWith('.json') ? tt.slice(0, 300).replace(/\s+/g, ' ') : '-')}`);
+          }
+          const sm = await get('/sitemap.xml'); const locs = [...(sm.t || '').matchAll(/<loc>([^<]+)/g)].map((m) => m[1]);
+          console.log('sitemap URLs:', locs.length); const grupos = {}; for (const l of locs) { const k = l.replace(B, '').split('/').slice(0, 2).join('/') || '/'; grupos[k] = (grupos[k] || 0) + 1; } console.log('por seção:', JSON.stringify(grupos));
+          // Links internos da home e formulários
+          console.log('links internos da home:', [...new Set([...t.matchAll(/href="(\/[^"#?]*)/g)].map((m) => m[1]))].slice(0, 80).join(' '));
+          console.log('forms:', (t.match(/<form/g) || []).length, 'inputs:', [...t.matchAll(/<input[^>]+name="([^"]+)"/g)].map((m) => m[1]).join(','));
+          // Chunks JS: procurar APIs usadas
+          const js = [...t.matchAll(/src="(\/_next\/static\/[^"]+\.js)"/g)].map((m) => m[1]).slice(0, 40); const apis = new Set();
+          for (const j of js) { const r = await get(j); for (const m of (r.t || '').matchAll(/https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?:\/[a-z0-9_\/-]*)?/gi)) if (!/w3\.org|reactjs|nextjs\.org|github\.com\/vercel|schema\.org/.test(m[0])) apis.add(m[0].slice(0, 90)); for (const m of (r.t || '').matchAll(/"\/api\/[a-z0-9_\/-]+"/gi)) apis.add('ROTA ' + m[0]); }
+          console.log('URLs/APIs nos JS:', [...apis].slice(0, 80).join(' | '));
+          JS
+          node a.mjs
