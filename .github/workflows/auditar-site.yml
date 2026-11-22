@@ -16,6 +16,7 @@ jobs:
           echo "== DMARC"; dig +short TXT _dmarc.tranquilomusica.com.br
           echo "== DKIM google"; dig +short TXT google._domainkey.tranquilomusica.com.br
           echo "== whois"; whois tranquilomusica.com.br 2>/dev/null | grep -iE "owner|ownerid|responsible|nserver|created|changed|expires|status|provider|country" | sed -E 's/(e-mail|phone).*//I' | head -30
+          echo "== RDAP registro.br (status e eventos)"; curl -s --max-time 20 https://rdap.registro.br/domain/tranquilomusica.com.br | python3 -c 'import json,sys; d=json.load(sys.stdin); print("status:", d.get("status")); [print(e.get("eventAction"), e.get("eventDate")) for e in d.get("events", [])]; print("ns:", [n.get("ldhName") for n in d.get("nameservers", [])])' || true
       - name: HTTP, TLS e cabeçalhos
         run: |
           for u in https://tranquilomusica.com.br https://www.tranquilomusica.com.br http://tranquilomusica.com.br; do
