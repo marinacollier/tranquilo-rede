@@ -24,6 +24,12 @@ for (const [nome, ref] of [['HOMOLOG', 'edespqdbxhthzcmygake'], ['PRODUÇÃO', '
   const pl = {}; for (const l of lg) { const k = `${rot(l.email)} @ ${ip(l.ip)}`; (pl[k] ||= { n: 0, ult: l.created_at }); pl[k].n++; pl[k].ult = l.created_at; }
   console.log(`## Logins (conta @ código do IP): ${lg.length}`);
   for (const [k, x] of Object.entries(pl).sort((a, b) => String(b[1].ult).localeCompare(String(a[1].ult)))) console.log(`- ${k}: ${x.n}x, último ${hora(x.ult)}`);
+  // Diário do site (o próprio portal registra cada uso): últimos 14 dias, por conta, aparelho e dia.
+  const di = await sql(ref, `select u.email, p.tipo, p.nome, d.navegador, to_char(d.criado_em at time zone 'America/Sao_Paulo', 'DD/MM') dia, count(distinct d.sessao) sessoes, count(*) acoes, min(d.criado_em) de, max(d.criado_em) ate
+    from diario d left join auth.users u on u.id = d.user_id left join public.perfis p on p.id = d.user_id
+    where d.criado_em > now() - interval '14 days' group by 1, 2, 3, 4, 5 order by max(d.criado_em) desc limit 120`);
+  console.log(`## Uso registrado pelo site, últimos 14 dias (conta · aparelho · dia)`);
+  for (const d of di) console.log(`- ${d.dia} · ${d.email ? rot(d.email, d.tipo, d.nome) : 'sem login (visitante)'} · ${ua(d.navegador)}: ${d.sessoes} sessão(ões), ${d.acoes} ações, ${hora(d.de).slice(-5)} a ${hora(d.ate).slice(-5)}`);
   const outros = ss.filter((s) => rot(s.email, s.tipo, s.nome).startsWith('OUTRA'));
   console.log(`## Contas que não são da Marina nem de teste com sessão: ${new Set(outros.map((s) => s.email)).size}`);
 }
