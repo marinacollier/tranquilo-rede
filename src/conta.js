@@ -1027,7 +1027,7 @@ const TQConta = (() => {
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["base_casas", "Base de casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"], ["demanda", "Demanda"]]],
-    g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
+    g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["desempenho", "Desempenho da equipe"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
   };
   const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos"], operacoes: ["g_casas", "g_contratos"], marketing: ["g_campanhas"] };
   const menuAgrupado = () => ["equipe", "adm"].includes(S.conta?.perfil.tipo);
@@ -1041,7 +1041,7 @@ const TQConta = (() => {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     // "Comece por aqui" é da administração e da equipe sem área; "Para você", de quem tem área (Gui, Isa, Bruno). "Seu histórico", de todos.
     return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "base_casas", "base_artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
-      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()));
+      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()) && (k !== "desempenho" || S.conta?.perfil.tipo === "adm"));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
@@ -2624,6 +2624,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     },
     // Acompanhamento (pedido da Marina, 18/11/2026): o modelo de cada papel em cada data, para a equipe e a adm.
     // Começa fechadinho: uma linha por data com o % de cada papel; abre para as ações, o Feito e os SOS.
+    desempenho() { return telaDesempenho(); },
     acompanhamento() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o acompanhamento"); }
       if (!S.hub) carregarHub();
@@ -4042,14 +4043,18 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // (alerta com socorro pronto), ACOMPANHAMENTO (% feito, atrasados, SOS) e MÉTODO (cada ação abre o "como fazer").
   // O "Feito" da equipe usa a tabela checklist (item "op:…", "ag:…", "mk:…"), com quem marcou e quando.
   const MD = () => window.TQModelos;
+  // O modelo de trabalho entrou no ar em 18/11/2026: prazos anteriores não contam como "aberto" nem entram nas métricas.
+  const INICIO_MODELO = "2026-11-18";
   const NOME_PAPEL = { operacoes: "Gui · Operações", agenda: "Isa · Agenda", marketing: "Bruno · Marketing", casa: "Casa", artista: "Artistas" };
   /** Datas que entram no acompanhamento (de 3 dias atrás a 35 dias à frente) com os passos de cada papel e os SOS. */
-  function modeloDatas(E) {
+  // janela = [de, até] em dias a partir de hoje; o painel de desempenho (só adm) e o "aberto em datas que passaram" usam -60.
+  function modeloDatas(E, janela = [-3, 35]) {
     const k = (x) => String(x || "").trim().toLowerCase(), hoje = hojeIso(), mais = (n) => new Date(Date.parse(hoje + "T12:00:00Z") + n * 864e5).toISOString().slice(0, 10);
-    const chave = `${hoje}|${(E.chk || []).length}|${(E.contr || []).length}|${(E.datasP || []).length}|${(E.eqc || []).length}|${S.hub ? 1 : 0}|${(S.pac?.eventos || []).length}`;
-    if (E._modelo?.chave === chave) return E._modelo.datas;
+    const chave = `${hoje}|${janela.join(",")}|${(E.chk || []).length}|${(E.contr || []).length}|${(E.datasP || []).length}|${(E.eqc || []).length}|${S.hub ? 1 : 0}|${(S.pac?.eventos || []).length}`;
+    E._modelos ||= {}; const cache = E._modelos[janela.join(",")];
+    if (cache?.chave === chave) return cache.datas;
     const vistos = new Set(), evs = [...(S.pac?.eventos || []).filter((e) => !e.z), ...(E.datasP || []).filter((x) => x.status !== "cancelada").map(eventoDoPortal)]
-      .filter((e) => e.d >= mais(-3) && e.d <= mais(35) && !vistos.has(e.id) && vistos.add(e.id)).sort((a, b) => a.d.localeCompare(b.d));
+      .filter((e) => e.d >= mais(janela[0]) && e.d <= mais(janela[1]) && !vistos.has(e.id) && vistos.add(e.id)).sort((a, b) => a.d.localeCompare(b.d));
     const perfis = E.perfis || [], tipoDe = (uid) => perfis.find((p) => p.id === uid)?.tipo, H = S.hub, kc = TQCampanha.chaveCasa;
     const datas = evs.map((e) => {
       const casa = (E.casas || []).find((c) => c.id === e.kc || (e.h && (k(c.dados?.nome) === k(e.h) || k(c.perfil?.vinculo_nome) === k(e.h))));
@@ -4081,14 +4086,15 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         ct_art_env: artistas.length > 0 && artistas.every((a) => a.contrato !== "sem"), ct_art_ok: artistas.length > 0 && artistas.every((a) => a.contrato === "assinado" || a.contrato === null && pdf),
         campanha: !!campanha?.existe, campanha_em_dia: !!campanha?.existe && !campanha.atrasados, art_ok: artistas.some((a) => a.user_id) && artistas.filter((a) => a.user_id).every((a) => a.passos.some((p) => p.chave === "camp_ok" && p.feito)) };
       const fEq = MD().feitosDe(E.chk, e.id, (c) => /^(op|ag|mk):/.test(c.item) && ["equipe", "adm"].includes(tipoDe(c.user_id)));
-      const eq = Object.fromEntries(MD().PAPEIS_EQUIPE.map((p) => [p, MD().passos(p, e.d, fEq, hoje, e.m, auto)]));
+      // Repasse incompleto: alguém marcou "Feito" à mão, mas o portal ainda não confere (ex.: contratos "enviados" sem contrato no portal).
+      const eq = Object.fromEntries(MD().PAPEIS_EQUIPE.map((p) => [p, MD().passos(p, e.d, fEq, hoje, e.m, auto).map((y) => y.auto && y.marca?.por && !auto[y.auto] ? { ...y, incompleto: true } : y)]));
       const whatsCasa = casa?.dados?.whatsapp || casa?.perfil?.whatsapp || (ref ? waDaCasa(ref) : "");
       const sos = MD().sosDaData({ id: e.id, dia: e.d, hoje, casa: e.h || ref, produto: e.m, lineup, artistas, contratoCasa: ctCasa, equipe: cob ? { completa: cob.completa, falta: TQEquipe.listaFalta(cob) } : null,
         campanha, casaAtrasados: casaPs.filter((p) => p.atrasado).map((p) => p.titulo), whatsCasa });
       const escalados = MD().feitosDe(E.chk, e.id, (c) => /^sos:/.test(c.item));
-      return { e, ref, casa, casaUsers, casaPs, artistas, eq, sos, escalados, whatsCasa };
+      return { e, ref, casa, casaUsers, casaPs, artistas, eq, sos, escalados, whatsCasa, auto };
     });
-    E._modelo = { chave, datas };
+    E._modelos[janela.join(",")] = { chave, datas };
     return datas;
   }
   /** SOS de todas as datas e das Fichas paradas, só dos papéis pedidos. */
@@ -4130,7 +4136,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const meu = !soQuemMarcou || !p.marca?.por || p.marca.por === S.conta?.perfil.id;
     const caixa = marcar && !p.marca?.auto ? `<input type="checkbox" data-${campo}="${esc(evId)}|${esc(p.chave)}"${p.feito ? " checked" : ""}${meu ? "" : ` disabled title="Marcado por ${esc(quemMarcou(p.marca.por))}: só quem marcou desmarca"`} aria-label="Feito: ${esc(p.titulo)}">` : `<span class="md-marca" aria-hidden="true">${p.feito ? "✓" : p.atrasado ? "!" : "○"}</span>`;
     return `<li class="${p.feito ? "feito" : p.atrasado ? "atrasado" : p.passou ? "passou" : ""}"><label>${caixa} <span><b>${esc(p.titulo)}</b> <span class="muted">· ${MD().rotuloD(p.dias)} (${dtc(p.prazo)})${p.curto ? " · data curta: fazer o quanto antes" : ""}${p.atrasado ? " · atrasado" : p.passou ? " · não registrado" : ""} · quem faz: ${esc(p.quem)}</span>
-      <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}${anexoPasso(evId, p.chave)}</li>`;
+      <br><span class="muted" style="font-size:13px">${esc(p.texto)} <span class="md-cf">Conta como feito:</span> ${esc(p.feitoQuando || "marcar Feito")}</span>${marca ? `<br><span class="md-feito">${marca}</span>` : ""}${p.incompleto ? `<br><span class="md-incompleto">⚠ Marcado como feito, mas o portal ainda não confere: ${esc(p.feitoQuando || "")}</span>` : ""}</span></label>${linkMetodo(p.metodo, produto)}${anexoPasso(evId, p.chave)}</li>`;
   }
   /** Botões do SOS: cobrar no WhatsApp (mensagem pronta), abrir, ir e escalar para a adm. */
   function acoesSos(s) {
@@ -4153,6 +4159,75 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ps = papel === "casa" ? x.casaPs : papel === "artista" ? x.artistas.flatMap((a) => a.passos) : x.eq[papel];
     return MD().resumo(ps, x.sos.filter((s) => s.papel === papel));
   }
+  // ---------- Desempenho da equipe (pedido do Thales e da Marina, 23/11/2026; SÓ a administração vê) ----------
+  // Sai dos mesmos passos do modelo de cada papel: prazo de cada passo × quando foi marcado "Feito" (e por quem), a
+  // conferência automática do portal e as datas que já passaram. Conta só prazos a partir de INICIO_MODELO.
+  const diasEntre = (a, b) => Math.round((Date.parse(b + "T12:00:00Z") - Date.parse(a + "T12:00:00Z")) / 864e5);
+  function metricasPapel(E, papel) {
+    const hoje = hojeIso(), datas = modeloDatas(E, [-60, 35]);
+    const donos = new Set((E.perfis || []).filter((p) => p.tipo === "equipe" && (p.areas || []).includes(papel)).map((p) => p.id));
+    const todos = datas.flatMap((x) => x.eq[papel].map((y) => ({ ...y, x })));
+    const vencidos = todos.filter((y) => y.prazo < hoje && y.prazo >= INICIO_MODELO);
+    const manual = vencidos.filter((y) => y.feito && y.marca?.por && y.marca.em);
+    const noPrazo = vencidos.filter((y) => y.feito && (!y.marca?.em || String(y.marca.em).slice(0, 10) <= y.prazo));
+    const tarde = manual.filter((y) => String(y.marca.em).slice(0, 10) > y.prazo);
+    const naoFeitos = vencidos.filter((y) => !y.feito);
+    const incompletos = todos.filter((y) => y.incompleto && y.prazo >= INICIO_MODELO);
+    const porOutro = donos.size ? todos.filter((y) => y.marca?.por && !donos.has(y.marca.por) && y.prazo >= INICIO_MODELO) : [];
+    const passadas = datas.filter((x) => x.e.d < hoje && x.e.d >= INICIO_MODELO);
+    const fechadas = passadas.filter((x) => x.eq[papel].filter((y) => y.prazo < hoje).every((y) => y.feito));
+    const sos = sosAbertos(E, [papel]);
+    const pct = (a, b) => b ? Math.round((a / b) * 100) : null;
+    const atrasoMedio = tarde.length ? Math.round(tarde.reduce((t, y) => t + diasEntre(y.prazo, String(y.marca.em).slice(0, 10)), 0) / tarde.length) : 0;
+    return { papel, vencidos, noPrazo, tarde, naoFeitos, incompletos, porOutro, passadas, fechadas, sos, atrasoMedio,
+      pctPrazo: pct(noPrazo.length, vencidos.length), pctFechadas: pct(fechadas.length, passadas.length), pctIncompleto: pct(incompletos.length, todos.filter((y) => y.marca?.por && y.auto).length),
+      atrasadosAgora: todos.filter((y) => y.atrasado && y.prazo >= INICIO_MODELO), escalados: sos.filter((s) => s.escalado) };
+  }
+  /** Leitura em uma frase do que os números dizem, com o foco de cada papel (Isa: qualidade e prazo; Bruno: fechar até o fim). */
+  function leituraPapel(m) {
+    const fr = [];
+    if (!m.vencidos.length && !m.passadas.length) return "Ainda sem prazos vencidos desde 18/11: os números aparecem conforme as datas avançam.";
+    if (m.pctPrazo != null) fr.push(m.pctPrazo >= 80 ? `Previsível: ${m.pctPrazo}% dos passos no prazo.` : `Pouco previsível: só ${m.pctPrazo}% dos passos no prazo${m.tarde.length ? `, os atrasados com ${m.atrasoMedio} ${m.atrasoMedio === 1 ? "dia" : "dias"} de atraso em média` : ""}.`);
+    if (m.incompletos.length) fr.push(`${m.incompletos.length} ${m.incompletos.length === 1 ? "passo marcado" : "passos marcados"} como feito sem estar completo (repasse incompleto).`);
+    if (m.pctFechadas != null) fr.push(m.pctFechadas === 100 ? "Fechou todas as datas que já passaram." : `Fechou ${m.fechadas.length} de ${m.passadas.length} datas que já passaram: ${m.passadas.length - m.fechadas.length} ficaram com passo aberto.`);
+    if (m.porOutro.length) fr.push(`${m.porOutro.length} ${m.porOutro.length === 1 ? "passo foi fechado" : "passos foram fechados"} por outra pessoa.`);
+    return fr.join(" ");
+  }
+  function telaDesempenho() {
+    if (S.conta?.perfil.tipo !== "adm") return `<div class="alert"><b>Só a administração vê esta tela.</b></div>`;
+    const E = S.eq; if (!E) { carregarEquipe(); return carregando("o desempenho da equipe"); }
+    if (!S.hub) carregarHub();
+    const num = (v, rot, cls = "") => `<div class="dsp-num ${cls}"><b>${v}</b><span>${rot}</span></div>`;
+    const lista = (xs, vazioTxt) => xs.length ? `<ul class="passos md-lista">${xs.slice(0, 30).map((y) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(y.x.e.d)].slice(0, 3)} ${dm(y.x.e.d)} · ${esc(y.x.e.h || y.x.e.c || "casa a definir")}</span></li>${linhaModelo(y, { evId: y.x.e.id, produto: y.x.e.m })}`).join("")}</ul>${xs.length > 30 ? `<p class="muted" style="font-size:13px">e mais ${xs.length - 30}.</p>` : ""}` : `<p class="muted" style="font-size:13px">${vazioTxt}</p>`;
+    const FOCO = { agenda: "Foco: qualidade do repasse, prazo e previsibilidade.", marketing: "Foco: acompanhar até o fim (nada fica pelo caminho).", operacoes: "Foco: casa pronta no prazo." };
+    const card = (p) => {
+      const m = metricasPapel(E, p), id = "dsp-" + p;
+      const nums = [num(m.pctPrazo == null ? "–" : m.pctPrazo + "%", `no prazo (${m.noPrazo.length} de ${m.vencidos.length} passos vencidos)`, m.pctPrazo == null ? "" : m.pctPrazo >= 80 ? "bom" : "ruim"),
+        num(m.pctFechadas == null ? "–" : m.pctFechadas + "%", `datas fechadas até o fim (${m.fechadas.length} de ${m.passadas.length})`, m.pctFechadas == null ? "" : m.pctFechadas === 100 ? "bom" : "ruim"),
+        num(m.incompletos.length, "repasses incompletos (feito sem estar completo)", m.incompletos.length ? "ruim" : "bom"),
+        num(m.atrasadosAgora.length, "atrasados agora", m.atrasadosAgora.length ? "ruim" : "bom"),
+        num(m.tarde.length ? m.atrasoMedio + "d" : "–", `atraso médio quando atrasa (${m.tarde.length} passos)`),
+        num(m.porOutro.length, "fechados por outra pessoa"),
+        num(m.sos.length, `SOS abertos${m.escalados.length ? ` · ${m.escalados.length} escalados` : ""}`, m.sos.length ? "ruim" : "")].join("");
+      const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>
+        ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
+        ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
+        ${dobra(id + "-tarde", "Feito com atraso", `${m.tarde.length} passos`, lista(m.tarde, "Nenhum."))}
+        ${dobra(id + "-outro", "Fechado por outra pessoa", `${m.porOutro.length} passos que outra pessoa marcou`, lista(m.porOutro, "Nenhum."))}`;
+      return dobra(id, `${NOME_PAPEL[p]}`, `${m.pctPrazo == null ? "sem prazos vencidos ainda" : m.pctPrazo + "% no prazo"} · ${m.pctFechadas == null ? "nenhuma data passada" : m.pctFechadas + "% das datas fechadas"} · ${m.incompletos.length} incompleto${m.incompletos.length === 1 ? "" : "s"} · ${esc(FOCO[p])}`, corpo, { classe: "card" });
+    };
+    return `<div class="tag">Administração · só a adm vê</div><h1>Desempenho da equipe</h1>
+      <p class="sub">Para entender como cada papel está entregando. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de 18/11/2026, quando o modelo entrou no ar. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
+      <div class="barra-acoes" style="margin-bottom:10px"><button class="btn sm" data-acomp-atualizar>Atualizar agora</button></div>
+      ${["agenda", "marketing", "operacoes"].map(card).join("")}
+      ${dobra("dsp-como", "Como cada número é calculado", "no prazo, datas fechadas, repasse incompleto, atraso médio", `<ul class="passos md-lista">
+        <li><b>No prazo:</b> passos com prazo vencido que foram marcados Feito até o dia do prazo (ou que o portal conferiu sozinho), sobre todos os passos vencidos.</li>
+        <li><b>Datas fechadas até o fim:</b> datas que já passaram em que todos os passos do papel com prazo vencido estão feitos.</li>
+        <li><b>Repasse incompleto:</b> a pessoa marcou Feito, mas o portal ainda não confere (ex.: "contratos enviados" com artista sem contrato no portal). É o sinal de qualidade: passou adiante sem estar pronto.</li>
+        <li><b>Atraso médio:</b> dias entre o prazo e o Feito, só nos passos feitos com atraso.</li>
+        <li><b>Fechado por outra pessoa:</b> passo do papel marcado por alguém que não é da área (sinal de que alguém precisou resgatar).</li>
+        <li>Nada disso aparece para a equipe. Eles veem só, no "Para você", o que ficou aberto em datas passadas e o que foi marcado sem estar completo, para corrigir.</li></ul>`)}`;
+  }
   /** Painel compacto do "Para você" e do "Comece por aqui": % feito, atrasados, SOS, e o que fazer agora. */
   function painelModelo(E, papeis) {
     if (!MD()) return "";
@@ -4161,12 +4236,21 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const sos = sosAbertos(E, papeis), r = MD().resumo(ps, sos);
     const agora = datas.flatMap((x) => papeis.map((p) => ({ p, x, prox: MD().proximo(x.eq[p]) })).filter((y) => y.prox)).sort((a, b) => a.prox.prazo.localeCompare(b.prox.prazo)).slice(0, 8);
     const quem = papeis.length === 3 ? "da equipe" : papeis.map((p) => NOME_PAPEL[p]).join(" e ");
-    const corpo = `${sos.length ? `<h4 style="margin:4px 0 6px">SOS: algo atrasou ou travou</h4><ul class="passos md-lista">${sos.slice(0, 6).map(htmlSos).join("")}</ul>${sos.length > 6 ? `<p class="muted" style="font-size:13px">e mais ${sos.length - 6} em Acompanhamento.</p>` : ""}` : `<p class="muted" style="font-size:13px">Nenhum SOS aberto: nada atrasado ou travado.</p>`}
+    // Automação pedida pelo Thales (21/11/2026): o que ficou aberto em datas que já passaram (acompanhar até o fim) e
+    // o que foi marcado como feito mas o portal não confere (repasse incompleto). Mostra o passo com o Feito para fechar.
+    const linhaData = (p, x) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis.length > 1 ? " · " + esc(NOME_PAPEL[p]) : ""}</span></li>`;
+    const passadas = modeloDatas(E, [-30, -1]).filter((x) => x.e.d < hojeIso());
+    const abertos = passadas.flatMap((x) => papeis.flatMap((p) => x.eq[p].filter((y) => !y.feito && y.prazo < hojeIso() && y.prazo >= INICIO_MODELO).map((y) => ({ p, x, y }))));
+    const incompletos = [...passadas, ...datas].flatMap((x) => papeis.flatMap((p) => x.eq[p].filter((y) => y.incompleto).map((y) => ({ p, x, y }))));
+    const listaPassos = (xs) => `<ul class="passos md-lista">${xs.slice(0, 10).map(({ p, x, y }) => linhaData(p, x) + linhaModelo(y, { evId: x.e.id, produto: x.e.m, marcar: temArea(p) })).join("")}</ul>${xs.length > 10 ? `<p class="muted" style="font-size:13px">e mais ${xs.length - 10}.</p>` : ""}`;
+    const fimHtml = (incompletos.length ? `<h4 style="margin:12px 0 6px">⚠ Marcado como feito, mas o portal ainda não confere (${incompletos.length})</h4><p class="muted" style="font-size:13px;margin:0 0 4px">Antes de passar adiante, complete o que falta: quem recebe depende disso.</p>${listaPassos(incompletos)}` : "")
+      + (abertos.length ? `<h4 style="margin:12px 0 6px">Acompanhar até o fim: ficou aberto em datas que já passaram (${abertos.length})</h4><p class="muted" style="font-size:13px;margin:0 0 4px">A data passou e estes passos não foram fechados. Confira se aconteceu e marque, ou cobre quem ficou devendo.</p>${listaPassos(abertos)}` : "");
+    const corpo = `${fimHtml}${sos.length ? `<h4 style="margin:4px 0 6px">SOS: algo atrasou ou travou</h4><ul class="passos md-lista">${sos.slice(0, 6).map(htmlSos).join("")}</ul>${sos.length > 6 ? `<p class="muted" style="font-size:13px">e mais ${sos.length - 6} em Acompanhamento.</p>` : ""}` : `<p class="muted" style="font-size:13px">Nenhum SOS aberto: nada atrasado ou travado.</p>`}
       <h4 style="margin:12px 0 6px">Ação funcionando: o próximo passo de cada data</h4>
       ${agora.length ? `<ul class="passos md-lista">${agora.map(({ p, x, prox }) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis.length > 1 ? " · " + esc(NOME_PAPEL[p]) : ""}</span></li>${linhaModelo(prox, { evId: x.e.id, produto: x.e.m, marcar: temArea(p) })}`).join("")}</ul>` : `<p class="muted" style="font-size:13px">Tudo em dia nas próximas datas.</p>`}
       <div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="acompanhamento">Ver o acompanhamento de todos os papéis →</button></div>`;
     return dobra("md-painel", `Seu modelo de trabalho ${quem === "da equipe" ? "(todos os papéis)" : "· " + esc(quem)}`,
-      `${r.total ? `${r.pct}% feito ${datas.length === 1 ? "na próxima data" : `nas próximas ${datas.length} datas`}` : "sem datas nos próximos 35 dias"} · ${r.atrasados} ${r.atrasados === 1 ? "atrasado" : "atrasados"} · ${sos.length} SOS · toque para ver`, corpo, { classe: "md-painel" + (sos.length ? " md-tem-sos" : "") });
+      `${r.total ? `${r.pct}% feito ${datas.length === 1 ? "na próxima data" : `nas próximas ${datas.length} datas`}` : "sem datas nos próximos 35 dias"} · ${r.atrasados} ${r.atrasados === 1 ? "atrasado" : "atrasados"} · ${sos.length} SOS${abertos.length ? ` · ${abertos.length} aberto${abertos.length > 1 ? "s" : ""} em datas passadas` : ""}${incompletos.length ? ` · ${incompletos.length} sem conferir` : ""} · toque para ver`, corpo, { classe: "md-painel" + (sos.length || abertos.length || incompletos.length ? " md-tem-sos" : "") });
   }
   /** O PADRÃO de cada papel: a sequência de ações por data, com prazo, quem faz, o que conta como feito e o método. */
   function padraoDosPapeis() {

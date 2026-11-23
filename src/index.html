@@ -409,6 +409,12 @@ td b{overflow-wrap:break-word}   /* nome na tabela não quebra no meio ("Roof/ta
 .passos li:has(> .link-doc)>.link-doc{display:inline-block;margin:4px 0 2px 42px;font-size:13px}
 .md-cf{font-weight:600;color:var(--ink-2)}
 .md-feito{font-size:12px;color:var(--green,#2f8f5b)}
+.md-incompleto{font-size:12px;font-weight:600;color:var(--red)}
+.dsp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:8px 0 10px}
+.dsp-num{display:flex;flex-direction:column;gap:2px;padding:10px 12px;border:1px solid var(--line-2);border-radius:10px}
+.dsp-num b{font-size:24px}.dsp-num span{font-size:12px;color:var(--ink-2)}
+.dsp-num.ruim b{color:var(--red)}.dsp-num.bom b{color:var(--green,#2f8f5b)}
+.dsp-leitura{font-size:14px;margin:4px 0 8px}
 .md-marca{display:inline-flex;width:18px;justify-content:center;font-weight:700;color:var(--ink-3)}
 .md-lista li.md-data{padding-left:0}.md-lista li.md-data::before{display:none}
 .md-lista li.md-sos{padding:8px 0 8px 18px}
