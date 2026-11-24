@@ -685,9 +685,9 @@ const TQConta = (() => {
       precisaSenha() { return recuperacao; },
       async definirSenha(senha) {
         const r = await sb.auth.updateUser({ password: senha, data: { senha_portal: true } });
-        // Senha igual à que já estava na conta: o Supabase recusa (422), mas a pessoa já tem essa senha; segue.
-        if (r.error && !/different from the old password|same_password/i.test(r.error.message + " " + (r.error.code || ""))) ok(r);
-        if (r.error) await sb.auth.updateUser({ data: { senha_portal: true } });   // senha igual: marca mesmo assim
+        // Senha igual à que já estava na conta: o Supabase recusa (422). Desde 24/11/2026 (troca da senha comum que vazou
+        // em logs públicos) a pessoa precisa escolher outra: a mensagem traduzida diz "precisa ser diferente".
+        if (r.error) ok(r);
         recuperacao = false;
         ok(await sb.from("perfis").update({ senha_definida: true }).eq("id", await uid()));
       },

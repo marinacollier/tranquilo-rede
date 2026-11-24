@@ -1,0 +1,22 @@
+name: Pedir senha nova a todas as contas
+
+# Só roda à mão. Todas as contas do ambiente passam a criar uma senha nova no próximo acesso. Não imprime e-mails.
+on:
+  workflow_dispatch:
+    inputs:
+      alvo:
+        description: homolog ou prd
+        default: prd
+
+jobs:
+  senha:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/forcar-nova-senha.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ALVO: ${{ inputs.alvo }}
