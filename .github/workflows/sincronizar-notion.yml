@@ -1,0 +1,27 @@
+name: Sincronizar datas do portal com o Notion
+
+# Só roda à mão. Compara as datas criadas no portal com o retrato do Notion (data/). Com aplicar=sim, cancela no portal
+# o que está Cancelado no Notion. Nunca escreve no Notion.
+on:
+  workflow_dispatch:
+    inputs:
+      alvo:
+        description: homolog ou prd
+        default: prd
+      aplicar:
+        description: sim para cancelar; não para só ver
+        default: 'não'
+
+jobs:
+  sincronizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/sincronizar-notion.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ALVO: ${{ inputs.alvo }}
+          APLICAR: ${{ inputs.aplicar == 'sim' && '1' || '0' }}
