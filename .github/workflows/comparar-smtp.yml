@@ -1,0 +1,17 @@
+name: Comparar SMTP de teste e produção
+
+# Só lê. Diz se cada campo do e-mail próprio é igual nos dois projetos, sem imprimir e-mail nem senha.
+on:
+  workflow_dispatch:
+
+jobs:
+  comparar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/comparar-smtp.mjs
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
