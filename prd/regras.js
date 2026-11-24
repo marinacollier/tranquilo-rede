@@ -1,0 +1,205 @@
+// Regras compartilhadas entre o site e os testes.
+// preCuradoria e pendenciasCasa espelham as funções SQL de supabase/schema.sql
+// (o banco é a fonte da verdade; aqui servem para o modo demonstração e a prévia ao vivo).
+(function (g) {
+  "use strict";
+  const CIDADES_REDE = ["São Paulo", "Belo Horizonte", "Rio de Janeiro", "Brasília", "Curitiba", "Florianópolis", "Porto Alegre",
+    "Campinas", "Santos", "Santo André", "Sorocaba", "Itajaí", "Salvador", "Recife"];
+  const int = (v) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n : 0; };
+  const tem = (v) => v != null && String(v) !== "";
+
+  function preCuradoria(d = {}) {
+    const ouvintes = int(d.ouvintes_mensais), seguidores = int(d.seguidores_instagram);
+    const links = ["spotify", "youtube", "outro_link"].filter((k) => tem(d[k])).length;
+    const integrantes = tem(d.integrantes) ? int(d.integrantes) : 1, cache = int(d.cache_minimo);
+    const completude = (String(d.release || "").length >= 200 ? 5 : 0) + (tem(d.foto) ? 5 : 0) + (links >= 2 ? 5 : 0) + (tem(d.contato_producao) ? 5 : 0);
+    const tracao = (ouvintes >= 50000 ? 20 : ouvintes >= 10000 ? 15 : ouvintes >= 2000 ? 10 : ouvintes >= 500 ? 5 : 0)
+      + (seguidores >= 20000 ? 15 : seguidores >= 5000 ? 10 : seguidores >= 1000 ? 5 : 0);
+    const tecnica = { circulavel: 20, condicionado: 10, especial: 3 }[d.rider_tipo] || 0;
+    const cidadesOk = (d.cidades_interesse || []).filter((c) => CIDADES_REDE.includes(c)).length;
+    const circulacao = Math.min(15, cidadesOk * 5);
+    const condicoes = String(d.aceita_bonus) === "true" ? 10 : cache > 0 && cache <= 800 ? 5 : 0;
+    const score = completude + tracao + tecnica + circulacao + condicoes;
+    const alertas = [];
+    if (links === 0) alertas.push("Sem link de áudio ou vídeo");
+    if (integrantes > 3) alertas.push("Formação acima de trio: o padrão é voz e um instrumento, duo ou trio");
+    if (d.rider_tipo === "especial") alertas.push("Rider de produção especial");
+    if (cache > 1500) alertas.push("Cachê mínimo acima de R$ 1.500");
+    if (cidadesOk === 0) alertas.push("Nenhuma cidade de interesse na rede atual");
+    return { score, faixa: score >= 65 ? "Prioridade" : score >= 40 ? "Avaliar" : "Abaixo do corte", alertas,
+      detalhe: { completude, tracao, tecnica, circulacao, condicoes } };
+  }
+
+  // Campos da Ficha da unidade (modelo v1 do Gui, 30/10/2026). Fichas antigas usam outros nomes de campo: valem também,
+  // para nada do que a casa já preencheu se perder (responsavel → dono_nome, cidade → cidade_uf, dias → funcionamento).
+  // Público sentado é regra fixa do Tranquilo. Casa já habilitada não perde a habilitação por isso: vê o aviso de nova
+  // exigência até preencher (ver casa_rehabilitar no banco).
+  const NOVA_EXIGENCIA = "Capacidade com público sentado no chão";
+  const lista = (v) => Array.isArray(v) ? v.length > 0 : tem(v);
+  function pendenciasCasa(d = {}) {
+    const hab = [], match = [], enriquecimento = [];
+    const v = (novo, antigo) => tem(d[novo]) ? d[novo] : d[antigo];
+    if (!tem(d.nome)) hab.push("Nome da casa");
+    if (!tem(v("cidade_uf", "cidade"))) hab.push("Cidade/UF");
+    if (!tem(d.endereco)) hab.push("Endereço completo");
+    if (!tem(v("dono_nome", "responsavel"))) hab.push("Dono A: nome completo");
+    if (!tem(d.whatsapp)) hab.push("Dono A: WhatsApp");
+    if (int(d.capacidade_sentado) <= 0) hab.push(NOVA_EXIGENCIA);
+    if (!tem(d.palco)) match.push("Palco (medidas e altura)");
+    if (!tem(d.camarim)) match.push("Camarim");
+    if (!tem(d.som) && !tem(d.rider)) match.push("Sistema de som ou rider técnico da casa");
+    if (!tem(d.luz)) match.push("Luz");
+    if (!tem(d.menores)) match.push("Menores de idade");
+    if (!tem(d.instagram)) enriquecimento.push("Instagram da casa");
+    if (!tem(d.como_chegar)) enriquecimento.push("Como chegar");
+    if (!lista(d.acessibilidade) && !tem(d.acessibilidade_obs)) enriquecimento.push("Acessibilidade");
+    if (!lista(d.dias_semana)) enriquecimento.push("Dias da semana que podem receber o Tranquilo");
+    return { habilitacao: hab, match, enriquecimento };
+  }
+
+  // Passo a passo por data. Dias relativos à data do show (negativo = antes).
+  // Fonte: checklist de operações dos eventos (T-28, T-21, T-14, T-7, dia, pós) e método V0.1 (handoff) no Notion.
+  const PASSOS_ARTISTA = [
+    ["contrato", -35, "Ler e assinar o contrato", "Condição econômica, responsabilidades e cancelamento. Sem contrato assinado a data não é repassada para a casa."],
+    ["formacao", -28, "Fechar formação e equipe", "Formato do Tranquilo: voz e um instrumento, duo ou trio. Quem acompanha: 2 a 3 pessoas da equipe e 3 a 4 convidados por artista."],
+    ["rider", -28, "Enviar rider técnico e mapa de palco", "A casa precisa do rider 4 semanas antes para confirmar PA, monitores, microfones e DIs."],
+    ["som", -21, "Validar o som com a casa", "Combine com o técnico da casa o setup (PA, mesa, monitores, microfones, DI, cabos) e o horário da passagem de som."],
+    ["logistica", -21, "Confirmar logística", "Transporte, hospedagem e horário de chegada, direto com a casa e com o parceiro logístico, quando houver."],
+    ["horarios", -7, "Confirmar horários e acompanhantes", "Chegada, passagem de som, portas, início e horário final. Mande à casa os nomes da equipe (2 a 3) e dos convidados (3 a 4) para a lista da portaria."],
+    ["roteiro", -2, "Revisar o roteiro da noite", "Duração do show, intervalos e fala. A apresentação é o centro da noite."],
+    ["passagem", 0, "Chegar e fazer a passagem de som", "No horário combinado. Problema comum: resolva direto com a casa. Exceção crítica: avise o Tranquilo."],
+    ["pagamento", 1, "Enviar nota fiscal ou recibo", "Com os dados de pagamento, para o fechamento da data e o pagamento do cachê."],
+    ["feedback", 3, "Contar como foi", "Casa, som, público e o que melhorar. Isso entra na qualificação da rede."],
+  ];
+  // Campanha do artista (material do Bruno, "Artistas · como briefar cada um"): atividades obrigatórias por formato.
+  // Cada artista tem um link de ingresso só dele; manda o print de cada post para o Tranquilo.
+  const CAMPANHA_ARTISTA = {
+    Descubra: [
+      ["camp_ok", -20, "Campanha: dar o OK no briefing", "O briefing chega no D-20, assim que o line-up fecha. Abra o manual, confira o seu link de ingresso (é só seu) e responda com o OK."],
+      ["camp_convites", -15, "Campanha · Momento 0: 15 convites no privado", "Antes do primeiro post, mande 15 convites um a um no privado. É o que mais vende. Cada convite é o primeiro: nunca \"de novo\"."],
+      ["camp_anuncio", -14, "Campanha · Momento 1: reel ou post de anúncio", "Anuncie a noite no seu perfil com o seu link. Mande o print para o Tranquilo."],
+      ["camp_meio", -10, "Campanha · Momentos 2 a 5: caixinhas, enquetes e bastidores", "Stories ao longo da semana para manter a noite viva. O line-up completo é segredo até o D-1."],
+      ["camp_contagem", -3, "Campanha: contagem regressiva e \"é hoje\"", "Do D-3 ao dia do show, contagem nos stories e o \"é hoje\" no dia. Print de cada post."],
+      ["camp_flyer", -1, "Campanha: flyer público em collab", "D-1 à noite: o flyer com o line-up sai em collab com o Tranquilo."],
+    ],
+    Apresenta: [
+      ["camp_ok", -35, "Campanha: dar o OK no kit", "O kit (stories e convites com o seu link) chega no D-35, antes de a venda abrir. Confira e responda com o OK."],
+      ["camp_anuncio", -30, "Campanha: anúncio oficial e 15 convites", "D-30: stories com o link e 15 convites um a um no privado. Mande o print."],
+      ["camp_reel", -21, "Campanha: reel convite em collab", "D-21: reel convidando para o show, em collab com o Tranquilo."],
+      ["camp_reel_tocando", -7, "Campanha: reel tocando em collab", "D-7: reel tocando, em collab com o Tranquilo."],
+      ["camp_contagem", -3, "Campanha: contagem nos stories", "Do D-3 ao D-1, contagem regressiva nos stories. Quem abre a noite posta no próprio perfil, sem collab."],
+    ],
+  };
+  // Formatos de data (pedido da Marina, 18/11/2026). Os "Tipos de evento" do Notion (data/referencias.json) são
+  // Descubra, Apresenta, Turnê e Noite Tranquilo. Regras do Método e do Manual de operação do Descubra e do Apresenta:
+  // Descubra = 3 artistas em ascensão (shows às 20h, 20h45 e 21h30); Apresenta = show de 1 artista principal, com
+  // abertura opcional (1º a abertura, por último a atração). Turnê = no Notion, o mesmo artista principal em várias
+  // cidades (ex.: Tuyo e Gustavo Vaz em SP, BH, Floripa, Rio, Salvador, Recife e Curitiba) com abertura local; cada data
+  // segue o Apresenta. Noite Tranquilo tem 3 datas no Notion (3 ou 4 artistas) e não está descrita no Método: a validar.
+  // base = o produto cujo cronograma, campanha (CAMPANHA_ARTISTA) e modelo de contrato a data usa.
+  // interesse = respostas de "Formato que mais te interessa" (formato_interesse) de quem topa o formato;
+  // "nao_sei" e sem resposta também contam (ficam depois de quem escolheu o formato).
+  const FORMATOS = {
+    Descubra: { nome: "Descubra", base: "Descubra", artistas: 3, abertura: false, mesmoArtista: false, interesse: ["descubra"],
+      regra: "3 artistas em ascensão na mesma noite, shows às 20h, 20h45 e 21h30. Campanha, cronograma e contrato do Descubra." },
+    Apresenta: { nome: "Apresenta", base: "Apresenta", artistas: 1, abertura: true, mesmoArtista: false, interesse: ["apresenta", "turne"],
+      regra: "Show de 1 artista principal, com abertura opcional: no line-up, a abertura vem primeiro e a atração por último. Campanha, cronograma e contrato do Apresenta." },
+    "Turnê": { nome: "Turnê", base: "Apresenta", artistas: 1, abertura: true, mesmoArtista: true, interesse: ["turne", "apresenta"],
+      regra: "O mesmo artista principal em várias cidades, uma data por cidade, com abertura local opcional em cada uma. Cada data segue o Apresenta (campanha, cronograma e contrato).",
+      validar: "contrato único de circulação com várias datas" },
+    "Noite Tranquilo": { nome: "Noite Tranquilo", base: "Descubra", artistas: 3, abertura: false, mesmoArtista: false, interesse: ["descubra"],
+      regra: "Noite com 3 artistas, como no Notion (3 datas em 2026). Segue o Descubra (cronograma, campanha e contrato).",
+      validar: "regra do formato não descrita no Método" },
+  };
+  const NOMES_FORMATO = Object.keys(FORMATOS);
+  const formatoDe = (produto) => FORMATOS[produto] || NOMES_FORMATO.map((n) => FORMATOS[n]).find((f) => new RegExp(f.nome.replace("ê", "[eê]"), "i").test(produto || "")) || null;
+  /** Produto de base (Descubra ou Apresenta) para cronograma, campanha e contrato; null se não reconhece. */
+  const produtoBase = (produto) => formatoDe(produto)?.base || null;
+  /** 2 = escolheu este formato; 1 = topa (ainda não sabe, não respondeu ou formato vizinho); 0 = escolheu outro. */
+  function topaFormato(interesse, produto) {
+    const f = formatoDe(produto), i = String(interesse || "").trim().toLowerCase(); if (!f) return 0;
+    if (i === f.interesse[0]) return 2;
+    return !i || i === "nao_sei" || f.interesse.includes(i) ? 1 : 0;
+  }
+  /** Quantos artistas o formato pede: total sugerido (com abertura) e mínimo para fechar. */
+  const vagasFormato = (produto) => { const f = formatoDe(produto) || FORMATOS.Descubra; return { minimo: f.artistas, sugerido: f.artistas + (f.abertura ? 1 : 0) }; };
+
+  const PASSOS_CASA = [
+    ["handoff", -30, "Datas e atrações do mês aprovadas por escrito", "No mês anterior. Campanha planejada com o Marketing."],
+    ["ficha", -28, "Revisar a ficha da casa para este formato", "Capacidade real, restrições de horário e som, acessos, carga e descarga."],
+    ["rider", -28, "Conferir o rider do artista", "Rider técnico recebido e compatível com a casa."],
+    ["tecnico", -21, "Confirmar técnico de som e setup", "PA, mesa, monitores, microfones, DI, cabos e luz frontal para o rosto."],
+    ["roteiro", -21, "Fechar o roteiro do dia", "Equipe, passagem, portas, início, intervalos, encerramento e desmontagem."],
+    ["escrito", -14, "Confirmar tudo por escrito", "Equipamentos e fornecedores, maquininha com plano B (Pix ou link), rádios, plano B/C para som, energia, internet e chuva."],
+    ["travas", -7, "Travas finais", "Horários de chegada, compras de camarim, bar e limpeza, briefing do time local e plano de caixa."],
+    ["divulgacao_local", -7, "Divulgação local rodando", "Uma semana antes, a divulgação local já está no ar."],
+    ["equipe_reserva", -7, "Equipe escalada, com reserva", "Uma pessoa reserva para a equipe da noite, definida na semana do evento. Se alguém faltar, chame a reserva combinada antes."],
+    ["porta_reserva", -7, "Operadores de porta com reserva", "Quem fica na porta e a reserva, com cadastro na Ingresse com o mesmo e-mail. Mande nome e e-mail à Central, que libera as permissões."],
+    ["briefing_anfitriao", -7, "Briefing do anfitrião", "O briefing chega no D-7 com as apresentações dos artistas: leia e prepare as três falas da noite."],
+    ["pacote_grupo", -5, "Pacote fixado no grupo com os artistas", "De D-5 a D-4: pacote enviado e fixado no grupo com os artistas. Rider, equipe, porta e bebidas confirmados com a Operações."],
+    ["prontidao", 0, "A noite", "Montagem, passagem de som, portas no horário, padrão da noite. O cronograma dos shows não muda no dia."],
+    ["publico", 0, "Registrar o público e as intercorrências", "Anote qualquer intercorrência. Use \"Registrar a noite\" logo depois do show."],
+    ["fechamento", 2, "Fechamento (D+2)", "Relatório oficial do caixa do bar (dinheiro, cartão e Pix), custos da data com comprovantes, intercorrências e retorno dos artistas. Registros oficiais, não fotos de caixa."],
+    ["estoque", 2, "Planilha de estoque", "Preenchida em até 2 dias depois do evento. Novos pedidos de bebida só saem depois dela."],
+    ["material_social", 2, "Material da social media (48 h)", "Pasta crua na manhã seguinte; 3 vídeos editados e fotos em até 48 h depois do show."],
+  ];
+
+  // Passos que vieram do checklist de operações do Notion e não estão no Guia do Franqueado v1.5: aparecem com "a validar"
+  // até o Gui confirmar (os outros seguem o Guia, "A semana de cada evento" e "Depois de cada evento").
+  const A_VALIDAR = new Set(["ficha", "rider", "tecnico", "roteiro", "escrito", "travas", "porta_reserva", "briefing_anfitriao", "material_social"]);
+  function passosDaData(modelo, dataIso, feitos, hoje, produto) {
+    const camp = modelo === "casa" ? [] : (CAMPANHA_ARTISTA[produto] || CAMPANHA_ARTISTA[produtoBase(produto) || "Descubra"]);
+    const lista = modelo === "casa" ? PASSOS_CASA : [...PASSOS_ARTISTA, ...camp].sort((a, b) => a[1] - b[1]);
+    return montarPassos(lista, dataIso, feitos, hoje, (chave) => modelo === "casa" && A_VALIDAR.has(chave));
+  }
+  /** Mesma conta de prazo, atraso e "não registrado" para qualquer lista [chave, dias, titulo, texto] (casa, artista e
+   *  os modelos da equipe em src/modelos.js). feitos[chave] pode ser true ou { por, em } (quem marcou e quando). */
+  function montarPassos(lista, dataIso, feitos, hoje, validar = () => false) {
+    const base = new Date(dataIso + "T12:00:00");
+    return lista.map(([chave, dias, titulo, texto]) => {
+      const prazo = new Date(base.getTime() + dias * 864e5).toISOString().slice(0, 10);
+      const feito = !!(feitos && feitos[chave]);
+      // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
+      // não "atrasado". Só conta como atraso o que ainda dá para fazer.
+      const passou = !feito && dias <= 0 && dataIso < hoje;
+      // Começo do relógio (24/11/2026): prazo vencido antes do início do piloto não conta como atrasado (começa do zero).
+      const inicio = (typeof window !== "undefined" && window.TQ_INICIO_RELOGIO) || "", antesDoInicio = !feito && inicio && prazo < inicio;
+      return { chave, dias, titulo, texto, prazo, feito, passou: passou && !antesDoInicio, antesDoInicio: !!antesDoInicio, validar: validar(chave), atrasado: !feito && !passou && prazo < hoje && !antesDoInicio, agora: !feito && prazo >= hoje, marca: feito && typeof feitos[chave] === "object" ? feitos[chave] : null };
+    });
+  }
+
+  // Line-up da data (pedido da Marina, 18/11/2026): 3 artistas é o padrão do Descubra, mas a equipe adiciona ou remove.
+  // Mesmas regras do banco (supabase/schema.sql v31, datas_portal_lineup): pelo menos 1, no máximo 12, sem repetir
+  // (nome sem diferença de maiúsculas e espaços, ou a mesma conta). A ordem da noite é a da lista.
+  const LINEUP_PADRAO = 3, LINEUP_MAX = 12;
+  const chaveNome = (n) => String(n || "").replace(/\s+/g, " ").trim().toLowerCase();
+  function normalizarLineup(artistas) {
+    const lista = [], repetidos = [];
+    for (const a of artistas || []) {
+      const nome = String(a?.nome || "").replace(/\s+/g, " ").trim(); if (!nome) continue;
+      if (lista.some((x) => chaveNome(x.nome) === chaveNome(nome) || (a.user_id && x.user_id === a.user_id))) { repetidos.push(nome); continue; }
+      lista.push({ ...a, nome, ordem: lista.length + 1 });
+    }
+    const erro = !lista.length ? "pelo menos um artista" : lista.length > LINEUP_MAX ? `no máximo ${LINEUP_MAX} artistas` : repetidos.length ? `${repetidos.join(", ")} ${repetidos.length > 1 ? "aparecem" : "aparece"} duas vezes no line-up` : null;
+    return { lista, repetidos, erro };
+  }
+  /** Quem saiu do line-up (pela conta ou, sem conta, pelo nome). */
+  function lineupRemovidos(antes, depois) {
+    const fica = (a) => (depois || []).some((x) => (a.user_id && x.user_id === a.user_id) || (!a.user_id && chaveNome(x.nome) === chaveNome(a.nome)));
+    return (antes || []).filter((a) => !fica(a));
+  }
+  /** Passo a passo de cada artista do line-up: cada um com os seus passos (checklist dele, user_id + evento).
+   *  chk = linhas do checklist (user_id, evento_id, item, feito); contratoOk(user_id) = contrato assinado ou recebido. */
+  function passosDoLineup(data, chk, hoje, contratoOk) {
+    const ev = "p:" + data.id, dia = String(data.dia).slice(0, 10);
+    return [...(data.artistas || [])].sort((a, b) => (a.ordem || 99) - (b.ordem || 99)).map((a) => {
+      if (!a.user_id) return { nome: a.nome, user_id: null, passos: [], feitos: 0, total: 0, atrasados: 0, proximo: null };
+      const feitos = Object.fromEntries((chk || []).filter((c) => c.user_id === a.user_id && c.evento_id === ev && c.feito !== false).map((c) => [c.item, true]));
+      if (contratoOk && contratoOk(a.user_id)) feitos.contrato = true;
+      const passos = passosDaData("artista", dia, feitos, hoje, data.produto);
+      return { nome: a.nome, user_id: a.user_id, passos, feitos: passos.filter((p) => p.feito).length, total: passos.length, atrasados: passos.filter((p) => p.atrasado).length, proximo: passos.find((p) => !p.feito && !p.passou) || null };
+    });
+  }
+
+  g.TQRegras = { CIDADES_REDE, NOVA_EXIGENCIA, preCuradoria, pendenciasCasa, PASSOS_ARTISTA, PASSOS_CASA, A_VALIDAR, passosDaData, montarPassos, CAMPANHA_ARTISTA, LINEUP_PADRAO, LINEUP_MAX, normalizarLineup, FORMATOS, NOMES_FORMATO, formatoDe, produtoBase, topaFormato, vagasFormato, lineupRemovidos, passosDoLineup };
+})(typeof window !== "undefined" ? window : globalThis);
