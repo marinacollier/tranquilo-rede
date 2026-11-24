@@ -1,0 +1,41 @@
+name: Renovar chaves e publicar
+
+# Só roda à mão. Depois de trocar o SITE_SECRET: gera os pacotes com o segredo novo, atualiza as chaves internas e os
+# códigos de casas e artistas nos dois bancos e publica (teste na raiz, produção em /prd). Nenhum código vai para o log.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  renovar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Gerar códigos (sem publicar)
+        env:
+          SITE_SECRET: ${{ secrets.SITE_SECRET }}
+        run: |
+          [ -n "$SITE_SECRET" ] || { echo "::error::SITE_SECRET não configurado"; exit 1; }
+          ACESSOS_SAIDA="$RUNNER_TEMP/acessos.tsv" node scripts/build.mjs > /dev/null
+      - name: Atualizar chaves nos dois bancos
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          ACESSOS: ${{ runner.temp }}/acessos.tsv
+        run: node scripts/renovar-chaves.mjs
+      - name: Publicar
+        env:
+          SITE_SECRET: ${{ secrets.SITE_SECRET }}
+          SITE_DOMINIO: ${{ vars.SITE_DOMINIO }}
+        run: |
+          git config user.name "Rede Tranquilo (robô)"; git config user.email "robo@tranquilo.invalid"
+          ./scripts/publicar.sh
+          rm -f "$RUNNER_TEMP/acessos.tsv"
