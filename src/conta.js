@@ -4269,7 +4269,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   const segundaDe = (iso) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
   function historicoSemanal(E, papel) {
     const hoje = hojeIso(), todos = modeloDatas(E, [-60, 35]).flatMap((x) => x.eq[papel]), semanas = [];
-    for (let w = segundaDe(INICIO_MODELO); w <= segundaDe(hoje); w = new Date(Date.parse(w + "T12:00:00Z") + 7 * 864e5).toISOString().slice(0, 10)) {
+    // No máximo as últimas 9 semanas (a janela do modelo é de 60 dias), a partir do começo do relógio.
+    const de = [INICIO_MODELO, new Date(Date.parse(hoje + "T12:00:00Z") - 60 * 864e5).toISOString().slice(0, 10)].sort()[1];
+    for (let w = segundaDe(de); w <= segundaDe(hoje); w = new Date(Date.parse(w + "T12:00:00Z") + 7 * 864e5).toISOString().slice(0, 10)) {
       const fim = new Date(Date.parse(w + "T12:00:00Z") + 6 * 864e5).toISOString().slice(0, 10);
       const ps = todos.filter((y) => y.prazo >= w && y.prazo <= fim && y.prazo >= INICIO_MODELO && y.prazo < hoje);
       const noPrazo = ps.filter((y) => y.feito && (!y.marca?.em || String(y.marca.em).slice(0, 10) <= y.prazo)).length;
