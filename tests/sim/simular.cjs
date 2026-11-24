@@ -112,7 +112,7 @@ async function olhar(b, D, rotulo) {
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } }); const erros = [];
   await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {}; window.TQ_INICIO_MODELO = "2000-01-01";' }));
   await ctx.addInitScript((d) => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-demo-v1', d[0]); localStorage.setItem('tq-demo-hub', d[1]); } catch {} }, [JSON.stringify(db), JSON.stringify(hub)]);
-  const q = await ctx.newPage(); await q.clock.install({ time: new Date(D + 'T13:00:00-03:00') });
+  const q = await ctx.newPage(); await q.setViewportSize({ width: 1440, height: 900 }); await q.clock.install({ time: new Date(D + 'T13:00:00-03:00') });
   q.on('pageerror', (e) => erros.push(e.message)); q.on('dialog', (d) => d.accept());
   const entrar = async (uid) => { await q.goto(B); await q.waitForSelector('.cidade'); await q.click('#entrar'); await q.waitForSelector('#esenha'); await q.waitForTimeout(300); await q.fill('#email', uid + '@sim.invalid'); await q.fill('#esenha', 'segredo123'); await q.click('#eok'); await q.waitForTimeout(900); try { await q.click('[data-tour="pular"]', { timeout: 1200 }); } catch {} };
   const sair = async () => { try { await q.click('#sair'); await q.waitForTimeout(300); } catch {} };
@@ -135,6 +135,31 @@ async function olhar(b, D, rotulo) {
   }
   await q.screenshot({ path: path.join(OUT, `${rotulo}-adm-desempenho.png`), fullPage: true });
   await ir('acompanhamento'); await q.waitForTimeout(1200); r.acompanhamento = await txt('.md-kpis');
+  // Prints para a apresentação da habilitação (PRINTS=1, só na semana 1): telas reais do portal com os dados simulados.
+  if (process.env.PRINTS && rotulo === 'semana1') {
+    const P = path.join(OUT, 'prints'); fs.mkdirSync(P, { recursive: true });
+    const shot = async (nome, sel) => { await q.waitForTimeout(700); const el = sel ? await q.$(sel) : null; if (el) await el.screenshot({ path: path.join(P, nome + '.png') }); else await q.screenshot({ path: path.join(P, nome + '.png') }); };
+    const abrir = async (sel) => { const el = await q.$(sel); if (el) { await el.click(); await q.waitForTimeout(300); } };
+    await ir('piloto'); await q.waitForTimeout(800); await abrir('[data-piloto]'); await shot('adm-piloto', '#app');
+    await sair();
+    // Isa: Para você aberto (SOS com foco, artistas fora do portal) e Criar datas.
+    await entrar('isa'); await ir('hoje'); await q.waitForTimeout(1200); await abrir('details[data-dobra="md-painel"] summary'); await shot('isa-para-voce', 'details[data-dobra="md-painel"]');
+    await abrir('details[data-dobra="md-art-fora"] summary'); const af = await q.$('details[data-dobra="md-art-fora"]'); if (af) await af.screenshot({ path: path.join(P, 'isa-artistas-fora.png') });
+    await ir('datas_portal'); await q.waitForTimeout(1200); await shot('isa-criar-datas', '#app'); await sair();
+    // Bruno: Para você (acompanhar até o fim, fechar a data).
+    await entrar('bruno'); await ir('hoje'); await q.waitForTimeout(1200); await abrir('details[data-dobra="md-painel"] summary'); await shot('bruno-para-voce', 'details[data-dobra="md-painel"]'); await sair();
+    // Gui: Para você.
+    await entrar('gui'); await ir('hoje'); await q.waitForTimeout(1200); await abrir('details[data-dobra="md-painel"] summary'); await shot('gui-para-voce', 'details[data-dobra="md-painel"]'); await sair();
+    // Casa: próximos passos (campanha) e disponibilidade.
+    const casaUid = Object.keys(casas).find((u) => casas[u].status === 'habilitada');
+    await entrar(casaUid); await ir('datas_casa'); await q.waitForTimeout(1200); await shot('casa-proximos-passos', '#app'); await ir('disp_g'); await q.waitForTimeout(1200); await shot('casa-disponibilidade', '#app'); await sair();
+    // Artista: contrato.
+    const artUid = Object.keys(U).find((u) => U[u].perfil.tipo === 'artista' && contr.some((c) => c.user_id === u && c.status === 'enviado'));
+    if (artUid) { await entrar(artUid); await ir('contratos_meus'); await q.waitForTimeout(1200); await shot('artista-contrato', '#app'); await sair(); }
+    // Primeiro acesso: "Crie a sua senha".
+    const dd = JSON.parse(await q.evaluate(() => localStorage.getItem('tq-demo-v1'))); dd.usuarios.gui.perfil.senha_definida = false; await q.evaluate((d) => localStorage.setItem('tq-demo-v1', d), JSON.stringify(dd));
+    await entrar('gui'); await q.waitForTimeout(800); await shot('senha-nova', '#app'); await entrar('adm');
+  }
   await sair(); await ctx.close(); return r;
 }
 
