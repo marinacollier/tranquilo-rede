@@ -10,7 +10,7 @@ E por estarem de acordo, assinam.`;
 (async () => {
   const b = await chromium.launch(); const erros = [];
   const ctx = await b.newContext({ viewport: { width: 1280, height: 860 } });
-  await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
+  await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {}; window.TQ_INICIO_MODELO = "2000-01-01";' }));
   await ctx.addInitScript(() => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-dp-aberto', '1'); localStorage.setItem('tq-tutorial-publico', '1'); } catch {} });
   const p = await ctx.newPage(); p.on('pageerror', (e) => erros.push(e.message)); const dialogos = []; p.on('dialog', (d) => { dialogos.push(d.message()); d.accept(); });
   // Pula o tutorial (com um passo só não há "Pular": "Concluir" encerra).

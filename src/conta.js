@@ -1031,7 +1031,7 @@ const TQConta = (() => {
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["base_casas", "Base de casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
     g_contratos: ["Contratos", [["documentos", "Contratos e documentos"]]],
     g_campanhas: ["Campanhas", [["campanhas", "Campanhas"], ["demanda", "Demanda"]]],
-    g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["desempenho", "Desempenho da equipe"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
+    g_adm: ["Administração", [["estrategia", "O que está dando certo"], ["pessoas", "Pessoas"], ["prontidao", "Prontidão"], ["relatos", "Relatos"], ["piloto", "Piloto com parceiros"], ["desempenho", "Desempenho da equipe"], ["historico", "Histórico de alterações"], ["acessos", "Acessos"]]],
   };
   const GRUPOS_DA_AREA = { agenda: ["g_datas", "g_artistas", "g_contratos"], operacoes: ["g_casas", "g_contratos"], marketing: ["g_campanhas"] };
   const menuAgrupado = () => ["equipe", "adm"].includes(S.conta?.perfil.tipo);
@@ -1045,7 +1045,7 @@ const TQConta = (() => {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     // "Comece por aqui" é da administração e da equipe sem área; "Para você", de quem tem área (Gui, Isa, Bruno). "Seu histórico", de todos.
     return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "base_casas", "base_artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
-      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()) && (k !== "desempenho" || S.conta?.perfil.tipo === "adm") && (k !== "evolucao" || (S.conta?.perfil.tipo === "equipe" && (carregarAutoav(), autoavLiberada(S.conta.perfil.id)))));
+      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()) && (!["desempenho", "piloto"].includes(k) || S.conta?.perfil.tipo === "adm") && (k !== "evolucao" || (S.conta?.perfil.tipo === "equipe" && (carregarAutoav(), autoavLiberada(S.conta.perfil.id)))));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
@@ -2629,6 +2629,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // Acompanhamento (pedido da Marina, 18/11/2026): o modelo de cada papel em cada data, para a equipe e a adm.
     // Começa fechadinho: uma linha por data com o % de cada papel; abre para as ações, o Feito e os SOS.
     desempenho() { return telaDesempenho(); },
+    piloto() { return telaPiloto(); },
     evolucao() { return telaEvolucao(); },
     acompanhamento() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o acompanhamento"); }
@@ -4049,7 +4050,11 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   // O "Feito" da equipe usa a tabela checklist (item "op:…", "ag:…", "mk:…"), com quem marcou e quando.
   const MD = () => window.TQModelos;
   // O modelo de trabalho entrou no ar em 18/11/2026: prazos anteriores não contam como "aberto" nem entram nas métricas.
-  const INICIO_MODELO = "2026-11-18";
+  // Começo do relógio (Thales e Marina, 24/11/2026): a operação no portal começa no piloto de 26/11. O que venceu antes não
+  // conta como atrasado, não vira SOS de "passos atrasados" e não entra no Desempenho: todo mundo começa do zero.
+  // Os testes podem trocar a data por window.TQ_INICIO_MODELO.
+  const INICIO_MODELO = (typeof window !== "undefined" && window.TQ_INICIO_MODELO) || "2026-11-26";
+  if (typeof window !== "undefined") window.TQ_INICIO_RELOGIO = INICIO_MODELO;
   const NOME_PAPEL = { operacoes: "Gui · Operações", agenda: "Isa · Agenda", marketing: "Bruno · Marketing", casa: "Casa", artista: "Artistas" };
   /** Datas que entram no acompanhamento (de 3 dias atrás a 35 dias à frente) com os passos de cada papel e os SOS. */
   // janela = [de, até] em dias a partir de hoje; o painel de desempenho (só adm) e o "aberto em datas que passaram" usam -60.
@@ -4205,7 +4210,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   /** Leitura em uma frase do que os números dizem, com o foco de cada papel (Isa: qualidade e prazo; Bruno: fechar até o fim). */
   function leituraPapel(m) {
     const fr = [];
-    if (!m.vencidos.length && !m.passadas.length) return "Ainda sem prazos vencidos desde 18/11: os números aparecem conforme as datas avançam.";
+    if (!m.vencidos.length && !m.passadas.length) return `Ainda sem prazos vencidos desde ${dm(INICIO_MODELO)}: os números aparecem conforme as datas avançam.`;
     if (m.pctPrazo != null) fr.push(m.pctPrazo >= 80 ? `Previsível: ${m.pctPrazo}% dos passos no prazo.` : `Pouco previsível: só ${m.pctPrazo}% dos passos no prazo${m.tarde.length ? `, os atrasados com ${m.atrasoMedio} ${m.atrasoMedio === 1 ? "dia" : "dias"} de atraso em média` : ""}.`);
     if (m.incompletos.length) fr.push(`${m.incompletos.length} ${m.incompletos.length === 1 ? "passo marcado" : "passos marcados"} como feito sem estar completo (repasse incompleto).`);
     if (m.pctFechadas != null) fr.push(m.pctFechadas === 100 ? "Fechou todas as datas que já passaram." : `Fechou ${m.fechadas.length} de ${m.passadas.length} datas que já passaram: ${m.passadas.length - m.fechadas.length} ficaram com passo aberto.`);
@@ -4245,7 +4250,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
   function evolucaoPapel(m, voce = false) {
     const ev = EVOLUIR[m.papel]; if (!ev) return "";
     const passos = ev.passos.filter(([se]) => se(m)).map(([, t, tv]) => voce ? tv : t);
-    const forcaDados = m.noPrazo.length ? ` Nos dados: ${m.noPrazo.length} ${m.noPrazo.length === 1 ? "passo feito" : "passos feitos"} no prazo desde 18/11.` : "";
+    const forcaDados = m.noPrazo.length ? ` Nos dados: ${m.noPrazo.length} ${m.noPrazo.length === 1 ? "passo feito" : "passos feitos"} no prazo desde ${dm(INICIO_MODELO)}.` : "";
     const portal = `${m.autoConf} ${m.autoConf === 1 ? "passo conferido" : "passos conferidos"} sozinho pelo portal e ${m.sos.length} ${m.sos.length === 1 ? "alerta" : "alertas"} com a cobrança pronta: tempo que deixa de ir para conferir e cobrar.`;
     if (voce) return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Para você evoluir</h4><ul class="passos md-lista">
       <li><b>Sua força:</b> ${esc(ev.forca + forcaDados)}</li>
@@ -4297,7 +4302,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const pessoas = !voce && m.porPessoa.length ? dobra(id + "-pessoas", "Quem fez", `${m.porPessoa.length} ${m.porPessoa.length === 1 ? "pessoa marcou" : "pessoas marcaram"} passos deste papel`,
       `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Pessoa</th><th>Passos marcados</th><th>No prazo</th><th>Incompletos</th></tr></thead><tbody>${m.porPessoa.map((x) => `<tr><td>${esc(nomeDe(x.uid))}${x.da_area ? "" : " <span class=\"muted\">(de fora da área)</span>"}</td><td>${x.marcados}</td><td>${Math.round((x.noPrazo / x.marcados) * 100)}%</td><td>${x.incompletos}</td></tr>`).join("")}</tbody></table></div>${m.pessoasArea > 1 ? `<p class="muted" style="font-size:13px">Esta área tem ${m.pessoasArea} pessoas: os números de cima somam todas. Use esta tabela para conversar com cada uma.</p>` : ""}`) : "";
     const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m, voce)}${extra}${pessoas}
-      ${dobra(id + "-sem", "Evolução por semana", `${sem.filter((x) => x.n).length} ${sem.filter((x) => x.n).length === 1 ? "semana" : "semanas"} com prazos desde 18/11 · no prazo, incompletos e abertos de cada semana`, htmlHistorico(sem))}
+      ${dobra(id + "-sem", "Evolução por semana", `${sem.filter((x) => x.n).length} ${sem.filter((x) => x.n).length === 1 ? "semana" : "semanas"} com prazos desde ${dm(INICIO_MODELO)} · no prazo, incompletos e abertos de cada semana`, htmlHistorico(sem))}
       ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
       ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
       ${dobra(id + "-tarde", "Feito com atraso", `${m.tarde.length} passos`, lista(m.tarde, "Nenhum."))}
@@ -4318,6 +4323,34 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <p class="sub">Os seus números saem do que você marca no modelo de trabalho. Servem para você enxergar o próprio ritmo e escolher onde evoluir, não para comparar com ninguém. A administração vê os mesmos números.</p>
       ${areas.length ? areas.map((a) => cardPapel(E, a, { voce: true })).join("") : `<div class="alert">A sua conta ainda não tem área definida. Peça para a administração definir em Pessoas.</div>`}`;
   }
+  // Piloto com parceiros (Thales e Marina, 24/11/2026): o portal entra no ar primeiro para casas e artistas, e a equipe só
+  // gasta uns 10 minutos (o Gui escolhe 2 ou 3 casas; a Isa confere os artistas). Candidatas = casas com data nas próximas
+  // 3 semanas. Para cada uma: datas, se já tem conta, Ficha, artistas sem conta, convite pré-preenchido e boas-vindas prontas.
+  const lerPiloto = () => { try { return JSON.parse(localStorage.getItem("tq-piloto") || "[]"); } catch { return []; } };
+  const gravarPiloto = (xs) => { try { localStorage.setItem("tq-piloto", JSON.stringify(xs)); } catch {} };
+  function telaPiloto() {
+    if (S.conta?.perfil.tipo !== "adm") return `<div class="alert"><b>Só a administração vê esta tela.</b></div>`;
+    const E = S.eq; if (!E) { carregarEquipe(); return carregando("o piloto"); }
+    const hoje = hojeIso(), k = (x) => String(x || "").trim().toLowerCase(), escolhidas = lerPiloto(), link = location.origin + location.pathname;
+    const grupos = {};
+    for (const x of modeloDatas(E, [0, 21]).filter((y) => y.e.d >= hoje)) { const nome = x.ref || x.e.h || "Casa a definir"; (grupos[k(nome)] ||= { nome, datas: [], conta: false, ficha: null, wa: "", artistas: new Map() });
+      const g = grupos[k(nome)]; g.datas.push(x); g.conta ||= x.casaUsers.length > 0; g.ficha ||= x.casa?.status || null; g.wa ||= x.whatsCasa || "";
+      for (const a of x.artistas) if (!g.artistas.has(a.nome)) g.artistas.set(a.nome, a); }
+    const lista = Object.values(grupos).sort((a, b) => (escolhidas.includes(b.nome) - escolhidas.includes(a.nome)) || a.datas[0].e.d.localeCompare(b.datas[0].e.d));
+    const msgCasa = (g) => `Oi! Aqui é a Marina, do Tranquilo. A ${g.nome} vai fazer parte do piloto da Rede Tranquilo, o nosso portal novo para as casas. Lá você marca os dias livres (a gente para de perguntar um por um), assina o contrato, vê a campanha pronta de cada data para postar e o passo a passo até a noite. Vou te mandar o convite por e-mail; leva 5 minutos. Link: ${link}`;
+    const msgArt = (a, x) => `Oi, ${a.nome}! Aqui é a Marina, do Tranquilo. O show de ${dm(x.e.d)}${x.e.h ? " na " + x.e.h : ""} agora fica todo na Rede Tranquilo: contrato para assinar, horários, briefing da divulgação e o passo a passo até a noite. Cria a sua conta em 2 minutos: ${link}`;
+    const card = (g) => { const sel = escolhidas.includes(g.nome), semConta = [...g.artistas.values()].filter((a) => !a.user_id);
+      return `<div class="card" style="margin-bottom:10px"><label class="fcheck"><input type="checkbox" data-piloto="${esc(g.nome)}"${sel ? " checked" : ""}> <span><b>${esc(g.nome)}</b> ${sel ? '<span class="badge b-good">no piloto</span>' : ""}</span></label>
+        <p class="muted" style="font-size:13px;margin:4px 0">${g.datas.map((x) => `${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} (${esc(x.e.m || "")})`).join(" · ")} · ${g.conta ? "✅ casa já tem conta" : "casa ainda sem conta"}${g.ficha ? ` · Ficha: ${esc(g.ficha)}` : ""} · ${g.artistas.size} ${g.artistas.size === 1 ? "artista" : "artistas"}${semConta.length ? `, ${semConta.length} sem conta` : ""}</p>
+        ${sel ? `<div class="barra-acoes">${g.conta ? "" : `<button class="btn sm pri" data-piloto-convidar="casa|${esc(g.nome)}">Convidar a casa</button>`}<a class="btn sm" href="https://wa.me/${soDigitos(g.wa)}?text=${encodeURIComponent(msgCasa(g))}" target="_blank" rel="noopener">Boas-vindas da casa no WhatsApp${g.wa ? "" : " (escolher contato)"}</a></div>
+          ${semConta.length ? `<p style="font-size:13px;margin:8px 0 4px"><b>Artistas sem conta</b></p><ul class="passos md-lista">${semConta.map((a) => { const x = g.datas.find((y) => y.artistas.some((z) => z.nome === a.nome)); return `<li><b>${esc(a.nome)}</b><div class="barra-acoes" style="margin-top:4px"><button class="btn sm" data-piloto-convidar="artista|${esc(a.nome)}">Convidar</button><a class="btn sm" href="https://wa.me/${soDigitos(a.whatsapp || "")}?text=${encodeURIComponent(msgArt(a, x))}" target="_blank" rel="noopener">Boas-vindas no WhatsApp${a.whatsapp ? "" : " (escolher contato)"}</a></div></li>`; }).join("")}</ul>` : ""}` : ""}</div>`; };
+    const msgEquipe = `Oi! A partir de quinta (26/11), a Rede Tranquilo entra no ar com algumas casas e artistas no piloto. Para vocês, a ideia é economizar tempo desde o primeiro dia: as casas marcam as datas livres no portal (Gui), os artistas assinam o contrato lá (Isa) e as casas veem a campanha pronta (Bruno). No primeiro acesso, o portal pede uma senha nova. O relógio começa do zero na quinta: nada de antes conta como atrasado.`;
+    return `<div class="tag">Administração · piloto de ${dm(INICIO_MODELO)}</div><h1>Piloto com parceiros</h1>
+      <p class="sub">O portal entra no ar primeiro para as casas e os artistas. Da equipe, só uns 10 minutos: o Gui escolhe 2 ou 3 casas (marque abaixo) e a Isa confere os artistas. Os convites e as boas-vindas saem prontos daqui.</p>
+      <div class="alert"><b>${escolhidas.length ? `${escolhidas.length} ${escolhidas.length === 1 ? "casa escolhida" : "casas escolhidas"}` : "Nenhuma casa escolhida ainda"}</b>Candidatas: casas com data nas próximas 3 semanas (${lista.length}). A escolha fica guardada neste navegador.</div>
+      ${lista.length ? lista.map(card).join("") : vazio("Nenhuma casa com data nas próximas 3 semanas", "Quando houver datas no Notion ou criadas no portal, as casas aparecem aqui.")}
+      ${dobra("piloto-equipe", "Mensagem para a equipe (quinta)", "o que muda para a Isa, o Bruno e o Gui · copiar e mandar no grupo", `<textarea id="pilotoMsgEq" readonly rows="6" style="width:100%">${esc(msgEquipe)}</textarea><div class="barra-acoes" style="margin-top:6px"><button class="btn sm" data-copiar-msg="pilotoMsgEq">Copiar a mensagem</button><span class="muted" style="font-size:13px"></span></div>`)}`;
+  }
   function telaDesempenho() {
     if (S.conta?.perfil.tipo !== "adm") return `<div class="alert"><b>Só a administração vê esta tela.</b></div>`;
     const E = S.eq; if (!E) { carregarEquipe(); return carregando("o desempenho da equipe"); }
@@ -4327,7 +4360,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return `<div class="dsp-autoav"><h4 style="margin:12px 0 6px">Autoavaliação</h4><p class="muted" style="font-size:13px;margin:0 0 6px">Libere quando a pessoa estiver confortável com o portal: ela passa a ver os próprios números e as sugestões em "Sua evolução", com o texto falando com ela.</p>${gente.map((x) => `<label class="fcheck"><input type="checkbox" data-autoav="${esc(x.id)}"${autoavLiberada(x.id) ? " checked" : ""}${S.autoav === null ? " disabled" : ""}> <span>Mostrar a ${esc(String(x.nome || x.email || "").split(" ")[0])} os próprios números</span></label>`).join("")}</div>`; };
     const card = (p) => cardPapel(E, p, { extra: liberar(p) });
     return `<div class="tag">Administração · só a adm vê</div><h1>Desempenho da equipe</h1>
-      <p class="sub">Para entender como cada papel está entregando e como ajudar cada pessoa a evoluir: os números mostram onde apoiar, não servem para ranquear ninguém. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de 18/11/2026, quando o modelo entrou no ar. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
+      <p class="sub">Para entender como cada papel está entregando e como ajudar cada pessoa a evoluir: os números mostram onde apoiar, não servem para ranquear ninguém. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de ${dm(INICIO_MODELO)}, o começo do piloto: o que venceu antes não entra. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
       <div class="barra-acoes" style="margin-bottom:10px"><button class="btn sm" data-acomp-atualizar>Atualizar agora</button></div>
       ${["agenda", "marketing", "operacoes"].map(card).join("")}
       ${dobra("dsp-como", "Como cada número é calculado", "no prazo, datas fechadas, repasse incompleto, atraso médio", `<ul class="passos md-lista">
@@ -5413,6 +5446,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       await acao(fok, async () => { for (const it of itens) await api.marcar(evId, it, true); TQDiario.registrar("fechou_data", { papel, n: itens.length }); S.fecharPend = null; const y = scrollY; S.eq.chk = await api.checklistTodos(); render(); scrollTo(0, y); }, { ok: `Data fechada: ${itens.length} ${itens.length === 1 ? "passo marcado" : "passos marcados"} como feito.` });
       return;
     }
+    const pil = t.closest("[data-piloto]"); if (pil) { const n = pil.dataset.piloto, xs = lerPiloto().filter((x) => x !== n); if (pil.checked) xs.push(n); gravarPiloto(xs); render(); return; }
+    const pcv = t.closest("[data-piloto-convidar]"); if (pcv) { const [tipo, ...nm] = pcv.dataset.pilotoConvidar.split("|"); S.convTipo = tipo; S.convPre = { nome: nm.join("|") }; S.convRasc = null; irPara("convites"); render(); scrollTo(0, 0); return; }
     if (t.closest("[data-autoav]")) { const x = t.closest("[data-autoav]"), uid = x.dataset.autoav, sim = x.checked; x.disabled = true;
       api.liberarAutoavaliacao(uid, sim).then(() => { S.autoav = undefined; render(); }).catch((e) => { x.checked = !sim; x.disabled = false; alert(traduz(e.message || "Não foi possível salvar.")); }); return; }
     if (t.closest("[data-acomp-atualizar]")) { S.eq = null; S.hub = null; carregarEquipe(); carregarHub(); render(); return; }

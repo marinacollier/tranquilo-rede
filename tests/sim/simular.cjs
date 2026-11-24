@@ -110,7 +110,7 @@ simularDia.feito = new Set(); simularDia.adiados = [];
 async function olhar(b, D, rotulo) {
   const db = { sessao: null, insc, reg: [], conv: {}, avisos: [], modContr: [], arqs: [], eqc, usuarios: U, casas, datasP, contr: contr.map(({ alvo, nunca, casa, ...c }) => c), chk, campFeitos, autoav: { isa: D + 'T10:00:00Z', bruno: D + 'T10:00:00Z' } };
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } }); const erros = [];
-  await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {};' }));
+  await ctx.route('**/config.js*', (r) => r.fulfill({ contentType: 'application/javascript', body: 'window.TQ_CONFIG = {}; window.TQ_INICIO_MODELO = "2000-01-01";' }));
   await ctx.addInitScript((d) => { try { localStorage.setItem('tq-consentimento', 'tudo'); localStorage.setItem('tq-sem-trilha', '1'); localStorage.setItem('tq-tutorial-publico', '1'); localStorage.setItem('tq-demo-v1', d[0]); localStorage.setItem('tq-demo-hub', d[1]); } catch {} }, [JSON.stringify(db), JSON.stringify(hub)]);
   const q = await ctx.newPage(); await q.clock.install({ time: new Date(D + 'T13:00:00-03:00') });
   q.on('pageerror', (e) => erros.push(e.message)); q.on('dialog', (d) => d.accept());

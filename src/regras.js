@@ -162,7 +162,9 @@
       // Depois do show, o que era "antes ou no dia" não tem mais como ser feito: vira "não registrado",
       // não "atrasado". Só conta como atraso o que ainda dá para fazer.
       const passou = !feito && dias <= 0 && dataIso < hoje;
-      return { chave, dias, titulo, texto, prazo, feito, passou, validar: validar(chave), atrasado: !feito && !passou && prazo < hoje, agora: !feito && prazo >= hoje, marca: feito && typeof feitos[chave] === "object" ? feitos[chave] : null };
+      // Começo do relógio (24/11/2026): prazo vencido antes do início do piloto não conta como atrasado (começa do zero).
+      const inicio = (typeof window !== "undefined" && window.TQ_INICIO_RELOGIO) || "", antesDoInicio = !feito && inicio && prazo < inicio;
+      return { chave, dias, titulo, texto, prazo, feito, passou: passou && !antesDoInicio, antesDoInicio: !!antesDoInicio, validar: validar(chave), atrasado: !feito && !passou && prazo < hoje && !antesDoInicio, agora: !feito && prazo >= hoje, marca: feito && typeof feitos[chave] === "object" ? feitos[chave] : null };
     });
   }
 
