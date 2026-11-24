@@ -37,5 +37,6 @@ jobs:
           SITE_DOMINIO: ${{ vars.SITE_DOMINIO }}
         run: |
           git config user.name "Rede Tranquilo (robô)"; git config user.email "robo@tranquilo.invalid"
+          git remote set-url origin "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git"
           ./scripts/publicar.sh
           rm -f "$RUNNER_TEMP/acessos.tsv"
