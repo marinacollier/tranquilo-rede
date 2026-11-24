@@ -159,6 +159,14 @@ async function olhar(b, D, rotulo) {
     // Primeiro acesso: "Crie a sua senha".
     const dd = JSON.parse(await q.evaluate(() => localStorage.getItem('tq-demo-v1'))); dd.usuarios.gui.perfil.senha_definida = false; await q.evaluate((d) => localStorage.setItem('tq-demo-v1', d), JSON.stringify(dd));
     await entrar('gui'); await q.waitForTimeout(800); await shot('senha-nova', '#app'); await entrar('adm');
+    // Guia por acesso (PRINTS): telas de cada acesso, sem o aviso flutuante.
+    const semAviso = () => q.addStyleTag({ content: '.toast,[role="status"].flutua,#aviso-flutuante{display:none!important}' }).catch(() => {});
+    await ir('desempenho'); await q.waitForTimeout(1200); await semAviso(); await abrir('details[data-dobra="dsp-agenda"] summary'); await shot('adm-desempenho', '#app');
+    await ir('acompanhamento'); await q.waitForTimeout(1200); await semAviso(); await shot('adm-acompanhamento', '#app'); await sair();
+    await entrar(casaUid); for (const [k, n] of [['ficha', 'casa-ficha'], ['equipe_g', 'casa-equipe'], ['contr_g', 'casa-contrato'], ['cronograma', 'casa-cronograma']]) { await ir(k); await q.waitForTimeout(1100); await semAviso(); await shot(n, '#app'); } await sair();
+    const artUid2 = Object.keys(U).find((u) => U[u].perfil.tipo === 'artista' && datasP.some((d) => d.status !== 'cancelada' && d.dia >= D && d.artistas.some((a) => a.user_id === u)));
+    if (artUid2) { await entrar(artUid2); for (const [k, n] of [['passos', 'artista-passos'], ['art_mkt', 'artista-divulgacao'], ['disp_artista', 'artista-disponibilidade']]) { await ir(k); await q.waitForTimeout(1100); await semAviso(); await shot(n, '#app'); } await sair(); }
+    await entrar('adm');
   }
   await sair(); await ctx.close(); return r;
 }
