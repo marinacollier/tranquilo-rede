@@ -57,6 +57,11 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await q.click('details[data-dobra="dsp-marketing"] summary'); await q.waitForTimeout(200);
     const sm = await q.textContent('details[data-dobra="dsp-marketing"]');
     ok(/Fechou 0 de 1 datas que já passaram/.test(sm) && /datas fechadas até o fim \(0 de 1\)/.test(sm), 'adm: Bruno fechou 0 de 1 datas que passaram');
+    ok(/Como ajudar Bruno a evoluir/.test(sm) && /Rotina de fechamento/.test(sm) && /Pergunta para a conversa 1:1/.test(sm) && /Para onde esse tempo pode ir/.test(sm), 'adm: Bruno tem "Como ajudar a evoluir" ligado ao número (rotina de fechamento) e a pergunta para o 1:1');
+    await q.click('details[data-dobra="dsp-agenda"] summary'); await q.waitForTimeout(200);
+    const si = await q.textContent('details[data-dobra="dsp-agenda"]');
+    ok(/Como ajudar Isa a evoluir/.test(si) && /pronto para passar adiante/.test(si) && /Curadoria e relação com artistas/.test(si), 'adm: Isa tem o próximo passo de qualidade e o papel mais estratégico');
+    ok(/não servem para ranquear ninguém/.test(await q.textContent('#app')), 'adm: a tela deixa claro que os números não ranqueiam pessoas');
     ok(/Como cada número é calculado/.test(await q.textContent('#app')), 'adm: explica como cada número é calculado');
     ok(/desempenho/.test(await menu()), 'adm: "Desempenho da equipe" está no menu da Administração');
     await sair();

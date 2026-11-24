@@ -4181,7 +4181,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const atrasoMedio = tarde.length ? Math.round(tarde.reduce((t, y) => t + diasEntre(y.prazo, String(y.marca.em).slice(0, 10)), 0) / tarde.length) : 0;
     return { papel, vencidos, noPrazo, tarde, naoFeitos, incompletos, porOutro, passadas, fechadas, sos, atrasoMedio,
       pctPrazo: pct(noPrazo.length, vencidos.length), pctFechadas: pct(fechadas.length, passadas.length), pctIncompleto: pct(incompletos.length, todos.filter((y) => y.marca?.por && y.auto).length),
-      atrasadosAgora: todos.filter((y) => y.atrasado && y.prazo >= INICIO_MODELO), escalados: sos.filter((s) => s.escalado) };
+      atrasadosAgora: todos.filter((y) => y.atrasado && y.prazo >= INICIO_MODELO), escalados: sos.filter((s) => s.escalado),
+      autoConf: todos.filter((y) => y.marca?.auto).length, feitosTotal: todos.filter((y) => y.feito && y.prazo >= INICIO_MODELO).length };
   }
   /** Leitura em uma frase do que os números dizem, com o foco de cada papel (Isa: qualidade e prazo; Bruno: fechar até o fim). */
   function leituraPapel(m) {
@@ -4192,6 +4193,46 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     if (m.pctFechadas != null) fr.push(m.pctFechadas === 100 ? "Fechou todas as datas que já passaram." : `Fechou ${m.fechadas.length} de ${m.passadas.length} datas que já passaram: ${m.passadas.length - m.fechadas.length} ficaram com passo aberto.`);
     if (m.porOutro.length) fr.push(`${m.porOutro.length} ${m.porOutro.length === 1 ? "passo foi fechado" : "passos foram fechados"} por outra pessoa.`);
     return fr.join(" ");
+  }
+  // Olhar humano (combinado com a Marina, 24/11/2026): os números não servem para ranquear nem descartar ninguém. Cada papel
+  // ganha "Como ajudar a evoluir": a força que os dados mostram, o próximo passo de desenvolvimento ligado ao número, o
+  // que o portal já tira das costas da pessoa e o papel mais estratégico que esse tempo libera.
+  const EVOLUIR = {
+    agenda: { pessoa: "Isa", estrategico: "Curadoria e relação com artistas: descobrir talentos, montar line-ups melhores e cuidar da carreira de quem toca no Tranquilo.",
+      forca: "Corre atrás da meta: fecha line-up e contrato mesmo com pouco tempo.",
+      passos: [
+        [(m) => m.incompletos.length > 0, "Combinar com ela o que é \"pronto para passar adiante\" em cada etapa (line-up, contratos, assinaturas, rider, cronograma). O portal já confere 3 sozinho; ela define os critérios dos outros. Quem define o critério passa a cuidar da qualidade."],
+        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Planejar a semana pelos prazos: toda segunda, abrir o \"Para você\" e fechar primeiro o que vence em 7 dias. Previsibilidade vira hábito antes de virar cobrança."],
+        [(m) => m.naoFeitos.length > 0, "Registrar o que fez: o que não é marcado parece não feito. Pedir que marque o Feito na hora (ou anexe o print) protege o trabalho dela."],
+      ],
+      pergunta: "O que mais te atrapalha para fechar uma etapa completa antes de passar para a próxima?" },
+    marketing: { pessoa: "Bruno", estrategico: "Dono dos sistemas de marketing e da estratégia de marca: modelos de campanha, briefings e automações com IA, com a execução nas casas e nos artistas.",
+      forca: "Organizado e bom em transformar processo em sistema automatizado com IA.",
+      passos: [
+        [(m) => m.pctFechadas != null && m.pctFechadas < 100, "Rotina de fechamento: toda segunda, abrir \"Acompanhar até o fim\" e, para cada data da semana anterior, fechar ou cobrar o que ficou aberto. Liderança é levar até o fim, não só começar."],
+        [(m) => m.porOutro.length > 0, "Combinar quem acompanha o quê: o que outra pessoa precisou fechar no lugar dele vira um combinado claro, sem resgate."],
+        [(m) => m.atrasadosAgora.length > 0, "Usar as cobranças prontas do SOS (WhatsApp com a mensagem pronta) assim que algo atrasar, em vez de esperar o fim da campanha."],
+      ],
+      pergunta: "Onde você sente que perde o fio de uma entrega depois de passar para a casa ou para o artista?" },
+    operacoes: { pessoa: "Gui", estrategico: "Expansão da rede: abrir e treinar casas novas e cuidar da experiência das que já estão, com a parte repetitiva no portal.",
+      forca: "Conduz a casa da Ficha até a noite.",
+      passos: [
+        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Antecipar os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS."],
+        [(m) => m.naoFeitos.length > 0, "Registrar o fechamento (D+2) de cada noite: é o que dá dado para decidir onde abrir mais datas."],
+      ],
+      pergunta: "Qual etapa com a casa mais toma o seu tempo e poderia ser feita pela própria casa no portal?" },
+  };
+  function evolucaoPapel(m) {
+    const ev = EVOLUIR[m.papel]; if (!ev) return "";
+    const passos = ev.passos.filter(([se]) => se(m)).map(([, t]) => t);
+    const forcaDados = m.noPrazo.length ? ` Nos dados: ${m.noPrazo.length} ${m.noPrazo.length === 1 ? "passo feito" : "passos feitos"} no prazo desde 18/11.` : "";
+    const portal = `${m.autoConf} ${m.autoConf === 1 ? "passo conferido" : "passos conferidos"} sozinho pelo portal e ${m.sos.length} ${m.sos.length === 1 ? "alerta" : "alertas"} com a cobrança pronta: tempo que deixa de ir para conferir e cobrar.`;
+    return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Como ajudar ${esc(ev.pessoa)} a evoluir</h4><ul class="passos md-lista">
+      <li><b>Força:</b> ${esc(ev.forca + forcaDados)}</li>
+      <li><b>Próximo passo de desenvolvimento:</b> ${passos.length ? passos.map(esc).join(" ") : "Sem ponto de atenção nos números: vale reconhecer e dar mais autonomia."}</li>
+      <li><b>O que o portal já tira das costas:</b> ${esc(portal)}</li>
+      <li><b>Para onde esse tempo pode ir:</b> ${esc(ev.estrategico)}</li>
+      <li><b>Pergunta para a conversa 1:1:</b> “${esc(ev.pergunta)}”</li></ul></div>`;
   }
   function telaDesempenho() {
     if (S.conta?.perfil.tipo !== "adm") return `<div class="alert"><b>Só a administração vê esta tela.</b></div>`;
@@ -4209,7 +4250,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         num(m.tarde.length ? m.atrasoMedio + "d" : "–", `atraso médio quando atrasa (${m.tarde.length} passos)`),
         num(m.porOutro.length, "fechados por outra pessoa"),
         num(m.sos.length, `SOS abertos${m.escalados.length ? ` · ${m.escalados.length} escalados` : ""}`, m.sos.length ? "ruim" : "")].join("");
-      const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>
+      const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m)}
         ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
         ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
         ${dobra(id + "-tarde", "Feito com atraso", `${m.tarde.length} passos`, lista(m.tarde, "Nenhum."))}
@@ -4217,7 +4258,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       return dobra(id, `${NOME_PAPEL[p]}`, `${m.pctPrazo == null ? "sem prazos vencidos ainda" : m.pctPrazo + "% no prazo"} · ${m.pctFechadas == null ? "nenhuma data passada" : m.pctFechadas + "% das datas fechadas"} · ${m.incompletos.length} incompleto${m.incompletos.length === 1 ? "" : "s"} · ${esc(FOCO[p])}`, corpo, { classe: "card" });
     };
     return `<div class="tag">Administração · só a adm vê</div><h1>Desempenho da equipe</h1>
-      <p class="sub">Para entender como cada papel está entregando. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de 18/11/2026, quando o modelo entrou no ar. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
+      <p class="sub">Para entender como cada papel está entregando e como ajudar cada pessoa a evoluir: os números mostram onde apoiar, não servem para ranquear ninguém. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de 18/11/2026, quando o modelo entrou no ar. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
       <div class="barra-acoes" style="margin-bottom:10px"><button class="btn sm" data-acomp-atualizar>Atualizar agora</button></div>
       ${["agenda", "marketing", "operacoes"].map(card).join("")}
       ${dobra("dsp-como", "Como cada número é calculado", "no prazo, datas fechadas, repasse incompleto, atraso médio", `<ul class="passos md-lista">
