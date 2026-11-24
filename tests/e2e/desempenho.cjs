@@ -17,7 +17,7 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     casas: Object.fromEntries([casa('cx', 'Casa Modelo')]),
     // dp0 já passou (há 3 dias): o "Material da noite" do Bruno (D+2) venceu ontem e ninguém marcou.
     // dp1 é daqui a 12 dias: a Isa marcou "Contratos enviados" (D-14), mas a Artista Dois está sem contrato no portal.
-    datasP: [data('dp0', -3), data('dp1', 12)],
+    datasP: [data('dp0', -3), data('dp1', 12), { ...data('dp2', 10), artistas: [{ nome: 'Artista Sem Conta', user_id: null, ordem: 1 }] }],
     contr: [ct('ct-a1', 'a1', 'p:dp1', 'Show Artista Um')],
     chk: [{ user_id: 'isa', evento_id: 'p:dp1', item: 'ag:contratos', feito: true, atualizado_em: new Date(Date.now() - 4 * 864e5).toISOString() }] };
   const ctx = await b.newContext({ viewport: { width: 1280, height: 900 } });
@@ -36,6 +36,10 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const pi = await q.textContent('details[data-dobra="md-painel"]');
     ok(/Marcado como feito, mas o portal ainda não confere \(1\)/.test(pi) && /Contratos dos artistas enviados/.test(pi), 'Isa: "Contratos enviados" marcado sem contrato da Artista Dois aparece como repasse incompleto');
     ok(!/desempenho/.test(await menu()) && !/Desempenho da equipe/.test(await q.textContent('body')), 'Isa: não vê "Desempenho da equipe"');
+    ok(/SOS: os \d+ mais urgentes/.test(pi), 'Isa: o SOS mostra só os mais urgentes, agrupados por data');
+    ok(/Artistas fora do portal \(1\)/.test(pi) && !!(await q.$('details[data-dobra="md-art-fora"]')), 'Isa: vê "Artistas fora do portal" com quem está no line-up sem conta');
+    await q.click('details[data-dobra="md-art-fora"] summary'); await q.waitForTimeout(150);
+    ok(/Cria a sua conta/.test(decodeURIComponent(await q.$eval('details[data-dobra="md-art-fora"] a[href*="wa.me"]', (a) => a.href))), 'Isa: o convite do artista sai pronto no WhatsApp');
     await ir('desempenho'); await q.waitForTimeout(300);
     ok(!/no prazo \(/.test(await q.textContent('#app')), 'Isa: mesmo forçando a tela, não aparece nenhuma métrica');
     await sair();
@@ -44,8 +48,13 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     await q.click('details[data-dobra="md-painel"] summary'); await q.waitForTimeout(200);
     const pb = await q.textContent('details[data-dobra="md-painel"]');
     ok(/Acompanhar até o fim: ficou aberto em datas que já passaram/.test(pb) && /Material da noite recebido/.test(pb), 'Bruno: o "Material da noite" da data que passou aparece para fechar');
+    await q.click('details[data-dobra="md-fim:p:dp0|marketing"] summary'); await q.waitForTimeout(150);
     const caixa = await q.$('details[data-dobra="md-painel"] [data-passo-eq="p:dp0|mk:material"]');
     ok(!!caixa, 'Bruno: o passo aberto tem o Feito para fechar ali mesmo');
+    await q.click('[data-fechar-data="p:dp0|marketing"]'); await q.waitForTimeout(300);
+    ok(/Aconteceu conforme o combinado\?/.test(await q.textContent('details[data-dobra="md-painel"]')), 'Bruno: "Fechar a data" pede confirmação antes');
+    await q.click('[data-fechar-nao]'); await q.waitForTimeout(300);
+    ok(!!(await q.$('[data-fechar-data="p:dp0|marketing"]')), 'Bruno: "Não, vou ver passo a passo" desiste sem marcar nada');
     ok(!/desempenho/.test(await menu()), 'Bruno: não vê "Desempenho da equipe"');
     await sair();
     // 3. Adm: vê o Desempenho com os números de cada papel, tudo fechado.
@@ -80,6 +89,9 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     const eb = await q.textContent('#app');
     ok(/Sua evolução/.test(eb) && /Para você evoluir/.test(eb) && /Toda segunda, abra/.test(eb) && !/Como ajudar Bruno/.test(eb), 'Bruno: vê os próprios números com o texto falando com ele');
     ok(!(await q.$('details[data-dobra="evo-agenda"]')) && !(await q.$('details[data-dobra="dsp-agenda"]')), 'Bruno: não vê os números da Isa');
+    await ir('hoje'); await q.waitForSelector('details[data-dobra="md-painel"]', { timeout: 6000 }); await q.click('details[data-dobra="md-painel"] summary'); await q.waitForTimeout(200);
+    await q.click('[data-fechar-data="p:dp0|marketing"]'); await q.waitForTimeout(300); await q.click('[data-fechar-ok="p:dp0|marketing"]'); await q.waitForTimeout(1000);
+    ok(!(await q.$('[data-fechar-data="p:dp0|marketing"]')) && !/Acompanhar até o fim: ficou aberto/.test(await q.textContent('#app')), 'Bruno: fecha a data de uma vez e ela sai de "Acompanhar até o fim"');
     await sair();
     await entrar('isa'); await ir('hoje'); await q.waitForTimeout(800);
     ok(!/evolucao/.test(await menu()), 'Isa: sem liberação, não vê "Sua evolução"');

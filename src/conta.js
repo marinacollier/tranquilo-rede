@@ -4325,6 +4325,43 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         <li><b>Fechado por outra pessoa:</b> passo do papel marcado por alguém que não é da área (sinal de que alguém precisou resgatar).</li>
         <li>Nada disso aparece para a equipe. Eles veem só, no "Para você", o que ficou aberto em datas passadas e o que foi marcado sem estar completo, para corrigir.</li></ul>`)}`;
   }
+  // SOS com foco (simulação de 24/11/2026: 46 a 73 SOS numa semana é demais para alguém resolver): os 5 mais urgentes,
+  // agrupados por data (escalados e os mais perto da data primeiro); o resto fica numa dobra "Ver todos".
+  const urgenciaSos = (s) => (s.escalado ? -1000 : 0) + (s.d == null ? 0 : s.d);
+  function htmlSosFoco(sos) {
+    if (!sos.length) return `<p class="muted" style="font-size:13px">Nenhum SOS aberto: nada atrasado ou travado.</p>`;
+    const ord = [...sos].sort((a, b) => urgenciaSos(a) - urgenciaSos(b) || String(a.dia || "").localeCompare(String(b.dia || "")));
+    const agrupar = (xs) => { const g = []; for (const s of xs) { const k = s.x?.e?.id || "sem-data"; let item = g.find((y) => y.k === k); if (!item) g.push(item = { k, s0: s, xs: [] }); item.xs.push(s); } return g; };
+    const html = (xs) => agrupar(xs).map(({ s0, xs: ys }) => `${s0.x?.e ? `<li class="md-data"><span class="muted" style="font-size:13px"><b>${NOME_SEM[wdDe(s0.x.e.d)].slice(0, 3)} ${dm(s0.x.e.d)}</b> · ${esc(s0.x.e.h || s0.x.e.c || "casa a definir")} · faltam ${s0.d} ${s0.d === 1 ? "dia" : "dias"}</span></li>` : ""}${ys.map(htmlSos).join("")}`).join("");
+    const top = ord.slice(0, 5), resto = ord.slice(5);
+    return `<h4 style="margin:4px 0 6px">SOS: os ${top.length} mais urgentes${sos.length > 5 ? ` de ${sos.length}` : ""}</h4><ul class="passos md-lista">${html(top)}</ul>
+      ${resto.length ? dobra("md-sos-resto", `Ver todos os SOS (mais ${resto.length})`, "agrupados por data, do mais perto ao mais longe", `<ul class="passos md-lista">${html(resto)}</ul>`) : ""}`;
+  }
+  // Fechar a data (simulação de 24/11/2026: depois de um mês, 48 a 57 passos abertos em datas passadas): fecha de uma vez
+  // os passos abertos do papel na data, depois de confirmar que aconteceu conforme o combinado.
+  function htmlFecharDatas(abertos) {
+    const g = []; for (const a of abertos) { const k = a.x.e.id + "|" + a.p; let item = g.find((y) => y.k === k); if (!item) g.push(item = { k, p: a.p, x: a.x, ys: [] }); item.ys.push(a.y); }
+    return g.slice(0, 8).map(({ k, p, x, ys }) => {
+      const pode = temArea(p), conf = S.fecharPend === k;
+      const botoes = !pode ? "" : conf
+        ? `<div class="alert" style="margin:6px 0"><b>Aconteceu conforme o combinado?</b>Os ${ys.length} passos abertos de ${esc(NOME_PAPEL[p])} nesta data ficam como feitos por você, com a data de hoje.<div class="barra-acoes" style="margin-top:6px"><button class="btn sm pri" data-fechar-ok="${esc(k)}">Sim, fechar a data</button><button class="btn sm" data-fechar-nao>Não, vou ver passo a passo</button></div></div>`
+        : `<button class="btn sm" data-fechar-data="${esc(k)}">Fechar a data (${ys.length} ${ys.length === 1 ? "passo" : "passos"})</button>`;
+      return `<div class="md-fim"><p style="margin:8px 0 4px"><b>${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)}</b> · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis_rot(p)} <span class="badge b-warn">${ys.length} aberto${ys.length > 1 ? "s" : ""}</span></p>${botoes}
+        <details class="pp-det" data-dobra="md-fim:${esc(k)}"${S.dobras?.["md-fim:" + k] ? " open" : ""}><summary>Ver os ${ys.length} ${ys.length === 1 ? "passo" : "passos"}, um por um</summary><ul class="passos md-lista">${ys.map((y) => linhaModelo(y, { evId: x.e.id, produto: x.e.m, marcar: pode })).join("")}</ul></details></div>`;
+    }).join("") + (g.length > 8 ? `<p class="muted" style="font-size:13px">e mais ${g.length - 8} datas em Acompanhamento.</p>` : "");
+  }
+  const papeis_rot = (p) => comAreas() && (S.conta.perfil.areas || []).length === 1 ? "" : " · " + esc(NOME_PAPEL[p]);
+  // Adoção dos artistas (simulação de 24/11/2026: artista fora do portal deixa tudo vermelho): quem está no line-up das
+  // próximas 21 datas e ainda não tem conta recebe o convite pronto no WhatsApp.
+  function htmlArtistasFora(datas) {
+    const hoje = hojeIso(), lim = new Date(Date.parse(hoje + "T12:00:00Z") + 21 * 864e5).toISOString().slice(0, 10), vistos = new Set();
+    const fora = datas.filter((x) => x.e.d >= hoje && x.e.d <= lim).flatMap((x) => x.artistas.filter((a) => !a.user_id && !vistos.has(a.nome) && vistos.add(a.nome)).map((a) => ({ a, x })));
+    if (!fora.length) return "";
+    const link = location.origin + location.pathname;
+    const msg = (a, x) => `Oi, ${a.nome}! Aqui é da equipe do Tranquilo. Para o show de ${dm(x.e.d)}${x.e.h ? " na " + x.e.h : ""}, tudo fica na Rede Tranquilo: contrato para assinar, horários, briefing da divulgação e o passo a passo até a noite. Cria a sua conta (2 minutos) neste link: ${link} . Qualquer dúvida, me chama aqui.`;
+    return dobra("md-art-fora", `Artistas fora do portal (${fora.length})`, "no line-up das próximas 3 semanas e sem conta · convite pronto no WhatsApp",
+      `<p class="muted" style="font-size:13px;margin:0 0 6px">Sem conta, o artista não assina pelo portal nem marca os passos, e a data fica vermelha. Mande o convite: quando ele criar a conta com o mesmo nome artístico, a data se liga sozinha.</p><ul class="passos md-lista">${fora.map(({ a, x }) => `<li><b>${esc(a.nome)}</b> <span class="muted">· ${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "")}</span><div class="barra-acoes" style="margin-top:4px"><a class="btn sm pri" href="https://wa.me/${soDigitos(a.whatsapp || "")}?text=${encodeURIComponent(msg(a, x))}" target="_blank" rel="noopener">Convidar ${esc(a.nome)} no WhatsApp${a.whatsapp ? "" : " (escolher contato)"}</a></div></li>`).join("")}</ul>`);
+  }
   /** Painel compacto do "Para você" e do "Comece por aqui": % feito, atrasados, SOS, e o que fazer agora. */
   function painelModelo(E, papeis) {
     if (!MD()) return "";
@@ -4341,8 +4378,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const incompletos = [...passadas, ...datas].flatMap((x) => papeis.flatMap((p) => x.eq[p].filter((y) => y.incompleto).map((y) => ({ p, x, y }))));
     const listaPassos = (xs) => `<ul class="passos md-lista">${xs.slice(0, 10).map(({ p, x, y }) => linhaData(p, x) + linhaModelo(y, { evId: x.e.id, produto: x.e.m, marcar: temArea(p) })).join("")}</ul>${xs.length > 10 ? `<p class="muted" style="font-size:13px">e mais ${xs.length - 10}.</p>` : ""}`;
     const fimHtml = (incompletos.length ? `<h4 style="margin:12px 0 6px">⚠ Marcado como feito, mas o portal ainda não confere (${incompletos.length})</h4><p class="muted" style="font-size:13px;margin:0 0 4px">Antes de passar adiante, complete o que falta: quem recebe depende disso.</p>${listaPassos(incompletos)}` : "")
-      + (abertos.length ? `<h4 style="margin:12px 0 6px">Acompanhar até o fim: ficou aberto em datas que já passaram (${abertos.length})</h4><p class="muted" style="font-size:13px;margin:0 0 4px">A data passou e estes passos não foram fechados. Confira se aconteceu e marque, ou cobre quem ficou devendo.</p>${listaPassos(abertos)}` : "");
-    const corpo = `${fimHtml}${sos.length ? `<h4 style="margin:4px 0 6px">SOS: algo atrasou ou travou</h4><ul class="passos md-lista">${sos.slice(0, 6).map(htmlSos).join("")}</ul>${sos.length > 6 ? `<p class="muted" style="font-size:13px">e mais ${sos.length - 6} em Acompanhamento.</p>` : ""}` : `<p class="muted" style="font-size:13px">Nenhum SOS aberto: nada atrasado ou travado.</p>`}
+      + (abertos.length ? `<h4 style="margin:12px 0 6px">Acompanhar até o fim: ficou aberto em datas que já passaram (${abertos.length})</h4><p class="muted" style="font-size:13px;margin:0 0 4px">A data passou e estes passos não foram fechados. Confira se aconteceu: feche a data de uma vez, marque passo a passo, ou cobre quem ficou devendo.</p>${htmlFecharDatas(abertos)}` : "");
+    const corpo = `${fimHtml}${htmlSosFoco(sos)}${papeis.includes("agenda") && temArea("agenda") ? htmlArtistasFora(datas) : ""}
       <h4 style="margin:12px 0 6px">Ação funcionando: o próximo passo de cada data</h4>
       ${agora.length ? `<ul class="passos md-lista">${agora.map(({ p, x, prox }) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis.length > 1 ? " · " + esc(NOME_PAPEL[p]) : ""}</span></li>${linhaModelo(prox, { evId: x.e.id, produto: x.e.m, marcar: temArea(p) })}`).join("")}</ul>` : `<p class="muted" style="font-size:13px">Tudo em dia nas próximas datas.</p>`}
       <div class="barra-acoes" style="margin-top:8px"><button class="btn sm" data-ir="acompanhamento">Ver o acompanhamento de todos os papéis →</button></div>`;
@@ -5354,6 +5391,13 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       setTimeout(() => { const h = [...document.querySelectorAll("#app h2, #app h3")].find((x) => x.textContent.trim() === sec); if (h) { h.classList.add("foco"); h.scrollIntoView({ block: "start" }); } }, 80); return;
     }
     const av = t.closest("[data-acomp-ver]"); if (av) { S.acompVer = av.dataset.acompVer; render(); return; }
+    const fd = t.closest("[data-fechar-data]"); if (fd) { S.fecharPend = fd.dataset.fecharData; render(); return; }
+    if (t.closest("[data-fechar-nao]")) { S.fecharPend = null; render(); return; }
+    const fok = t.closest("[data-fechar-ok]"); if (fok) {
+      const [evId, papel] = fok.dataset.fecharOk.split("|"), x = modeloDatas(S.eq, [-30, -1]).find((y) => y.e.id === evId), itens = (x?.eq[papel] || []).filter((y) => !y.feito && y.prazo < hojeIso()).map((y) => y.chave);
+      await acao(fok, async () => { for (const it of itens) await api.marcar(evId, it, true); TQDiario.registrar("fechou_data", { papel, n: itens.length }); S.fecharPend = null; const y = scrollY; S.eq.chk = await api.checklistTodos(); render(); scrollTo(0, y); }, { ok: `Data fechada: ${itens.length} ${itens.length === 1 ? "passo marcado" : "passos marcados"} como feito.` });
+      return;
+    }
     if (t.closest("[data-autoav]")) { const x = t.closest("[data-autoav]"), uid = x.dataset.autoav, sim = x.checked; x.disabled = true;
       api.liberarAutoavaliacao(uid, sim).then(() => { S.autoav = undefined; render(); }).catch((e) => { x.checked = !sim; x.disabled = false; alert(traduz(e.message || "Não foi possível salvar.")); }); return; }
     if (t.closest("[data-acomp-atualizar]")) { S.eq = null; S.hub = null; carregarEquipe(); carregarHub(); render(); return; }
