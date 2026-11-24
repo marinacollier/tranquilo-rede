@@ -1176,14 +1176,18 @@ drop policy if exists hist_ler on campanha_historico;
 create policy hist_ler on campanha_historico for select using (eh_equipe());
 
 -- Andamento por campanha, para a matriz e para a casa (respeita as políticas).
-create or replace function andamento_campanhas()
-returns table (campanha_id uuid, slug text, titulo text, casa_ref text, dias int, feitos int, atrasados int, proximo date)
+-- v37 (24/11/2026, achado do simulador): também devolve os dias atrasados (atrasados_dias), para o "Campanha no ritmo"
+-- de cada data contar só os dias daquela data, não os da campanha inteira da casa. Mudar o retorno exige recriar a função.
+drop function if exists andamento_campanhas();
+create function andamento_campanhas()
+returns table (campanha_id uuid, slug text, titulo text, casa_ref text, dias int, feitos int, atrasados int, proximo date, atrasados_dias date[])
 language sql stable security invoker set search_path = public as $$
   select c.id, c.slug, c.titulo, c.casa_ref,
     count(i.id)::int,
     count(f.item_id)::int,
     count(i.id) filter (where f.item_id is null and i.dia < (now() at time zone 'America/Sao_Paulo')::date)::int,
-    min(i.dia) filter (where f.item_id is null and i.dia >= (now() at time zone 'America/Sao_Paulo')::date)
+    min(i.dia) filter (where f.item_id is null and i.dia >= (now() at time zone 'America/Sao_Paulo')::date),
+    coalesce(array_agg(i.dia order by i.dia) filter (where f.item_id is null and i.dia < (now() at time zone 'America/Sao_Paulo')::date), '{}')
   from campanhas c join campanha_itens i on i.campanha_id = c.id and i.ativo
   left join campanha_feitos f on f.item_id = i.id
   group by c.id order by c.casa_ref, c.slug;

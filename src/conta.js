@@ -264,7 +264,7 @@ const TQConta = (() => {
         const h = hubDemo(), hoje = new Date().toISOString().slice(0, 10), fs = new Set((db.campFeitos || []).map((f) => f.item_id));
         return campDemoVisiveis(h).map((c) => { const its = (h.itens || []).filter((i) => i.campanha_id === c.id && i.ativo !== false);
           return { campanha_id: c.id, slug: c.slug, titulo: c.titulo, casa_ref: c.casa_ref, dias: its.length, feitos: its.filter((i) => fs.has(i.id)).length,
-            atrasados: its.filter((i) => !fs.has(i.id) && i.dia < hoje).length, proximo: its.filter((i) => !fs.has(i.id) && i.dia >= hoje).map((i) => i.dia).sort()[0] || null }; });
+            atrasados: its.filter((i) => !fs.has(i.id) && i.dia < hoje).length, atrasados_dias: its.filter((i) => !fs.has(i.id) && i.dia < hoje).map((i) => i.dia).sort(), proximo: its.filter((i) => !fs.has(i.id) && i.dia >= hoje).map((i) => i.dia).sort()[0] || null }; });
       },
       async hubMateriais() {
         const h = hubDemo(), minhas = (db.ciencias || []).filter((c) => c.user_id === db.sessao);
@@ -4082,7 +4082,12 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       const eqc = E.eqc == null || !ref ? null : E.eqc.filter((m) => k(m.casa_ref) === k(ref)), cob = eqc && casaUsers.length ? TQEquipe.cobertura(eqc) : null;
       const camp = H && !H.erro && ref ? (H.campanhas || []).find((c) => kc(c.casa_ref) === kc(ref)) : null;
       const and = camp && (H.andamento || []).find((a) => a.campanha_id === camp.id);
-      const campanha = H && !H.erro && ref ? { existe: !!camp, atrasados: and?.atrasados || 0 } : null;
+      // Atrasados SÓ dos dias desta data (35 dias antes até o dia), não da campanha inteira da casa (achado do simulador,
+      // 24/11/2026: um dia não marcado numa data deixava todas as datas da casa "fora do ritmo"). Banco antigo sem
+      // atrasados_dias: usa o total, como antes.
+      const desdeCamp = new Date(Date.parse(e.d + "T12:00:00Z") - 35 * 864e5).toISOString().slice(0, 10);
+      const atrasDaData = Array.isArray(and?.atrasados_dias) ? and.atrasados_dias.filter((d) => String(d).slice(0, 10) >= desdeCamp && String(d).slice(0, 10) <= e.d).length : (and?.atrasados || 0);
+      const campanha = H && !H.erro && ref ? { existe: !!camp, atrasados: atrasDaData } : null;
       const lineup = { n: (noiteDe(e)?.artistas || []).filter((a) => a.status === "Confirmado").length || arts.length, minimo: R.vagasFormato(e.m).minimo };
       const ctCasa = casaUsers.length ? estado(cts.filter((c) => casaUsers.includes(c.user_id))) : null;
       const auto = { ficha: casa?.status === "habilitada", treino: (S.pac?.eventos || []).some((x) => x.d < hoje && !x.z && k(x.h) === k(e.h)) || !!S.tri?.find?.((t) => k(t.casa_ref) === k(ref) && t.concluida),
@@ -4192,7 +4197,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     return { papel, vencidos, noPrazo, tarde, naoFeitos, incompletos, porOutro, passadas, fechadas, sos, atrasoMedio,
       pctPrazo: pct(noPrazo.length, vencidos.length), pctFechadas: pct(fechadas.length, passadas.length), pctIncompleto: pct(incompletos.length, todos.filter((y) => y.marca?.por && y.auto).length),
       atrasadosAgora: todos.filter((y) => y.atrasado && y.prazo >= INICIO_MODELO), escalados: sos.filter((s) => s.escalado),
-      autoConf: todos.filter((y) => y.marca?.auto).length, feitosTotal: todos.filter((y) => y.feito && y.prazo >= INICIO_MODELO).length };
+      autoConf: todos.filter((y) => y.marca?.auto).length, feitosTotal: todos.filter((y) => y.feito && y.prazo >= INICIO_MODELO).length,
+      // Por pessoa (achado do simulador: com duas pessoas na mesma área, os números juntavam as duas): quem marcou cada Feito.
+      porPessoa: Object.values(todos.filter((y) => y.marca?.por && y.prazo >= INICIO_MODELO).reduce((acc, y) => { const u = y.marca.por, x = acc[u] ||= { uid: u, da_area: donos.has(u), marcados: 0, noPrazo: 0, incompletos: 0 };
+        x.marcados++; if (!y.marca.em || String(y.marca.em).slice(0, 10) <= y.prazo) x.noPrazo++; if (y.incompleto) x.incompletos++; return acc; }, {})).sort((a, b) => b.marcados - a.marcados), pessoasArea: donos.size };
   }
   /** Leitura em uma frase do que os números dizem, com o foco de cada papel (Isa: qualidade e prazo; Bruno: fechar até o fim). */
   function leituraPapel(m) {
@@ -4243,7 +4251,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <li><b>O que o portal já faz por você:</b> ${esc(portal)}</li>
       <li><b>Para onde esse tempo pode ir:</b> ${esc(ev.estrategico)}</li>
       <li><b>Para pensar antes da sua próxima conversa:</b> “${esc(ev.pergunta)}”</li></ul></div>`;
-    return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Como ajudar ${esc(ev.pessoa)} a evoluir</h4><ul class="passos md-lista">
+    return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Como ajudar ${esc(ev.pessoa)} a evoluir</h4>${m.pessoasArea > 1 ? `<p class="muted" style="font-size:13px;margin:0 0 6px">Escrito para ${esc(ev.pessoa)}. A área tem ${m.pessoasArea} pessoas: veja em "Quem fez" o que é de cada uma.</p>` : ""}<ul class="passos md-lista">
       <li><b>Força:</b> ${esc(ev.forca + forcaDados)}</li>
       <li><b>Próximo passo de desenvolvimento:</b> ${passos.length ? passos.map(esc).join(" ") : "Sem ponto de atenção nos números: vale reconhecer e dar mais autonomia."}</li>
       <li><b>O que o portal já tira das costas:</b> ${esc(portal)}</li>
@@ -4283,7 +4291,10 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       num(m.porOutro.length, "fechados por outra pessoa"),
       num(m.sos.length, `SOS abertos${m.escalados.length ? ` · ${m.escalados.length} escalados` : ""}`, m.sos.length ? "ruim" : "")].join("");
     const sem = historicoSemanal(E, p);
-    const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m, voce)}${extra}
+    const nomeDe = (uid) => { const x = (E.perfis || []).find((y) => y.id === uid); return x ? String(x.nome || x.email || "").split(" ")[0] : "outra conta"; };
+    const pessoas = !voce && m.porPessoa.length ? dobra(id + "-pessoas", "Quem fez", `${m.porPessoa.length} ${m.porPessoa.length === 1 ? "pessoa marcou" : "pessoas marcaram"} passos deste papel`,
+      `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Pessoa</th><th>Passos marcados</th><th>No prazo</th><th>Incompletos</th></tr></thead><tbody>${m.porPessoa.map((x) => `<tr><td>${esc(nomeDe(x.uid))}${x.da_area ? "" : " <span class=\"muted\">(de fora da área)</span>"}</td><td>${x.marcados}</td><td>${Math.round((x.noPrazo / x.marcados) * 100)}%</td><td>${x.incompletos}</td></tr>`).join("")}</tbody></table></div>${m.pessoasArea > 1 ? `<p class="muted" style="font-size:13px">Esta área tem ${m.pessoasArea} pessoas: os números de cima somam todas. Use esta tabela para conversar com cada uma.</p>` : ""}`) : "";
+    const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m, voce)}${extra}${pessoas}
       ${dobra(id + "-sem", "Evolução por semana", `${sem.filter((x) => x.n).length} ${sem.filter((x) => x.n).length === 1 ? "semana" : "semanas"} com prazos desde 18/11 · no prazo, incompletos e abertos de cada semana`, htmlHistorico(sem))}
       ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
       ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
@@ -4369,7 +4380,9 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     const ps = datas.flatMap((x) => papeis.flatMap((p) => x.eq[p].map((y) => ({ ...y, x }))));
     const sos = sosAbertos(E, papeis), r = MD().resumo(ps, sos);
     const agora = datas.flatMap((x) => papeis.map((p) => ({ p, x, prox: MD().proximo(x.eq[p]) })).filter((y) => y.prox)).sort((a, b) => a.prox.prazo.localeCompare(b.prox.prazo)).slice(0, 8);
-    const quem = papeis.length === 3 ? "da equipe" : papeis.map((p) => NOME_PAPEL[p]).join(" e ");
+    // Nome de quem está logado, não o nome fixo do papel (achado do simulador: a Ana via "Isa · Agenda").
+    const primeiro = String(S.conta?.perfil.nome || "").split(" ")[0], AREA = { operacoes: "Operações", agenda: "Agenda", marketing: "Marketing" };
+    const quem = papeis.length === 3 ? "da equipe" : (primeiro && S.conta?.perfil.tipo === "equipe" ? primeiro + " · " : "") + papeis.map((p) => AREA[p] || NOME_PAPEL[p]).join(" e ");
     // Automação pedida pelo Thales (21/11/2026): o que ficou aberto em datas que já passaram (acompanhar até o fim) e
     // o que foi marcado como feito mas o portal não confere (repasse incompleto). Mostra o passo com o Feito para fechar.
     const linhaData = (p, x) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(x.e.d)].slice(0, 3)} ${dm(x.e.d)} · ${esc(x.e.h || x.e.c || "casa a definir")}${papeis.length > 1 ? " · " + esc(NOME_PAPEL[p]) : ""}</span></li>`;

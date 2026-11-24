@@ -145,6 +145,7 @@ function relatorioMd(rel) {
   for (const r of rel) {
     linhas.push(`## ${r.rotulo === 'semana1' ? '1 semana' : '1 mês'} (${r.dia})`, '', '| Papel | No prazo | Datas fechadas | Incompletos | SOS no Para você |', '|---|---|---|---|---|');
     for (const [p, uid] of [['agenda', 'isa'], ['marketing', 'bruno'], ['operacoes', 'gui']]) { const t = r.desempenho[p]?.resumo; linhas.push(`| ${p} | ${n(t, /(\d+)% no prazo/)}% | ${n(t, /(\d+)% das datas/)}% | ${n(t, /(\d+) incompleto/)} | ${r.papeis[uid]?.sos ?? '–'} |`); }
+    linhas.push('', 'Repasses incompletos por passo: ' + ['agenda', 'marketing', 'operacoes'].map((p) => `${p}: ${Object.entries(r.desempenho[p]?.incompletosPorPasso || {}).map(([t, q]) => `${t} ${q}`).join(', ') || 'nenhum'}`).join(' · '));
     if (r.papeis.ana) linhas.push('', `Ana (nova na agenda): ${r.papeis.ana.painel}`);
     linhas.push('', `Erros de JS: ${r.erros.length ? r.erros.join(' | ') : 'nenhum'}`, '');
   }
