@@ -39,7 +39,7 @@ const COD = {}; for (const [t, c] of fs.readFileSync(process.env.ACESSOS || '/tm
     await p.keyboard.press('Escape');
     // 2. Artistas.
     await p.evaluate(() => { S.aba = 'base_artistas'; render(); }); await p.waitForSelector('#bnLista');
-    ok(/1\.158 artistas na base|1158 artistas na base/.test(await app()), 'Artistas: base inteira (1158)');
+    ok(/1\.1[0-9]{2} artistas na base|11[0-9]{2} artistas na base/.test(await app()), 'Artistas: base inteira (mais de 1.100, cresce com o Notion)');
     const prim = await p.$$eval('#bnLista [data-bn]', (xs) => xs.slice(0, 3).map((x) => x.textContent));
     ok(prim.every((t) => /\d+ eventos?/.test(t)), 'quem tem eventos na rede aparece primeiro');
     await p.click('#bnLista [data-bn]'); await p.waitForTimeout(300);
