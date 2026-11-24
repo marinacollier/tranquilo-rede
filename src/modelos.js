@@ -114,7 +114,7 @@
     { chave: "sem_campanha", papel: "marketing", quando: "Data a 21 dias ou menos sem campanha carregada", acao: "Carregar a campanha da casa em Campanhas." },
     { chave: "campanha", papel: "marketing", quando: "Campanha com dia atrasado (sem \"Feito\" da casa)", acao: "Cobrar a casa no WhatsApp com os dias atrasados." },
     { chave: "casa_atrasada", papel: "operacoes", quando: "Casa com 2 ou mais passos atrasados na data", acao: "Cobrar a casa no WhatsApp com os passos atrasados." },
-    { chave: "artista_atrasado", papel: "agenda", quando: "Artista com 2 ou mais passos atrasados na data", acao: "Cobrar o artista no WhatsApp com os passos atrasados." },
+    { chave: "artista_atrasado", papel: "agenda", quando: "Artista com 2 ou mais passos atrasados, a 14 dias ou menos da data", acao: "Cobrar o artista no WhatsApp com os passos atrasados." },
   ];
   const ESCALAR_EM = 5;
   const dd = (iso) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
@@ -137,7 +137,8 @@
         [a.contrato === "sem" ? { tipo: "abrir", rotulo: "Preparar o contrato", alvo: "ev" } : { tipo: "whatsapp", rotulo: `Cobrar ${a.nome} no WhatsApp`, para: a.whatsapp || "",
           texto: `Oi, ${a.nome}! Aqui é da equipe do Tranquilo. O contrato do show de ${quando} está na sua área da Rede Tranquilo, na aba Contrato, esperando a sua assinatura. Faltam ${d} dias: consegue assinar hoje?` },
         ...(d <= ESCALAR_EM ? [{ tipo: "abrir", rotulo: "Trocar o artista", alvo: "ev" }, escalar(`Contrato de ${a.nome} (${quando}) sem assinar a ${d} dias.`)] : [])]);
-      if ((a.atrasados || []).length >= 2) add("art:" + a.nome, "agenda", `${a.nome} com ${a.atrasados.length} passos atrasados`, listaTxt(a.atrasados.slice(0, 3)) + ".",
+      // Só a 14 dias ou menos (simulação de 24/11/2026: sem esse corte, artista que ainda não usa o portal enchia a Isa de SOS).
+      if (d <= 14 && (a.atrasados || []).length >= 2) add("art:" + a.nome, "agenda", `${a.nome} com ${a.atrasados.length} passos atrasados`, listaTxt(a.atrasados.slice(0, 3)) + ".",
         [{ tipo: "whatsapp", rotulo: `Cobrar ${a.nome} no WhatsApp`, para: a.whatsapp || "", texto: `Oi, ${a.nome}! Aqui é da equipe do Tranquilo. Para o show de ${quando}, ainda faltam: ${listaTxt(a.atrasados.slice(0, 4))}. Está tudo nos seus Próximos passos na Rede Tranquilo; se travou em algo, me conta que eu ajudo.` }]);
     }
     if (ctx.contratoCasa && ctx.contratoCasa !== "assinado" && d <= 10) add("ct_casa", "operacoes", `Contrato da casa ${ctx.contratoCasa === "sem" ? "não enviado" : "sem assinar"}`, `Faltam ${d} dias para ${quando}.`,

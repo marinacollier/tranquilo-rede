@@ -4090,9 +4090,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         fechamento: !!(fCasa.fechamento && fCasa.estoque), material: !!fCasa.material_social, lineup: lineup.n >= lineup.minimo,
         ct_art_env: artistas.length > 0 && artistas.every((a) => a.contrato !== "sem"), ct_art_ok: artistas.length > 0 && artistas.every((a) => a.contrato === "assinado" || a.contrato === null && pdf),
         campanha: !!campanha?.existe, campanha_em_dia: !!campanha?.existe && !campanha.atrasados, art_ok: artistas.some((a) => a.user_id) && artistas.filter((a) => a.user_id).every((a) => a.passos.some((p) => p.chave === "camp_ok" && p.feito)) };
+      // O que o portal CONSEGUE conferir nesta data (simulação de 24/11/2026): sem os dados de origem (campanhas não carregadas,
+      // casa sem conta, equipe da casa não lida, sem histórico de treinamento), "Feito" à mão não vira "repasse incompleto":
+      // seria injusto com quem marcou. Só conta como incompleto o que o portal conferiu e não bateu.
+      const temCasa = casaUsers.length > 0, conferivel = { ficha: !!casa, treino: !!(S.pac || S.tri), equipe: cob != null, ct_casa: temCasa, casa_em_dia: temCasa, registro: temCasa,
+        fechamento: temCasa, material: temCasa, lineup: true, ct_art_env: artistas.length > 0, ct_art_ok: artistas.length > 0, campanha: campanha != null, campanha_em_dia: campanha != null, art_ok: artistas.some((a) => a.user_id) };
       const fEq = MD().feitosDe(E.chk, e.id, (c) => /^(op|ag|mk):/.test(c.item) && ["equipe", "adm"].includes(tipoDe(c.user_id)));
       // Repasse incompleto: alguém marcou "Feito" à mão, mas o portal ainda não confere (ex.: contratos "enviados" sem contrato no portal).
-      const eq = Object.fromEntries(MD().PAPEIS_EQUIPE.map((p) => [p, MD().passos(p, e.d, fEq, hoje, e.m, auto).map((y) => y.auto && y.marca?.por && !auto[y.auto] ? { ...y, incompleto: true } : y)]));
+      const eq = Object.fromEntries(MD().PAPEIS_EQUIPE.map((p) => [p, MD().passos(p, e.d, fEq, hoje, e.m, auto).map((y) => y.auto && y.marca?.por && conferivel[y.auto] && !auto[y.auto] ? { ...y, incompleto: true } : y)]));
       const whatsCasa = casa?.dados?.whatsapp || casa?.perfil?.whatsapp || (ref ? waDaCasa(ref) : "");
       const sos = MD().sosDaData({ id: e.id, dia: e.d, hoje, casa: e.h || ref, produto: e.m, lineup, artistas, contratoCasa: ctCasa, equipe: cob ? { completa: cob.completa, falta: TQEquipe.listaFalta(cob) } : null,
         campanha, casaAtrasados: casaPs.filter((p) => p.atrasado).map((p) => p.titulo), whatsCasa });
