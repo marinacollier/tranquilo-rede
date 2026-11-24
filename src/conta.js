@@ -419,6 +419,8 @@ const TQConta = (() => {
         }
         Object.assign(x, { status: ajustou ? "ajustada" : "aceita", aplicado: { campos, disponibilidade: disp }, respondido_em: agora() }); gravar(); return x;
       },
+      async autoavaliacao() { const p = eu(); if (!p) return []; const m = db.autoav || {}; return Object.keys(m).filter((u) => p.tipo === "adm" || u === p.id).map((user_id) => ({ user_id, liberado_em: m[user_id] })); },
+      async liberarAutoavaliacao(uid, sim) { if (eu().tipo !== "adm") throw new Error("Só a administração libera a autoavaliação."); db.autoav ||= {}; if (sim) { if (db.usuarios[uid]?.perfil.tipo !== "equipe") throw new Error("Só para a equipe."); db.autoav[uid] = agora(); } else delete db.autoav[uid]; gravar(); },
       async definirAreas(pid, areas) { if (eu().tipo !== "adm") throw new Error("Só a administração define as áreas da equipe."); const u = db.usuarios[pid]; if (u && ["equipe", "adm"].includes(u.perfil.tipo)) u.perfil.areas = areas.length ? areas : null; gravar(); },
       async definirCombinados(cid, cb) { exigeEquipe(); Object.values(db.casas).find((y) => y.id === cid).combinados = cb; gravar(); },
       async semanal() { const p = eu(); return (db.sem || []).filter((x) => ["equipe", "adm"].includes(p?.tipo) || (x.user_id && x.user_id === p?.id) || (x.casa_ref && x.casa_ref === p?.vinculo_nome)); },
@@ -823,6 +825,8 @@ const TQConta = (() => {
       async criarProposta(n) { return ok(await sb.from("propostas_atualizacao").insert({ alvo_tipo: n.alvo_tipo, alvo_user: n.alvo_user || null, alvo_ref: n.alvo_ref || null, convite_email: n.convite_email || null, campos: n.campos || {}, disponibilidade: n.disponibilidade?.length ? n.disponibilidade : null, motivo: n.motivo || null }).select().single()); },
       async responderProposta(pid, aceitar, ajustes) { return ok(await sb.rpc("responder_proposta", { pid, aceitar, ajustes: ajustes || null })); },
       async definirAreas(conta, areas) { ok(await sb.rpc("definir_areas", { conta, novas: areas })); },
+      async autoavaliacao() { const r = await sb.from("autoavaliacao").select("user_id,liberado_em"); if (r.error && /autoavaliacao/.test(r.error.message || "")) return []; return ok(r); },
+      async liberarAutoavaliacao(uid, sim) { ok(sim ? await sb.from("autoavaliacao").insert({ user_id: uid }) : await sb.from("autoavaliacao").delete().eq("user_id", uid)); },
       async semanal() { const r = await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias,cidade"); return ok(r.error && /cidade/.test(r.error.message || "") ? await sb.from("disponibilidade_semanal").select("casa_ref,user_id,dias") : r); },
       async salvarSemanal(alvo, dias, cidade = null) {
         const p = await this.sessao(), casa = alvo === "casa", cid = casa ? null : (cidade || null), base = sb.from("disponibilidade_semanal").select("id");
@@ -898,7 +902,7 @@ const TQConta = (() => {
     // Equipe e adm sempre abrem o pacote interno, mesmo que a conta tenha vindo de um vínculo antigo de artista/casa.
     // Código colado e ainda não confirmado pela adm também abre as métricas (é o mesmo que entrar pelo código).
     const cod = ["equipe", "adm"].includes(perfil.tipo) ? await api.chaveInterna(perfil.tipo) : perfil.codigo_acesso || perfil.vinculo_pedido;
-    S.pac = null; S.eq = null; S.hub = null; S.campAbertas = null; S.campForm = null; S.tri = null; S.eqcEd = null; S.triEd = null; S.disp = undefined; S.fichaPedido = false; S.sub = {};   // nada da conta anterior fica na tela
+    S.pac = null; S.eq = null; S.autoav = undefined; S.hub = null; S.campAbertas = null; S.campForm = null; S.tri = null; S.eqcEd = null; S.triEd = null; S.disp = undefined; S.fichaPedido = false; S.sub = {};   // nada da conta anterior fica na tela
     if (cod) {
       // O pacote precisa ser do mesmo tipo da conta (conta rebaixada não continua vendo o painel antigo).
       try { const pac = await abrirPacote(cod); if (S.conta?.perfil.id === perfil.id && pac.perfil === perfil.tipo) S.pac = pac; }
@@ -1021,7 +1025,7 @@ const TQConta = (() => {
   // Menu padrão do time (pedido da Marina, 17/11/2026): o mesmo formato para Gui, Isa, Bruno, equipe e administração.
   // Na lateral, as partes do trabalho; dentro de cada uma, as abas em cima. Cada área vê só as suas; a adm vê todas.
   const GRUPOS_EQ = {
-    g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["acompanhamento", "Acompanhamento"], ["feito", "Seu histórico"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
+    g_hoje: ["Início", [["inicio", "Comece por aqui"], ["hoje", "Para você"], ["acompanhamento", "Acompanhamento"], ["feito", "Seu histórico"], ["evolucao", "Sua evolução"], ["geral", "A rede"], ["painel", "Painel da operação"], ["operacao", "Operação"]]],
     g_datas: ["Datas", [["datas_portal", "Criar datas"], ["lado_a_lado", "Artista e casa"], ["agenda_casas", "Agenda das casas"], ["datas", "Datas do Notion"]]],
     g_artistas: ["Curadoria", [["curadoria", "Curadoria"], ["base_artistas", "Base de artistas"], ["artistas", "Histórico dos artistas"]]],
     g_casas: ["Casas", [["casas_cad", "Fichas das casas"], ["base_casas", "Base de casas"], ["casas", "Histórico das casas"], ["trilhas", "Treinamentos"]]],
@@ -1041,7 +1045,7 @@ const TQConta = (() => {
     const pac = S.pac ? PERFIS[S.pac.perfil].abas.map(([k]) => k) : [];
     // "Comece por aqui" é da administração e da equipe sem área; "Para você", de quem tem área (Gui, Isa, Bruno). "Seu histórico", de todos.
     return (GRUPOS_EQ[g]?.[1] || []).filter(([k]) => (!["datas", "casas", "artistas", "base_casas", "base_artistas", "operacao", "estrategia", "acessos"].includes(k) || pac.includes(k))
-      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()) && (k !== "desempenho" || S.conta?.perfil.tipo === "adm"));
+      && (k !== "inicio" || !comAreas()) && (k !== "hoje" || comAreas()) && (k !== "desempenho" || S.conta?.perfil.tipo === "adm") && (k !== "evolucao" || (S.conta?.perfil.tipo === "equipe" && (carregarAutoav(), autoavLiberada(S.conta.perfil.id)))));
   }
   function telaGrupo(g) {
     const subs = subsDoGrupo(g); if (!subs.length) return "";
@@ -2625,6 +2629,7 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     // Acompanhamento (pedido da Marina, 18/11/2026): o modelo de cada papel em cada data, para a equipe e a adm.
     // Começa fechadinho: uma linha por data com o % de cada papel; abre para as ações, o Feito e os SOS.
     desempenho() { return telaDesempenho(); },
+    evolucao() { return telaEvolucao(); },
     acompanhamento() {
       const E = S.eq; if (!E) { carregarEquipe(); return carregando("o acompanhamento"); }
       if (!S.hub) carregarHub();
@@ -4201,32 +4206,38 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
     agenda: { pessoa: "Isa", estrategico: "Curadoria e relação com artistas: descobrir talentos, montar line-ups melhores e cuidar da carreira de quem toca no Tranquilo.",
       forca: "Corre atrás da meta: fecha line-up e contrato mesmo com pouco tempo.",
       passos: [
-        [(m) => m.incompletos.length > 0, "Combinar com ela o que é \"pronto para passar adiante\" em cada etapa (line-up, contratos, assinaturas, rider, cronograma). O portal já confere 3 sozinho; ela define os critérios dos outros. Quem define o critério passa a cuidar da qualidade."],
-        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Planejar a semana pelos prazos: toda segunda, abrir o \"Para você\" e fechar primeiro o que vence em 7 dias. Previsibilidade vira hábito antes de virar cobrança."],
-        [(m) => m.naoFeitos.length > 0, "Registrar o que fez: o que não é marcado parece não feito. Pedir que marque o Feito na hora (ou anexe o print) protege o trabalho dela."],
+        [(m) => m.incompletos.length > 0, "Combinar com ela o que é \"pronto para passar adiante\" em cada etapa (line-up, contratos, assinaturas, rider, cronograma). O portal já confere 3 sozinho; ela define os critérios dos outros. Quem define o critério passa a cuidar da qualidade.", "Defina o seu \"pronto para passar adiante\" de cada etapa (rider, cronograma, pagamento): o que precisa estar completo antes de marcar Feito. O portal já confere line-up e contratos por você."],
+        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Planejar a semana pelos prazos: toda segunda, abrir o \"Para você\" e fechar primeiro o que vence em 7 dias. Previsibilidade vira hábito antes de virar cobrança.", "Comece a semana pelo \"Para você\": feche primeiro o que vence nos próximos 7 dias."],
+        [(m) => m.naoFeitos.length > 0, "Registrar o que fez: o que não é marcado parece não feito. Pedir que marque o Feito na hora (ou anexe o print) protege o trabalho dela.", "Marque o Feito na hora (ou anexe o print): o que não é marcado parece não feito, e o registro protege o seu trabalho."],
       ],
       pergunta: "O que mais te atrapalha para fechar uma etapa completa antes de passar para a próxima?" },
     marketing: { pessoa: "Bruno", estrategico: "Dono dos sistemas de marketing e da estratégia de marca: modelos de campanha, briefings e automações com IA, com a execução nas casas e nos artistas.",
       forca: "Organizado e bom em transformar processo em sistema automatizado com IA.",
       passos: [
-        [(m) => m.pctFechadas != null && m.pctFechadas < 100, "Rotina de fechamento: toda segunda, abrir \"Acompanhar até o fim\" e, para cada data da semana anterior, fechar ou cobrar o que ficou aberto. Liderança é levar até o fim, não só começar."],
-        [(m) => m.porOutro.length > 0, "Combinar quem acompanha o quê: o que outra pessoa precisou fechar no lugar dele vira um combinado claro, sem resgate."],
-        [(m) => m.atrasadosAgora.length > 0, "Usar as cobranças prontas do SOS (WhatsApp com a mensagem pronta) assim que algo atrasar, em vez de esperar o fim da campanha."],
+        [(m) => m.pctFechadas != null && m.pctFechadas < 100, "Rotina de fechamento: toda segunda, abrir \"Acompanhar até o fim\" e, para cada data da semana anterior, fechar ou cobrar o que ficou aberto. Liderança é levar até o fim, não só começar.", "Toda segunda, abra \"Acompanhar até o fim\" no Para você e feche ou cobre o que ficou aberto nas datas da semana anterior."],
+        [(m) => m.porOutro.length > 0, "Combinar quem acompanha o quê: o que outra pessoa precisou fechar no lugar dele vira um combinado claro, sem resgate.", "Combine com a equipe quem acompanha o quê: o que outra pessoa fechou no seu lugar vira um combinado claro."],
+        [(m) => m.atrasadosAgora.length > 0, "Usar as cobranças prontas do SOS (WhatsApp com a mensagem pronta) assim que algo atrasar, em vez de esperar o fim da campanha.", "Use a cobrança pronta do SOS assim que algo atrasar: um toque no WhatsApp e a mensagem já vai escrita."],
       ],
       pergunta: "Onde você sente que perde o fio de uma entrega depois de passar para a casa ou para o artista?" },
     operacoes: { pessoa: "Gui", estrategico: "Expansão da rede: abrir e treinar casas novas e cuidar da experiência das que já estão, com a parte repetitiva no portal.",
       forca: "Conduz a casa da Ficha até a noite.",
       passos: [
-        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Antecipar os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS."],
-        [(m) => m.naoFeitos.length > 0, "Registrar o fechamento (D+2) de cada noite: é o que dá dado para decidir onde abrir mais datas."],
+        [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Antecipar os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS.", "Antecipe os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS."],
+        [(m) => m.naoFeitos.length > 0, "Registrar o fechamento (D+2) de cada noite: é o que dá dado para decidir onde abrir mais datas.", "Registre o fechamento (D+2) de cada noite: é o que mostra onde vale abrir mais datas."],
       ],
       pergunta: "Qual etapa com a casa mais toma o seu tempo e poderia ser feita pela própria casa no portal?" },
   };
-  function evolucaoPapel(m) {
+  function evolucaoPapel(m, voce = false) {
     const ev = EVOLUIR[m.papel]; if (!ev) return "";
-    const passos = ev.passos.filter(([se]) => se(m)).map(([, t]) => t);
+    const passos = ev.passos.filter(([se]) => se(m)).map(([, t, tv]) => voce ? tv : t);
     const forcaDados = m.noPrazo.length ? ` Nos dados: ${m.noPrazo.length} ${m.noPrazo.length === 1 ? "passo feito" : "passos feitos"} no prazo desde 18/11.` : "";
     const portal = `${m.autoConf} ${m.autoConf === 1 ? "passo conferido" : "passos conferidos"} sozinho pelo portal e ${m.sos.length} ${m.sos.length === 1 ? "alerta" : "alertas"} com a cobrança pronta: tempo que deixa de ir para conferir e cobrar.`;
+    if (voce) return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Para você evoluir</h4><ul class="passos md-lista">
+      <li><b>Sua força:</b> ${esc(ev.forca + forcaDados)}</li>
+      <li><b>Próximo passo:</b> ${passos.length ? passos.map(esc).join(" ") : "Nada pedindo atenção nos números: segue assim e combina com a sua liderança onde quer ganhar mais autonomia."}</li>
+      <li><b>O que o portal já faz por você:</b> ${esc(portal)}</li>
+      <li><b>Para onde esse tempo pode ir:</b> ${esc(ev.estrategico)}</li>
+      <li><b>Para pensar antes da sua próxima conversa:</b> “${esc(ev.pergunta)}”</li></ul></div>`;
     return `<div class="dsp-evoluir"><h4 style="margin:12px 0 6px">🌱 Como ajudar ${esc(ev.pessoa)} a evoluir</h4><ul class="passos md-lista">
       <li><b>Força:</b> ${esc(ev.forca + forcaDados)}</li>
       <li><b>Próximo passo de desenvolvimento:</b> ${passos.length ? passos.map(esc).join(" ") : "Sem ponto de atenção nos números: vale reconhecer e dar mais autonomia."}</li>
@@ -4234,29 +4245,69 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       <li><b>Para onde esse tempo pode ir:</b> ${esc(ev.estrategico)}</li>
       <li><b>Pergunta para a conversa 1:1:</b> “${esc(ev.pergunta)}”</li></ul></div>`;
   }
+  // Histórico por semana (segunda a domingo), desde a semana em que o modelo entrou no ar: a evolução, não só o retrato.
+  const segundaDe = (iso) => { const d = new Date(iso + "T12:00:00Z"); d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7)); return d.toISOString().slice(0, 10); };
+  function historicoSemanal(E, papel) {
+    const hoje = hojeIso(), todos = modeloDatas(E, [-60, 35]).flatMap((x) => x.eq[papel]), semanas = [];
+    for (let w = segundaDe(INICIO_MODELO); w <= segundaDe(hoje); w = new Date(Date.parse(w + "T12:00:00Z") + 7 * 864e5).toISOString().slice(0, 10)) {
+      const fim = new Date(Date.parse(w + "T12:00:00Z") + 6 * 864e5).toISOString().slice(0, 10);
+      const ps = todos.filter((y) => y.prazo >= w && y.prazo <= fim && y.prazo >= INICIO_MODELO && y.prazo < hoje);
+      const noPrazo = ps.filter((y) => y.feito && (!y.marca?.em || String(y.marca.em).slice(0, 10) <= y.prazo)).length;
+      semanas.push({ w, fim, n: ps.length, noPrazo, pct: ps.length ? Math.round((noPrazo / ps.length) * 100) : null, incompletos: ps.filter((y) => y.incompleto).length, abertos: ps.filter((y) => !y.feito).length, atual: w === segundaDe(hoje) });
+    }
+    return semanas;
+  }
+  function htmlHistorico(sem) {
+    const com = sem.filter((x) => x.n);
+    const linhas = sem.map((x, i) => { const ant = sem.slice(0, i).reverse().find((y) => y.pct != null), seta = x.pct == null || !ant ? "" : x.pct > ant.pct ? " ↑" : x.pct < ant.pct ? " ↓" : " =";
+      return `<tr><td>${dm(x.w)} a ${dm(x.fim)}${x.atual ? " <span class=\"muted\">(até hoje)</span>" : ""}</td><td>${x.n || "–"}</td><td>${x.pct == null ? "–" : `<span class="dsp-barra"><span style="width:${x.pct}%"></span></span> ${x.pct}%${seta}`}</td><td>${x.n ? x.incompletos : "–"}</td><td>${x.n ? x.abertos : "–"}</td></tr>`; }).join("");
+    const aviso = com.length < 3 ? `<p class="muted" style="font-size:13px">${com.length ? `Só ${com.length} ${com.length === 1 ? "semana" : "semanas"} com prazos vencidos até agora.` : "Ainda sem semanas com prazos vencidos."} A tendência fica confiável a partir de 3 semanas de uso: até lá, use como conversa, não como conclusão.</p>` : "";
+    return `<div class="tbl-wrap" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Semana</th><th>Passos vencidos</th><th>No prazo</th><th>Incompletos</th><th>Abertos</th></tr></thead><tbody>${linhas}</tbody></table></div>${aviso}`;
+  }
+  const FOCO = { agenda: "Foco: qualidade do repasse, prazo e previsibilidade.", marketing: "Foco: acompanhar até o fim (nada fica pelo caminho).", operacoes: "Foco: casa pronta no prazo." };
+  /** Cartão de um papel: números, leitura, como evoluir, histórico por semana e as listas. voce = a própria pessoa (autoavaliação). */
+  function cardPapel(E, p, { voce = false, extra = "" } = {}) {
+    const num = (v, rot, cls = "") => `<div class="dsp-num ${cls}"><b>${v}</b><span>${rot}</span></div>`;
+    const lista = (xs, vazioTxt) => xs.length ? `<ul class="passos md-lista">${xs.slice(0, 30).map((y) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(y.x.e.d)].slice(0, 3)} ${dm(y.x.e.d)} · ${esc(y.x.e.h || y.x.e.c || "casa a definir")}</span></li>${linhaModelo(y, { evId: y.x.e.id, produto: y.x.e.m, marcar: voce && temArea(p) })}`).join("")}</ul>${xs.length > 30 ? `<p class="muted" style="font-size:13px">e mais ${xs.length - 30}.</p>` : ""}` : `<p class="muted" style="font-size:13px">${vazioTxt}</p>`;
+    const m = metricasPapel(E, p), id = (voce ? "evo-" : "dsp-") + p;
+    const nums = [num(m.pctPrazo == null ? "–" : m.pctPrazo + "%", `no prazo (${m.noPrazo.length} de ${m.vencidos.length} passos vencidos)`, m.pctPrazo == null ? "" : m.pctPrazo >= 80 ? "bom" : "ruim"),
+      num(m.pctFechadas == null ? "–" : m.pctFechadas + "%", `datas fechadas até o fim (${m.fechadas.length} de ${m.passadas.length})`, m.pctFechadas == null ? "" : m.pctFechadas === 100 ? "bom" : "ruim"),
+      num(m.incompletos.length, "repasses incompletos (feito sem estar completo)", m.incompletos.length ? "ruim" : "bom"),
+      num(m.atrasadosAgora.length, "atrasados agora", m.atrasadosAgora.length ? "ruim" : "bom"),
+      num(m.tarde.length ? m.atrasoMedio + "d" : "–", `atraso médio quando atrasa (${m.tarde.length} passos)`),
+      num(m.porOutro.length, "fechados por outra pessoa"),
+      num(m.sos.length, `SOS abertos${m.escalados.length ? ` · ${m.escalados.length} escalados` : ""}`, m.sos.length ? "ruim" : "")].join("");
+    const sem = historicoSemanal(E, p);
+    const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m, voce)}${extra}
+      ${dobra(id + "-sem", "Evolução por semana", `${sem.filter((x) => x.n).length} ${sem.filter((x) => x.n).length === 1 ? "semana" : "semanas"} com prazos desde 18/11 · no prazo, incompletos e abertos de cada semana`, htmlHistorico(sem))}
+      ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
+      ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
+      ${dobra(id + "-tarde", "Feito com atraso", `${m.tarde.length} passos`, lista(m.tarde, "Nenhum."))}
+      ${dobra(id + "-outro", "Fechado por outra pessoa", `${m.porOutro.length} passos que outra pessoa marcou`, lista(m.porOutro, "Nenhum."))}`;
+    return dobra(id, voce ? `${NOME_PAPEL[p].split(" · ")[1] || NOME_PAPEL[p]}` : `${NOME_PAPEL[p]}`, `${m.pctPrazo == null ? "sem prazos vencidos ainda" : m.pctPrazo + "% no prazo"} · ${m.pctFechadas == null ? "nenhuma data passada" : m.pctFechadas + "% das datas fechadas"} · ${m.incompletos.length} incompleto${m.incompletos.length === 1 ? "" : "s"} · ${esc(FOCO[p])}`, corpo, { classe: "card" });
+  }
+  // Autoavaliação: quem a adm liberou vê "Sua evolução". S.autoav = [{ user_id, liberado_em }] (adm: todos; equipe: o próprio).
+  function carregarAutoav() { if (S.autoav !== undefined) return; S.autoav = null; api.autoavaliacao().then((r) => { S.autoav = r || []; render(); }).catch(() => { S.autoav = []; }); }
+  const autoavLiberada = (uid) => (S.autoav || []).some((x) => x.user_id === uid);
+  function telaEvolucao() {
+    const p = S.conta?.perfil; if (!p || p.tipo !== "equipe") return `<div class="alert"><b>Esta tela é da equipe.</b></div>`;
+    carregarAutoav(); if (S.autoav === null) return carregando("a sua evolução");
+    if (!autoavLiberada(p.id)) return `<div class="alert"><b>Ainda não liberada.</b>A administração libera "Sua evolução" quando o time estiver confortável com o portal.</div>`;
+    const E = S.eq; if (!E) { carregarEquipe(); return carregando("a sua evolução"); }
+    if (!S.hub) carregarHub();
+    const areas = (p.areas || []).filter((a) => MD().PAPEIS_EQUIPE.includes(a));
+    return `<div class="tag">Só você vê os seus números</div><h1>Sua evolução</h1>
+      <p class="sub">Os seus números saem do que você marca no modelo de trabalho. Servem para você enxergar o próprio ritmo e escolher onde evoluir, não para comparar com ninguém. A administração vê os mesmos números.</p>
+      ${areas.length ? areas.map((a) => cardPapel(E, a, { voce: true })).join("") : `<div class="alert">A sua conta ainda não tem área definida. Peça para a administração definir em Pessoas.</div>`}`;
+  }
   function telaDesempenho() {
     if (S.conta?.perfil.tipo !== "adm") return `<div class="alert"><b>Só a administração vê esta tela.</b></div>`;
     const E = S.eq; if (!E) { carregarEquipe(); return carregando("o desempenho da equipe"); }
     if (!S.hub) carregarHub();
-    const num = (v, rot, cls = "") => `<div class="dsp-num ${cls}"><b>${v}</b><span>${rot}</span></div>`;
-    const lista = (xs, vazioTxt) => xs.length ? `<ul class="passos md-lista">${xs.slice(0, 30).map((y) => `<li class="md-data"><span class="muted" style="font-size:13px">${NOME_SEM[wdDe(y.x.e.d)].slice(0, 3)} ${dm(y.x.e.d)} · ${esc(y.x.e.h || y.x.e.c || "casa a definir")}</span></li>${linhaModelo(y, { evId: y.x.e.id, produto: y.x.e.m })}`).join("")}</ul>${xs.length > 30 ? `<p class="muted" style="font-size:13px">e mais ${xs.length - 30}.</p>` : ""}` : `<p class="muted" style="font-size:13px">${vazioTxt}</p>`;
-    const FOCO = { agenda: "Foco: qualidade do repasse, prazo e previsibilidade.", marketing: "Foco: acompanhar até o fim (nada fica pelo caminho).", operacoes: "Foco: casa pronta no prazo." };
-    const card = (p) => {
-      const m = metricasPapel(E, p), id = "dsp-" + p;
-      const nums = [num(m.pctPrazo == null ? "–" : m.pctPrazo + "%", `no prazo (${m.noPrazo.length} de ${m.vencidos.length} passos vencidos)`, m.pctPrazo == null ? "" : m.pctPrazo >= 80 ? "bom" : "ruim"),
-        num(m.pctFechadas == null ? "–" : m.pctFechadas + "%", `datas fechadas até o fim (${m.fechadas.length} de ${m.passadas.length})`, m.pctFechadas == null ? "" : m.pctFechadas === 100 ? "bom" : "ruim"),
-        num(m.incompletos.length, "repasses incompletos (feito sem estar completo)", m.incompletos.length ? "ruim" : "bom"),
-        num(m.atrasadosAgora.length, "atrasados agora", m.atrasadosAgora.length ? "ruim" : "bom"),
-        num(m.tarde.length ? m.atrasoMedio + "d" : "–", `atraso médio quando atrasa (${m.tarde.length} passos)`),
-        num(m.porOutro.length, "fechados por outra pessoa"),
-        num(m.sos.length, `SOS abertos${m.escalados.length ? ` · ${m.escalados.length} escalados` : ""}`, m.sos.length ? "ruim" : "")].join("");
-      const corpo = `<p class="dsp-leitura">${esc(leituraPapel(m))}</p><div class="dsp-grid">${nums}</div>${evolucaoPapel(m)}
-        ${dobra(id + "-inc", "Repasses incompletos", `${m.incompletos.length} · marcado como feito, mas o portal não confere`, lista(m.incompletos, "Nenhum."))}
-        ${dobra(id + "-abertos", "Ficou aberto ou não registrado", `${m.naoFeitos.length} passos com prazo vencido sem Feito`, lista(m.naoFeitos, "Nenhum."))}
-        ${dobra(id + "-tarde", "Feito com atraso", `${m.tarde.length} passos`, lista(m.tarde, "Nenhum."))}
-        ${dobra(id + "-outro", "Fechado por outra pessoa", `${m.porOutro.length} passos que outra pessoa marcou`, lista(m.porOutro, "Nenhum."))}`;
-      return dobra(id, `${NOME_PAPEL[p]}`, `${m.pctPrazo == null ? "sem prazos vencidos ainda" : m.pctPrazo + "% no prazo"} · ${m.pctFechadas == null ? "nenhuma data passada" : m.pctFechadas + "% das datas fechadas"} · ${m.incompletos.length} incompleto${m.incompletos.length === 1 ? "" : "s"} · ${esc(FOCO[p])}`, corpo, { classe: "card" });
-    };
+    carregarAutoav();
+    const liberar = (p) => { const gente = (E.perfis || []).filter((x) => x.tipo === "equipe" && (x.areas || []).includes(p)); if (!gente.length) return "";
+      return `<div class="dsp-autoav"><h4 style="margin:12px 0 6px">Autoavaliação</h4><p class="muted" style="font-size:13px;margin:0 0 6px">Libere quando a pessoa estiver confortável com o portal: ela passa a ver os próprios números e as sugestões em "Sua evolução", com o texto falando com ela.</p>${gente.map((x) => `<label class="fcheck"><input type="checkbox" data-autoav="${esc(x.id)}"${autoavLiberada(x.id) ? " checked" : ""}${S.autoav === null ? " disabled" : ""}> <span>Mostrar a ${esc(String(x.nome || x.email || "").split(" ")[0])} os próprios números</span></label>`).join("")}</div>`; };
+    const card = (p) => cardPapel(E, p, { extra: liberar(p) });
     return `<div class="tag">Administração · só a adm vê</div><h1>Desempenho da equipe</h1>
       <p class="sub">Para entender como cada papel está entregando e como ajudar cada pessoa a evoluir: os números mostram onde apoiar, não servem para ranquear ninguém. Sai do que cada um marca no modelo de trabalho: o prazo de cada passo, quando foi marcado e por quem, o que o portal confere sozinho e as datas que já passaram. Conta a partir de 18/11/2026, quando o modelo entrou no ar. A equipe não vê esta tela, só os próprios avisos no "Para você".</p>
       <div class="barra-acoes" style="margin-bottom:10px"><button class="btn sm" data-acomp-atualizar>Atualizar agora</button></div>
@@ -5298,6 +5349,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
       setTimeout(() => { const h = [...document.querySelectorAll("#app h2, #app h3")].find((x) => x.textContent.trim() === sec); if (h) { h.classList.add("foco"); h.scrollIntoView({ block: "start" }); } }, 80); return;
     }
     const av = t.closest("[data-acomp-ver]"); if (av) { S.acompVer = av.dataset.acompVer; render(); return; }
+    if (t.closest("[data-autoav]")) { const x = t.closest("[data-autoav]"), uid = x.dataset.autoav, sim = x.checked; x.disabled = true;
+      api.liberarAutoavaliacao(uid, sim).then(() => { S.autoav = undefined; render(); }).catch((e) => { x.checked = !sim; x.disabled = false; alert(traduz(e.message || "Não foi possível salvar.")); }); return; }
     if (t.closest("[data-acomp-atualizar]")) { S.eq = null; S.hub = null; carregarEquipe(); carregarHub(); render(); return; }
     const sosB = t.closest("[data-sos-escalar]"); if (sosB) {
       const v = sosB.dataset.sosEscalar, i = v.indexOf("|");

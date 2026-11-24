@@ -64,6 +64,27 @@ const B = process.env.BASE || 'http://localhost:8790/'; const res = []; const ok
     ok(/não servem para ranquear ninguém/.test(await q.textContent('#app')), 'adm: a tela deixa claro que os números não ranqueiam pessoas');
     ok(/Como cada número é calculado/.test(await q.textContent('#app')), 'adm: explica como cada número é calculado');
     ok(/desempenho/.test(await menu()), 'adm: "Desempenho da equipe" está no menu da Administração');
+    // Histórico por semana e liberação da autoavaliação do Bruno.
+    ok(/Evolução por semana/.test(sm), 'adm: cada papel tem a "Evolução por semana"');
+    await q.click('details[data-dobra="dsp-marketing-sem"] summary'); await q.waitForTimeout(200);
+    ok(/Passos vencidos/.test(await q.textContent('details[data-dobra="dsp-marketing-sem"]')) && /3 semanas/.test(await q.textContent('details[data-dobra="dsp-marketing-sem"]')), 'adm: a tabela semanal avisa que a tendência só fica confiável com 3 semanas');
+    await q.waitForSelector('[data-autoav="bruno"]', { timeout: 5000 });
+    ok(!(await q.$eval('[data-autoav="bruno"]', (x) => x.checked)), 'adm: a autoavaliação do Bruno começa desligada');
+    await q.click('[data-autoav="bruno"]'); await q.waitForTimeout(700);
+    ok(await q.$eval('[data-autoav="bruno"]', (x) => x.checked), 'adm: libera "Sua evolução" para o Bruno');
+    await sair();
+    await entrar('bruno'); await q.waitForTimeout(500); await ir('hoje'); await q.waitForTimeout(800);
+    ok(/evolucao/.test(await menu()), 'Bruno: depois de liberado, vê "Sua evolução"');
+    await ir('evolucao'); await q.waitForSelector('details[data-dobra="evo-marketing"]', { timeout: 6000 });
+    await q.click('details[data-dobra="evo-marketing"] summary'); await q.waitForTimeout(200);
+    const eb = await q.textContent('#app');
+    ok(/Sua evolução/.test(eb) && /Para você evoluir/.test(eb) && /Toda segunda, abra/.test(eb) && !/Como ajudar Bruno/.test(eb), 'Bruno: vê os próprios números com o texto falando com ele');
+    ok(!(await q.$('details[data-dobra="evo-agenda"]')) && !(await q.$('details[data-dobra="dsp-agenda"]')), 'Bruno: não vê os números da Isa');
+    await sair();
+    await entrar('isa'); await ir('hoje'); await q.waitForTimeout(800);
+    ok(!/evolucao/.test(await menu()), 'Isa: sem liberação, não vê "Sua evolução"');
+    await ir('evolucao'); await q.waitForTimeout(500);
+    ok(!/Para você evoluir/.test(await q.textContent('#app')) && !(await q.$('details[data-dobra^="evo-"]')), 'Isa: forçando a tela, não aparece nenhum número dela');
     await sair();
   } catch (e) { ok(false, 'quebrou: ' + e.message.split('\n')[0]); }
   ok(!erros.length, 'sem erro JS ' + erros.join(' | '));

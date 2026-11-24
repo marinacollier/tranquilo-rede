@@ -3629,3 +3629,24 @@ create policy dp_ler on datas_portal for select using (
   or exists (select 1 from jsonb_array_elements(artistas) a where a ->> 'user_id' = auth.uid()::text)
   or data_da_minha_casa(casa_id, casa_nome)
 );
+
+-- =====================================================================
+-- v36: autoavaliação (pedido da Marina, 24/11/2026). A administração libera, pessoa por pessoa, que cada um da equipe veja
+-- os próprios números e sugestões de evolução ("Sua evolução"). Sem a liberação, só a adm vê o Desempenho. Idempotente.
+-- =====================================================================
+create table if not exists autoavaliacao (
+  user_id uuid primary key references perfis (id) on delete cascade,
+  liberado_em timestamptz not null default now(),
+  liberado_por uuid default auth.uid() references perfis (id) on delete set null
+);
+alter table autoavaliacao enable row level security;
+revoke all on autoavaliacao from anon, authenticated;
+grant select, insert, delete on autoavaliacao to authenticated;
+drop policy if exists autoav_ler on autoavaliacao;
+create policy autoav_ler on autoavaliacao for select using (user_id = auth.uid() or eh_adm());
+drop policy if exists autoav_liberar on autoavaliacao;
+create policy autoav_liberar on autoavaliacao for insert with check (eh_adm() and exists (select 1 from perfis p where p.id = user_id and p.tipo = 'equipe'));
+drop policy if exists autoav_tirar on autoavaliacao;
+create policy autoav_tirar on autoavaliacao for delete using (eh_adm());
+drop trigger if exists trg_auditoria on autoavaliacao;
+create trigger trg_auditoria after insert or update or delete on autoavaliacao for each row execute function registrar_auditoria();

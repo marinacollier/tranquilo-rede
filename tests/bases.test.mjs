@@ -14,7 +14,7 @@ ok(cidadeDoEndereco('Rua Vítor Konder, 409, Centro, Florianópolis - SC, 88015-
 const txt = readFileSync(new URL('../data/casas.psv', import.meta.url), 'utf8') + readFileSync(new URL('../data/artistas.psv', import.meta.url), 'utf8');
 ok(!/[\w.+-]+@[\w-]+\.[a-z]{2,}(?![\w/])/i.test(txt.replace(/https?:\/\/\S+/g, '')) && !/\d{3}\.\d{3}\.\d{3}-\d{2}|\d{2}\.\d{3}\.\d{3}\/\d{4}/.test(txt) && !/\+55\s?\d{2}/.test(txt), 'retrato do repositório sem e-mail, CPF, CNPJ ou telefone');
 const casas = await casasDoRetrato(), artistas = await artistasDoRetrato();
-ok(casas.length === 226 && artistas.length === 1158, `retrato completo (${casas.length} casas, ${artistas.length} artistas)`);
+ok(casas.length === 226 && artistas.length === 1161, `retrato completo (${casas.length} casas, ${artistas.length} artistas)`);
 const eventos = normalizar(await eventosDoRetrato(), {}, '2026-11-18', await lineupDoRetrato());
 const B = montarBases(casas, artistas, eventos, JSON.parse(readFileSync(new URL('../data/referencias.json', import.meta.url), 'utf8')).artistas);
 ok(B.equipe.casas.every((c) => !c.priv && !c.evN) && B.equipe.artistas.every((a) => !a.priv && !a.alt), 'pacote da equipe sem priv nem grafias');

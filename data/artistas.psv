@@ -1,4 +1,4 @@
-# Retrato da base Artistas e bandas do Notion (collection ba4e8a02-f73a-4f8d-b055-49e2e495dbd1), SÓ campos não sensíveis. Gerado em 2026-11-18 por consulta de leitura.
+# Retrato da base Artistas e bandas do Notion (collection ba4e8a02-f73a-4f8d-b055-49e2e495dbd1), SÓ campos não sensíveis. Gerado em 2026-11-18, atualizado em 2026-11-24 por consulta de leitura.
 # Sem e-mail, telefones, Pix, conta bancária, CPF/CNPJ, cachê, nome civil, idade, dados LGPD (gênero, raça, orientação) nem notas internas: esses vêm só pela API e vão só no pacote cifrado da administração.
 # id|nome|mora|generos|status|instagram|spotify|youtube|deezer|site|slug|tempo_show|ja_tocou|vezes_manual|praca_preferencial|bloqueio_ate
 f263b29e17de4d07a6f4458b574f3cad|2DE1|São Paulo/SP||Novo (sem triagem)|https://www.instagram.com/somos2de1/|https://open.spotify.com/artist/4wBcHIPRXjBeZPWLKekdfo|https://www.youtube.com/channel/UCHMzCPL7lLxFLC0Xwfdemcw|https://www.deezer.com/br/artist/12465806||||||São Paulo|
@@ -34,7 +34,7 @@ c05cc98a5ea94b4c8dfd502d2565e062|acordelua|Recife/PE||Novo (sem triagem)||||||||
 3de83bbf4e84814c9896c2f822cc1829|Adoracion|||Novo (sem triagem)||https://open.spotify.com/artist/2pUkTizmRjFmatHEKsnV4j||||adoracion|||||
 ce88009aaae24bb2ab3d08d93f07a2ae|Adriana Araújo|||Aprovado (curadoria)|||||||||||
 6994b5423e224a5caf82c459e8c31cb8|Adriana Calcanhotto|||Novo (sem triagem)|https://www.instagram.com/adrianacalcanhotto/|https://open.spotify.com/artist/72f733zGuCPEzCSLs9wOVi|https://youtube.com/channel/UCnAIyI-XqL0XvF2MnHmmYQg|https://deezer.com/artist/4021159|||||||
-3e583bbf4e8481339379f68dfc36c7c1|Adriana Chaves|||Novo (sem triagem)||https://open.spotify.com/artist/4o1EaRHaEKgXXckPP0OWUt|||||||||
+3e583bbf4e8481339379f68dfc36c7c1|Adriana Chaves|||Novo (sem triagem)||https://open.spotify.com/artist/4o1EaRHaEKgXXckPP0OWUt||||adriana_chaves|||||
 2f183bbf4e848121b177edf907f7c34f|Adriano Goyatá|Belo Horizonte/MG|Pop,MPB|Não seguiu na curadoria|https://www.instagram.com/adrianogoyata/|https://open.spotify.com/artist/6as2cqcAzLlLgyWq9kcajF|||||||||
 ade26a38c92b42919159f51a7ec1e8b7|aesthertorres|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 aad51b8a7a1f4e4a84fe440e91336ccd|Affonsinho|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -42,7 +42,7 @@ aad51b8a7a1f4e4a84fe440e91336ccd|Affonsinho|Belo Horizonte/MG||Novo (sem triagem
 d674ed9466294079adedb0625ae18a7e|agarotamilena|||Aprovado (curadoria)|https://www.instagram.com/agarotamilena/||||||||||
 06848c9511c2436095e3b2e926dadc57|Agnes Nunes|||Novo (sem triagem)|||||||||||
 05ee2aabda354c72a2fe48221e104bca|airam capuani|São Paulo/SP||Novo (sem triagem)|||||||||||
-3d583bbf4e848198b709e0cc3cf1b8e1|Aislan Rodrigues|||Novo (sem triagem)||||https://www.deezer.com/artist/13842743|||||||
+3d583bbf4e848198b709e0cc3cf1b8e1|Aislan Rodrigues|||Novo (sem triagem)||||https://www.deezer.com/artist/13842743||aislan_rodrigues|||||
 026ac84abdcc4d9f84cfa661b4377faf|Aju|São Paulo/SP||Novo (sem triagem)|||||||||||
 3252fc497ce34847a9053232ea2cc349|ajudyblack|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 7fff781cc5b342088292501a7ad86e11|Alan Bernardes|||Aprovado (curadoria)|https://www.instagram.com/alanbernardes.wav/||||||||||
@@ -55,7 +55,7 @@ dac4d55ad31f4c269155ca362cb2a22b|Alfredo|Rio de Janeiro/RJ||Novo (sem triagem)||
 56349b045c4c4f879e947ad138ea6bb6|Alice Caymmi|||Novo (sem triagem)||||||||sim|2||
 28a210cd0d9c4490bf57e9a99d4bcd22|alicemol|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 90bd3d23c5d74e6d84ce99175ffea31d|alineoliveiracantoraoficial|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
-3f883bbf4e8481aaa7cdcee0f05abd1b|Allan Martino|São Paulo/SP|MPB|Novo (sem triagem)|https://www.instagram.com/allanziecoletivoalgum/|https://open.spotify.com/artist/7bLFaJT7fqGI6iHEw0kUqW?si=qJiBZgUmRem-glxBq8_h4Q&utm_source=copy-link|https://www.youtube.com/@allanmartinom|||||||São Paulo|
+3f883bbf4e8481aaa7cdcee0f05abd1b|Allan Martino|São Paulo/SP|MPB|Novo (sem triagem)|https://www.instagram.com/allanziecoletivoalgum/|https://open.spotify.com/artist/7bLFaJT7fqGI6iHEw0kUqW?si=qJiBZgUmRem-glxBq8_h4Q&utm_source=copy-link|https://www.youtube.com/@allanmartinom|||allan_martino||||São Paulo|
 2d883bbf4e8480e5b34cdec8eed31505|Almar|||Novo (sem triagem)|||||||||||
 0598c62eda224a7ba60ba5295aedcf48|Almir Sater|||Novo (sem triagem)|||||||||||
 7a6060e2460341038580a817f6189349|aluisio.cavalcanti|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -66,7 +66,7 @@ f51dd5b5106b44c98271d09e82465614|Amabbi|||Novo (sem triagem)|https://www.instagr
 242fcc6e83364648bc9a00f666fc8328|Amanda Cadore|Florianópolis/SC||Novo (sem triagem)|https://www.instagram.com/amandacadore/|https://open.spotify.com/artist/1QzbQKoB7I3Z9GP4BlfZNA|https://www.youtube.com/@Amanda.Cadore|https://deezer.com/artist/12663653|https://amandacadore.com||||||
 6cf865242f0b4f54894b236d081dd044|Amanda Coronha|Rio de Janeiro/RJ||Aprovado (curadoria)|||||||||||
 ac922c9ffa874cb391187775584279ff|amanda coronha|São Paulo/SP||Novo (sem triagem)|||||||||||
-38f83bbf4e8481e0bcace32d8b041f24|Amanda Gabana|Porto Alegre/RS|Pop|Pré-aprovado|https://www.instagram.com/amandagabana_/|https://open.spotify.com/artist/7GTsKZxpRghgTKeNWKN54i|https://www.youtube.com/@AmandaGabana_|https://deezer.com/artist/108285752||||||São Paulo|
+38f83bbf4e8481e0bcace32d8b041f24|Amanda Gabana|Porto Alegre/RS|Pop|Pré-aprovado|https://www.instagram.com/amandagabana_/|https://open.spotify.com/artist/7GTsKZxpRghgTKeNWKN54i|https://www.youtube.com/@AmandaGabana_|https://deezer.com/artist/108285752||amanda_gabana||||São Paulo|
 2d883bbf4e848008b8f6fe3f6eb056dc|Amanda Magalhães|São Paulo/SP||Novo (sem triagem)|||||||||||
 3482aa57accd48d6ae1a0b30808b5e0e|amandah amancio|Florianópolis/SC||Novo (sem triagem)|||||||||||
 ad39d6136c234ca3905910d0bf254edd|amandalinhares|Florianópolis/SC||Novo (sem triagem)|||||||||||
@@ -77,8 +77,8 @@ f792e9a43c2e48888c0210e1cbca1ede|Amora de pé|Belo Horizonte/MG||Novo (sem triag
 54704fcaeefb4e3f943a5e096cd5dd58|Ana Cañas|||Novo (sem triagem)||||||||sim|2||
 1e9461679a234a5f93a55bf92bba6bf8|Ana Frango Elétrico|||Novo (sem triagem)||||||||sim|3||
 d608760c19a7452d87556a7b5b51b43e|Ana Gabriela|||Novo (sem triagem)|https://www.instagram.com/anagabriela/|https://open.spotify.com/artist/6a9WLQ5NsIV7U2qB16uFWD|https://youtube.com/channel/UCtN63iegUVqBAxdYkZ-UslQ|https://deezer.com/artist/78089162||||sim|2||
-3c483bbf4e8481a0bf9ce952fadac331|Ana Luíza Dias|||Novo (sem triagem)||||https://www.deezer.com/artist/203898597|||||||
-3c983bbf4e84814cadcae79820d296ca|Ana Proença|||Novo (sem triagem)||https://open.spotify.com/artist/6oybxd5Tw63lYULNQr31i4||https://deezer.com/artist/165282467|||||||
+3c483bbf4e8481a0bf9ce952fadac331|Ana Luíza Dias|||Novo (sem triagem)||||https://www.deezer.com/artist/203898597||ana_luiza_dias|||||
+3c983bbf4e84814cadcae79820d296ca|Ana Proença|||Novo (sem triagem)||https://open.spotify.com/artist/6oybxd5Tw63lYULNQr31i4||https://deezer.com/artist/165282467||ana_proenca|||||
 e101d6a85d4342108b2ddb5953ff4a18|Ana Vilela|||Novo (sem triagem)|https://www.instagram.com/anavilela/|https://open.spotify.com/artist/66mL7YE8rG9eCu4QgM64m4|https://youtube.com/channel/UCLYHckv6c8Eky4Z02B6v34w|https://deezer.com/artist/11667655|||||||
 60d7e16795354af095a15daa700e1f54|anabarrosos|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/anabarrosos?igsh=MWFuamprNnN3N2p5|||||||||Salvador|
 6c55799e75e9475db45d2252fdea7a18|anacostaoficial|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
@@ -93,18 +93,18 @@ e101d6a85d4342108b2ddb5953ff4a18|Ana Vilela|||Novo (sem triagem)|https://www.ins
 2d883bbf4e8480d39eaec923ecacd79e|Anchietx|||Novo (sem triagem)|||||||||||
 3eae4f6c95e6462996911f24201c86c6|Andrea Rodeguero|||Novo (sem triagem)|https://www.instagram.com/andrearodeguero/|https://open.spotify.com/artist/1L6sdSmaA8PkSO3Qgz86Gg||https://deezer.com/artist/11102878|||||||
 5fb7cc1d4844411494a793287fa2adb5|André Abujamra|||Aprovado (curadoria)||https://open.spotify.com/artist/28si7CUH7QTEfq7p4rWbBi||||||||São Paulo|
-3d083bbf4e84819e8eeaf4268f122a2a|André Parisi|||Novo (sem triagem)||https://open.spotify.com/artist/2JjV9rhR8MTPRtk6Y3uyvn||https://deezer.com/artist/1614854|||||||
+3d083bbf4e84819e8eeaf4268f122a2a|André Parisi|||Novo (sem triagem)||https://open.spotify.com/artist/2JjV9rhR8MTPRtk6Y3uyvn||https://deezer.com/artist/1614854||andre_parisi|||||
 51b5bbc6a4f047769472edb05694cc18|André Prando|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/andreprando/|https://open.spotify.com/artist/4FMAZRPuZfvwhx7nMywkZk|https://youtube.com/channel/UCZf2xtZsO4M1iQpWx3oJ6SA|https://deezer.com/artist/7982318||andreprando|||||
 cf15d93852f9459690b85f56f1213ffe|André Travassos (dedecodelilica)|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 18e86db03d7a41619248c064c713e923|Anelis Assunção|||Novo (sem triagem)|||||||||||
 bed5c030ee7c414fab1b49843477fb0b|angelica duarte|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 26e71c9f15c643648da06dbc003780be|Angelo Scarpelli|||Novo (sem triagem)|https://www.instagram.com/scarpelliangelo?igsh=Nm93MW1peTczMDhz||||||||||
 320b0ef6697242c087f1cd2602bf2bbf|anis de flor|Florianópolis/SC||Novo (sem triagem)|||||||||||
-37c83bbf4e84818b8692e9e74b2cb6e7|Anna Esteves|Varginha/MG|Alternativo,MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/annaestev/|https://open.spotify.com/artist/1BA5cZhxfuqsqMnFO8Zde9|https://www.youtube.com/@annaestev|https://www.deezer.com/artist/322332231||||||São Paulo|
+37c83bbf4e84818b8692e9e74b2cb6e7|Anna Esteves|Varginha/MG|Alternativo,MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/annaestev/|https://open.spotify.com/artist/1BA5cZhxfuqsqMnFO8Zde9|https://www.youtube.com/@annaestev|https://www.deezer.com/artist/322332231||anna_esteves||||São Paulo|
 711f659e296143a0a0e5ae3deae42b98|Anna Pêgo|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/annapegooficial/||||||||||
-37983bbf4e8481578725e195aec51845|Anna Setton|São Paulo- Lisboa|MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/annasetton/|https://open.spotify.com/artist/7er8R2Few8v9jYtIY2vh9L|https://www.youtube.com/@AnnaSetton|https://www.deezer.com/artist/5834726||||||São Paulo|
+37983bbf4e8481578725e195aec51845|Anna Setton|São Paulo- Lisboa|MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/annasetton/|https://open.spotify.com/artist/7er8R2Few8v9jYtIY2vh9L|https://www.youtube.com/@AnnaSetton|https://www.deezer.com/artist/5834726||anna_setton||||São Paulo|
 ea8cf575f6214f54b841ebb24624c1f6|Anna Torres|||Aprovado (curadoria)|https://www.instagram.com/annatorres___/||||||||||
-3d583bbf4e84816f94bbf3bbc2cf9613|Anna Verdan|||Novo (sem triagem)||||https://www.deezer.com/artist/362511782|||||||
+3d583bbf4e84816f94bbf3bbc2cf9613|Anna Verdan|||Novo (sem triagem)||||https://www.deezer.com/artist/362511782||anna_verdan|||||
 da1ced23f8a84c61be301a3b31d32b7d|Anne Esteves|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 0ad193964d3e42bd8346d47083a7b21b|Anná|São Paulo/SP||Novo (sem triagem)|||||||||||
 65d8f16ba6504390ba093b74d5f97d6c|Anná|||Aprovado (curadoria)|||||||||||
@@ -121,7 +121,7 @@ a623fe54f3374ecd9737dec326f642dc|Arthur Martins|Rio de Janeiro/RJ||Novo (sem tri
 3dad45d0dde1432da453a856345e8533|Assucena|||Avaliando (curadoria)||https://open.spotify.com/artist/4JUqukNJyqVXHjdRlFcFu8||https://deezer.com/artist/11938437|||||||
 6c75ab5101194e5aa9da3166cb7e120f|Atípica de Lhamas|||Novo (sem triagem)|https://www.instagram.com/atipicadelhamas/||||||||||
 b2454d52238540d1a064adf79801b2bc|Augusta Barna|Belo Horizonte (BH)||Aprovado (curadoria)|https://www.instagram.com/augusta.barna/|https://open.spotify.com/artist/1nCqVLF06AcC2U5Tq2RkRk||https://deezer.com/artist/119241152|||||||
-3dd83bbf4e848169845cd0423cf421ae|Augusto Cordeiro|||Novo (sem triagem)||https://open.spotify.com/artist/1vodQGadFkrtwlaSw5VOza|||||||||
+3dd83bbf4e848169845cd0423cf421ae|Augusto Cordeiro|||Novo (sem triagem)||https://open.spotify.com/artist/1vodQGadFkrtwlaSw5VOza||||augusto_cordeiro|||||
 1554f20ff9914477afddf4c2856eb808|Ava Rocha|||Novo (sem triagem)||||||||sim|||
 31983bbf4e84811583f4f27c043947fd|Aviz|Belo Horizonte/MG|MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/souaviz/|https://open.spotify.com/artist/5jRbTORGLKSP0LriX5Mswl|||||||||
 c9e3bc4b45524b308f38b942505e5cc6|Avuá|||Novo (sem triagem)||||||||sim|||
@@ -134,14 +134,14 @@ fe89903ed67b4e609b32ed8410fe448e|Baile de Ladinho|||Novo (sem triagem)|https://w
 55aa17e45b8e4afda5d506558eebf2c9|Balara|||Aprovado (curadoria)|https://www.instagram.com/balaraoficial/|||||||||São Paulo|
 f33315b67b1b4d4aa4b0518747337efe|Banda Cultivo|||Novo (sem triagem)|https://www.instagram.com/bandacultivo||||||||||
 41112fccd2c64539b6d5e713601cfce0|banda lupa|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
-38683bbf4e848150b143ccb7d2011257|Banda Osala|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Aprovado (curadoria)|https://www.instagram.com/bandaosala/|https://open.spotify.com/artist/0PuKpCMcJuYgeAkFDBTgGj|https://www.youtube.com/@bandaosala|||||||Belo Horizonte|
-33e83bbf4e8481cba83ffbde61218f65|Banda Sangue Doce|Salvador/BA|MPB|Novo (sem triagem)|https://www.instagram.com/bandasanguedoce/|https://open.spotify.com/intl-pt/artist/7em6M1Z9ZaMRWBfw3g0eLt?si=A5t7GgTXQn2cLpqhyowPRg|https://www.youtube.com/@SangueDoceBanda|||||||São Paulo|
+38683bbf4e848150b143ccb7d2011257|Banda Osala|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Aprovado (curadoria)|https://www.instagram.com/bandaosala/|https://open.spotify.com/artist/0PuKpCMcJuYgeAkFDBTgGj|https://www.youtube.com/@bandaosala|||banda_osala||||Belo Horizonte|
+33e83bbf4e8481cba83ffbde61218f65|Banda Sangue Doce|Salvador/BA|MPB|Novo (sem triagem)|https://www.instagram.com/bandasanguedoce/|https://open.spotify.com/intl-pt/artist/7em6M1Z9ZaMRWBfw3g0eLt?si=A5t7GgTXQn2cLpqhyowPRg|https://www.youtube.com/@SangueDoceBanda|||banda_sangue_doce||||São Paulo|
 0b169af4519644129cd69c6897a482e1|Barbara Campelli|||Novo (sem triagem)|https://www.instagram.com/barbara.campelli/||||||||||
-3c083bbf4e8481b88201e2a66e22049e|Barbara Dumonn|São Paulo|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/barbaradumonn_/|https://open.spotify.com/artist/3Q8MQWXu47ya4HOBXfLvvx?si=lEdQNQ2cQh-2dClOO0aFYg&utm_source=copy-link|https://www.youtube.com/channel/UCnrzUKnggzPtMjxq7oroTvQ|||||||São Paulo|
+3c083bbf4e8481b88201e2a66e22049e|Barbara Dumonn|São Paulo|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/barbaradumonn_/|https://open.spotify.com/artist/3Q8MQWXu47ya4HOBXfLvvx?si=lEdQNQ2cQh-2dClOO0aFYg&utm_source=copy-link|https://www.youtube.com/channel/UCnrzUKnggzPtMjxq7oroTvQ|||barbara_dumonn||||São Paulo|
 86ce64ad6d2a4b6f8d48c1cab86a3da3|Barbarelli|||Aprovado (curadoria)|https://www.instagram.com/barbarelli___/|||||||||São Paulo|
-3dd83bbf4e8481988cb9e3509bdd0663|Be Bel|||Novo (sem triagem)||https://open.spotify.com/artist/6srJhSU7qTF290y2NzvGUW|||||||||
-3dd83bbf4e8481b6b998e8e5d86f9f93|Bear Me Again|||Novo (sem triagem)||https://open.spotify.com/artist/3SZdJaUqd8jHDqUZ7eA8VT|||||||||
-3de83bbf4e848104afadea8011374ed8|Bel Macedo|||Novo (sem triagem)||https://open.spotify.com/artist/0nMdKU5qV4n37JmVJjBtgx|||||||||
+3dd83bbf4e8481988cb9e3509bdd0663|Be Bel|||Novo (sem triagem)||https://open.spotify.com/artist/6srJhSU7qTF290y2NzvGUW||||be_bel|||||
+3dd83bbf4e8481b6b998e8e5d86f9f93|Bear Me Again|||Novo (sem triagem)||https://open.spotify.com/artist/3SZdJaUqd8jHDqUZ7eA8VT||||bear_me_again|||||
+3de83bbf4e848104afadea8011374ed8|Bel Macedo|||Novo (sem triagem)||https://open.spotify.com/artist/0nMdKU5qV4n37JmVJjBtgx||||bel_macedo|||||
 20d5b0a47a234e23a48d8f28c0992618|bela|||Novo (sem triagem)|https://www.instagram.com/martinssbela/|https://open.spotify.com/artist/1xiD7F83C6p1qxL4tWohcD||https://deezer.com/artist/163820867|||||||
 464e2be7637047d4bf4c82a8cd019f9d|Bela Maria|São Paulo/SP||Novo (sem triagem)|||||||||||
 3a583bbf4e8481c1bbedca2ee9166ed3|Beliche|Vespasiano/MG|Alternativo,Pop|Novo (sem triagem)|https://www.instagram.com/belicheoficial/|https://open.spotify.com/artist/4g3JZvGn8aOwYDy8tTXcFN|https://www.youtube.com/@beliche|https://www.deezer.com/artist/66941772||beliche||||Belo Horizonte|
@@ -150,10 +150,10 @@ f3e60b1bdeef4327837de5af37c7a123|bellakahum|Recife/PE||Novo (sem triagem)|||||||
 0a650c0724764fbcac86b5069583250d|Bemti|||Novo (sem triagem)|https://www.instagram.com/bemti/||||||||||
 98c1fd76f2384d98a2c559d8c993064b|Bento Gil|||Novo (sem triagem)|https://www.instagram.com/bentogil_/|https://open.spotify.com/artist/5lCj6mlnSb6OMSDyrWj3tb|https://youtube.com/channel/UChSrhvGwfGLhSX_e13_jBmQ|https://deezer.com/artist/49193052|||||||
 2d883bbf4e848004ae66ed82f94dc693|Benziê|||Novo (sem triagem)|https://www.instagram.com/benzie/||||||||||
-3d883bbf4e848133a650e9001a053602|Berilo|Belo Horizonte/MG|Pop|Novo (sem triagem)|https://www.instagram.com/eu.isa.pimenta/|https://open.spotify.com/artist/6zOrdHcF0pcqNtVNhJW2Ne||https://deezer.com/artist/76608052||||||Belo Horizonte|
+3d883bbf4e848133a650e9001a053602|Berilo|Belo Horizonte/MG|Pop|Novo (sem triagem)|https://www.instagram.com/eu.isa.pimenta/|https://open.spotify.com/artist/6zOrdHcF0pcqNtVNhJW2Ne||https://deezer.com/artist/76608052||isabella_pimenta||||Belo Horizonte|
 eef6b8e252764932b1c15bba88064f22|berimbaum|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 db4cacf9d6f6437e8d55386f1352e02b|bernardo|||Novo (sem triagem)|https://www.instagram.com/bernardoesuascancoes/||||||||||
-3cf83bbf4e848146b985fe6ce1cc3254|Bernardo do Espinhaço|||Novo (sem triagem)|https://www.instagram.com/bernardodoespinhaco/|https://open.spotify.com/artist/51m0RWD6U8oXo3GZhhI5hX||https://deezer.com/artist/8311832|||||||
+3cf83bbf4e848146b985fe6ce1cc3254|Bernardo do Espinhaço|||Novo (sem triagem)|https://www.instagram.com/bernardodoespinhaco/|https://open.spotify.com/artist/51m0RWD6U8oXo3GZhhI5hX||https://deezer.com/artist/8311832||bernardo_do_espinhaco|||||
 32e83bbf4e8480689a8ed69b9f28ec8a|Bernardo Orneles|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/bernardoorneles/|https://open.spotify.com/artist/5maGVUGlG8AEbr1zZlJYh5||||||sim|1|Belo Horizonte|
 16a87b81e27c4a17a309e9703e81abb7|Bezier|||Avaliando (curadoria)||https://open.spotify.com/artist/5dN3ZvUbSPJRigRYa2qcHi|||||||||
 87092ea4622b493697b543f16d276be8|bia do violãozinho|Recife/PE||Novo (sem triagem)|||||||||||
@@ -162,7 +162,7 @@ db4cacf9d6f6437e8d55386f1352e02b|bernardo|||Novo (sem triagem)|https://www.insta
 c52040867f28437fb0ec656e0a5543a5|Bia Marques|Florianópolis/SC||Aprovado (curadoria)|https://www.instagram.com/bianarquessofc/||||||||||
 bef840adb17048a1a1862da2536da7a9|Bia Nogueira|||Não seguiu na curadoria|||||||||||
 e3d5fa4ed5dd4964a75d2f110a221019|Bia Trindade|||Novo (sem triagem)|https://www.instagram.com/biatrindadeo/|https://open.spotify.com/artist/7l8w6DIaC0D9ioT6CvmVTT||https://deezer.com/artist/94131332|||||||
-3cf83bbf4e8481c09933ddefabe34420|Bia Vasconcellos|||Novo (sem triagem)||https://open.spotify.com/artist/5GZEn9SQbfD2QfaX2fixEx||https://deezer.com/artist/68485932|||||||
+3cf83bbf4e8481c09933ddefabe34420|Bia Vasconcellos|||Novo (sem triagem)||https://open.spotify.com/artist/5GZEn9SQbfD2QfaX2fixEx||https://deezer.com/artist/68485932||bia_vasconcellos|||||
 23e1930ee712429286b57b5167d2c372|biatrindadeo|Salvador/BA||Novo (sem triagem)||||||||||Salvador|
 709a5621eaab413fbc5022ddab9e1866|bibiana petek|Florianópolis/SC||Novo (sem triagem)|||||||||||
 2d883bbf4e84809e9751c79d93848309|Big Up|||Novo (sem triagem)|||||||||||
@@ -176,9 +176,9 @@ d7457b15b07a471b9752ba90f59cc7f6|Brandú + Kairee|Belo Horizonte/MG||Novo (sem t
 5dada623e7644d63b08492f8f5202962|briane capinan|Salvador/BA||Novo (sem triagem)|||||||||||
 88fded3f06db4bf1b5229708001eda50|Bruna|||Novo (sem triagem)|https://www.instagram.com/lado.bruna/||||||||||
 f0d0442b2d9c44fb866fd71e2512d388|bruna alimonda|São Paulo/SP||Novo (sem triagem)|||||||||||
-3de83bbf4e848136a2d1cff79aadcaac|Bruna Black|||Novo (sem triagem)|https://www.instagram.com/cantabrunablack/|https://open.spotify.com/artist/4XT8kTR1AgQzXS7ggdYPDX|https://charts.youtube.com/artist/%2Fg%2F11v0cws4ng|https://deezer.com/artist/14663341|||||||
-b8d921115da34037b2454dfc9c4c30d7|Bruna Black|||Novo (sem triagem)||https://open.spotify.com/artist/4XT8kTR1AgQzXS7ggdYPDX||||||sim|2||
-3dd83bbf4e8481d9b690c1a5966bdf32|Bruna Caram|||Novo (sem triagem)||https://open.spotify.com/artist/3pSMpWqJo6X3uImKekyupo|||||||||
+3de83bbf4e848136a2d1cff79aadcaac|Bruna Black|||Novo (sem triagem)|https://www.instagram.com/cantabrunablack/|https://open.spotify.com/artist/4XT8kTR1AgQzXS7ggdYPDX|https://charts.youtube.com/artist/%2Fg%2F11v0cws4ng|https://deezer.com/artist/14663341||bruna_black|||||
+b8d921115da34037b2454dfc9c4c30d7|Bruna Black|||Novo (sem triagem)||https://open.spotify.com/artist/4XT8kTR1AgQzXS7ggdYPDX||||bruna_black||sim|2||
+3dd83bbf4e8481d9b690c1a5966bdf32|Bruna Caram|||Novo (sem triagem)||https://open.spotify.com/artist/3pSMpWqJo6X3uImKekyupo||||bruna_caram|||||
 4397400aba424530b801f334f82568d9|Bruna Ene|||Novo (sem triagem)|https://www.instagram.com/brunaene||||||||||
 39050b5f34714f779a0cbf481d653126|Bruna Lucchesi|São Paulo/SP||Novo (sem triagem)|https://www.instagram.com/brunalucchesi_/||||||||||
 8fa64507a3214138b682c77fc0f6e5ba|Bruna Magalhães|||Aprovado (curadoria)|https://www.instagram.com/brunamagalhaesmusica/|https://open.spotify.com/artist/108y6vREhgAIvgvm1Cq54p|https://charts.youtube.com/artist/%2Fg%2F11c6cr5_hx|https://deezer.com/artist/11711411||brunamagalhaes|||||
@@ -198,13 +198,13 @@ f6d8efc018094728bd34b49e78e2e7e7|cadé|São Paulo/SP||Novo (sem triagem)||||||||
 8c6b892cf6b2476f9e9a368becd07f3f|Caetana|São Paulo/SP||Novo (sem triagem)|||||||||||
 bc24b0cd627545f7a64667ad6b5e8c3f|caetana - odoya|São Paulo/SP||Novo (sem triagem)|||||||||||
 67ce8bfbf3174cef95c7d461e438ff1e|Caetano Veloso|||Novo (sem triagem)|||||||||||
-3dd83bbf4e848192a2a3ebfdc43daaf3|Caike Souza|||Duplicata / ambíguo (revisar desambiguação)||https://open.spotify.com/artist/6tjtXcfi8CU4froDsEydxa|||||||||
+3dd83bbf4e848192a2a3ebfdc43daaf3|Caike Souza|||Duplicata / ambíguo (revisar desambiguação)||https://open.spotify.com/artist/6tjtXcfi8CU4froDsEydxa||||caike_souza|||||
 a3b9bb75006d4f3fafc0a3824a797328|Caike Souza|||Novo (sem triagem)|||||||||||
 3bc83bbf4e8481298708c6d70d32ee1a|CALI|||Novo (sem triagem)||https://open.spotify.com/artist/58XX830AG7eO98Od1VXwC8||https://deezer.com/artist/70404792||cali|||||
 5c68c306ef6546188b2a93e5e3ab6589|Calvano|||Novo (sem triagem)|https://www.instagram.com/calvanomusico/|https://open.spotify.com/artist/6FEmavHsIuRP8Isw8PT9WK|||||||||
-3ce83bbf4e848190a1fcd7f7dbeb0b23|Camila de Oliveira|São Paulo/SP|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/camiladeoliveira.music/|https://open.spotify.com/artist/1LQPj8homViy1E1EkLV1ue|https://www.youtube.com/@camiladeoliveira_music|https://deezer.com/artist/7983018||||||São Paulo|
-eeb41313532b484cb388f2829d4a522e|Camila Menezes|||Aprovado (curadoria)|https://www.instagram.com/acamilamenezes/|||||||||Belo Horizonte|
-3de83bbf4e848137bb76e3cf6928624a|Camila Rocha|||Novo (sem triagem)||https://open.spotify.com/artist/3VFDdG2YepPm34ZORaCBC5|||||||||
+3ce83bbf4e848190a1fcd7f7dbeb0b23|Camila de Oliveira|São Paulo/SP|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/camiladeoliveira.music/|https://open.spotify.com/artist/1LQPj8homViy1E1EkLV1ue|https://www.youtube.com/@camiladeoliveira_music|https://deezer.com/artist/7983018||camila_de_oliveira||||São Paulo|
+eeb41313532b484cb388f2829d4a522e|Camila Menezes|||Aprovado (curadoria)|https://www.instagram.com/acamilamenezes/|||||camila_menezes||||Belo Horizonte|
+3de83bbf4e848137bb76e3cf6928624a|Camila Rocha|||Novo (sem triagem)||https://open.spotify.com/artist/3VFDdG2YepPm34ZORaCBC5||||camila_rocha|||||
 c298d4c14f21462184ba3b1eddfa31cf|camilas.ooo|Salvador/BA||Novo (sem triagem)||||||||||Salvador|
 37983bbf4e848183a109e654319942f7|Canhestro|São Paulo|Alternativo,MPB|Aprovado (curadoria)|https://www.instagram.com/ribacanhestro/|https://open.spotify.com/artist/10wqouKew0Yitb6INQUl2y|https://www.youtube.com/@rebecacanhestro|https://www.deezer.com/artist/164793867||canhestro||||São Paulo|
 37483bbf4e8481a8ab93ff3cc9cc51a2|cantante dourado|Rio Grande do Sul|Alternativo|Novo (sem triagem)|https://www.instagram.com/_cantantedourado/|https://open.spotify.com/artist/5TsE4Za20shsYaJ8PlI3Bx|https://youtube.com/channel/UCH6ePWhIZ3kWeRS6uWDX-ZA|https://deezer.com/artist/87035502|||||||
@@ -216,19 +216,19 @@ bd7ffcd00af34172beb5acb2bc82bbd6|Capim Limão|||Novo (sem triagem)|https://www.i
 f2747484883848a5888e2a6bdf3301cb|Carla Sceno|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 07daae66fd694d58ba55aeab2496adb7|Carla Sol|||Novo (sem triagem)|||||||||||
 6f441336b47240c8a760b7cacec62963|Carol Biazin|||Novo (sem triagem)||||||||sim|||
-3de83bbf4e8481589e0ce57fe0950899|Carol Boaventura|||Falta link / dados (completar)||||https://www.deezer.com/artist/74632782|||||||
+3de83bbf4e8481589e0ce57fe0950899|Carol Boaventura|||Falta link / dados (completar)||||https://www.deezer.com/artist/74632782||carol_boaventura|||||
 c9feb91ec8414429b839587c642461ee|Carol Dytz|||Novo (sem triagem)|https://www.instagram.com/caroldytz/||||||||||
-37d83bbf4e8481b6b3cecdd7dc65390c|Carol Helena|São Paulo|Pop|Aprovado (curadoria)|https://www.instagram.com/carollhelena/|https://open.spotify.com/artist/3O2FjTGvuEYgkBQmTWvaJj|https://www.youtube.com/@carolhelenam|https://deezer.com/artist/13194621||||||São Paulo|
+37d83bbf4e8481b6b3cecdd7dc65390c|Carol Helena|São Paulo|Pop|Aprovado (curadoria)|https://www.instagram.com/carollhelena/|https://open.spotify.com/artist/3O2FjTGvuEYgkBQmTWvaJj|https://www.youtube.com/@carolhelenam|https://deezer.com/artist/13194621||o_fjtgvueygkbqmtwvajj||||São Paulo|
 22317e1dd774432586c6c04f73f612df|Carol Moura|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/carolmouraoficial/|||||||||São Paulo|
-37983bbf4e84813da5abe20d7fdf918a|Carol Moura|||Novo (sem triagem)||https://open.spotify.com/artist/7j5dbuDD3w6wxMZLHGorrz||https://www.deezer.com/artist/13552705|||||||
+37983bbf4e84813da5abe20d7fdf918a|Carol Moura|||Novo (sem triagem)||https://open.spotify.com/artist/7j5dbuDD3w6wxMZLHGorrz||https://www.deezer.com/artist/13552705||carol_moura|||||
 6973d4fe464c4ebfaa59c9e72853bf21|Carol Moura|||Não seguiu na curadoria|https://www.instagram.com/carolmouraoficial/||||||||||
 e585abf76b6643b5b6ddae2a56e65936|carol moura|São Paulo/SP||Novo (sem triagem)|||||||||||
-37a83bbf4e8481dd8259cafbdb6ac245|Carol Salles|Belo Horizonte/MG|Alternativo,MPB,Outro gênero musical,Pop|Aprovado (curadoria)|https://www.instagram.com/caroltsalles/|https://open.spotify.com/artist/6kNSegcuC7nH5TK8cTMEWt|https://www.youtube.com/@carolsalles|https://www.deezer.com/artist/178522097||||||Belo Horizonte|
+37a83bbf4e8481dd8259cafbdb6ac245|Carol Salles|Belo Horizonte/MG|Alternativo,MPB,Outro gênero musical,Pop|Aprovado (curadoria)|https://www.instagram.com/caroltsalles/|https://open.spotify.com/artist/6kNSegcuC7nH5TK8cTMEWt|https://www.youtube.com/@carolsalles|https://www.deezer.com/artist/178522097||carol_salles||||Belo Horizonte|
 216a05764658407092acc8f128cee702|carolhelena|São Paulo/SP||Novo (sem triagem)|||||||||||
 38f2dd0568844b9ba99ff768ba53e0d1|Carolina Andrade|||Novo (sem triagem)|https://www.instagram.com/canta.carolina/||||||||||
 796bded16dd54c0ea3df233703a40d89|Carolla|São Paulo/SP||Novo (sem triagem)|||||||||||
 93fc4646d2034a55b92bea0fbf12bfa6|carollhelena|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
-2dbe00c4b15342d3921722577d25871a|Castello Branco|||Novo (sem triagem)|||||||Artista principal (Apresenta) · 45 min a 1h|sim|2||
+2dbe00c4b15342d3921722577d25871a|Castello Branco|||Novo (sem triagem)||||||castellobranco|Artista principal (Apresenta) · 45 min a 1h|sim|2||
 39683bbf4e8481c7ab1ce7ba09629c40|Cate|Belo Horizonte/MG|MPB|Novo (sem triagem)|https://www.instagram.com/cateacorde/|https://open.spotify.com/artist/5ai2tdqmwasjvqEf7NZFAS|https://www.youtube.com/@cateacorde|||cate||||Belo Horizonte|
 62122a1725f24cb0b512d575bddb2348|Celso Adolfo|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 ccd3abb736e9479a9a16af939cf717bc|celso moretti|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -237,7 +237,7 @@ e7cc35a8a72a4791b0d69ea971df3291|Cesar Lacerda|Rio de Janeiro/RJ||Novo (sem tria
 37983bbf4e848145955de7b563e1a9b7|Chella|São Paulo/SP|MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/chella/|https://open.spotify.com/artist/0PfKBDzVqAXKEnTQvHvT5a|https://www.youtube.com/channel/UCrTqMpPQo-ZE4Rcv1QWgT4Q|https://www.deezer.com/artist/10120970||chella||||São Paulo|
 36e9b03bd280479e9d4248f91feff63d|Chico Chico|||Novo (sem triagem)||||||||sim|2||
 4b3faadb4f8046eb9fadf016e4213852|Chico César|||Aprovado (curadoria)|https://www.instagram.com/oficialchicocesar/||||||||||
-38f83bbf4e848151992bf3ea28dd865f|Chico e o Mar|Belo Horizonte / São Paulo|Alternativo,Pop|Aprovado (curadoria)|https://www.instagram.com/chicoeomar/|https://open.spotify.com/artist/24aBhTcvMpdnGyNBwbu2DJ|https://www.youtube.com/chicoeomar|https://www.deezer.com/artist/63964282||||||Belo Horizonte|
+38f83bbf4e848151992bf3ea28dd865f|Chico e o Mar|Belo Horizonte / São Paulo|Alternativo,Pop|Aprovado (curadoria)|https://www.instagram.com/chicoeomar/|https://open.spotify.com/artist/24aBhTcvMpdnGyNBwbu2DJ|https://www.youtube.com/chicoeomar|https://www.deezer.com/artist/63964282||chico_e_o_mar||||Belo Horizonte|
 30c83bbf4e8481268d3acc2c3756acc9|Chillito|São Paulo/SP|Alternativo|Novo (sem triagem)|https://www.instagram.com/chillitalo/|https://open.spotify.com/artist/20FTGlxeMeGQpEldBIquvp|||||||||
 393aa3d6e44b4e61bf315b7c820f90be|Christiane Valença|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 e56cc2add60a4443b42ec8a77287fddb|Christine Valença|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
@@ -269,7 +269,7 @@ a1fdaaa55a5f4e20a4faaccc9d940514|Cristoilma|||Não seguiu na curadoria|https://w
 eeeecadc094444e19dfcdbf2ac72c672|Cupertino|||Novo (sem triagem)|||||||||||
 b0eef7ba0cce4f86b8305dbd74078e54|Curumim|||Novo (sem triagem)||||||||sim|||
 4d685b3e1e7f4bbcadecba55c4e00b95|Cyro Sampaio|||Aprovado (curadoria)|https://www.instagram.com/cyroca/|||||||||São Paulo|
-3dd83bbf4e8481a1a7b2e8f143cee771|César Lacerda|||Novo (sem triagem)||https://open.spotify.com/artist/5l962QqiKtDWXYqjbpJ3qZ|||||||||
+3dd83bbf4e8481a1a7b2e8f143cee771|César Lacerda|||Novo (sem triagem)||https://open.spotify.com/artist/5l962QqiKtDWXYqjbpJ3qZ||||cesar_lacerda|||||
 82ea1ef1e7574bf6a4d4094817e6b729|Céu|||Novo (sem triagem)|||||||||||
 37883bbf4e8481ada78be27d3ecf59de|Dan Gentil|Belo Horizonte/MG|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/dangentiloficial/|https://open.spotify.com/artist/2LWuW5H4ecjC5H7EHmGf3m||https://deezer.com/artist/102646042|||||||
 beb38766a31845d5a094c1e425ab0b2a|Dan Gentil|||Novo (sem triagem)|https://www.instagram.com/dangentiloficial/||||||||||
@@ -283,7 +283,7 @@ e4d2300cc794481cbdcb3852db133918|DAPARTE|||Novo (sem triagem)|https://www.instag
 f97378ac79284bb6bafbf5b960b6f959|Davi Fonseca|||Aprovado (curadoria)|https://www.instagram.com/davi.fonseca.piano/|https://open.spotify.com/artist/4KbYh2fl4pVVkXd9XhMKvw||https://deezer.com/artist/70290942||davifonseca|||||
 eb3e0c95eabe4c90b814b27cee3b941b|Davi Leão|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/davileaof/|https://open.spotify.com/artist/63PbB9qmaVblxOqBoOb2g7|https://www.youtube.com/@davileaof|https://deezer.com/artist/96216032||davileao|||1||
 d3ff8276541f46cfad582d28010534e9|daviccastilho|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/daviccastilho?igsh=MWEwNnh3MTRmYXUxag==|||||||||Salvador|
-3e083bbf4e84815aae7ce22ed855c9ba|David Coelho|||Novo (sem triagem)||https://open.spotify.com/artist/6LdowhKLy8mCYgEzApSK68|||||||||
+3e083bbf4e84815aae7ce22ed855c9ba|David Coelho|||Novo (sem triagem)||https://open.spotify.com/artist/6LdowhKLy8mCYgEzApSK68||||david_coelho|||||
 a55f0c06f01c407ca81afdc428d9ce91|davileao|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 32083bbf4e84803692a7f40d854cc1b0|Deborah Araujo|||Novo (sem triagem)|https://www.instagram.com/deborahsoueu/||||||||||
 9d67ce9a082d4bb5a502f0830c4c2c70|deborahsoueu|Florianópolis/SC||Novo (sem triagem)|||||||||||
@@ -295,16 +295,16 @@ d4a09b2ae4b647e88d7a2dc2946f5fc7|Dellima|Salvador/BA||Para avaliar (pré-curador
 ea1529d0e2ed41a8a7e58ade86e3128a|Di Souza|||Falta link / dados (completar)|||||||||||
 3f183bbf4e84815bbd85c22edbda804c|Diamood|||Novo (sem triagem)|https://www.instagram.com/diamoodband/|https://open.spotify.com/intl-pt/artist/6KHdTdbY21HJO4X4rVMqIz?si=4yoJcA6ZRWO_tQewBcd1wQ|https://www.youtube.com/@Diamood|||diamood|||||
 4cc013b36db14ad085e7cd8b9d29f44b|DIBRE|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/dibreoficial/|||||||||Belo Horizonte|
-3e583bbf4e84812dad73e0a8c675bc0b|Diego Borges|||Novo (sem triagem)||https://open.spotify.com/artist/7FP0GNGeoluE5UBQUhnBxs|||||||||
-37a83bbf4e84812a87bbc01c8132765e|Diego Estevam|Vila Matilde/SP|Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/diego.estevamartins/|https://open.spotify.com/artist/1Fxj0LnnJObd8NNRc7Xlqc|https://www.youtube.com/@diego.estevamartins|https://www.deezer.com/artist/199372947||||||São Paulo|
+3e583bbf4e84812dad73e0a8c675bc0b|Diego Borges|||Novo (sem triagem)||https://open.spotify.com/artist/7FP0GNGeoluE5UBQUhnBxs||||diego_borges|||||
+37a83bbf4e84812a87bbc01c8132765e|Diego Estevam|Vila Matilde/SP|Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/diego.estevamartins/|https://open.spotify.com/artist/1Fxj0LnnJObd8NNRc7Xlqc|https://www.youtube.com/@diego.estevamartins|https://www.deezer.com/artist/199372947||diego_estevam||||São Paulo|
 04cf25506a604bba9435ab74020ddfbe|Diego Moraes|||Não seguiu na curadoria|||||||||||
-3c983bbf4e8481ee8edae30c90c84042|Diego Schaun|||Novo (sem triagem)||https://open.spotify.com/artist/2M95fXlEA82yJwSSOK2lEt||https://deezer.com/artist/10497165|||||||
+3c983bbf4e8481ee8edae30c90c84042|Diego Schaun|||Novo (sem triagem)||https://open.spotify.com/artist/2M95fXlEA82yJwSSOK2lEt||https://deezer.com/artist/10497165||diego_schaun|||||
 cf21f18263284d1bad0bf804ec9873f3|Diogo Lucrécio|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 25bf61ae3ecd4a0a81e13619de398999|Diogo Sousa|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 2e183bbf4e84812c8765fabea81a1930|Dj Tieds Bruxão|Belo Horizonte|Alternativo|Não seguiu na curadoria|https://www.instagram.com/tiedsbruxao?igsh=MWs2eGNpeGMzenozbA==||||||||||
 f00ba52376b94cfda88f64cb481ba8a5|Djavan|||Novo (sem triagem)|||||||||||
 047bd4973312477d8eb237a0fd37bff0|Djonga|||Não seguiu na curadoria|https://www.instagram.com/djongador/||||||||||
-f472adbda3e84b2b97e2e5cec3a2495b|DO PRADO|||Novo (sem triagem)|https://www.instagram.com/do.prado/|https://open.spotify.com/artist/4mYgXK7vsNoUnwEpvvUUdX|https://youtube.com/@doprado-am|https://www.deezer.com/artist/62780402|||||||
+f472adbda3e84b2b97e2e5cec3a2495b|DO PRADO|||Novo (sem triagem)|https://www.instagram.com/do.prado/|https://open.spotify.com/artist/4mYgXK7vsNoUnwEpvvUUdX|https://youtube.com/@doprado-am|https://www.deezer.com/artist/62780402||do_prado|||||
 70eeed488150441dbf67d1c768e80140|Don L|||Novo (sem triagem)|||||||||||
 96976b4f1bd043b88c9d3ca5acd22eb6|Dona Onete|||Novo (sem triagem)|||||||||||
 e7b0c02592c3482bbbcf821699f00ee0|donaclara|||Novo (sem triagem)|https://www.instagram.com/donaclara.banda/|https://open.spotify.com/artist/0nIGQa9WAuZPFxwOu5kBdZ||https://deezer.com/artist/332276571|||||||
@@ -313,16 +313,16 @@ ada78b97bc5340b182c2b8a1713b0af6|Dora Morelenbaum|||Novo (sem triagem)||||||||si
 8f4fd0286023491fb0516484207aee17|doramorelenbaum|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 35883bbf4e848183b9cbd2dc8a3c93d8|Dorea|Salvador/BA|MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/doreadandi/|https://open.spotify.com/artist/2myKOQq3912bBubngLKDhE||https://deezer.com/artist/4446616|||||||
 fabe37ede10b45cf913615b7df38ea6d|Doug O.|São Paulo/SP||Novo (sem triagem)|||||||||||
-3c383bbf4e84811b8474d40d50404c34|Douglas Germano|||Novo (sem triagem)|https://www.instagram.com/douglasgermanocompositor/|https://open.spotify.com/artist/2ig041GcPcddsLoeUWpcJ0|https://youtube.com/channel/UCeiovjQkj1GKpFlMp8sJIrg|https://deezer.com/artist/4685678|||||||
-3b183bbf4e848161ac5ae72938add7ee|Du Coelho|Belo Horizonte/MG|MPB|Para avaliar (pré-curadoria)|https://www.instagram.com/ducoelho.art/|https://open.spotify.com/artist/1fZHzIAbnbkHbIN6bzGAxw|https://music.youtube.com/channel/UCirKJS0i5qB1Pm9DB3dT97w|https://www.deezer.com/artist/130331382||||||Belo Horizonte|
-3cf83bbf4e84819ba525d69244bc0a75|Duará|||Novo (sem triagem)||https://open.spotify.com/artist/2nCn8vi4R2Kd3TAbGCw43t||https://deezer.com/artist/118364652|||||||
+3c383bbf4e84811b8474d40d50404c34|Douglas Germano|||Novo (sem triagem)|https://www.instagram.com/douglasgermanocompositor/|https://open.spotify.com/artist/2ig041GcPcddsLoeUWpcJ0|https://youtube.com/channel/UCeiovjQkj1GKpFlMp8sJIrg|https://deezer.com/artist/4685678||douglas_germano|||||
+3b183bbf4e848161ac5ae72938add7ee|Du Coelho|Belo Horizonte/MG|MPB|Para avaliar (pré-curadoria)|https://www.instagram.com/ducoelho.art/|https://open.spotify.com/artist/1fZHzIAbnbkHbIN6bzGAxw|https://music.youtube.com/channel/UCirKJS0i5qB1Pm9DB3dT97w|https://www.deezer.com/artist/130331382||du_coelho||||Belo Horizonte|
+3cf83bbf4e84819ba525d69244bc0a75|Duará|||Novo (sem triagem)||https://open.spotify.com/artist/2nCn8vi4R2Kd3TAbGCw43t||https://deezer.com/artist/118364652||duo_allecarol|||||
 d9802bd22bc04e2fb904e088c49d0c32|Duda Beat|||Novo (sem triagem)|||||||||||
 5932198f4dd6435f9322169627e7c0c9|Duda Brack|Rio de Janeiro/RJ||Aprovado (curadoria)|https://www.instagram.com/dudabrack/|https://open.spotify.com/artist/3AII51apacF3JYTW4qZRab|https://www.youtube.com/c/DudaBrack|https://deezer.com/artist/6312590|||||||
 b55dc0da56234e7d88418bac66fdd1d5|Duda Braque|||Novo (sem triagem)|||||||||||
 31883bbf4e8480faa1b2fcbbd4e989b0|DUDA IN THE SKY|||Aprovado (curadoria)|https://www.instagram.com/dudainthesky/|||||||sim|1||
 7ad60632000d4883a9bf46dcedf1a783|Dudu Amendoeira|||Aprovado (curadoria)|https://www.instagram.com/duduamendoeira/|||||||||Belo Horizonte|
-3dd83bbf4e84818cb116c0911a1f9700|Duo Inhambu|||Falta link / dados (completar)||||https://www.deezer.com/artist/279063521|||||||
-3e483bbf4e848123ad9bfb33a0ac4240|Duo Tatarana|||Novo (sem triagem)||||https://www.deezer.com/artist/297459421|||||||
+3dd83bbf4e84818cb116c0911a1f9700|Duo Inhambu|||Falta link / dados (completar)||||https://www.deezer.com/artist/279063521||duo_inhambu|||||
+3e483bbf4e848123ad9bfb33a0ac4240|Duo Tatarana|||Novo (sem triagem)||||https://www.deezer.com/artist/297459421||duo_tatarana|||||
 a2a6e36b90d44120aa82dca0d92adf31|Déa Trancoso|||Novo (sem triagem)|https://www.instagram.com/deatrancoso_oficial/||||||||||
 0b9ebe48c2f44b91bf169f816e53dd30|eaipedroemilio|São Paulo/SP||Novo (sem triagem)|||||||||||
 e43d506efc944921b27cae25f9a802cb|Ed Nasque|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -332,18 +332,18 @@ a021d0fc25fa4fd39276e82a45abd8cc|Eddu Porto|Belo Horizonte/MG||Aprovado (curador
 f4981e25dbe34a548cd984ad046a6af7|Elisa Cunha|||Novo (sem triagem)|https://www.instagram.com/souelisacunha||||||||||
 cf5beda1ca82487596c576ed1213858b|Elisa de Sena|||Novo (sem triagem)|https://www.instagram.com/elisadesena/||||||||||
 3c283bbf4e8481bb93f8c0825274f4e9|elito|Pavia, Italia|Alternativo|Novo (sem triagem)|https://www.instagram.com/elito.rsp/|https://open.spotify.com/artist/4OSuHJobGRJFovPsbGCVgR|https://www.youtube.com/@elito_rsp|https://deezer.com/artist/183843617||elito||||São Paulo|
-39783bbf4e8481448838d893906758e3|Ella Blum|São Paulo/SP|Alternativo,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/ellablumoficial/|https://open.spotify.com/artist/2rbEDRrFIJSn1MhjbJLTYh|https://www.youtube.com/@ellablum|https://www.deezer.com/artist/128331152||||||São Paulo|
+39783bbf4e8481448838d893906758e3|Ella Blum|São Paulo/SP|Alternativo,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/ellablumoficial/|https://open.spotify.com/artist/2rbEDRrFIJSn1MhjbJLTYh|https://www.youtube.com/@ellablum|https://www.deezer.com/artist/128331152||ella_blum||||São Paulo|
 81fa356295824842ba313b05bea858d1|ellencristina.oficial|Florianópolis/SC||Novo (sem triagem)|||||||||||
 097085c745aa4edbb0cbd29e73521358|elmamutte|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 34583bbf4e8481b18d7dd7a14645b8d7|Eloah Monteiro|Salvador/BA|MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/eloahmonteiro/|https://open.spotify.com/artist/1DsU9xYgsqHObcoY4JbTM9||https://deezer.com/artist/110194672|||||||
 3e983bbf4e84810fbea6f028997439d4|Emanazul|São Paulo/SP|MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/emanazul/|https://open.spotify.com/artist/5vMsEGLBQ3E8CXVrifPm47|https://www.youtube.com/emanazul|||emanazul||||São Paulo|
 c45390cf57224c02b8572ed123015870|Emanazul|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 586a583ff3484f49aecd7374b33c21ed|Emílio Dragão|||Não seguiu na curadoria||||||||sim|||
-3de83bbf4e8481fe858be36a29c440fe|Enzo Paulo|||Falta link / dados (completar)||||https://www.deezer.com/artist/266390402|||||||
-38683bbf4e848133a230c89517bbf9ac|Eric Be|SÃo Paulo|MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/sou.ericbe/|https://open.spotify.com/artist/4gAI74LLfZXbHG3PoQJH1c|https://www.youtube.com/@sou.ericbe|https://www.deezer.com/artist/83818952||||||São Paulo|
+3de83bbf4e8481fe858be36a29c440fe|Enzo Paulo|||Falta link / dados (completar)||||https://www.deezer.com/artist/266390402||enzo_paulo|||||
+38683bbf4e848133a230c89517bbf9ac|Eric Be|SÃo Paulo|MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/sou.ericbe/|https://open.spotify.com/artist/4gAI74LLfZXbHG3PoQJH1c|https://www.youtube.com/@sou.ericbe|https://www.deezer.com/artist/83818952||eric_be||||São Paulo|
 67245d64d42e44e8815be32808d94b19|eric be|São Paulo/SP||Novo (sem triagem)|||||||||||
-3e483bbf4e84812a9a16d8530281a793|Eric Bê e o Avesso do Avesso|||Novo (sem triagem)||https://open.spotify.com/artist/2Pzm4RBshIABoj9Qf495H0|||||||||
-3a883bbf4e848176863bff1d601640fe|Eric Casttro|Belo Horizonte/MG|MPB|Novo (sem triagem)|https://www.instagram.com/_o.casttro_/|https://open.spotify.com/artist/2NKslngGJfDM2ZSyYgmcKL|https://www.youtube.com/channel/UCtr4a7oo2PGMo_zwNwTCXxA|https://www.deezer.com/artist/77001562||||||Belo Horizonte|
+3e483bbf4e84812a9a16d8530281a793|Eric Bê e o Avesso do Avesso|||Novo (sem triagem)||https://open.spotify.com/artist/2Pzm4RBshIABoj9Qf495H0||||eric_be_e_o_avesso_do_avesso|||||
+3a883bbf4e848176863bff1d601640fe|Eric Casttro|Belo Horizonte/MG|MPB|Novo (sem triagem)|https://www.instagram.com/_o.casttro_/|https://open.spotify.com/artist/2NKslngGJfDM2ZSyYgmcKL|https://www.youtube.com/channel/UCtr4a7oo2PGMo_zwNwTCXxA|https://www.deezer.com/artist/77001562||eric_casttro||||Belo Horizonte|
 f6a0d2b6995a4631a1a3cfd97ecd7505|Esse Gui Mesmo|||Novo (sem triagem)||||||||sim|1||
 71759c896cee4028b25dfbf2a5eb81db|Estevão Félix|||Aprovado (curadoria)|https://www.instagram.com/estevaofellix/||||||||||
 9564b45650584afd9ab31626918c1209|eusoujez|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -351,7 +351,7 @@ f6a0d2b6995a4631a1a3cfd97ecd7505|Esse Gui Mesmo|||Novo (sem triagem)||||||||sim|
 0333a2df147140058033a3df37154ea2|euzendo|Recife/PE||Novo (sem triagem)|||||||||||
 430da2fc24bc405f99031bc42f2562e5|Fabio Nogara|||Novo (sem triagem)|https://www.instagram.com/fabionogara?igsh=aDlqOXo0dXYwbHNz||||||||||
 fd01d1f22164499f92655b81f47b6b56|fabiola beni|São Paulo/SP||Novo (sem triagem)|||||||||||
-38a83bbf4e8481a797ced5e05f2407ce|Fabíola Beni|são carlos/SP|Alternativo,MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/fabiolabeni.oficial/|https://open.spotify.com/artist/6wIZljSSvZvnPu4NguByPP|https://www.youtube.com/@FabiolaBeni|https://www.deezer.com/artist/64717312||||||São Paulo|
+38a83bbf4e8481a797ced5e05f2407ce|Fabíola Beni|são carlos/SP|Alternativo,MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/fabiolabeni.oficial/|https://open.spotify.com/artist/6wIZljSSvZvnPu4NguByPP|https://www.youtube.com/@FabiolaBeni|https://www.deezer.com/artist/64717312||fabiola_beni||||São Paulo|
 811f270dbb384d5ab6b8e19252b2dfa3|Falcão|||Novo (sem triagem)|||||||||||
 21ec96be392b44e5a8200699a0b7e934|Fatel|||Novo (sem triagem)|||||||||||
 680ea10d41c04954816bdf2413eceefa|FBC|||Novo (sem triagem)||||||||sim|||
@@ -360,18 +360,18 @@ fad44def3dab4fdcb32552e41d4081e6|fe mark|São Paulo/SP||Novo (sem triagem)||||||
 2386baca0baf4ce59579eb59782ddcea|feherrerias|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 2f9f906cb20f4a34a0035e9ef514ebd5|Felipe Bedetti|||Aprovado (curadoria)|https://www.instagram.com/felipebedettioficial/|https://open.spotify.com/artist/0rRoreRcmmmP8eO2Y0YE7U||https://deezer.com/artist/15229215||||||Belo Horizonte|
 88007c5cac52410db448c3187412d3d2|Felipe Cordeiro|||Novo (sem triagem)|https://www.instagram.com/ofelipecordeiro/||||||||||
-3ce83bbf4e8481bdb4a8d1f04b83c47d|Felipe dos Santos|||Novo (sem triagem)||https://open.spotify.com/artist/7Maq6CgKT1Wdx656Wml4eE||https://deezer.com/artist/1578323|||||||
-3f383bbf4e84813b9bf0fc7710011b8b|Felipe Humberto de Oliveira Rodrigues - BAnda Filhos de Elis|Contagem/MG|MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/bandafilhosdeelis/|https://open.spotify.com/artist/2sx2sXYEUSKkUtGFJzyrN7?si=enFR96MRSxS_cfPXzuwEPA&utm_source=copy-link|https://www.youtube.com/channel/UCo0q7qDZdK6N_drhcqmw30w|||||||Belo Horizonte|
-37983bbf4e8481a1b97df2defb671d60|Felipe Menezes|Itabirito Minas Gerais|Alternativo,MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/felipemenezes82/|https://open.spotify.com/artist/45anOLVVCilOIzSbThw23q|https://www.youtube.com/@felipemenezes82|https://www.deezer.com/artist/12311252||||||Belo Horizonte|
-3e683bbf4e8481918549ce11b05f3b68|Felipe Pinheiro|||Falta link / dados (completar)||||https://www.deezer.com/artist/7016971|||||||
+3ce83bbf4e8481bdb4a8d1f04b83c47d|Felipe dos Santos|||Novo (sem triagem)||https://open.spotify.com/artist/7Maq6CgKT1Wdx656Wml4eE||https://deezer.com/artist/1578323||felipe_dos_santos|||||
+3f383bbf4e84813b9bf0fc7710011b8b|Felipe Humberto de Oliveira Rodrigues - BAnda Filhos de Elis|Contagem/MG|MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/bandafilhosdeelis/|https://open.spotify.com/artist/2sx2sXYEUSKkUtGFJzyrN7?si=enFR96MRSxS_cfPXzuwEPA&utm_source=copy-link|https://www.youtube.com/channel/UCo0q7qDZdK6N_drhcqmw30w|||felipe_humberto_de_oliveira_rodrigues_banda_filhos_de_elis||||Belo Horizonte|
+37983bbf4e8481a1b97df2defb671d60|Felipe Menezes|Itabirito Minas Gerais|Alternativo,MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/felipemenezes82/|https://open.spotify.com/artist/45anOLVVCilOIzSbThw23q|https://www.youtube.com/@felipemenezes82|https://www.deezer.com/artist/12311252||felipe_menezes||||Belo Horizonte|
+3e683bbf4e8481918549ce11b05f3b68|Felipe Pinheiro|||Falta link / dados (completar)||||https://www.deezer.com/artist/7016971||felipe_pinheiro|||||
 0ffa0cc5c96740aeaca82a68b5c01a1e|felipe reis|São Paulo/SP||Novo (sem triagem)|||||||||||
 eee7009d9f9e46a7b4d031b45001d1ab|Felipe S|||Novo (sem triagem)|https://www.instagram.com/felipemombojo||||||||||
 d32737d0dca54478a09b7ae5057ebe7d|felipesahight|Salvador/BA||Novo (sem triagem)||||||||||Salvador|
 202afc760678404b89bbf8e83382668a|Femark|||Aprovado (curadoria)|https://www.instagram.com/femark__/|https://open.spotify.com/artist/5XzSImiTCTJxocZ2MKxJuI|https://youtube.com/channel/UCrEWAHhuPPNucAUcBltz7Sg|||||||São Paulo|
 3c99e68d92a144559ffc28eb770e60e2|Fernanda Abreu|||Novo (sem triagem)|||||||||||
-3c883bbf4e84810cade6ff8bcef8dad4|Fernanda de Paula|||Novo (sem triagem)||https://open.spotify.com/artist/0xWM69SqUpQJ5GnmyHbSd9||https://deezer.com/artist/7896558|||||||
+3c883bbf4e84810cade6ff8bcef8dad4|Fernanda de Paula|||Novo (sem triagem)||https://open.spotify.com/artist/0xWM69SqUpQJ5GnmyHbSd9||https://deezer.com/artist/7896558||fernanda_de_paula|||||
 34483bbf4e84819e9988ebb70947670c|Fernanda Ouro|São Paulo|MPB,Pop|Novo (sem triagem)|https://www.instagram.com/fe_ouro/|https://open.spotify.com/artist/226GKyqOgh2SXoJ8lHaEBe||https://deezer.com/artist/50524312|||||||
-3dd83bbf4e8481a68cb2de83c8cc1168|Fernanda Santanna|||Novo (sem triagem)||https://open.spotify.com/artist/6QLTzq8CZ5jiXhl9ylcdNL|||||||||
+3dd83bbf4e8481a68cb2de83c8cc1168|Fernanda Santanna|||Novo (sem triagem)||https://open.spotify.com/artist/6QLTzq8CZ5jiXhl9ylcdNL||||fernanda_santanna|||||
 88ee6d696b474cdba7d8190f54797690|Fernanda Takai|||Novo (sem triagem)||||||||sim|||
 d21d91507b6e4389b33203a4a0163f0e|Fernando Motta|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 d4dfcd05148f46cdb938c6bbe9f4e6f7|fi barreto|São Paulo/SP||Novo (sem triagem)|||||||||||
@@ -398,26 +398,26 @@ d7dfce62a07144efbd71f259a6229b36|francois muleka|Florianópolis/SC||Novo (sem tr
 887134db3e6e4a50b18be82e701a1ea6|Fredgard & Os Maruis|||Novo (sem triagem)|https://www.instagram.com/fredgard_?igsh=MTVsa3ltcGlkeDI0cQ==||||||||||
 3f783bbf4e848152a1e6cc246375f3c7|Furllan|||Novo (sem triagem)||https://open.spotify.com/artist/4Dvc7szDEsSWbxMs4zTy1s||||furllan|||||
 695646217916400dbf0c6510b3a449f5|Gab Ferreira|||Novo (sem triagem)|https://www.instagram.com/oigabferreira/|https://open.spotify.com/artist/70DRYhcYN1cmMFUjDLf9FU|https://youtube.com/@oigabferreira|https://deezer.com/artist/13307019|||||||
-3ad83bbf4e84811ab9c2e18b34396f9b|Gabbriel Castro|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Para avaliar (pré-curadoria)|https://www.instagram.com/gabbrielcastro/|https://open.spotify.com/artist/7HuGBOptAHZjkqgXJzMi6m|https://www.youtube.com/channel/UCs4yUltMXcDUElx_ryulRTQ|https://www.deezer.com/artist/130980202||||||Belo Horizonte|
+3ad83bbf4e84811ab9c2e18b34396f9b|Gabbriel Castro|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Para avaliar (pré-curadoria)|https://www.instagram.com/gabbrielcastro/|https://open.spotify.com/artist/7HuGBOptAHZjkqgXJzMi6m|https://www.youtube.com/channel/UCs4yUltMXcDUElx_ryulRTQ|https://www.deezer.com/artist/130980202||gabbriel_castro||||Belo Horizonte|
 2e08e3b61e044f1799293a5022c26216|Gabi da Pele Preta|||Novo (sem triagem)|https://www.instagram.com/gabidapelepreta/||||||||||
 8d6a512b2c2b4bb29c2ee185a771a727|Gabi Lins|||Novo (sem triagem)|https://www.instagram.com/gabialins/||||||||||
 6ff5907666874c5490254ecfacbbac8f|gabi sanches|São Paulo/SP||Novo (sem triagem)|||||||||||
 ce0f2236ae2d49c2a8db8f027706cd17|Gabiru|Curitiba/PR||Novo (sem triagem)|https://www.instagram.com/gabiru._/||||||||||
 d7db21b34f3f44f9993d9f4bb9f3f7e4|Gabriel Brown|||Novo (sem triagem)|https://www.instagram.com/gabrielabrown/||||||||||
-38383bbf4e84814cb58eceaf3a03e668|Gabriel Bulgarelli|São Paulo|Alternativo,MPB|Não seguiu na curadoria|https://www.instagram.com/ga.bulga/|https://open.spotify.com/artist/3xuo7niupqYr0BGKLfK4SX||https://www.deezer.com/artist/181143707||||||São Paulo|
+38383bbf4e84814cb58eceaf3a03e668|Gabriel Bulgarelli|São Paulo|Alternativo,MPB|Não seguiu na curadoria|https://www.instagram.com/ga.bulga/|https://open.spotify.com/artist/3xuo7niupqYr0BGKLfK4SX||https://www.deezer.com/artist/181143707||gabriel_bulgarelli||||São Paulo|
 92041247049c493aa2dcf5044db66a5e|gabriel conti|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 34dcce8e0e5144d6973cc785887fc4e1|Gabriel de Almeida Prado|||Aprovado (curadoria)|https://www.instagram.com/gabrieldealmeidaprado/|||||||||São Paulo|
 96de0d917589426a8b08c415afb29538|Gabriel Elias|||Novo (sem triagem)|https://www.instagram.com/gabrielelias/||||||||||
-39683bbf4e84816aa67ee13e7da83291|Gabriel Fernandes|Sorocaba/SP|Alternativo,MPB,Pop|Novo (sem triagem)|https://www.instagram.com/ogabrielmesmo/|https://open.spotify.com/artist/2TVMeDeL3DKd2sFvWnSVu5|https://www.youtube.com/@ogabrielmesmo|https://www.deezer.com/artist/9762710||||||São Paulo|
+39683bbf4e84816aa67ee13e7da83291|Gabriel Fernandes|Sorocaba/SP|Alternativo,MPB,Pop|Novo (sem triagem)|https://www.instagram.com/ogabrielmesmo/|https://open.spotify.com/artist/2TVMeDeL3DKd2sFvWnSVu5|https://www.youtube.com/@ogabrielmesmo|https://www.deezer.com/artist/9762710||gabriel_fernandes||||São Paulo|
 44e15cd025f84370a902797428248297|Gabriel Gonti|||Novo (sem triagem)|https://www.instagram.com/gabrielgonti/||||||||||
-31783bbf4e8481fca7b3c51fa9541864|Gabriel Haddad|Belo Horizonte/MG|MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/vitoriagabriel.cancoes/|https://open.spotify.com/artist/5CpF10o2We6l6xFopnnEos|https://www.youtube.com/@vitoriapiresgabrielhaddad|||||||Belo Horizonte|
-3bb83bbf4e8481879f91dc9f6e46e899|Gabriel Menndezz|||Novo (sem triagem)||||https://www.deezer.com/artist/76212162|||||||
-41a83bbf4e8481a08f48f2b5b8062c4b|Gabriel Muzzi|Belo Horizonte/MG|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/gabrielmuzzioficial/|https://open.spotify.com/intl-pt/artist/1XVpFphSAoEw3Vbph0jlyC?si=do44ifMWSvWw7c0C2cyBWw|https://www.youtube.com/@muzzicanta|||||||Belo Horizonte|
+31783bbf4e8481fca7b3c51fa9541864|Gabriel Haddad|Belo Horizonte/MG|MPB,Pop|Aprovado (curadoria)|https://www.instagram.com/vitoriagabriel.cancoes/|https://open.spotify.com/artist/5CpF10o2We6l6xFopnnEos|https://www.youtube.com/@vitoriapiresgabrielhaddad|||cpf_o_we_l_xfopnneos||||Belo Horizonte|
+3bb83bbf4e8481879f91dc9f6e46e899|Gabriel Menndezz|||Novo (sem triagem)||||https://www.deezer.com/artist/76212162||gabriel_menndezz|||||
+41a83bbf4e8481a08f48f2b5b8062c4b|Gabriel Muzzi|Belo Horizonte/MG|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/gabrielmuzzioficial/|https://open.spotify.com/intl-pt/artist/1XVpFphSAoEw3Vbph0jlyC?si=do44ifMWSvWw7c0C2cyBWw|https://www.youtube.com/@muzzicanta|||gabriel_muzzi||||Belo Horizonte|
 2b9e6e187d164dfba22c0ab11ce9c20e|gabriel nandes|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 0c7533f6fc944d6b8d757fac802ce32c|gabriel nobre|São Paulo/SP||Novo (sem triagem)|||||||||||
 41bd016f0e2246bc97fc4cb62ac74f1c|gabriel rosa|Florianópolis/SC||Novo (sem triagem)|||||||||||
 d5ebd350a1674db09efaf7e73510ccd3|Gabriele Prieto Himeno|||Novo (sem triagem)|||||||||||
-3f883bbf4e84819bac29e5a17531e644|Gabrielle Custódio Junqueira|São Paulo/SP|Alternativo,MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/gabrieoficial/|https://open.spotify.com/artist/5vEt0FtxIoRLJI4AjXwJyc?si=fmA2UpaoRrOiBst8lE2qDg&utm_source=copy-link|https://www.youtube.com/@gabrieoficial|||||||São Paulo|
+3f883bbf4e84819bac29e5a17531e644|Gabrielle Custódio Junqueira|São Paulo/SP|Alternativo,MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/gabrieoficial/|https://open.spotify.com/artist/5vEt0FtxIoRLJI4AjXwJyc?si=fmA2UpaoRrOiBst8lE2qDg&utm_source=copy-link|https://www.youtube.com/@gabrieoficial|||gabrielle_custodio_junqueira||||São Paulo|
 2a41eca6da9d451d819f88c446c58a01|Gaby Amarantos|||Novo (sem triagem)|||||||||||
 110a99d7ecd34b4995a2fea2c2ff6f65|gaby guima|São Paulo/SP||Novo (sem triagem)|||||||||||
 78cd380ed5b2434da4a7fab975024e11|Gael & AfroSoul|||Novo (sem triagem)|||||||||||
@@ -431,23 +431,23 @@ d5ebd350a1674db09efaf7e73510ccd3|Gabriele Prieto Himeno|||Novo (sem triagem)||||
 d0b46299ea0046eb9a09c462dfc1fb69|Gilsons|||Novo (sem triagem)|||||||||||
 3e583bbf4e84815d8aa5cd31315c248f|Gioli|||Novo (sem triagem)||https://open.spotify.com/artist/4FHjzBEnzc2o7GPKWtfDJd?si=SyxW-EK_Sw6ogk3MNRHfaQ&utm_source=copy-link||||gioli|||||
 31783bbf4e8480039264fb4377caa5f5|Giovani Cidreira|||Aprovado (curadoria)|https://www.instagram.com/giovanicidreira/|||||||sim|1||
-41a83bbf4e8481358bd4fc337d0d5899|Giovanni Iasi|belo horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/giovanni.iasi/|https://open.spotify.com/intl-pt/artist/3syMTft1svgYqK0Mu2MV8l|https://www.youtube.com/@Giovanni-iasi|||||||Belo Horizonte|
+41a83bbf4e8481358bd4fc337d0d5899|Giovanni Iasi|belo horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/giovanni.iasi/|https://open.spotify.com/intl-pt/artist/3syMTft1svgYqK0Mu2MV8l|https://www.youtube.com/@Giovanni-iasi|||giovanni_iasi||||Belo Horizonte|
 a9d44c328ae446e496e2a59eefd7fdc2|Gisele De Santi|||Aprovado (curadoria)|https://www.instagram.com/giseledesanti|||||||||São Paulo|
 078070b21ff145bc9c484b256a20bc92|Giuliano Eriston|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 cbc24b0b4a9b4234ad23406e1b0d66b0|giulianoeriston|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
-3e583bbf4e8481fe9d9cc9c82180bb1b|Giulio Zappa|||Novo (sem triagem)||https://open.spotify.com/artist/5uQqwPDiN1r8o9lIKuo8pw|||||||||
+3e583bbf4e8481fe9d9cc9c82180bb1b|Giulio Zappa|||Novo (sem triagem)||https://open.spotify.com/artist/5uQqwPDiN1r8o9lIKuo8pw||||giulio_zappa|||||
 36883bbf4e84818f82add381b837b47d|GOMES|Recife/PE|Pop,Alternativo|Novo (sem triagem)|https://www.instagram.com/gomes.tt/|https://open.spotify.com/artist/45Ui6eUZZRtSrFUC37GEHo|||||||||
 7c2e1e8365d4479cb13e3f162e9532d7|gomes.tt|Recife/PE||Novo (sem triagem)|||||||||||
-38283bbf4e84813ea651f7a428b3aa29|Good Vibe|SÃO PAULO|Alternativo,MPB,Outro gênero musical,Pop|Não seguiu na curadoria|https://www.instagram.com/lucas_good_vibe/|https://open.spotify.com/artist/3rpzzzuQFoqc1tNhQ3Xp6p|https://www.youtube.com/@bandagoodvibe|https://deezer.com/artist/5825946||||||Belo Horizonte|
+38283bbf4e84813ea651f7a428b3aa29|Good Vibe|SÃO PAULO|Alternativo,MPB,Outro gênero musical,Pop|Não seguiu na curadoria|https://www.instagram.com/lucas_good_vibe/|https://open.spotify.com/artist/3rpzzzuQFoqc1tNhQ3Xp6p|https://www.youtube.com/@bandagoodvibe|https://deezer.com/artist/5825946||rpzzzuqfoqc_tnhq_xp_p||||Belo Horizonte|
 fd86e455e81a4dd8a29015c97b60c50a|Gouvveia|||Falta link / dados (completar)|||||||||||
 3e083bbf4e84816a969ff00af957eb05|Gracinha|São Paulo/SP|Alternativo|Novo (sem triagem)|https://www.instagram.com/gracinhais/|https://open.spotify.com/intl-pt/artist/7vT7z5m95bEQhcKYw2j5W2|https://www.youtube.com/@gracinhamusica|||gracinha||||São Paulo|
 eb31e77795744c08a2e469cddadf9c16|grandamusic|São Paulo/SP||Novo (sem triagem)|||||||||||
 f6d71d093c174a01ad88831f4a377e25|Graveola|||Novo (sem triagem)|https://www.instagram.com/graveola/||||||||||
 1b53f4f7cb0c44c68f67636aed042f87|Graziela Medori|||Novo (sem triagem)|https://www.instagram.com/grazi.medori||||||||||
 36c83bbf4e84816f8f9cef536666a6bc|GTNO|Recife/PE|Pop,MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/gabriel.tno/|https://open.spotify.com/artist/28V0IAzgNM6cfcTBkpqEP8|||||||||
-3ee83bbf4e8481d18875fcfcb9881294|Gu Andersen|||Novo (sem triagem)|https://www.instagram.com/gu.andersen/|https://open.spotify.com/artist/66b5vc5HnjIcG0cwWg5ITA?si=E0cdOXXQQri9ZX2R1HleTg&utm_source=copy-link|https://www.youtube.com/@gu.andersen||||||||
-3de83bbf4e8481c1ac35d8c1c3075cc8|Gugu de Souza|Belo Horizonte/MG|Alternativo,MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/gugu_de_souza/|https://open.spotify.com/intl-pt/artist/4BDLQJ8jnaDVlCQNp4IrIi?si=57l19W6lSiWO_PBPKlJZeg||||||||Belo Horizonte|
-3de83bbf4e8481e1a598c99b935fbd12|Gui Amabis|||Novo (sem triagem)|https://www.instagram.com/guiamabis/|https://open.spotify.com/artist/3OGJzIF1j0nLkgzd7aWjmc|https://youtube.com/channel/UCE3ZsvlmDraRlhTHUpakziQ|https://deezer.com/artist/4051175|||||||
+3ee83bbf4e8481d18875fcfcb9881294|Gu Andersen|||Novo (sem triagem)|https://www.instagram.com/gu.andersen/|https://open.spotify.com/artist/66b5vc5HnjIcG0cwWg5ITA?si=E0cdOXXQQri9ZX2R1HleTg&utm_source=copy-link|https://www.youtube.com/@gu.andersen|||gu_andersen|||||
+3de83bbf4e8481c1ac35d8c1c3075cc8|Gugu de Souza|Belo Horizonte/MG|Alternativo,MPB,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/gugu_de_souza/|https://open.spotify.com/intl-pt/artist/4BDLQJ8jnaDVlCQNp4IrIi?si=57l19W6lSiWO_PBPKlJZeg||||gugu_de_souza||||Belo Horizonte|
+3de83bbf4e8481e1a598c99b935fbd12|Gui Amabis|||Novo (sem triagem)|https://www.instagram.com/guiamabis/|https://open.spotify.com/artist/3OGJzIF1j0nLkgzd7aWjmc|https://youtube.com/channel/UCE3ZsvlmDraRlhTHUpakziQ|https://deezer.com/artist/4051175||gui_amabis|||||
 cffd699446b04960abfa385b85662a99|gui margotto|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 a8317efce1fe488999928b110768a741|Gui Monteiro (teste)|||Novo (sem triagem)|https://www.instagram.com/guimonteiromusica/||||||||||
 e4d9d1e6de534cb3a93d2c5aa9fe8cae|guilhermeninja|Florianópolis/SC||Novo (sem triagem)|||||||||||
@@ -462,7 +462,7 @@ fec24118591f40b2b25e628c8951a06e|Gustavo Vaz|||Novo (sem triagem)|||||||Abertura
 3dc83bbf4e8481e8a36ee6ab2987e5cf|Harmonia|||Novo (sem triagem)||||https://www.deezer.com/artist/368337192||harmonia|||||
 946d538e3fcc4d0199d2a4b395a030ba|Helena|||Novo (sem triagem)|||||||||||
 0ee6c2d4b5af4c46bd93e34b31a097bf|Helena Papini|||Falta link / dados (completar)|https://instagram.com/helenapapini||||||||||
-3fe83bbf4e84813fabd6d0cbe155c0d9|Helio Ramalho|||Novo (sem triagem)||https://open.spotify.com/artist/2Ouw8HBljkiTrhTijNvtfp|||||||||
+3fe83bbf4e84813fabd6d0cbe155c0d9|Helio Ramalho|||Novo (sem triagem)||https://open.spotify.com/artist/2Ouw8HBljkiTrhTijNvtfp||||helio_ramalho|||||
 3ae83bbf4e8481f88062c166c028e360|Herrerias|São Caetano do Sul/SP|MPB,Pop|Novo (sem triagem)|https://www.instagram.com/feherrerias/|https://open.spotify.com/artist/1cNUmKDzHuyVdN9TxzBJLt|https://www.youtube.com/@herreriascomh|https://deezer.com/artist/101357912||herrerias||||São Paulo|
 804bb0f6e51942c690d722c0325955f8|Hodari|||Novo (sem triagem)|https://www.instagram.com/iradoh/||||||||||
 f46dbb06a5f7473e99917b7cf362a5cc|Hot e Oreia|||Novo (sem triagem)|||||||||||
@@ -473,12 +473,12 @@ a11eff805602482ab5ef717809ec5c9c|Iaiá Drumond|||Aprovado (curadoria)|https://ww
 663bd2e62ace4d6f92dee9347ea4a4d6|Iasmin Hallac|||Aprovado (curadoria)|https://www.instagram.com/iasmin_hallac/|||||||||Belo Horizonte|
 41583bbf4e848142954ac0159b812e0b|Ieda Cruz|||Novo (sem triagem)|https://www.instagram.com/iedacruzcantora/||https://www.youtube.com/@IedaCruz||||||||
 5571bc236f814ab4af175e4cdfe0a5af|IGU|||Novo (sem triagem)|||||||||||
-3bb83bbf4e8481c891e2c6f35944e07b|Illa Benício|||Novo (sem triagem)||||https://www.deezer.com/artist/12092652|||||||
+3bb83bbf4e8481c891e2c6f35944e07b|Illa Benício|||Novo (sem triagem)||||https://www.deezer.com/artist/12092652||illa_benicio|||||
 15a404ac2749430997c2e817c6e6e54a|illy|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/illy?igsh=MjZoOWxkMDZkNzll|||||||||Salvador|
 39083bbf4e8481948110d231545d80ca|IMPREVISTO|Belo Horizonte|Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/_i_m_p_r_e_v_i_s_t_o/|https://open.spotify.com/artist/2SNkaB4PfxoavygtLJ65Ne|https://www.youtube.com/@_i_m_p_r_e_v_i_s_t_o|||imprevisto||||Belo Horizonte|
 b7cc31b4e2e24b169cfd83495a98f1d9|Ina Magdala|||Aprovado (curadoria)|https://www.instagram.com/inamagdala/|||||||||São Paulo|
 39383bbf4e848159a34cecdf45b5c116|INAHUGO|Taguatinga/DF|Alternativo,Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/inahugo/|https://open.spotify.com/artist/7mDupUmoe1y83y1XP5lQGR|https://www.youtube.com/@INAHUGO|https://www.deezer.com/artist/117349802||inahugo||||Brasília|
-3de83bbf4e848147accbdfddeab93d72|Irene Bertachini|||Novo (sem triagem)||https://open.spotify.com/artist/7egQNlehwKtAWuC0BweJ6F|||||||||
+3de83bbf4e848147accbdfddeab93d72|Irene Bertachini|||Novo (sem triagem)||https://open.spotify.com/artist/7egQNlehwKtAWuC0BweJ6F||||irene_bertachini|||||
 a660dd760adf45c89b0bf7384b108d86|Irene Bertachini|||Novo (sem triagem)|https://www.instagram.com/irenebertachini/|https://open.spotify.com/artist/7egQNlehwKtAWuC0BweJ6F|||||||||
 7d55b94211154768abcda0a264b1b480|Irmãos Bicho (Clara + Gabriel Bicho)|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 fb878d79ee3d4c91b127e6ac165241d8|Isa Jordan|||Não seguiu na curadoria|https://www.instagram.com/isajordann/||||||||||
@@ -487,9 +487,9 @@ e1605fd2b1c84cb4a6caf793a1650226|Isabela Moraes|Recife/PE||Novo (sem triagem)|||
 5ca56bb768284611b5a9e03ffc3c0349|ISADDORA|||Novo (sem triagem)|https://www.instagram.com/aisaddora/|https://open.spotify.com/artist/51OHjo8o1c3WImL1KUQG21||https://deezer.com/artist/113663222|||||||
 7c1f00c9c88344cea23be064cbf1d564|Isadora Emmer|Curitiba/PR||Duplicata / ambíguo (revisar desambiguação)|https://www.instagram.com/isadoraemmer/||||||||||
 6d42325f69aa47b7b6db94809024291c|issabcx|Belo Horizonte/MG||Não seguiu na curadoria|https://www.instagram.com/issabcx/|https://open.spotify.com/artist/1t3zsHqaho6eI756Iqr8pA|||||||||
-3cf83bbf4e8481308e1aedbd87350afe|Italo Cecchi|||Novo (sem triagem)||||https://www.deezer.com/artist/127357002|||||||
+3cf83bbf4e8481308e1aedbd87350afe|Italo Cecchi|||Novo (sem triagem)||||https://www.deezer.com/artist/127357002||italo_cecchi|||||
 78f6a474e9674ec5b1dd637e86a80600|Iuna Falcão|||Novo (sem triagem)|https://www.instagram.com/iunafalcao/|https://open.spotify.com/artist/3j3isTW06zLzcrST7xWt9N||https://deezer.com/artist/190187367|||||||
-37983bbf4e84814e9e71c18a7fe351d7|Ivana Gaya|São Paulo/SP|Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/ivanagaya.arte/|https://open.spotify.com/artist/6r1AQd6gGRPuRYAwlKkwtd|https://www.youtube.com/user/IvanaGaya|https://www.deezer.com/artist/13233663||||||Recife|
+37983bbf4e84814e9e71c18a7fe351d7|Ivana Gaya|São Paulo/SP|Outro gênero musical,Pop|Novo (sem triagem)|https://www.instagram.com/ivanagaya.arte/|https://open.spotify.com/artist/6r1AQd6gGRPuRYAwlKkwtd|https://www.youtube.com/user/IvanaGaya|https://www.deezer.com/artist/13233663||ivana_gaya||||Recife|
 b706949835f441fb8ea0021140b5a5ab|iveluna|Florianópolis/SC||Novo (sem triagem)|||||||||||
 6804b88aa0214021b7c4b703b680939a|Ivvo|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/ivvo._/||||||||||
 6e4d0d09a21649fbb48ddc2ca9231b69|ivyobeat|Salvador/BA||Novo (sem triagem)||||||||||Salvador|
@@ -497,7 +497,7 @@ b706949835f441fb8ea0021140b5a5ab|iveluna|Florianópolis/SC||Novo (sem triagem)||
 c3680cab54da43f4834df64d9f489c3d|Ivyson|Recife/PE||Novo (sem triagem)|||||||||||
 b4de44788aa042cf84f94276c121d903|Izi Lima|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 3e483bbf4e8481d0baa0e20678a7ee7d|Izzie|||Novo (sem triagem)||https://open.spotify.com/artist/6KaBnyZ0YJalOv4voHb0Nw||||izzie|||||
-38083bbf4e848148b4a8dbfa1c30db0f|j4mpa|Sousa/PB|MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/oj4mpa/|https://open.spotify.com/artist/6x1PjwopHU4qaamzJrAhAt|https://www.youtube.com/@oj4mpa|https://www.deezer.com/artist/105317702||||||São Paulo|
+38083bbf4e848148b4a8dbfa1c30db0f|j4mpa|Sousa/PB|MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/oj4mpa/|https://open.spotify.com/artist/6x1PjwopHU4qaamzJrAhAt|https://www.youtube.com/@oj4mpa|https://www.deezer.com/artist/105317702||j_mpa||||São Paulo|
 fa9d7d5556ae4e5ea27fc8cb1b3730a6|Jade Baraldo|||Novo (sem triagem)|https://www.instagram.com/jadebaraldo/|https://open.spotify.com/artist/5sz2Sp7OkasBBmDkKerv45|https://youtube.com/channel/UCVc-vIiuwRqfPGDcu5tuzSg|https://deezer.com/artist/65741052||||sim|||
 e1b476ce9dd04f6b867bb7fb80894d5c|jader schumann|Florianópolis/SC||Novo (sem triagem)|||||||||||
 a7cb6de901c84f8db8f90aa5183b9216|Jadsa|||Novo (sem triagem)|https://www.instagram.com/jadsaaa|||||||sim|||
@@ -508,12 +508,12 @@ acda02aa0efc44d6aa64fb89bbd81761|jam da silva|Recife/PE||Novo (sem triagem)|||||
 f03c77d46ef742ccbaa2d8f4b4e35282|Janine Mathias|||Novo (sem triagem)|https://www.instagram.com/janinemathias/||||||||||
 b48a3276c7f14339b72ace395babde43|JANY|||Novo (sem triagem)|https://www.instagram.com/oficial_jany/||||||||||
 12252c27ee2c4f378cd9ff11f8302e8d|Jards Macalé|||Novo (sem triagem)||||||||sim|2||
-39383bbf4e848114b550cc37b85fcfb3|Jasper Okan|São Paulo/SP|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/jasperokan/|https://open.spotify.com/artist/1sYFgKynGgv1QhB3VkXrbC|https://www.youtube.com/@jasperokan|https://deezer.com/artist/103745112||||||São Paulo|
+39383bbf4e848114b550cc37b85fcfb3|Jasper Okan|São Paulo/SP|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/jasperokan/|https://open.spotify.com/artist/1sYFgKynGgv1QhB3VkXrbC|https://www.youtube.com/@jasperokan|https://deezer.com/artist/103745112||jasper_okan||||São Paulo|
 c74c90205779439b90b46ac24b03a54e|Jay Horsth|||Novo (sem triagem)|||||||||||
 7464cbd371034adc812d82cd743cdd4d|jazzdasminas|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 33883bbf4e8481cf91c7f5198b3f6266|JEAN|Belo Horizonte/MG|MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/eojeans/|https://open.spotify.com/artist/3clKlUm24709TQn5pmNrRP|||||||||
 0a4b18860ef74d0dbe3b6a6024f38598|Jean Tassy|||Novo (sem triagem)|https://www.instagram.com/jean.tassy/|https://open.spotify.com/intl-pt/artist/6XQrv3AiNUS61JFK1VITTU?si=NBMvFp10TAGTeIUo2DOfAA|https://youtube.com/channel/UCdOdRzcgFBcneVQIKW1s1DA|https://deezer.com/artist/81577292|||||||
-3c383bbf4e8481a6b97fc7c5484bd93a|Jeff Master|||Novo (sem triagem)||https://open.spotify.com/artist/7tdiTC8ULDwC7l29zwN9z3|https://charts.youtube.com/artist/%2Fg%2F11rs9zwv3c|https://deezer.com/artist/139365782|||||||
+3c383bbf4e8481a6b97fc7c5484bd93a|Jeff Master|||Novo (sem triagem)||https://open.spotify.com/artist/7tdiTC8ULDwC7l29zwN9z3|https://charts.youtube.com/artist/%2Fg%2F11rs9zwv3c|https://deezer.com/artist/139365782||jeff_master|||||
 69c79a8fddea48df8fd7cdcb66ee73a5|Jenni Mosello|||Aprovado (curadoria)|https://www.instagram.com/jennimosello/||||||||||
 68321bb3500645388326d70fcce2bec7|jennifer neres|São Paulo/SP||Novo (sem triagem)|||||||||||
 59ca8bc54a834c16bf4951184e1ca045|Jennifer Souza|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -522,13 +522,13 @@ d4935bb2b970496e9c2a360078a7bfc3|Jessica Gaspar|Belo Horizonte/MG||Novo (sem tri
 cfbabdc05475462c913f2a326c7bf965|Jhessy Villas|São Paulo/SP||Novo (sem triagem)|||||||||||
 2b783bbf4e84802ba986e11d913e40ae|Jimmy Andrade|Belo Horizonte/MG|Pop,MPB,Alternativo|Aprovado (curadoria)|https://www.instagram.com/jimmyandrade/|https://open.spotify.com/artist/5cXCuau8jCVmsRoFYj5oGB|https://www.youtube.com/jimmyandrade|https://www.deezer.com/artist/4899713|https://jimmyandrade.com|jimmyandrade||sim|2|Belo Horizonte|
 5d7809abe3284f2da893796ca325de77|Jo Mistingett|||Novo (sem triagem)|https://www.instagram.com/jomistinguett/||||||||||
-3dd83bbf4e848184b48ac8ef2ad91858|Joana Castanheira|||Duplicata / ambíguo (revisar desambiguação)||https://open.spotify.com/artist/4oeqovhGT9Bj4wbDeaTqXn|||||||||
+3dd83bbf4e848184b48ac8ef2ad91858|Joana Castanheira|||Duplicata / ambíguo (revisar desambiguação)||https://open.spotify.com/artist/4oeqovhGT9Bj4wbDeaTqXn||||joana_castanheira|||||
 a0bd64868af24d24acfdebac5fe23113|joana castanheira|Florianópolis/SC||Novo (sem triagem)|||||||||||
-3ba83bbf4e848177bf12cae15b48e462|Joana Rochael|||Novo (sem triagem)||https://open.spotify.com/artist/2CbnFGcjUPFW1sIzA0njYN||https://deezer.com/artist/10420414|||||||
+3ba83bbf4e848177bf12cae15b48e462|Joana Rochael|||Novo (sem triagem)||https://open.spotify.com/artist/2CbnFGcjUPFW1sIzA0njYN||https://deezer.com/artist/10420414||joana_rochael|||||
 933cf2a63bf848178f8c41a71cccb6a0|joanaccastanheira|||Novo (sem triagem)|https://www.instagram.com/joanaccastanheira/||||||||||
 80ad78292c224c299ed60b9e2fcacf8f|joao dalbino|São Paulo/SP||Novo (sem triagem)|||||||||||
 f1bacf4c29c54232aa9dd7bd477c1a06|joaquim.musica|São Paulo/SP||Novo (sem triagem)|||||||||||
-40883bbf4e8481f0ad5fd3a19bf33f3b|Joaquín Fernández|||Novo (sem triagem)||||https://www.deezer.com/artist/186731457|||||||
+40883bbf4e8481f0ad5fd3a19bf33f3b|Joaquín Fernández|||Novo (sem triagem)||||https://www.deezer.com/artist/186731457||joaquin_fernandez|||||
 a21018da3f1645eaa46a45b6a00c6201|Joaquín Fernández|||Novo (sem triagem)|https://www.instagram.com/joaquinfernandezmusica/||||||||||
 0143e7931d7c44438de0a71b6e21271a|John|||Novo (sem triagem)|https://www.instagram.com/apenasjohn/|https://open.spotify.com/artist/5ZKMbk9PmY14dHKhIViFlF|||||||||
 37983bbf4e8481d1a40acc0be2d3d565|Johnny herno|Santa luzia MG região metropolitana de BH|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/johnnyherno||https://youtube.com/@johnnyherno?si=eVBGc-41YiugT862||||||||
@@ -536,22 +536,22 @@ a21018da3f1645eaa46a45b6a00c6201|Joaquín Fernández|||Novo (sem triagem)|https:
 d1f49cda79734f1789c6fb4b25831e24|jonathan fer|Florianópolis/SC||Novo (sem triagem)|||||||||||
 31783bbf4e84801f9262ff8c90f9d5ce|Joni|||Aprovado (curadoria)|https://www.instagram.com/joniojoni/|||||||sim|1||
 7c42e4fc48ce4a28bbdcae03d75489ef|Jorge Aragão|||Novo (sem triagem)|||||||||||
-3de83bbf4e84818595dcf18af94db50f|Jorge Dissonância|||Novo (sem triagem)||https://open.spotify.com/artist/6nysNGUmUUor1EUIhGx28N||https://deezer.com/artist/12935717|||||||
+3de83bbf4e84818595dcf18af94db50f|Jorge Dissonância|||Novo (sem triagem)||https://open.spotify.com/artist/6nysNGUmUUor1EUIhGx28N||https://deezer.com/artist/12935717||jorge_dissonancia|||||
 fc37938b98294405833222f47faa3eb5|Jorge Zárath|Salvador/BA||Novo (sem triagem)|https://instagram.com/jorgezarath||||||||||
 b1925a6e399741828baacc1a6b4dc3e6|jorginhovelloso|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/jorginhovelloso?igsh=Mnh2bDE2aHpzbTN6|||||||||Salvador|
-39083bbf4e8481199390fa153fca0618|Josué Ribeiro|Belo Horizonte/MG|Alternativo|Não seguiu na curadoria|https://www.instagram.com/josuearibeiro/|https://open.spotify.com/artist/1W5GLLyY9UobJbJBiU6Udi|https://music.youtube.com/channel/UCH4bEd1PAZ20tCbuwiE3X6g|||||||Belo Horizonte|
+39083bbf4e8481199390fa153fca0618|Josué Ribeiro|Belo Horizonte/MG|Alternativo|Não seguiu na curadoria|https://www.instagram.com/josuearibeiro/|https://open.spotify.com/artist/1W5GLLyY9UobJbJBiU6Udi|https://music.youtube.com/channel/UCH4bEd1PAZ20tCbuwiE3X6g|||josue_ribeiro||||Belo Horizonte|
 a6cf6b14ba0e491495bbe8414b222776|Josyara|||Novo (sem triagem)|https://www.instagram.com/_josyara/|||||||sim|||
-32f83bbf4e84813baacedeb5da9a158c|José Cândido|Ribeirão Preto/SP|MPB,Alternativo|Aprovado (curadoria)|https://www.instagram.com/josecandido_/|https://open.spotify.com/artist/19NtAWXxzXXpcJhGvJIAnf|https://www.youtube.com/josecandido|https://deezer.com/artist/4420519||||||São Paulo|
+32f83bbf4e84813baacedeb5da9a158c|José Cândido|Ribeirão Preto/SP|MPB,Alternativo|Aprovado (curadoria)|https://www.instagram.com/josecandido_/|https://open.spotify.com/artist/19NtAWXxzXXpcJhGvJIAnf|https://www.youtube.com/josecandido|https://deezer.com/artist/4420519||jose_candido||||São Paulo|
 60a34723a0ac4d359adf5ececf1f8d1e|José Cândido|||Novo (sem triagem)|https://www.instagram.com/josecandido_/||||||||||
-3dd83bbf4e8481b7beb2cac1391e5c3c|José Jr|||Novo (sem triagem)||https://open.spotify.com/artist/2aHIXgsgccgg4j8BBzrvb6|||||||||
+3dd83bbf4e8481b7beb2cac1391e5c3c|José Jr|||Novo (sem triagem)||https://open.spotify.com/artist/2aHIXgsgccgg4j8BBzrvb6||||jose_jr|||||
 1884a9762858426e8dd086035f8ca0f6|Jota.pê|São Paulo/SP||Não seguiu na curadoria|https://www.instagram.com/jota.peoficial/|https://open.spotify.com/artist/17MzHbvKuzJje12SxWY9wN|https://www.youtube.com/channel/UCLO0G_9Qyy3YzPXWLp0P5sw|https://deezer.com/artist/10175344||jotape||sim|2||
-3bf83bbf4e8481269abbdcb0367a8048|Jow Oficial|||Novo (sem triagem)||https://open.spotify.com/artist/31u3VbxntxeceXEmkNVsvw||https://deezer.com/artist/98028952|||||||
+3bf83bbf4e8481269abbdcb0367a8048|Jow Oficial|||Novo (sem triagem)||https://open.spotify.com/artist/31u3VbxntxeceXEmkNVsvw||https://deezer.com/artist/98028952||artista_indicado|||||
 7eb7df92c11643eebe90b6c1fc9b6aa2|Joyce Alane|||Novo (sem triagem)|https://www.instagram.com/joycealanee/|https://open.spotify.com/artist/3oDfBqnWBkgMSag02YYXHG|https://youtube.com/@JoyceAlane|https://deezer.com/artist/48668441||joycealane||sim||Belo Horizonte|
-3e583bbf4e8481ecb09add530b562f64|Joyce Cândido|||Novo (sem triagem)||https://open.spotify.com/artist/3KlU8ZNbRdGSe2hGY5aUF9|||||||||
+3e583bbf4e8481ecb09add530b562f64|Joyce Cândido|||Novo (sem triagem)||https://open.spotify.com/artist/3KlU8ZNbRdGSe2hGY5aUF9||||joyce_candido|||||
 dc47e1ca99a1461db24ccf778b0249eb|joão albino|São Paulo/SP||Novo (sem triagem)|||||||||||
 6f83dbe7a5834eca8f82c9b1952808b1|João Bosco|||Novo (sem triagem)|https://www.instagram.com/joaoboscoreal/||||||||||
 00bf5b43451345abab25f037c566794d|João Cavalcanti|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
-3e583bbf4e8481adadc8d6a64631cf66|João ChaveX|||Novo (sem triagem)||||https://www.deezer.com/artist/375819011|||||||
+3e583bbf4e8481adadc8d6a64631cf66|João ChaveX|||Novo (sem triagem)||||https://www.deezer.com/artist/375819011||joao_chavex|||||
 3551c3a59b0e4d9db95b0256757f8228|João Donato|||Não seguiu na curadoria|||||||||||
 a3e35fc464414ab487841f29f73a2989|João Fenix|||Novo (sem triagem)|https://www.instagram.com/joaofenix_oficial||||||||||
 2870e40fd5ad4b2b916a6ecb7ab377b8|João Klein|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -559,10 +559,10 @@ a3e35fc464414ab487841f29f73a2989|João Fenix|||Novo (sem triagem)|https://www.in
 c82e665111704df3b38e910f32c69d3e|JU Dourada|||Aprovado (curadoria)|https://www.instagram.com/judourada/|||||||||Brasília|
 a3201c3ebb024ddba6f575c9e5b19b20|Ju Strassacapa|||Falta link / dados (completar)|||||||||||
 f05a4cba37fd49ba82539796e884cf48|Ju Tavares|Belo Horizonte/MG||Aprovado (curadoria)|https://www.instagram.com/jutavaresst/|https://open.spotify.com/artist/0Nvj5p3sgmLA6mPvIAp8Du|||||||||
-3dd83bbf4e84814fbf0fd14e07a97164|Judy Black|||Novo (sem triagem)||https://open.spotify.com/artist/7rs0VmOAoEf8yymrjRynuc?si=Upq8q77gRmKubaKYuORY4A&utm_source=copy-link|||||||||
-3e583bbf4e8481428256f5b138990ad5|JULIA ALENCAR|||Novo (sem triagem)||||https://www.deezer.com/artist/272595382|||||||
+3dd83bbf4e84814fbf0fd14e07a97164|Judy Black|||Novo (sem triagem)||https://open.spotify.com/artist/7rs0VmOAoEf8yymrjRynuc?si=Upq8q77gRmKubaKYuORY4A&utm_source=copy-link||||judy_black|||||
+3e583bbf4e8481428256f5b138990ad5|JULIA ALENCAR|||Novo (sem triagem)||||https://www.deezer.com/artist/272595382||julia_alencar|||||
 598eaed818bf4f54af796e7878ffc9ad|Julia Branco|||Novo (sem triagem)|https://www.instagram.com/juliabranco/||||||||||
-40283bbf4e8481fdada7eb69b69a089b|Julia Faria de Barros|Campinas|MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/aju.barros/|https://open.spotify.com/intl-pt/artist/0hkFbul2yUGPSBjPwErb1H?si=aqJ8RFkhSl2Xm3uvbXS4dA|https://www.youtube.com/@juliabarrosmusica|||||||Campinas|
+40283bbf4e8481fdada7eb69b69a089b|Julia Faria de Barros|Campinas|MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/aju.barros/|https://open.spotify.com/intl-pt/artist/0hkFbul2yUGPSBjPwErb1H?si=aqJ8RFkhSl2Xm3uvbXS4dA|https://www.youtube.com/@juliabarrosmusica|||julia_faria_de_barros||||Campinas|
 f1c658afff7042ecbc950b8db0e05905|Julia Kluber|||Novo (sem triagem)|https://www.instagram.com/musikluber/||||||||||
 c851d147d08d472292df695c2ded8c03|Julia Mestre|||Novo (sem triagem)||||||||sim|2||
 e7553b9ca1cc4004b8a5b4f31a74a129|juliamestre|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
@@ -574,8 +574,8 @@ f84c4df7de17440b97b91071b690b518|julinhacarvalho|Salvador/BA||Novo (sem triagem)
 c6cb0def613c43c5a50094ac7ff476d7|Julio Secchin|||Novo (sem triagem)|https://www.instagram.com/juliosecchin/||||||||||
 3c283bbf4e8481c0bc83d490ffd5b47a|JUMA|||Novo (sem triagem)||||https://www.deezer.com/artist/355063442||juma|||||
 3b705547007745d98efc3727ca7262ce|jumoraesoficial|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/jumoraesoficial?igsh=azEwOHV4b255bWhk|||||||||Salvador|
-3e583bbf4e8481ca81d0c078524617f9|Junim Lopes|||Novo (sem triagem)||https://open.spotify.com/artist/0hSEwtCTvnU81cRLZvD968?si=dDJXEGLFR6K9eyWNWpTlWg&utm_source=copy-link|||||||||
-38283bbf4e8481469deddf83774c2e6e|Junior Azuos|São Paulo/SP|MPB|Não seguiu na curadoria|https://www.instagram.com/juniorazuos/|https://open.spotify.com/artist/0lSdtVNwr2j9Mj5SKfWwac|https://www.youtube.com/@juniorazuosoficial|https://www.deezer.com/artist/337990091||||||São Paulo|
+3e583bbf4e8481ca81d0c078524617f9|Junim Lopes|||Novo (sem triagem)||https://open.spotify.com/artist/0hSEwtCTvnU81cRLZvD968?si=dDJXEGLFR6K9eyWNWpTlWg&utm_source=copy-link||||junim_lopes|||||
+38283bbf4e8481469deddf83774c2e6e|Junior Azuos|São Paulo/SP|MPB|Não seguiu na curadoria|https://www.instagram.com/juniorazuos/|https://open.spotify.com/artist/0lSdtVNwr2j9Mj5SKfWwac|https://www.youtube.com/@juniorazuosoficial|https://www.deezer.com/artist/337990091||junior_azuos||||São Paulo|
 ea2cefdfc854444395b53d017e5a31b3|Jupy|||Não seguiu na curadoria|https://www.instagram.com/ejupy/||||||||||
 da7646d520da41c9aad4807fc021f0bd|Juçara Marçal|||Novo (sem triagem)|https://www.instagram.com/jucaramarcal/|||||||sim|2||
 b94d4266bc2945979a35d5a204d0907b|Jéf|||Aprovado (curadoria)|https://www.instagram.com/jefsouza/|||||||||São Paulo|
@@ -584,7 +584,7 @@ ca435950f4594d5982ace9678cf3694b|Jéssica Gaspar|||Novo (sem triagem)||||||||sim
 baf8c6ef81664e49b8d20a1ba1d5c5f4|Jônatas Belgrande|||Novo (sem triagem)|https://www.instagram.com/jonatasbelgrande/|https://open.spotify.com/artist/6hcMvglMzhhjAuXLQuWiuz|https://youtube.com/channel/UCBr0bGQtMKZ7PNK6sARBIWQ|https://deezer.com/artist/60868472|https://jonatasbelgrande.my.canva.site/jonatasbelgrandematerial|jonatasbelgrande|Artista principal (Apresenta) · 45 min a 1h||||
 e8fa68cf9d20460ab1453950fffdee5d|Júlia Guedes|||Novo (sem triagem)|||||||||||
 482f854186854197aad3edac4f9088b9|Júlia Sanchez|||Novo (sem triagem)|https://www.instagram.com/eujuliasanchez/||||||||||
-37983bbf4e84812b9ac2e8309c698dd7|Júlio Marotta|Belo Horizonte, Minas Gerais|Alternativo,MPB|Aprovado (curadoria)|https://www.instagram.com/marottajulio/|https://open.spotify.com/artist/5T2aGLaRdYZDOeDHHu9FHV|https://www.youtube.com/@juliomarottamusica|https://www.deezer.com/artist/12658625||||||Belo Horizonte|
+37983bbf4e84812b9ac2e8309c698dd7|Júlio Marotta|Belo Horizonte, Minas Gerais|Alternativo,MPB|Aprovado (curadoria)|https://www.instagram.com/marottajulio/|https://open.spotify.com/artist/5T2aGLaRdYZDOeDHHu9FHV|https://www.youtube.com/@juliomarottamusica|https://www.deezer.com/artist/12658625||julio_marotta||||Belo Horizonte|
 e16423f3b61b43c19c38c455c3616384|Júnior Sperancini|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 54ba9b07b4274a36ab8460a387bc3d45|Kacá Novais|São Paulo/SP||Aprovado (curadoria)|https://www.instagram.com/kacanovais/|||||||||São Paulo|
 c882ab3a115840508baaa36288946aee|Kaike|São Paulo/SP||Pré-aprovado|https://www.instagram.com/imkaike/|https://open.spotify.com/artist/1HKqpxQ9sAJ5FXmiDWOA1V|https://youtube.com/channel/UCwNNTg7WF61LxRSrG_-Q0BA|https://deezer.com/artist/10090826|||||||
@@ -609,9 +609,9 @@ e616b779390d47689e7885c5318a42f1|Kristal Werner|São Paulo/SP||Novo (sem triagem
 41b83bbf4e848158b048df527d32b10a|Lalis|Sorocaba/SP||Novo (sem triagem)|https://www.instagram.com/lalislalislalis/|||||lalis|||||
 ec1c241c4e864ca7a0486433c33a0b7e|Lamparina|Belo Horizonte/MG||Novo (sem triagem)|https://www.instagram.com/lamparinaoficial_/|https://open.spotify.com/artist/7xGwSsxEISjWZGbaXiLN8z|https://youtube.com/c/LamparinaOficial|||lamparina||||São Paulo|
 3a483bbf4e84817a9de1de916a999755|LANYRA|||Novo (sem triagem)|https://www.instagram.com/lanyraoficial/|https://open.spotify.com/artist/6J2upjYLPBQi9diz28gxNh|https://www.youtube.com/@lanyraoficial|||lanyra|||||
-3dd83bbf4e8481c09802d1f7659ed7d1|Lara Sales|||Falta link / dados (completar)||||https://www.deezer.com/artist/174445577|||||||
+3dd83bbf4e8481c09802d1f7659ed7d1|Lara Sales|||Falta link / dados (completar)||||https://www.deezer.com/artist/174445577||lara_sales|||||
 3e583bbf4e848182bd46ff0cd56d0f0f|LariZa|||Novo (sem triagem)||https://open.spotify.com/artist/4wXQ64ZzNQvnXHqAAhYmEJ||||lariza|||||
-37683bbf4e848160b47cdd3d864cd4d6|Laura Canabrava|Recife/PE|MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/lauracanabrava/|https://open.spotify.com/artist/64ZYN5j1ZXfAuudZHcWu4z|https://www.youtube.com/@laucanabrava|https://deezer.com/artist/14532475||||||Belo Horizonte|
+37683bbf4e848160b47cdd3d864cd4d6|Laura Canabrava|Recife/PE|MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/lauracanabrava/|https://open.spotify.com/artist/64ZYN5j1ZXfAuudZHcWu4z|https://www.youtube.com/@laucanabrava|https://deezer.com/artist/14532475||laura_canabrava||||Belo Horizonte|
 907ded5a7ce5457b9f32591d3488cb50|Laura Catarina|||Novo (sem triagem)|||||||||||
 2f183bbf4e848194bdeef3bf20f75ac8|Laura Simões|Recife (PE) , São Paulo (SP), Rio de Janeiro/RJ|Pop,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/laurasimoesoficial/|https://open.spotify.com/artist/0VH9PxU00aQqvEanadoa2k||https://deezer.com/artist/10503355|||||||
 d6d174efa2064bb9ad3bf2fc29f7371a|laurosoliveira|São Paulo/SP||Novo (sem triagem)|||||||||||
@@ -632,7 +632,7 @@ cf130144f4124cb0be1c37f6727681dc|Letrux|Rio de Janeiro/RJ||Aprovado (curadoria)|
 32183bbf4e848169a137e19c7af0c360|Letícia Ibiapina|São Paulo/SP|Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/leticiaibiapinaoficial/|https://open.spotify.com/artist/6ME46bRAnloblyA7thkNp3|||||||||
 90a4dacd68834a09b3036434667afac5|LIA|São Paulo/SP||Novo (sem triagem)|||||||||||
 2d883bbf4e8480b392bee42e389697af|Lia de Itamaracá|||Novo (sem triagem)|||||||||||
-3de83bbf4e84812fbb6ff17d5e7a7374|Lili Band|||Novo (sem triagem)||https://open.spotify.com/artist/7gXlaxxjuELH8NEQdJf8Vy|||||||||
+3de83bbf4e84812fbb6ff17d5e7a7374|Lili Band|||Novo (sem triagem)||https://open.spotify.com/artist/7gXlaxxjuELH8NEQdJf8Vy||||lili_band|||||
 31a83bbf4e848002916af0c14c9d74e7|Lilian Rocha|||Novo (sem triagem)|||||||||||
 1c29a7a1b66041eab22b9f8b0c2bd4ed|Lilian Rocha do Nilo|São Paulo/SP||Novo (sem triagem)|||||||||||
 b157995555124f62aa06e0451898286a|Liniker|||Novo (sem triagem)|||||||||||
@@ -646,12 +646,12 @@ df08a673921c48fb829012ad7eaf05fe|Livia Strazza|||Novo (sem triagem)|https://www.
 4b8a98b985bb46868814f6534656ff53|Lorena Chaves|||Novo (sem triagem)|||||||||||
 0f4b980f24ed4907baea792125b34db2|Lori|São Paulo/SP||Novo (sem triagem)|||||||||||
 f2958fd090f545a4a27f13e9312ad2e8|LOS GITANOS DE HAVANNA|||Novo (sem triagem)|https://www.instagram.com/los_gitanosdehavanna?igsh=MWVhcmozZzF0N240Zg==||||||||||
-3e583bbf4e8481a58da7da6a414ab64e|Lou Garcia|||Novo (sem triagem)||https://open.spotify.com/artist/7l8ESevPECrqChwl3Bf7ov|||||||||
+3e583bbf4e8481a58da7da6a414ab64e|Lou Garcia|||Novo (sem triagem)||https://open.spotify.com/artist/7l8ESevPECrqChwl3Bf7ov||||lou_garcia|||||
 ecc37cd1951c4d44a5777d2608ddf684|Lu Dom|Rio de Janeiro||Novo (sem triagem)|||||||||||
-38183bbf4e8481eca53ed996f3088c2e|Lu Mosqueira|Sabará/MG|MPB|Aprovado (curadoria)|https://www.instagram.com/lumosqueira/|https://open.spotify.com/artist/5CXD8USGkJoAl0JSXuILia|https://www.youtube.com/@lumosqueira5061|https://www.deezer.com/artist/290276791||||||Belo Horizonte|
-37b83bbf4e848112aac1e3bef557340a|Lu Toledo|Belo Horizonte|Alternativo,MPB|Aprovado (curadoria)|https://www.instagram.com/lu.toledo.cantora/|https://open.spotify.com/artist/6wOaX35jxvwUIKE3A9vWSC|https://www.youtube.com/lutoledo|https://www.deezer.com/artist/5053677||||||Belo Horizonte|
+38183bbf4e8481eca53ed996f3088c2e|Lu Mosqueira|Sabará/MG|MPB|Aprovado (curadoria)|https://www.instagram.com/lumosqueira/|https://open.spotify.com/artist/5CXD8USGkJoAl0JSXuILia|https://www.youtube.com/@lumosqueira5061|https://www.deezer.com/artist/290276791||lu_mosqueira||||Belo Horizonte|
+37b83bbf4e848112aac1e3bef557340a|Lu Toledo|Belo Horizonte|Alternativo,MPB|Aprovado (curadoria)|https://www.instagram.com/lu.toledo.cantora/|https://open.spotify.com/artist/6wOaX35jxvwUIKE3A9vWSC|https://www.youtube.com/lutoledo|https://www.deezer.com/artist/5053677||lu_toledo||||Belo Horizonte|
 d6c0b880a2be48d38c4a0e1194cd75df|Luan Carbonari|||Novo (sem triagem)|https://www.instagram.com/luancarbonari?igsh=MWI0ZjBtaDV2Z251ag==||||||||||
-3eb83bbf4e848174b14beb7188539ed1|Luan Satyro|Rio de Janeiro/RJ|Alternativo,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/luansatyro/|https://open.spotify.com/artist/7qrnLROXdT1VOK7GllfDwe?si=AsebR1sqQ-quwJYO6lIZ_Q&utm_source=copy-link||||||||São Paulo|
+3eb83bbf4e848174b14beb7188539ed1|Luan Satyro|Rio de Janeiro/RJ|Alternativo,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/luansatyro/|https://open.spotify.com/artist/7qrnLROXdT1VOK7GllfDwe?si=AsebR1sqQ-quwJYO6lIZ_Q&utm_source=copy-link||||luan_satyro||||São Paulo|
 ec5c9838b5f94810b568535bca53efa6|luana granai|São Paulo/SP||Novo (sem triagem)|||||||||||
 378c7cd2b04e495291d9939a7a53641b|Luana Mascari|||Aprovado (curadoria)|https://www.instagram.com/luanamascari/||||||||||
 3bd83bbf4e8481e58636e78573a68b52|luanda|||Novo (sem triagem)||https://open.spotify.com/artist/2a672ohQYmYrMOwIdgOmhr?si=WsY9Y4-xQBm4vX_8fhiIVA&utm_source=copy-link||||luanda|||||
@@ -660,8 +660,8 @@ ec5c9838b5f94810b568535bca53efa6|luana granai|São Paulo/SP||Novo (sem triagem)|
 19ea4cec0ee54813b3c110783fae5d34|Lucas|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 df4dad7aa2df49f08ea75050ac284b9b|Lucas Avelar|||Aprovado (curadoria)|https://www.instagram.com/lucasavelar/|||||||||Belo Horizonte|
 67aa1d53f28f48c6ba1ac6318b96c86c|lucas brolese|São Paulo/SP||Novo (sem triagem)|||||||||||
-39183bbf4e848180854bd03a0dce008d|Lucas e os Itinerantes|Barbacena/MG|Alternativo,MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/lucaseositinerantes/|https://open.spotify.com/artist/3JN6ErSxI7eaGvLvxHIa9r|https://www.youtube.com/@LucaseosItinerantes|https://www.deezer.com/artist/261470381||||||Belo Horizonte|
-3c283bbf4e8481f9ad59e9fd148274a2|Lucas Felix|||Novo (sem triagem)||https://open.spotify.com/artist/4bdlQqQxa0NVjqHWkr5meV|||||||||
+39183bbf4e848180854bd03a0dce008d|Lucas e os Itinerantes|Barbacena/MG|Alternativo,MPB,Outro gênero musical|Não seguiu na curadoria|https://www.instagram.com/lucaseositinerantes/|https://open.spotify.com/artist/3JN6ErSxI7eaGvLvxHIa9r|https://www.youtube.com/@LucaseosItinerantes|https://www.deezer.com/artist/261470381||lucas_e_os_itinerantes||||Belo Horizonte|
+3c283bbf4e8481f9ad59e9fd148274a2|Lucas Felix|||Novo (sem triagem)||https://open.spotify.com/artist/4bdlQqQxa0NVjqHWkr5meV||||lucas_felix|||||
 89c219f603d445c5887049dca3945d1a|Lucas Grill|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 1ecc61f6931844f78bbdf6e77cebf0fb|lucas maciel|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 7ed07ea4079741d89deef62e6bb85eaa|Lucas Mamede|||Novo (sem triagem)|||||||||||
@@ -671,13 +671,13 @@ e9e96ad999414337be3e57d41c7d6d59|luciellenassis|Salvador/BA||Novo (sem triagem)|
 50f4ea2224f74c70a5da75e824a35726|Luedji Luna|||Novo (sem triagem)|https://www.instagram.com/luedjiluna/|https://open.spotify.com/artist/0sWTkzCrdEvuX7Du6MFLzc|https://youtube.com/channel/UCaLmDMn4wJHNjBYfJ7n1TZg|https://deezer.com/artist/11581389|||||||
 1f16eea78ff34ef1bc0738772c4343b3|Luisa Doné|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 01c5306d0ca94eafa3871705f6d622d7|Luisa e os Alquimistas|||Novo (sem triagem)||||||||sim|||
-3cf83bbf4e84815aa08de93dd32209ae|Luiza Aires|||Novo (sem triagem)||||https://www.deezer.com/artist/250405172|||||||
+3cf83bbf4e84815aa08de93dd32209ae|Luiza Aires|||Novo (sem triagem)||||https://www.deezer.com/artist/250405172||luiza_aires|||||
 d584f29b4fe54664b98dde5e069db3d9|Luiza Boê|São Paulo/SP||Novo (sem triagem)|||||||||||
 4de4554906ca43cfbbf15e0fe2540c46|Luiza Brina|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 183842537f754584ae5a649959751608|Luiza Carmo|||Aprovado (curadoria)|https://www.instagram.com/luizacarmo/|https://open.spotify.com/artist/559DQx1QwaUc7lzOuYhttq||https://deezer.com/artist/113765382|||||||
-3c183bbf4e848166b5c9c1651aee043f|Luiza Clara|||Novo (sem triagem)||https://open.spotify.com/artist/7cfguFw2CnZWZaOLT53PzX|||||||||
-3de83bbf4e84816889f0e18243a2e606|Luiza Lian|||Novo (sem triagem)|https://www.instagram.com/luizalian/|https://open.spotify.com/artist/0mqrSBamArf14pPZE2Q9kW|https://youtube.com/channel/UCYUL2PB2a06Iv_VxN98Ka8Q|https://deezer.com/artist/7696770|||||||
-b1b47881d2754517ac6efea341097a96|Luiza Lian|||Novo (sem triagem)|https://www.instagram.com/luizalian/|https://open.spotify.com/artist/0mqrSBamArf14pPZE2Q9kW|https://youtube.com/channel/UCYUL2PB2a06Iv_VxN98Ka8Q|https://deezer.com/artist/7696770|||||||
+3c183bbf4e848166b5c9c1651aee043f|Luiza Clara|||Novo (sem triagem)||https://open.spotify.com/artist/7cfguFw2CnZWZaOLT53PzX||||luiza_clara|||||
+3de83bbf4e84816889f0e18243a2e606|Luiza Lian|||Novo (sem triagem)|https://www.instagram.com/luizalian/|https://open.spotify.com/artist/0mqrSBamArf14pPZE2Q9kW|https://youtube.com/channel/UCYUL2PB2a06Iv_VxN98Ka8Q|https://deezer.com/artist/7696770||luiza_lian|||||
+b1b47881d2754517ac6efea341097a96|Luiza Lian|||Novo (sem triagem)|https://www.instagram.com/luizalian/|https://open.spotify.com/artist/0mqrSBamArf14pPZE2Q9kW|https://youtube.com/channel/UCYUL2PB2a06Iv_VxN98Ka8Q|https://deezer.com/artist/7696770||luiza_lian|||||
 8d475e3569054ba2a976e953aeb36215|luiza pastore|São Paulo/SP||Novo (sem triagem)|||||||||||
 f295fa10e0db4d7fb1609088e9c9f03e|LuizGa|||Aprovado (curadoria)|https://www.instagram.com/luizga.music/||||||||||
 1dcb68dba19e457c81a894f28c719cc1|Lulis|||Aprovado (curadoria)|https://www.instagram.com/lulis.music/|||||||||Belo Horizonte|
@@ -688,12 +688,12 @@ f295fa10e0db4d7fb1609088e9c9f03e|LuizGa|||Aprovado (curadoria)|https://www.insta
 108f3057b13c404d922a29de7b0d8323|Luna Gouveia|||Aprovado (curadoria)|https://www.instagram.com/lunagouveia_?igsh=eXpuaWIybHI0NXA5||||||||||
 30c83bbf4e84811cb024d11175ebcda7|Luna Gouveia|São Caetano do Sul/SP|MPB|Aprovado (curadoria)|https://www.instagram.com/lunagouveia_/|https://open.spotify.com/artist/4DPlFFypwANAYUCR01dgck|||||||||
 026be30116944c1c88384d71dd659990|lupe de lupe|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
-3c283bbf4e8481fd9f77e5d140b0e3cb|Luís Agenor|||Novo (sem triagem)||||https://www.deezer.com/artist/50888512|||||||
-3e683bbf4e84813793d9d0099bfa8759|Luís DiBaviera|||Novo (sem triagem)||https://open.spotify.com/artist/7qFzcj3U9NuITQJBwBY7AP|||||||||
-37c83bbf4e84814e89b1cb0867a9fc25|Léo Moço|São Paulo|MPB|Não seguiu na curadoria|https://www.instagram.com/leomocooficial/|https://open.spotify.com/artist/240zAZc5sOFxqHDqSOZvcX|https://www.youtube.com/@leomocooficial|https://www.deezer.com/artist/144459852||||||São Paulo|
+3c283bbf4e8481fd9f77e5d140b0e3cb|Luís Agenor|||Novo (sem triagem)||||https://www.deezer.com/artist/50888512||luis_agenor|||||
+3e683bbf4e84813793d9d0099bfa8759|Luís DiBaviera|||Novo (sem triagem)||https://open.spotify.com/artist/7qFzcj3U9NuITQJBwBY7AP||||luis_dibaviera|||||
+37c83bbf4e84814e89b1cb0867a9fc25|Léo Moço|São Paulo|MPB|Não seguiu na curadoria|https://www.instagram.com/leomocooficial/|https://open.spotify.com/artist/240zAZc5sOFxqHDqSOZvcX|https://www.youtube.com/@leomocooficial|https://www.deezer.com/artist/144459852||leo_moco||||São Paulo|
 d7ab501c386e47a88f3bc0122068b5dd|Lívia itaborahy|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 e88293ffe90a448588959c1fb9f1621b|Mac Júlia|||Novo (sem triagem)|||||||||||
-3c383bbf4e84815b8a38e428f1e4c40a|Macaco Bong|||Novo (sem triagem)||https://open.spotify.com/artist/5N59uF54tNuJLYH7Y6sBTD|https://youtube.com/channel/UCd8M-Z51txcCghTUqfBl_Qw|https://deezer.com/artist/5083959|||||||
+3c383bbf4e84815b8a38e428f1e4c40a|Macaco Bong|||Novo (sem triagem)||https://open.spotify.com/artist/5N59uF54tNuJLYH7Y6sBTD|https://youtube.com/channel/UCd8M-Z51txcCghTUqfBl_Qw|https://deezer.com/artist/5083959||macaco_bong|||||
 475f51f093aa4f5d8bf4c710c92d61ec|machado samba|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 3dd83bbf4e8481ff9d13e5c001725728|Madeus|||Novo (sem triagem)||https://open.spotify.com/artist/6I3vtveifAYc3QgQ1KJT5M?si=mQyL6MweTbaMZe9dUFuK-Q&utm_source=copy-link||||madeus|||||
 cc21dcf807514eb1b49d98066e080f05|Magi|||Aprovado (curadoria)|https://www.instagram.com/magi.real/||||||||||
@@ -710,26 +710,26 @@ e67f892de41b4b07962cbda31cfab53b|Malungo|||Aprovado (curadoria)|https://www.inst
 8e98fae105954cd4ba0e945eae693396|Mandacaroots|||Novo (sem triagem)|||||||||||
 f31c6b6a7b8b4ef68882c3cb7281b19e|Mangaia|||Novo (sem triagem)|https://www.instagram.com/eumangaia/||||||||||
 7e62c096879b47a4a6f3d70b1cc692d2|Mar Aberto|São Paulo/SP||Novo (sem triagem)|||||||||||
-37a83bbf4e8481d08b03f214d4930ded|Mara Halunga|São Paulo/SP|MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/marahalunga/|https://open.spotify.com/artist/1agti7NaIB2OH70QeSy0g2|https://www.youtube.com/@MaraHalunga|https://www.deezer.com/artist/222187085||||||São Paulo|
+37a83bbf4e8481d08b03f214d4930ded|Mara Halunga|São Paulo/SP|MPB,Outro gênero musical|Aprovado (curadoria)|https://www.instagram.com/marahalunga/|https://open.spotify.com/artist/1agti7NaIB2OH70QeSy0g2|https://www.youtube.com/@MaraHalunga|https://www.deezer.com/artist/222187085||mara_halunga||||São Paulo|
 3b551616ef4b49b8b476c5d24ed8de1a|Marcela Borges|||Novo (sem triagem)|https://www.instagram.com/marcelaborgesvoice?igsh=MWVtcDNwaDFueW9vag==||||||||||
 b077ea29db1b4137b96be38e83253018|marcellebrittocanta|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
-3f083bbf4e848137a424f0fe31904eb7|Marcelo Café|||Novo (sem triagem)||https://open.spotify.com/artist/7lwErY3K9TVRyF71Cz1nLX|||||||||
+3f083bbf4e848137a424f0fe31904eb7|Marcelo Café|||Novo (sem triagem)||https://open.spotify.com/artist/7lwErY3K9TVRyF71Cz1nLX||||marcelo_cafe|||||
 d804f9e0669e42149796635e1e0adb63|Marcelo Jeneci|||Aprovado (curadoria)|https://www.instagram.com/marcelojeneci/|https://open.spotify.com/artist/21LI2q2QDyaNjyfXaWWTOE|https://youtube.com/channel/UCLBGdiMP4GRS5TQgknKUAnw|https://deezer.com/artist/9910406||||sim|4||
 f37033c32c654dff8a4beac78735f18d|Marcelo Tofani|||Novo (sem triagem)||||||||sim|2||
-346f034583314460817f910a3575f0a3|Marco Baptista|||Novo (sem triagem)|https://www.instagram.com/marcobaptista_/|https://open.spotify.com/artist/4z72Rq6ZmZ4tIP1kY2CtmF|https://youtube.com/@marcobaptista_|https://deezer.com/artist/5561791|||||||
-37a83bbf4e84810f92abfcaac5d45a16|Marco Romani|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Não seguiu na curadoria|https://www.instagram.com/eumarcoromani/|https://open.spotify.com/artist/7y8ndtDWltfnZpyQOs6joN|https://www.youtube.com/marcoromani|https://www.deezer.com/artist/5597055||||||Belo Horizonte|
+346f034583314460817f910a3575f0a3|Marco Baptista|||Novo (sem triagem)|https://www.instagram.com/marcobaptista_/|https://open.spotify.com/artist/4z72Rq6ZmZ4tIP1kY2CtmF|https://youtube.com/@marcobaptista_|https://deezer.com/artist/5561791||marco_baptista|||||
+37a83bbf4e84810f92abfcaac5d45a16|Marco Romani|Belo Horizonte/MG|MPB,Outro gênero musical,Pop|Não seguiu na curadoria|https://www.instagram.com/eumarcoromani/|https://open.spotify.com/artist/7y8ndtDWltfnZpyQOs6joN|https://www.youtube.com/marcoromani|https://www.deezer.com/artist/5597055||marco_romani||||Belo Horizonte|
 7c6d08b83a7b44d4acfdf6d9ed453ccf|Marcos Almeida|Salvador/BA||Aprovado (curadoria)|https://www.instagram.com/omarcosalmeida/|||||||sim|||
 6599ce7c3e764f7ca4b876e1d67c5bc4|marcos kern|São Paulo/SP||Novo (sem triagem)|||||||||||
 2d883bbf4e8480cc9a71f3ddf776e438|Marcos Valle|||Novo (sem triagem)|||||||||||
 2330040ae5a74f29a0df82ec60bffe8e|Mari Froes|||Novo (sem triagem)|||||||||||
-37983bbf4e8481398e42f8179f9b1da8|Mari Q Lima|||Novo (sem triagem)|https://www.instagram.com/mariqlima/|https://open.spotify.com/artist/0njAA2FOyRVoZ8Zo51Tcqp|https://www.youtube.com/@mariqlima|https://www.deezer.com/artist/224774625|||||||
+37983bbf4e8481398e42f8179f9b1da8|Mari Q Lima|||Novo (sem triagem)|https://www.instagram.com/mariqlima/|https://open.spotify.com/artist/0njAA2FOyRVoZ8Zo51Tcqp|https://www.youtube.com/@mariqlima|https://www.deezer.com/artist/224774625||mari_q_lima|||||
 31783bbf4e8480cfa678cb6f49022ba1|Maria Beraldo|São Paulo/SP||Aprovado (curadoria)|https://www.instagram.com/mariaberaldo_/|https://open.spotify.com/artist/2433aSyXTs1Mnhss4lFqHW||https://deezer.com/artist/13304475||||sim|1||
-3e583bbf4e8481bf9a39cd80d5d70e7b|Maria Christina|||Novo (sem triagem)||https://open.spotify.com/artist/7pMcwLc2MjxQl5ehlxRXjb|||||||||
+3e583bbf4e8481bf9a39cd80d5d70e7b|Maria Christina|||Novo (sem triagem)||https://open.spotify.com/artist/7pMcwLc2MjxQl5ehlxRXjb||||maria_christina|||||
 2ca83bbf4e848026b2b9ff0cd5f24d51|Maria Gadú|||Aprovado (curadoria)|https://www.instagram.com/mariagadu/||||||||||
 aae17d2adedc4e439c9d5f1d6c4b5b3b|Mariana Aydar|||Novo (sem triagem)|||||||||||
-41383bbf4e848170b0d0ddf6922c0189|Mariana Mug|Entre Lisboa e Rio de Janeiro|MPB|Novo (sem triagem)|https://www.instagram.com/marianamug_/|https://open.spotify.com/artist/4HFRXrC1UZF1mLJT5MwTKz?si=OEbvoxp5Q-60-r57Uz11Kg&utm_source=copy-link|https://www.youtube.com/@marianamugoficial|||||||São Paulo|
+41383bbf4e848170b0d0ddf6922c0189|Mariana Mug|Entre Lisboa e Rio de Janeiro|MPB|Novo (sem triagem)|https://www.instagram.com/marianamug_/|https://open.spotify.com/artist/4HFRXrC1UZF1mLJT5MwTKz?si=OEbvoxp5Q-60-r57Uz11Kg&utm_source=copy-link|https://www.youtube.com/@marianamugoficial|||mariana_mug||||São Paulo|
 58ac83ce63b44dda9ee0c7f701f68166|Mariana Nolasco|||Novo (sem triagem)|||||||||||
-3dd83bbf4e84812c898bd4dd735f3540|Mariana Ribeiro|||Falta link / dados (completar)||||https://www.deezer.com/artist/11210800|||||||
+3dd83bbf4e84812c898bd4dd735f3540|Mariana Ribeiro|||Falta link / dados (completar)||||https://www.deezer.com/artist/11210800||mariana_ribeiro|||||
 45243f49c6544efbb438071d86cf0e92|Mariana Volker|||Novo (sem triagem)|https://www.instagram.com/marianavolker/|||||marianavolker||sim|||
 0ce40d2634d240258c7b85db1ba6361b|mariananunescantante|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 fd27adedac604aa5a47c5f6aed78ff4b|marianavolker|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
@@ -740,7 +740,7 @@ fa083bbf4e84834581bf811cf9fdb742|Marina Collier (teste)|||Novo (sem triagem)||||
 2d883bbf4e848097b098c3c8024f721a|Marina Lima|||Novo (sem triagem)|||||||||||
 6dce79e3833b48c799988c4cab2532ba|Marina Liori|||Não seguiu na curadoria|https://www.instagram.com/marinaliori_/|https://open.spotify.com/artist/7BFod5BXdWmmMuzQ6DDa5I||||||||Belo Horizonte|
 b002827badc2479ca7da65cab53a515e|Marina Machado|||Novo (sem triagem)|https://www.instagram.com/maritrexpurple/||||||||||
-3e583bbf4e84817caf4ac60222c3db85|Marina Melo|||Novo (sem triagem)||https://open.spotify.com/artist/3yBeFa7H4pU39Mti6B7oqX|||||||||
+3e583bbf4e84817caf4ac60222c3db85|Marina Melo|||Novo (sem triagem)||https://open.spotify.com/artist/3yBeFa7H4pU39Mti6B7oqX||||marina_melo|||||
 2d27cc1a5e4a4cae99fd58441ec55ad2|Marina Sena|||Novo (sem triagem)|https://www.instagram.com/amarinasena/|https://open.spotify.com/artist/0nFdWpwl7h6fp3ADRyG14L|https://www.youtube.com/channel/UC2mT7quMGAx5wPsARspOGIA|https://deezer.com/artist/516265||||sim|||
 d5e55304cbbe4f3db0ac03169fb6025e|marina_iris|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 b2890de34a954c9990691f4aac47fbf7|marinamar_oficial|Recife/PE||Novo (sem triagem)|https://www.instagram.com/marinamar_oficial?igsh=MXh1Nm93ZDc3Y21ybg==||||||||||
@@ -753,9 +753,9 @@ c462663f1ab7467c898d200bee1385b0|MARTTE|||Novo (sem triagem)|https://www.instagr
 467814ef0e2447bb8bedc45a05ef6c23|Matchola|||Para avaliar (curadoria)|https://www.instagram.com/matcholaok/|https://open.spotify.com/artist/5FK5T4mGxkfedPwBdFnw1X|https://charts.youtube.com/artist/%2Fg%2F11fq3409my|https://deezer.com/artist/79544582|||||||
 4a9ce3dd983442a7b2b65725242bb021|Matheus Brant|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 35a662e2f3a9478d9dc15303acd0ba53|Matheus Caster|São Paulo/SP||Novo (sem triagem)|||||||||||
-3ff83bbf4e8481fe89f1c2f370ce5b93|Matheus D'art|São Paulo/SP|MPB|Novo (sem triagem)|https://www.instagram.com/dartmatheus/|https://open.spotify.com/intl-pt/artist/3vZPeW65BG29gl7NEwI1NX|https://www.youtube.com/@MatheusDart|||||||São Paulo|
+3ff83bbf4e8481fe89f1c2f370ce5b93|Matheus D'art|São Paulo/SP|MPB|Novo (sem triagem)|https://www.instagram.com/dartmatheus/|https://open.spotify.com/intl-pt/artist/3vZPeW65BG29gl7NEwI1NX|https://www.youtube.com/@MatheusDart|||matheus_d_art||||São Paulo|
 5dbc7dfa2c364ca9ac1949250c36706e|Matheus Jettar|||Aprovado (curadoria)|https://www.instagram.com/matheus.jettar/|||||||||São Paulo|
-3ce83bbf4e848100a92ae48ce41edb69|Matheus Rancanti|||Novo (sem triagem)||https://open.spotify.com/artist/2AVmcWFUDdbCOiyrzwQ500||https://deezer.com/artist/102908912|||||||
+3ce83bbf4e848100a92ae48ce41edb69|Matheus Rancanti|||Novo (sem triagem)||https://open.spotify.com/artist/2AVmcWFUDdbCOiyrzwQ500||https://deezer.com/artist/102908912||matheus_rancanti|||||
 38241744f5684eb4a2e1b6d73f8e2a23|Matheus Torres|||Aprovado (curadoria)|https://www.instagram.com/matheustorresmp3/|https://open.spotify.com/artist/6Pl1aDQurlKn3p8SenTiAy|https://youtube.com/@MatheusTorres|https://deezer.com/artist/276972111|||||||
 f025c931c0ed448b81ff25585bb9b92b|matheusreis|São Paulo/SP||Novo (sem triagem)|||||||||||
 6299bde8df5a49ccadd2a49cc1956588|Matu Miranda|||Novo (sem triagem)|||||||||||
@@ -776,7 +776,7 @@ e077cbf6667c41ac8baa530be907e6d3|mecderazfeliz|Belo Horizonte/MG||Novo (sem tria
 41a3bce33869458892af94be888fc530|Mey Lin|||Novo (sem triagem)|https://www.instagram.com/lilimeylin?igsh=MWw2dmc2dWVtOTN0cw==||||||||||
 a6a46c337fda405184128d8d851c80ac|Microplásticos|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 3fe7ca4dc1de4691b115af3a1037a2ee|Miguel Amaro|||Novo (sem triagem)|https://www.instagram.com/miguelamaropenna/|https://open.spotify.com/artist/5evmbQNjGMvzzGUxG8j2zx|||||||||
-41683bbf4e8481e1a0f4f71eeb564526|Miguel Rosa|Florianópolis/SC|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/___miguelrosa/|https://open.spotify.com/intl-pt/artist/22a0pdjKeH6l5eLswCSuQy?si=heMmjUJeRfi2e-BPoU3BGw|https://www.youtube.com/@MiguelRosamusic|||||||Florianópolis|
+41683bbf4e8481e1a0f4f71eeb564526|Miguel Rosa|Florianópolis/SC|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/___miguelrosa/|https://open.spotify.com/intl-pt/artist/22a0pdjKeH6l5eLswCSuQy?si=heMmjUJeRfi2e-BPoU3BGw|https://www.youtube.com/@MiguelRosamusic|||miguel_rosa||||Florianópolis|
 4a12c02528a64e96b679279f3c3c7384|Miguel Veleda|São Paulo/SP||Novo (sem triagem)|||||||||||
 402724e69a8a4ee69d59bc89d4e7082f|Milena Melo|||Novo (sem triagem)|https://www.instagram.com/oimilenamelo/||||||||||
 30d83bbf4e8481b3bb50c51c9931a9f8|Miles to Meters|São Paulo|Outro gênero musical,Alternativo|Novo (sem triagem)|https://www.instagram.com/milestometers_music/|https://open.spotify.com/artist/2IY7UDkphrOaNygcnAW4nE|||||||||
@@ -797,9 +797,9 @@ b3522b8eec1c43e2a61d43235b16716b|Moço João|||Aprovado (curadoria)|https://www.
 3fe83bbf4e848108b3b4ddfd8001671c|MP Freire||MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/ompfreire/|https://open.spotify.com/artist/52IJodZnNhEnXbrtGS52E3|https://www.youtube.com/@MPFreire|https://deezer.com/artist/147624102||||sim|||
 1097b1b054ea45d4b056f584a6aa8e89|Mumu de Oliveira|||Novo (sem triagem)|https://www.instagram.com/mumudeoliveirapreto/||||||||||
 017ad37d17994a12bc8156bd11e9ba2f|Murilo Abrita|São Paulo/SP||Novo (sem triagem)|||||||||||
-37b83bbf4e84815ea2c4dfa6370ede98|Murilo Abrita|Cataguases/MG|MPB|Aprovado (curadoria)|https://www.instagram.com/muriloabrita/|https://open.spotify.com/artist/6VbcxP7mewX0vQwoYOsJvp|https://www.youtube.com/muriloabrita|https://www.deezer.com/artist/68887282||||sim||Belo Horizonte|
+37b83bbf4e84815ea2c4dfa6370ede98|Murilo Abrita|Cataguases/MG|MPB|Aprovado (curadoria)|https://www.instagram.com/muriloabrita/|https://open.spotify.com/artist/6VbcxP7mewX0vQwoYOsJvp|https://www.youtube.com/muriloabrita|https://www.deezer.com/artist/68887282||murilo_abrita||sim||Belo Horizonte|
 b08e6fcb95274ddebf6f13aebb4b2072|Murilo Modesto|||Novo (sem triagem)|||||||||||
-3e583bbf4e8481e1999ce2f68c699d08|Murilo Oliveira|||Novo (sem triagem)||https://open.spotify.com/artist/6hstIewY078LfqXEyPAZ1O|||||||||
+3e583bbf4e8481e1999ce2f68c699d08|Murilo Oliveira|||Novo (sem triagem)||https://open.spotify.com/artist/6hstIewY078LfqXEyPAZ1O||||murilo_oliveira|||||
 9a0206ffc38d428caf781d1c6c3c0955|myrellamusic|São Paulo/SP||Novo (sem triagem)|||||||||||
 83619d701a2442968dbebb27ad3e9a5a|Mãeana|||Novo (sem triagem)|||||||||||
 d557ad54a91d4a4992276fa95d40175b|Nairo|||Novo (sem triagem)||||||||sim|||
@@ -810,20 +810,20 @@ da14ab0202bb42e7bcee13c76d4aff72|Nana Rubim|Belo Horizonte/MG||Novo (sem triagem
 6420ba4bdf3b40eda6489d7731b2e7ca|Nanan|||Novo (sem triagem)|||||||||||
 eb22480830504b268792a70d4c4d4f0d|Nando Reis|||Aprovado (curadoria)|https://www.instagram.com/nandoreis/|https://open.spotify.com/artist/7n1XMwvxPf10t4OX6h6Ufy|https://youtube.com/channel/UCIVr9fNs-68pYiHcft3gtAw|https://deezer.com/artist/10541521|||||||
 fec019b3fd564950be961bff2de3024f|nani.porto|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
-3dd83bbf4e84810b96dac2fb5ce009ff|Natalia Cabral|Piracicaba/SP|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nataliacabrall_/|https://open.spotify.com/artist/2OZajEUKBaLpLydMwSFzFx?si=oEBLBXWlRnynl05JMJrs0A&utm_source=copy-link|https://www.youtube.com/@nataliacabral525|||||||São Paulo|
+3dd83bbf4e84810b96dac2fb5ce009ff|Natalia Cabral|Piracicaba/SP|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nataliacabrall_/|https://open.spotify.com/artist/2OZajEUKBaLpLydMwSFzFx?si=oEBLBXWlRnynl05JMJrs0A&utm_source=copy-link|https://www.youtube.com/@nataliacabral525|||natalia_cabral||||São Paulo|
 ab6279fa25b340939af3320d760d475a|Natalia Matos|São Paulo/SP||Novo (sem triagem)|||||||||||
 39babb70b0b24c64b12ee88bd6b5993b|Natania Borges|||Aprovado (curadoria)|https://www.instagram.com/natania.borges/||||||||||
 dacf44e98b7f49049ec19eeb5c4220ba|Natascha Falcão|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
-38a83bbf4e848111ab22fe74bae0db01|Nath Audizio|Rio de Janeiro|MPB,Pop|Não seguiu na curadoria|https://www.instagram.com/nathaudizio/|https://open.spotify.com/artist/3Dmm7O6YrB38y8JbvA3zwK|https://www.youtube.com/@NathAudizio|https://www.deezer.com/artist/106150342||||||Salvador|
+38a83bbf4e848111ab22fe74bae0db01|Nath Audizio|Rio de Janeiro|MPB,Pop|Não seguiu na curadoria|https://www.instagram.com/nathaudizio/|https://open.spotify.com/artist/3Dmm7O6YrB38y8JbvA3zwK|https://www.youtube.com/@NathAudizio|https://www.deezer.com/artist/106150342||nath_audizio||||Salvador|
 d14eebbb57a24765adeffced3d764d31|Nath Rodrigues|||Novo (sem triagem)|||||||||||
-33383bbf4e8481bb954ec6f89b0f260b|natália carreira|São Paulo/SP|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nataliacrrr/|https://open.spotify.com/artist/3FVQisK6sYtE79tU2ghYeX|https://www.youtube.com/nataliacarreira|https://deezer.com/artist/13418877||||||São Paulo|
+33383bbf4e8481bb954ec6f89b0f260b|natália carreira|São Paulo/SP|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nataliacrrr/|https://open.spotify.com/artist/3FVQisK6sYtE79tU2ghYeX|https://www.youtube.com/nataliacarreira|https://deezer.com/artist/13418877||natalia_carreira||||São Paulo|
 9c90ac1a12a945c1bfa3317d44bc37a7|NAY|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 e0f40b7babaf4690ae3fa97ec984c4b7|nay portella|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 eab7de10205b41849dea1856c2a6c313|Nayri|||Novo (sem triagem)|https://www.instagram.com/nayribam?igsh=Z3E2Z3I4NWN0am1j||||||||||
 31a83bbf4e84802eaab6cf689e285bdf|NeLí|||Novo (sem triagem)|||||||||||
 d4932a8c95b8471c93dd69ca6c556f19|neLÍ|São Paulo/SP||Novo (sem triagem)|||||||||||
-3c383bbf4e84819992e9c10362079616|Nick Doll|||Novo (sem triagem)||https://open.spotify.com/artist/3W067hWkXk61FVPYYFRkbZ||https://deezer.com/artist/4667530|||||||
-3e083bbf4e84817192f9d8cfe902143f|Nicolas Candido|||Novo (sem triagem)||https://open.spotify.com/artist/5Zv9YrrNkqX5FaaAHtw3E6|||||||||
+3c383bbf4e84819992e9c10362079616|Nick Doll|||Novo (sem triagem)||https://open.spotify.com/artist/3W067hWkXk61FVPYYFRkbZ||https://deezer.com/artist/4667530||nick_doll|||||
+3e083bbf4e84817192f9d8cfe902143f|Nicolas Candido|||Novo (sem triagem)||https://open.spotify.com/artist/5Zv9YrrNkqX5FaaAHtw3E6||||nicolas_candido|||||
 e4b9222be1a149fb9a1ce2b300e33662|nicoliezalin|São Paulo/SP||Novo (sem triagem)|||||||||||
 50bf1c208bd645ca8a0623b3a7ed9dda|Nina Charnizon|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 463ff8d1d42e4c2ba080fd19de7b7aed|nina fernandes|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -834,12 +834,12 @@ e4b9222be1a149fb9a1ce2b300e33662|nicoliezalin|São Paulo/SP||Novo (sem triagem)|
 2c5ca1ce3c5a405fa8794edb17aa2ba6|Novíssimo Edgar|||Falta link / dados (completar)|||||||||||
 0f7e4b7762c94dca93e1ea75e1ca98ec|Ná Ozzeti|||Novo (sem triagem)||||||||sim|||
 0c66608da2864737ba8e396cb2e066f5|Nãná Zetwel|||Novo (sem triagem)|https://www.instagram.com/zetwelnana||||||||||
-3c583bbf4e8481d1b741f83f9878dbaa|Nélio Torres|Recife/PE|MPB|Novo (sem triagem)|https://www.instagram.com/neliobtorres/|https://open.spotify.com/artist/5mTzNe2EQnHgMV2sEJzIh1|https://www.youtube.com/neliotorres1|https://deezer.com/artist/7028355||||||Recife|
+3c583bbf4e8481d1b741f83f9878dbaa|Nélio Torres|Recife/PE|MPB|Novo (sem triagem)|https://www.instagram.com/neliobtorres/|https://open.spotify.com/artist/5mTzNe2EQnHgMV2sEJzIh1|https://www.youtube.com/neliotorres1|https://deezer.com/artist/7028355||nelio_bezerra_torres||||Recife|
 c22d1e76f49c45c0abdd2d0e3392f88d|Nó|||Novo (sem triagem)|https://www.instagram.com/nodueto/|https://open.spotify.com/artist/4PqyC4ZKN6l1rgFojodapX|||||||||
-39d83bbf4e848144b59bf8717e0ec463|Nós Nus|Belo Horizonte/MG|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nosnus.oficial/|https://open.spotify.com/artist/2aFYV7H1Z2ZBpHM0cLt6Os|https://www.youtube.com/channel/UCNuPUw1CGvykECe77T6lscA|https://www.deezer.com/artist/294199011||||||Belo Horizonte|
+39d83bbf4e848144b59bf8717e0ec463|Nós Nus|Belo Horizonte/MG|Alternativo,MPB|Novo (sem triagem)|https://www.instagram.com/nosnus.oficial/|https://open.spotify.com/artist/2aFYV7H1Z2ZBpHM0cLt6Os|https://www.youtube.com/channel/UCNuPUw1CGvykECe77T6lscA|https://www.deezer.com/artist/294199011||nos_nus||||Belo Horizonte|
 2edab0d037534fcd90f23c06f5cf4856|O Grilo|||Novo (sem triagem)|||||||||||
-3de83bbf4e848195bdbbdb3bf5a40840|O John|||Novo (sem triagem)||||https://www.deezer.com/artist/132683782|||||||
-3de83bbf4e8481c1ab6ff02cbb3f71d1|O John|||Novo (sem triagem)||https://open.spotify.com/artist/7rgfJEDaXpqDikR0DVKwJO||https://www.deezer.com/artist/132683782|||||||
+3de83bbf4e848195bdbbdb3bf5a40840|O John|||Novo (sem triagem)||||https://www.deezer.com/artist/132683782||o_john|||||
+3de83bbf4e8481c1ab6ff02cbb3f71d1|O John|||Novo (sem triagem)||https://open.spotify.com/artist/7rgfJEDaXpqDikR0DVKwJO||https://www.deezer.com/artist/132683782||o_john|||||
 737238bdfdb94caaaa394c9cdaa91909|Obinrin Trio|||Novo (sem triagem)|||||||||||
 670f438b931349d5aef59c0f17ebf597|Obirin|||Novo (sem triagem)|https://www.instagram.com/obinrintrio||||||||||
 384b1f71a4924350ad93a3d7bb70df20|ocesarlacerda|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
@@ -876,16 +876,16 @@ d4fe75de2a154dbc96a90ca0e243fea7|Paula Raia|Rio de Janeiro/RJ||Novo (sem triagem
 2ce51f83a4ca4a6b8c6162830c599dcf|paularaia_|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
 0f36212f555f4f679ce2e5774a7cc684|Paulinho Moska|||Novo (sem triagem)|||||||||||
 b10b2f1a1a86408c9cfafac7b9f4c0db|Paulo Miklos|||Avaliando (curadoria)|https://www.instagram.com/miklospaulo/|https://open.spotify.com/artist/4GIB9MiZTggcpRXOPXRSJe|https://youtube.com/c/PauloMiklosOficial|https://deezer.com/artist/9848062|||||||
-3cf83bbf4e84818e9faff6a04bf8e5b8|Paulo Novaes|||Novo (sem triagem)|https://www.instagram.com/paulonovaes/|https://open.spotify.com/artist/1Ee2vIMGWEMnEqcjJ8nKZ6|https://youtube.com/channel/UC5w7c9tlOixFxfIVBadEl3Q|https://deezer.com/artist/5219512|||||||
+3cf83bbf4e84818e9faff6a04bf8e5b8|Paulo Novaes|||Novo (sem triagem)|https://www.instagram.com/paulonovaes/|https://open.spotify.com/artist/1Ee2vIMGWEMnEqcjJ8nKZ6|https://youtube.com/channel/UC5w7c9tlOixFxfIVBadEl3Q|https://deezer.com/artist/5219512||paulo_novaes|||||
 9595504042854dd59413a5c82ca692a0|PC Silva|Recife/PE||Novo (sem triagem)|||||||||||
 a843fb436440472fbf7e4a5d9bd198ad|Peci|Curitiba/PR||Novo (sem triagem)|||||||||||
 f69db84100c84d4bbd2593870c7cac0a|PECI|||Novo (sem triagem)|https://www.instagram.com/pecimusica/|https://open.spotify.com/artist/7aeHLKCANCJ2ATbtFdElsV|https://youtube.com/@pecimusica|https://deezer.com/artist/209415367|||||||
-37983bbf4e84819bbf7bd87eadc4b8bb|Pedro & Etecetera|São Paulo/SP|Alternativo|Não seguiu na curadoria|https://www.instagram.com/pedroeetc/|https://open.spotify.com/artist/3lBkV0KhX52Hq5CpCmFSJb|https://www.youtube.com/channel/UCwzKWjPd8RQ1Tr1Iolwk5ug|https://www.deezer.com/artist/226248255||||||São Paulo|
+37983bbf4e84819bbf7bd87eadc4b8bb|Pedro & Etecetera|São Paulo/SP|Alternativo|Não seguiu na curadoria|https://www.instagram.com/pedroeetc/|https://open.spotify.com/artist/3lBkV0KhX52Hq5CpCmFSJb|https://www.youtube.com/channel/UCwzKWjPd8RQ1Tr1Iolwk5ug|https://www.deezer.com/artist/226248255||pedro_etecetera||||São Paulo|
 71f906b965ea42c2a8979fba6a350205|pedro & etecetera|São Paulo/SP||Novo (sem triagem)|||||||||||
 2d883bbf4e8480fbb8a4f33e1f577b8b|Pedro Altério|||Novo (sem triagem)|https://www.instagram.com/pedroalterio/|https://open.spotify.com/artist/1O8mpR5WQPL6AbixaSZ5td|https://charts.youtube.com/artist/%2Fg%2F11b7_t1f_c|https://deezer.com/artist/5567259|||||||
 2b6d7999953b46c881db5363ebbfd728|pedro emilio|São Paulo/SP||Novo (sem triagem)|||||||||||
 30c83bbf4e8481e49a04fd310f357f88|Pedro Gusavaqui|Salvador/BA|Pop,MPB,Alternativo|Novo (sem triagem)|https://www.instagram.com/gusavaqui/|https://open.spotify.com/artist/0oQb1I5eaLz5xyz2DTHtU6|||||||||
-3c983bbf4e8481558418f43279f80da3|Pedro Iaco|São Paulo/SP|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/pedroiaco/|https://open.spotify.com/artist/1mi8Js1kWVKUnF6iSOyGP5|https://www.youtube.com/@pedroiaco|https://deezer.com/artist/11859893||||||São Paulo|
+3c983bbf4e8481558418f43279f80da3|Pedro Iaco|São Paulo/SP|Alternativo,MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/pedroiaco/|https://open.spotify.com/artist/1mi8Js1kWVKUnF6iSOyGP5|https://www.youtube.com/@pedroiaco|https://deezer.com/artist/11859893||pedro_iaco||||São Paulo|
 326d0b0bdf97440cb01ea09f6ba59bb8|Pedro Indio Negro|||Aprovado (curadoria)|https://www.instagram.com/pedroindionegro/|||||||||São Paulo|
 bdde7c1d0125476c9d6b1e7ea9a5c89b|Pedro Lua|||Novo (sem triagem)|https://www.instagram.com/eupedrolua||||||||||
 267cb9587fe041939f468aebe64c559e|Pedro Madeira|||Não seguiu na curadoria|https://www.instagram.com/opedromadeira||||||||||
@@ -899,7 +899,7 @@ ed0733bb1a794b07a9e7a2af7b857e6a|pedro tiepolo|São Paulo/SP||Novo (sem triagem)
 75b3cf26dfa94733b59008a72aa16de6|Pedro Viáfora|||Avaliando (curadoria)|https://www.instagram.com/pedroviafora/|https://open.spotify.com/artist/2vUiaClMU8uFATuSX94A6o|https://charts.youtube.com/artist/%2Fg%2F11b7_rl01g|https://deezer.com/artist/7481876|||||||
 3d599ae2cd024840814eca14a24ba297|pedroindionegro|São Paulo/SP||Novo (sem triagem)|||||||||||
 db996906b9924a9f847d6272b48a7c24|pedromirandaoficial|Rio de Janeiro/RJ||Novo (sem triagem)|||||||||||
-3c183bbf4e84818c90bbf59d995b70a5|Pedru Lucca|||Novo (sem triagem)||https://open.spotify.com/artist/7hw1G1LNEb25ticRiy6ZWK|||||||||
+3c183bbf4e84818c90bbf59d995b70a5|Pedru Lucca|||Novo (sem triagem)||https://open.spotify.com/artist/7hw1G1LNEb25ticRiy6ZWK||||pedru_lucca|||||
 d37f6976fd3c46be810dc4887f640176|Petra|||Novo (sem triagem)|https://www.instagram.com/petracom.e||||||||||
 85642f745b524507afcd7be60fc289b9|Petra com e|||Não seguiu na curadoria|https://www.instagram.com/petracom.e/||||||||||
 7ca942335fdf47aaa9f8581e37aaa9d1|Peu Heise|||Pré-aprovado|https://www.instagram.com/peuheise/|https://open.spotify.com/artist/4Oem7hhYuxmPQr4sOrQbgS||https://deezer.com/artist/209346767|||||||
@@ -927,8 +927,8 @@ c31863b40c404f5fb42d4c2afbbd880f|projetoenxerga|Recife/PE||Novo (sem triagem)|||
 1f82101ff9974a4dbf79114593908581|Rafa Ventura|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 4bd2969314494b0287db0c16af2ae3d9|Rafael Alterio|||Novo (sem triagem)||||||||sim|||
 9554ea54f7ba4c05a33be99c9a685c0a|Rafael Martini|||Aprovado (curadoria)|https://www.instagram.com/rafael_martini_/|https://open.spotify.com/artist/1N5u7jlZWYGZprzy1wXUBq|https://youtube.com/channel/UCcD8KAxsyL0_9rsZ7928ZgQ|https://deezer.com/artist/5187761|||||||
-3de83bbf4e848194ba4dca25928654a1|Rafael Witt|||Novo (sem triagem)|https://www.instagram.com/rafaelwitt__/|https://open.spotify.com/artist/3MKdDfOZF0Simyf5JWXpg3|https://youtube.com/channel/UC1hv6jemYJmbVhrGhbhiX2w|https://deezer.com/artist/85516512|||||||
-3bc83bbf4e8481139553de42ade210f0|RAFHA|||Novo (sem triagem)||https://open.spotify.com/artist/1DNQ4yLrHdieHB2HYhkipY|||||||||
+3de83bbf4e848194ba4dca25928654a1|Rafael Witt|||Novo (sem triagem)|https://www.instagram.com/rafaelwitt__/|https://open.spotify.com/artist/3MKdDfOZF0Simyf5JWXpg3|https://youtube.com/channel/UC1hv6jemYJmbVhrGhbhiX2w|https://deezer.com/artist/85516512||rafael_witt|||||
+3bc83bbf4e8481139553de42ade210f0|RAFHA|||Novo (sem triagem)||https://open.spotify.com/artist/1DNQ4yLrHdieHB2HYhkipY||||artista_indicado|||||
 3bc83bbf4e8481b6a95cf21b70fe80fc|RAFHA|||Novo (sem triagem)||||https://www.deezer.com/artist/15283931||rafha|||||
 05e5a715d9fc4ba3ba95b2a9df1d5258|raissa araujo musica|Salvador/BA||Novo (sem triagem)||||||||||Salvador|
 8db24a22e4e445879d248d8857da60c3|Raissa Santti|||Novo (sem triagem)|https://www.instagram.com/raissantti/|https://open.spotify.com/artist/0BUpcOOFFP16cCpj80A5n4|||||||||
@@ -942,7 +942,7 @@ b90e7d007df24ce39cf71a3d55c1f3fc|raycantora|Belo Horizonte/MG||Novo (sem triagem
 c0988c4a0ab342998afb2badffbbe9e1|Raíssa Espada|||Novo (sem triagem)|||||||||||
 641e055b26c0485ebfa5c649aca60139|Raíssa Spada|||Novo (sem triagem)|||||||||||
 7d84483f750f4a6f8f9f7f8f8a6c63c9|Raíssa Spada|||Novo (sem triagem)|||||||||||
-3c183bbf4e8481f6b883c0a49a01fedb|Rebeca Lua|||Novo (sem triagem)||https://open.spotify.com/artist/4iIecqyO02VZUcm4H4ymjx?si=niPrbg-MQRKEZCSAkLPqrw&utm_source=copy-link|||||||||
+3c183bbf4e8481f6b883c0a49a01fedb|Rebeca Lua|||Novo (sem triagem)||https://open.spotify.com/artist/4iIecqyO02VZUcm4H4ymjx?si=niPrbg-MQRKEZCSAkLPqrw&utm_source=copy-link||||rebeca_lua|||||
 55e616898d554e63a242074505ab4db5|rebecamattamatta|Salvador/BA||Novo (sem triagem)|https://www.instagram.com/rebecamattamatta?igsh=MXB2NWV0Z2oxanE3NQ==|||||||||Salvador|
 6d97d33e1d8843e980ac8dc00fadc71b|Refúgio dos Amores Improváveis|||Novo (sem triagem)||https://open.spotify.com/artist/2oYrmYrvdcSWmKLlft0G6L|https://www.youtube.com/watch?v=LtH3BClcShI|||||||Rio de Janeiro|
 82e1cce9ba0c41b7b5b631c9ad483be4|Renan Cavolik|||Novo (sem triagem)|https://www.instagram.com/cavolik/||||||||||
@@ -967,7 +967,7 @@ b7d7c5ae91bb4522b934053901dc0a32|Rodrigo Régis|||Novo (sem triagem)|https://www
 282f67a053a64bb0bd55093ea4d8bb34|Rodrigo Suricato|||Novo (sem triagem)|https://www.instagram.com/rodrigosuricato/||||||||||
 7c4f5b847b98490e9c02b85f28d7c2ab|rodrigofsoler|São Paulo/SP||Novo (sem triagem)|||||||||||
 bdb4e00526b44644b95ceed415df4020|Rogério Skylab|||Novo (sem triagem)|||||||||||
-38283bbf4e8481bbbdb6fc461dfe1487|Rojan Gabriel|||Novo (sem triagem)|https://www.instagram.com/rojangabriel/||https://www.youtube.com/rojangabriel|https://www.deezer.com/artist/13718613|||||||
+38283bbf4e8481bbbdb6fc461dfe1487|Rojan Gabriel|||Novo (sem triagem)|https://www.instagram.com/rojangabriel/||https://www.youtube.com/rojangabriel|https://www.deezer.com/artist/13718613||rojan_gabriel|||||
 a394e0de2df642b081e30276eee0ce68|Rose Brant|||Novo (sem triagem)|https://www.instagram.com/rose.brant||||||||||
 2c483bbf4e848065ad3afd2ad32da198|Roupa Nova|||Novo (sem triagem)|||||||||||
 08c7f41fa64442b48b2c1abacd68aaad|Rubel|||Novo (sem triagem)|https://www.instagram.com/rubelrubelrubel/|https://open.spotify.com/artist/0slVGXBggrLglTLNKbeEyW|https://youtube.com/channel/UCesNI434dJImMNhU0JntoHg|https://deezer.com/artist/283593751|||||||
@@ -976,13 +976,13 @@ a394e0de2df642b081e30276eee0ce68|Rose Brant|||Novo (sem triagem)|https://www.ins
 87941e584f0c46faa3380a5866ece808|Ródinei Páscoa Amélio|||Não seguiu na curadoria|https://www.instagram.com/rodinei.10?igsh=MWMwNTljcGlnbjRtcQ==||http://www.youtube.com/@rodineipascoaamelio8257||||||||
 31e754cc1a1a4697934524433b9a0b37|sagabreil.misica|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 d323475a1bf942e4a900786df26b417f|SalDoce|||Novo (sem triagem)|https://www.instagram.com/saldocemusica/|https://open.spotify.com/artist/79k0fJ9NVmt26RyXfBNZuG|https://youtube.com/@SalDoce|https://deezer.com/artist/80943722|||||||
-39083bbf4e848133be5bc8b60afaf8d2|Sam Times|São Paulo/SP|MPB,Pop|Não seguiu na curadoria|https://www.instagram.com/eusamtimes/|https://open.spotify.com/artist/47LYsBw7HJsmdWEpdoRK4f|https://www.youtube.com/@eusamtimes|https://www.deezer.com/artist/64642022||||||São Paulo|
-3d783bbf4e848172ab5ccb80b04e0ffc|Samantha Jones|||Novo (sem triagem)||https://open.spotify.com/artist/0oHytlFJGfMFsR1MZezSZu||https://deezer.com/artist/83693172|||||||
+39083bbf4e848133be5bc8b60afaf8d2|Sam Times|São Paulo/SP|MPB,Pop|Não seguiu na curadoria|https://www.instagram.com/eusamtimes/|https://open.spotify.com/artist/47LYsBw7HJsmdWEpdoRK4f|https://www.youtube.com/@eusamtimes|https://www.deezer.com/artist/64642022||sam_times||||São Paulo|
+3d783bbf4e848172ab5ccb80b04e0ffc|Samantha Jones|||Novo (sem triagem)||https://open.spotify.com/artist/0oHytlFJGfMFsR1MZezSZu||https://deezer.com/artist/83693172||samantha_jones|||||
 41a83bbf4e84817890f8f8c2c591bd7b|Samir|||Novo (sem triagem)|https://www.instagram.com/essesamir/|https://open.spotify.com/artist/6nugYVDXjjQ6rU3lYENRzk?si=_GsEllyqRZWVCLpZo6upsw&utm_source=copy-link|https://www.youtube.com/@essesamir|||samir|||||
 01de5490099d4085b81826e92aba3572|samira chamma|São Paulo/SP||Novo (sem triagem)|||||||||||
 31383bbf4e84818d8e1beba2c7e8d1aa|Samira Chamma|São Paulo/SP|MPB|Aprovado (curadoria)|https://www.instagram.com/samirachamma/|https://open.spotify.com/artist/4HIBuuovWvVTLd3y55N0qo||https://deezer.com/artist/161735792|||||||
 c524c50d62334e61aa694073ce61f562|Samira Chamma|||Novo (sem triagem)|https://www.instagram.com/samirachamma/?hl=pt-br||||||||||
-39f83bbf4e84816e80e8d98a7cf38fe9|Sandra Fidalgo|Sorocaba/SP|MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/sandrafidalgooficial/|https://open.spotify.com/artist/2kIclod4gy37G6kfMlYUIx|https://www.youtube.com/@SandraFidalgo|https://www.deezer.com/artist/3094391||||||São Paulo|
+39f83bbf4e84816e80e8d98a7cf38fe9|Sandra Fidalgo|Sorocaba/SP|MPB,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/sandrafidalgooficial/|https://open.spotify.com/artist/2kIclod4gy37G6kfMlYUIx|https://www.youtube.com/@SandraFidalgo|https://www.deezer.com/artist/3094391||sandra_fidalgo||||São Paulo|
 33f83bbf4e8481c89d70ec1b3bb8f572|SANDRERA|Vila Velha/ES|MPB,Outro gênero musical,Alternativo|Novo (sem triagem)|https://www.instagram.com/sandrera_oficial/|https://open.spotify.com/artist/1mLpPueTtvRkEJngX2oaeb|||||||||
 ceefc8e2e8ff4c769c1e0d0a792567e2|Sarah Casagrande|||Aprovado (curadoria)|https://www.instagram.com/sarahcasagrandep/|||||||||Belo Horizonte|
 528bffe5dbe640719b182f966946fd1a|Sarah Sampp|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
@@ -992,14 +992,14 @@ dfa506b8fd6447f3a5a1fc85989bad5f|Saudade|São Paulo/SP||Novo (sem triagem)||||||
 db0c6d63ea8c467e950a41b21007ff8b|Saulo|||Aprovado (curadoria)|https://www.instagram.com/saulooficial/|https://open.spotify.com/artist/0l82Lk1LX5X2qqYuPSXTuf|https://youtube.com/channel/UCsUnlYa0_q9VGbI9dbkfG4A|https://deezer.com/artist/9743892|||||||
 16ea83a54e1a4611bdb9ab2980e581f5|Sebastianismos|||Novo (sem triagem)||||||||sim|||
 a3b300dee747442bbfdce7c58eb3b2e0|SEBÁ|||Aprovado (curadoria)|https://www.instagram.com/sebamota/|||||||||Belo Horizonte|
-37c83bbf4e8481da9b13fc6816e34f09|Selma Fernands|São Paulo|Alternativo|Aprovado (curadoria)|https://www.instagram.com/selmafernands/|https://open.spotify.com/artist/4SIXnbIXZbWp94vEISxqTm|https://www.youtube.com/selmafernands|https://deezer.com/artist/72563122||||||São Paulo|
+37c83bbf4e8481da9b13fc6816e34f09|Selma Fernands|São Paulo|Alternativo|Aprovado (curadoria)|https://www.instagram.com/selmafernands/|https://open.spotify.com/artist/4SIXnbIXZbWp94vEISxqTm|https://www.youtube.com/selmafernands|https://deezer.com/artist/72563122||sixnbixzbwp_veisxqtm||||São Paulo|
 721c855c97b64faa906bfae45bf8826d|Selma Fernands e Daniel Conti|São Paulo/SP||Aprovado (curadoria)|http://selmafernands.eu/||||||||||
 6339bd9faaf7447b999117fec434aaf9|Sergio Sacra|São Paulo/SP||Novo (sem triagem)|||||||||||
 c4a2d1d5d00b4f56be5f0b7ad3ad9700|SERPENTES DA BABILÔNIA|||Novo (sem triagem)|https://www.instagram.com/serpentesdababilonia||||||||||
 37386bc01b8a40138597e49f6ad93063|Sessa|São Paulo/SP||Novo (sem triagem)|||||||||||
 6689c33e64f0410b92dd64b4961ad3c2|Seu Jorge|||Novo (sem triagem)|https://www.instagram.com/seujorge/||||||||||
 53991d62880947d9b3723f5708aa17ef|Seu Pereira e Coletivo 401|||Novo (sem triagem)|https://instagram.com/seupereiraecoletivo401||||||||||
-3e583bbf4e84817a84eeea18ec4750a1|Sidarta Riani|||Novo (sem triagem)||https://open.spotify.com/artist/72skSZCBRiTxdzOpoqWDKp|||||||||
+3e583bbf4e84817a84eeea18ec4750a1|Sidarta Riani|||Novo (sem triagem)||https://open.spotify.com/artist/72skSZCBRiTxdzOpoqWDKp||||sidarta_riani|||||
 3dd83bbf4e848174a2cff119c24ff373|Siga|||Novo (sem triagem)||https://open.spotify.com/artist/5vn3EUoebBX2AaYep0Llmp||||siga|||||
 822b004360e94c7ba7547116269050d6|Silva|||Novo (sem triagem)|||||||||||
 14bf6d480e9f400a9733225b45da5606|Sofia Freire|||Aprovado (curadoria)|https://www.instagram.com/sofia_freire/|||||||||São Paulo|
@@ -1025,15 +1025,15 @@ c905d2ce59164ae1bde3c28a8a7f6836|Sô Melki|||Novo (sem triagem)|||||||||||
 74f7f5e90fe446daa3a462c2b5f886d0|Sô Melqui|||Não seguiu na curadoria|https://www.instagram.com/somelqui||||||||||
 7574bd3d7dc747f3b07a908ec97caa93|Tagua Tagua|||Novo (sem triagem)|||||||||||
 52c669d26fd540e997b328a32a4dd630|Tainá Santos|||Avaliando (curadoria)||https://open.spotify.com/artist/2Qkfi2UrDSSX43VUvFr6Rc|||||||||
-3de83bbf4e8481ff9c71c198300f44d7|Tais Alvarenga|São Paulo/SP||Novo (sem triagem)||https://open.spotify.com/artist/4C2lJrO2VHoBJiDac8ygPS|https://youtube.com/channel/UCQp02_tC12ItkBLSz7atAng|https://deezer.com/artist/1649306|||||||
+3de83bbf4e8481ff9c71c198300f44d7|Tais Alvarenga|São Paulo/SP||Novo (sem triagem)||https://open.spotify.com/artist/4C2lJrO2VHoBJiDac8ygPS|https://youtube.com/channel/UCQp02_tC12ItkBLSz7atAng|https://deezer.com/artist/1649306||tais_alvarenga|||||
 803fd259c0074ee2b5f6fa43f595d4c2|Tarcisio Serasso|||Novo (sem triagem)|||||||||||
 ed4aa3c2083b43edbe358947a44729a3|Tarcisio Serasso|||Novo (sem triagem)|https://www.instagram.com/reel/DDULXpAR85K/?igsh=NjhwMG9ncXh0cHow||||||||||
 e2dae9b69ae34228b571716cf6bb37fc|Tarciso Serasso|||Novo (sem triagem)|https://www.instagram.com/tarcisioserassooficial||||||||||
 551ac05ae49a402fa84592c13e746be5|Tarcísio Serasso|||Não seguiu na curadoria|https://www.instagram.com/p/DG_MM1bvn-i/?img_index=2&igsh=MWNucTFpeXFnczc0bw==||||||||||
 6444c7b695b64b929ee477938f990b5b|Tata Alves|||Novo (sem triagem)||https://open.spotify.com/artist/1Y8ElHMDIBf0zAFjayCTJN|||||||||
-39783bbf4e84813ba1eec80617f62b35|Tatiana Pureza|Belo Horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/tatianapureza/|https://open.spotify.com/artist/5XXgbs90AEO6ev7IGeHQK1|https://www.youtube.com/@TatianaPureza|https://www.deezer.com/artist/109299232||||||Belo Horizonte|
+39783bbf4e84813ba1eec80617f62b35|Tatiana Pureza|Belo Horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/tatianapureza/|https://open.spotify.com/artist/5XXgbs90AEO6ev7IGeHQK1|https://www.youtube.com/@TatianaPureza|https://www.deezer.com/artist/109299232||tatiana_pureza||||Belo Horizonte|
 804b3fe34d0a4d8e9642634b700c89da|Tatá Aeroplano|||Novo (sem triagem)||||||||sim|||
-3de83bbf4e8481a1ad5ac907415548f6|Tavinho Schmitz|||Novo (sem triagem)||https://open.spotify.com/artist/7jagCgRby6XG2QJz2E2NHv|||||||||
+3de83bbf4e8481a1ad5ac907415548f6|Tavinho Schmitz|||Novo (sem triagem)||https://open.spotify.com/artist/7jagCgRby6XG2QJz2E2NHv||||tavinho_schmitz|||||
 54fdeed4bbd94e1d89933fc4338ef433|Tay Lopes|||Novo (sem triagem)|||||||||||
 457d0dd2033f498daec0a9a63bfcabee|Teago Oliveira|||Novo (sem triagem)||||||||sim|||
 32e83bbf4e8481b5bc5fd8e6bdd9d614|Teco Sander|Diamantina/MG|MPB|Novo (sem triagem)|https://instagram.com/teco.sander||https://youtube.com/@tecosander?si=1R_83bR1Qr0OsY34||||||||
@@ -1046,19 +1046,19 @@ d82c9b46143a41ea9b52b313c5cfc17c|Terno Rei|||Novo (sem triagem)|||||||||||
 9777e3a3b4294ccea8ec15220eed30b4|Teu Soares|||Novo (sem triagem)|https://www.instagram.com/teusoaresoficial/|https://open.spotify.com/artist/0qwmPb3heHNVhoLBj4VHDO|||||||||
 b91b61b6de6e4ebcb52266a5c326edd3|Thais|||Novo (sem triagem)|||||||||||
 29485ceed1964ef9ba56695514dbddb3|thaisdutrasa|Recife/PE||Novo (sem triagem)|||||||||||
-3de83bbf4e84814d8164f555c351abe2|Thales Carvalho e Thayson Azevedo|||Falta link / dados (completar)||||https://www.deezer.com/artist/397175611|||||||
+3de83bbf4e84814d8164f555c351abe2|Thales Carvalho e Thayson Azevedo|||Falta link / dados (completar)||||https://www.deezer.com/artist/397175611||thales_carvalho_e_thayson_azevedo|||||
 531d6aa980f544d8b5a133cbcdb4926c|Thales Siqueira|||Novo (sem triagem)|||||||Abertura · 25 a 30 min||||
 2fda2ddf3328438d8cc280079a4706b9|Thanya Canela|||Novo (sem triagem)||||||||sim|||
-37f83bbf4e8481669585c8adf81e6e38|Thanya Canela|||Aprovado (curadoria)|https://www.instagram.com/thanyacanela/|https://open.spotify.com/artist/63jDNgZ7pAipmDilU52M2f|https://www.youtube.com/@thanyacanela1201|https://www.deezer.com/artist/145640022||||||Belo Horizonte|
+37f83bbf4e8481669585c8adf81e6e38|Thanya Canela|||Aprovado (curadoria)|https://www.instagram.com/thanyacanela/|https://open.spotify.com/artist/63jDNgZ7pAipmDilU52M2f|https://www.youtube.com/@thanyacanela1201|https://www.deezer.com/artist/145640022||thanya_canela||||Belo Horizonte|
 8dd05a6ad22a4b4999dd5c31f03c616e|Thati Dias|Rio de Janeiro||Novo (sem triagem)|||||||||||
 1bacae530f2946a68fe8b47977d92469|thay|São Paulo/SP||Novo (sem triagem)|||||||||||
 c79ed0458bee42c1899567d796aed7e9|Thay Santos|||Novo (sem triagem)|https://www.instagram.com/canta_ai_thay/|https://open.spotify.com/artist/1OxZb3V5SJqeRF7ttAuxQ9|||||||||
-3c483bbf4e8481bd9e2af12ac838120d|Thaís Coimbra|||Novo (sem triagem)||||https://www.deezer.com/artist/216728275|||||||
-3dd83bbf4e8481258038cd7ca024f2c0|THE SILAS|||Novo (sem triagem)||https://open.spotify.com/artist/7f4QrMxu8IbW8VZ4QjacAl?si=y2ihfbScRxO-WllxXOxSnQ&utm_source=copy-link|||||||||
-3de83bbf4e84812cb715d0249ec2c9d9|The Smokey Crow|||Novo (sem triagem)||https://open.spotify.com/artist/4UYGcN9XnHPogfxm5pNaiU|||||||||
+3c483bbf4e8481bd9e2af12ac838120d|Thaís Coimbra|||Novo (sem triagem)||||https://www.deezer.com/artist/216728275||thais_coimbra|||||
+3dd83bbf4e8481258038cd7ca024f2c0|THE SILAS|||Novo (sem triagem)||https://open.spotify.com/artist/7f4QrMxu8IbW8VZ4QjacAl?si=y2ihfbScRxO-WllxXOxSnQ&utm_source=copy-link||||the_silas|||||
+3de83bbf4e84812cb715d0249ec2c9d9|The Smokey Crow|||Novo (sem triagem)||https://open.spotify.com/artist/4UYGcN9XnHPogfxm5pNaiU||||the_smokey_crow|||||
 9484a1457d054a91b853ddbb27064754|Then the Sky|||Novo (sem triagem)|||||||||||
 ab06114dec434364b3366f3436b10955|Theodoro Nagô||MPB|Novo (sem triagem)|https://www.instagram.com/theodoronago/|https://open.spotify.com/artist/0vnGW0KMgsZeWNTHCQGTE4|https://www.youtube.com/@theodoronago/featured|https://deezer.com/artist/9920508|||||||
-3e583bbf4e84817ca0ebd95f7b282e76|Thiago Borba de Albuquerque (Nome artístico: Mazuli)|Recife/PE|Alternativo,MPB,Pop|Novo (sem triagem)|https://www.instagram.com/mazuli.mazuli/|https://open.spotify.com/artist/3KOKL1Rn0fOMOyLrgaoUI1?si=KCu5MSchTzeQN2PwC6A6Qw&utm_source=whatsapp|https://www.youtube.com/@mazuli|||||||São Paulo|
+3e583bbf4e84817ca0ebd95f7b282e76|Thiago Borba de Albuquerque (Nome artístico: Mazuli)|Recife/PE|Alternativo,MPB,Pop|Novo (sem triagem)|https://www.instagram.com/mazuli.mazuli/|https://open.spotify.com/artist/3KOKL1Rn0fOMOyLrgaoUI1?si=KCu5MSchTzeQN2PwC6A6Qw&utm_source=whatsapp|https://www.youtube.com/@mazuli|||thiago_borba_de_albuquerque_nome_artistico_mazuli||||São Paulo|
 eccdfaa00b084006aad3ad2ca8616945|Thiago correa|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 71514e97edd94a5eb0e719d6ca26c09a|Thiago Pantaleão|||Novo (sem triagem)|https://www.instagram.com/thiagopantaleao/|https://open.spotify.com/artist/70HOdlw2Ud3B4A7W4CI1V6|https://youtube.com/channel/UCqpbkwo86ihzbEKKyoKj2Lw|https://deezer.com/artist/102204612|||||||
 364f1a488439469bb89bbf4302b88b1d|Thomé|||Novo (sem triagem)||||||||sim|||
@@ -1080,7 +1080,7 @@ d9dd8a1088f34daaa66790b5d201dcb8|Ton Guimarães e banda|||Novo (sem triagem)|htt
 9bf7c4bb5bf94603aad78954afbb70cd|Tonfil|Recife/PE||Novo (sem triagem)|https://www.instagram.com/tonfil__/||||||||||
 26bfa1c3cc3d4daabacd238da3bd5e29|Tonho Matéria|Salvador/BA||Novo (sem triagem)|https://instagram.com/tonhomateria||||||||||
 032ce7bfedb74d3a9b283af3cd2968c7|Tontom|||Novo (sem triagem)|https://www.instagram.com/tontommmmm/||||||||||
-3ee83bbf4e848121852af2cafc81a543|Tony Primo|Belo Horizonte/MG|MPB,Pop|Novo (sem triagem)|https://www.instagram.com/tonyprimo13/|https://open.spotify.com/artist/1bB80kIixMqub1jqLzOdSU?si=GqmKrGLeSJuqgrN8YXzhsA&utm_source=copy-link|https://www.youtube.com/@tonyprimo13|||||||Belo Horizonte|
+3ee83bbf4e848121852af2cafc81a543|Tony Primo|Belo Horizonte/MG|MPB,Pop|Novo (sem triagem)|https://www.instagram.com/tonyprimo13/|https://open.spotify.com/artist/1bB80kIixMqub1jqLzOdSU?si=GqmKrGLeSJuqgrN8YXzhsA&utm_source=copy-link|https://www.youtube.com/@tonyprimo13|||tony_primo||||Belo Horizonte|
 ccb63306a5b74a058d6ce72944b0f337|torimusica|Belo Horizonte/MG||Novo (sem triagem)|||||||||||
 8714e86ff0154294947f0c6953f9cd34|Totô de Babalong|||Novo (sem triagem)|||||||||||
 a75ca6d638494e86bed1d20466881b0e|Trajano|São Paulo/SP||Novo (sem triagem)|||||||||||
@@ -1090,7 +1090,7 @@ a75ca6d638494e86bed1d20466881b0e|Trajano|São Paulo/SP||Novo (sem triagem)||||||
 f2b13b4f46884874b427b6575be5be2d|Tuca Oliveira|||Novo (sem triagem)|https://www.instagram.com/tucaoliveiramusica/|||||||sim|2||
 0cb4edb3c3384c8489d725595f1fdf92|Tukum|||Aprovado (curadoria)|https://www.instagram.com/tukum_bando/|||||||||São Paulo|
 0f058031bfc649f68669a0ff027eb7da|Tukumã|||Novo (sem triagem)|||||||||||
-3bc83bbf4e8481528737d78d013f422f|Tulio Sergio|||Novo (sem triagem)||||https://www.deezer.com/artist/170173127|||||||
+3bc83bbf4e8481528737d78d013f422f|Tulio Sergio|||Novo (sem triagem)||||https://www.deezer.com/artist/170173127||tulio_sergio|||||
 ad2b021db25a41a1a0c3d2907a1d145a|Tulipa Ruiz|||Novo (sem triagem)|||||||||||
 e9e061dacabf4dfd8817539235924a94|Tunico|||Novo (sem triagem)|https://www.instagram.com/tunicosec/|https://open.spotify.com/artist/3woCu4DYIJdIzWMjx3qLUH||https://deezer.com/artist/191858037|||||||
 235d2b9ed877440798e647d702ff67db|Tuyo|São Paulo/SP, Curitiba/PR||Aprovado (curadoria)|https://www.instagram.com/oituyo/|||||||sim||São Paulo|
@@ -1099,7 +1099,7 @@ d1b1d3c1d62d44788922bb74c03fd810|Tv República|||Novo (sem triagem)|https://www.
 e974e595076d49e69fcb11381cb52baa|Tênison Del Rey|Salvador/BA||Novo (sem triagem)|https://instagram.com/tenisondelrey||||||||||
 f55a39d5409b4818913646391af86a9c|Tó Brandileone|||Novo (sem triagem)||||||||sim|||
 d9dfcc425086458e96d5451dfde4a691|Túlio|||Novo (sem triagem)|||||||||||
-3cf83bbf4e848145971cece1f3e53824|Túlio Fernandes|||Novo (sem triagem)||https://open.spotify.com/artist/7hAn2mTrh3XldmqRCBajMU||https://deezer.com/artist/51969462|||||||
+3cf83bbf4e848145971cece1f3e53824|Túlio Fernandes|||Novo (sem triagem)||https://open.spotify.com/artist/7hAn2mTrh3XldmqRCBajMU||https://deezer.com/artist/51969462||tulio_fernandes|||||
 3bc83bbf4e84813db0b2e1275f4b7a52|UauaJack|||Novo (sem triagem)||||https://www.deezer.com/artist/378903951||uauajack|||||
 05ff528195fd405c927f8e390e8e8a12|Una Sofía|Curitiba/PR||Novo (sem triagem)|||||||||||
 3e129f2c9109487185031177fd71c5b1|UNNA X|Belo Horizonte/MG||Novo (sem triagem)|https://www.instagram.com/unnaxoficial/||||||||||
@@ -1115,15 +1115,15 @@ ea2483a4fce7430fbc9ec3fccaa3519b|viajou.contou|Recife/PE||Novo (sem triagem)|htt
 36783bbf4e84810a983bff8df8fc56b6|Victor Camarote|Recife/PE|MPB,Pop,Alternativo|Novo (sem triagem)|https://www.instagram.com/victorcamarote/|https://open.spotify.com/artist/6C8Gj9sxBf33NMA5CJnk5Z||https://deezer.com/artist/11330834|||||||
 a2f8978ed36f43b59b25281b92e04f28|Victor Pradella|||Novo (sem triagem)|https://www.instagram.com/victorpradella/||||||||||
 c998034024264d7b95df06180344db4a|Vilmar da Lapinha|||Novo (sem triagem)|https://www.instagram.com/vilmardalapinha||||||||||
-3a083bbf4e8481fd99d4e6eb6f26bc45|Vini Nominato|Belo Horizonte/MG|Alternativo,Pop|Novo (sem triagem)|https://www.instagram.com/viniciusnominato/|https://open.spotify.com/artist/0rPGXXJixaNtWwP3OmGsDz|https://www.youtube.com/@vininominato|https://www.deezer.com/artist/246683862||||||Belo Horizonte|
+3a083bbf4e8481fd99d4e6eb6f26bc45|Vini Nominato|Belo Horizonte/MG|Alternativo,Pop|Novo (sem triagem)|https://www.instagram.com/viniciusnominato/|https://open.spotify.com/artist/0rPGXXJixaNtWwP3OmGsDz|https://www.youtube.com/@vininominato|https://www.deezer.com/artist/246683862||vini_nominato||||Belo Horizonte|
 fe28c98ed9f44615ad8d374448ca9c1a|vinicius barros|Recife/PE||Novo (sem triagem)|||||||||||
-3de83bbf4e84819a8e72e53f489ad756|Vinicius Lúcio|||Falta link / dados (completar)||||https://www.deezer.com/artist/208464577|||||||
+3de83bbf4e84819a8e72e53f489ad756|Vinicius Lúcio|||Falta link / dados (completar)||||https://www.deezer.com/artist/208464577||vinicius_lucio|||||
 0fa8279d82a640e38792dff30ee783c6|Vinijoe|||Novo (sem triagem)|https://www.instagram.com/_vinijoe/||||||||||
 923031a805ad4ba3889d30c74ff1def2|Viratempo|São Paulo/SP||Novo (sem triagem)|||||||||||
 1366c1fcf16e44cfbe07fe482a4a44ea|Vitor Santana|||Aprovado (curadoria)|https://www.instagram.com/vitorsantana.musica/|||||||||Belo Horizonte|
 feea2f57a7444be2ae168f09bd4bd3e5|Vitão|||Novo (sem triagem)|||||||||||
 7c21ff6c04bf46d9963d324f48be78e4|Vitória do Pife|||Novo (sem triagem)|https://www.instagram.com/vitoriadopife?igsh=MWpkaHNxZDQzb2h6NA==||||||||||
-3cf83bbf4e8481c2aae7cac6034cc633|Vivaz e o Canário|||Novo (sem triagem)||||https://www.deezer.com/artist/321653171|||||||
+3cf83bbf4e8481c2aae7cac6034cc633|Vivaz e o Canário|||Novo (sem triagem)||||https://www.deezer.com/artist/321653171||vivaz_e_o_canario|||||
 fdd051fb95ff4f6a94b563563462ba1e|vulgomatuto|São Paulo/SP||Novo (sem triagem)|||||||||||
 6204485104cb4334a701199a99ec437a|Warley Noua|||Novo (sem triagem)|https://www.instagram.com/warleynoua/|https://open.spotify.com/artist/6Y2kU28mKI5oIBwyraWn9z||https://deezer.com/artist/64364372|||||||
 37883bbf4e848171b27aec02b30ca259|William Graciano|Belo Horizonte/MG|MPB|Novo (sem triagem)|https://www.instagram.com/williamgracianooficial/|https://open.spotify.com/artist/2RiSr053AVtP7lFruNo5Lb|||||||||
@@ -1149,13 +1149,16 @@ d8fff6b87f044a8bba7ff899302747a4|Zai|||Novo (sem triagem)|||||||||||
 36083bbf4e848179835cd09df3083854|Zendo|São Lourenço da Mata/PE|Pop,Outro gênero musical|Novo (sem triagem)|https://www.instagram.com/euzendo/|https://open.spotify.com/artist/0Skk053T4ToK44sw09CPlI|||||||||
 d8e86a8665b44084b7392bd098504938|Zeni Ramos|Salvador/BA||Novo (sem triagem)|https://instagram.com/zeniramosoficial||||||||||
 187ba8d816b047b393d04fdafa173aab|Zimbra|||Novo (sem triagem)|||||||||||
-3a483bbf4e8481ebac35f581fb1b52aa|Zosia Gautier|Belo Horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/zosiagautier/|https://open.spotify.com/artist/0DJLUtpsKi6gos89N9gzDZ|https://www.youtube.com/@zosiagautier|||||||Belo Horizonte|
+3a483bbf4e8481ebac35f581fb1b52aa|Zosia Gautier|Belo Horizonte|MPB|Novo (sem triagem)|https://www.instagram.com/zosiagautier/|https://open.spotify.com/artist/0DJLUtpsKi6gos89N9gzDZ|https://www.youtube.com/@zosiagautier|||zosia_gautier||||Belo Horizonte|
 ff479000a6874b688e1de60d869ea98f|Zé Ibarra|Salvador/BA||Novo (sem triagem)||||||||sim|||
 b0081186e7e543ac8fd9702845befe61|Zé Manoel|||Novo (sem triagem)|https://www.instagram.com/ze_manoel/|https://open.spotify.com/artist/6V29laIlmBaFnxF9uDvZvH|https://youtube.com/channel/UCZZ0HpfOeDHzi37heKtxIXw|https://deezer.com/artist/4397342|||||||
 483d41c36d4747b8afa6c3a88c15ea5c|Zé Ramalho|||Novo (sem triagem)|||||||||||
 e00c8eb8e76c4cc0a5352f069e4a83ee|Zélia Duncan|||Novo (sem triagem)||||||||sim|||
 7347f1d7103a45a6a396bc9d3347f7e5|ZéVitor|São Paulo/SP||Novo (sem triagem)|https://www.instagram.com/zevitorantunes/|https://open.spotify.com/artist/1WNEynd3mjWx1DZByqbLq4|https://youtube.com/channel/UCwCoduJ5nkK02kq6wR46RLg|https://deezer.com/artist/13710055|||||||
 fd2f97be1b3c4ce292e9e864ef57868c|ZéVitor|||Falta link / dados (completar)|||||||||||
-37c83bbf4e848183b270ff4b1b254e40|Álisson Alves|Belo Horizonte/MG|MPB|Não seguiu na curadoria|https://www.instagram.com/alisson2al/|https://open.spotify.com/artist/6jlD1RnM5W06mlCF4a1BMB|https://www.youtube.com/@alissonalves9311|https://www.deezer.com/artist/98312802||||||Belo Horizonte|
+37c83bbf4e848183b270ff4b1b254e40|Álisson Alves|Belo Horizonte/MG|MPB|Não seguiu na curadoria|https://www.instagram.com/alisson2al/|https://open.spotify.com/artist/6jlD1RnM5W06mlCF4a1BMB|https://www.youtube.com/@alissonalves9311|https://www.deezer.com/artist/98312802||alisson_alves||||Belo Horizonte|
 bf0e42736094485c9a613851cab9053c|Ímã de nove pontas|||Novo (sem triagem)|https://www.instagram.com/imadenovepontas/||||||||||
 8ca85abc45794a259ba38413d8801bff|Ítallo|||Novo (sem triagem)|https://www.instagram.com/itallofranca/|https://open.spotify.com/artist/3Z8iiGCNdH9SM2dxr0WZp9|https://youtube.com/channel/UCtd0-Oj0DSB531QDPq6uo6Q|https://deezer.com/artist/11204820|||||||
+c5783bbf4e84835a821e81bc4a235d38|Day Limns|||Novo (sem triagem)|https://www.instagram.com/daylimns|https://open.spotify.com/artist/1x1qM3ZqHhJOn11m42svnc|||||||||
+42183bbf4e8481d7a139da618b676f9a|Danillo Alves|São Paulo/SP|Alternativo|Novo (sem triagem)|https://www.instagram.com/danillo1227_/|https://open.spotify.com/artist/2nFAqHXHxqXQ2TBY6s5jZn|https://www.youtube.com/@danillo1227_|||danillo_alves||||São Paulo|
+07183bbf4e848251a5e4016bb65865af|Analu|||Novo (sem triagem)|https://www.instagram.com/analuartx/|https://open.spotify.com/artist/6O7SmUBylp6ZvR9oJ7rNQW|||||||||
