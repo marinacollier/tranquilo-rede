@@ -4224,7 +4224,8 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         [(m) => m.naoFeitos.length > 0, "Registrar o que fez: o que não é marcado parece não feito. Pedir que marque o Feito na hora (ou anexe o print) protege o trabalho dela.", "Marque o Feito na hora (ou anexe o print): o que não é marcado parece não feito, e o registro protege o seu trabalho."],
       ],
       pergunta: "O que mais te atrapalha para fechar uma etapa completa antes de passar para a próxima?" },
-    marketing: { pessoa: "Bruno", estrategico: "Dono dos sistemas de marketing e da estratégia de marca: modelos de campanha, briefings e automações com IA, com a execução nas casas e nos artistas.",
+    // Bruno (visão do Thales, 06/11/2026): marketing vira inteligência de demanda, não social media das casas.
+    marketing: { pessoa: "Bruno", estrategico: "Inteligência de demanda: campanhas prontas dia a dia (flyer e legenda) que a casa e o artista só postam, e os dados de venda para saber onde reforçar. Não fazer o social media das casas.",
       forca: "Organizado e bom em transformar processo em sistema automatizado com IA.",
       passos: [
         [(m) => m.pctFechadas != null && m.pctFechadas < 100, "Rotina de fechamento: toda segunda, abrir \"Acompanhar até o fim\" e, para cada data da semana anterior, fechar ou cobrar o que ficou aberto. Liderança é levar até o fim, não só começar.", "Toda segunda, abra \"Acompanhar até o fim\" no Para você e feche ou cobre o que ficou aberto nas datas da semana anterior."],
@@ -4232,13 +4233,14 @@ if(h.charAt(0)==="#"){e.preventDefault();var id=decodeURIComponent(h.slice(1)),e
         [(m) => m.atrasadosAgora.length > 0, "Usar as cobranças prontas do SOS (WhatsApp com a mensagem pronta) assim que algo atrasar, em vez de esperar o fim da campanha.", "Use a cobrança pronta do SOS assim que algo atrasar: um toque no WhatsApp e a mensagem já vai escrita."],
       ],
       pergunta: "Onde você sente que perde o fio de uma entrega depois de passar para a casa ou para o artista?" },
-    operacoes: { pessoa: "Gui", estrategico: "Expansão da rede: abrir e treinar casas novas e cuidar da experiência das que já estão, com a parte repetitiva no portal.",
-      forca: "Conduz a casa da Ficha até a noite.",
+    // Gui (reuniões de 27/10 e 05/11/2026): olhar de recém-chegado, transformou 50+ itens em 2 documentos e desenhou a jornada de 7 dias.
+    operacoes: { pessoa: "Gui", estrategico: "Dono da jornada da casa e da expansão da rede: habilitar casas novas no padrão que ele mesmo desenhou, com o repetitivo (cobranças, conferências, fichas) no portal.",
+      forca: "Estrutura e simplifica: transformou mais de 50 links e arquivos em 2 documentos e desenhou a jornada de 7 dias da casa.",
       passos: [
         [(m) => m.pctPrazo != null && m.pctPrazo < 80, "Antecipar os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS.", "Antecipe os prazos da casa: equipe completa e contrato assinado antes do D-10, com a cobrança pronta do SOS."],
         [(m) => m.naoFeitos.length > 0, "Registrar o fechamento (D+2) de cada noite: é o que dá dado para decidir onde abrir mais datas.", "Registre o fechamento (D+2) de cada noite: é o que mostra onde vale abrir mais datas."],
       ],
-      pergunta: "Qual etapa com a casa mais toma o seu tempo e poderia ser feita pela própria casa no portal?" },
+      pergunta: "Qual parte da jornada de 7 dias ainda depende de você mandar algo à mão e poderia sair sozinha do portal?" },
   };
   function evolucaoPapel(m, voce = false) {
     const ev = EVOLUIR[m.papel]; if (!ev) return "";
